@@ -6,11 +6,16 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path) =>
   readFileSync(resolve(root, path), "utf8").replaceAll("\r\n", "\n");
+/*
+  해시를 내기 전에 줄바꿈을 맞춥니다.
+
+  윈도우에서 저장소를 받으면 git이 줄바꿈을 CRLF로 바꿔 놓습니다. 내용은 한
+  글자도 다르지 않은데 파일을 통째로 바이트로 읽어 해시를 내면 값이 달라져,
+  멀쩡한 파일이 "원본과 다르다"고 걸립니다. 실제로 이 검사는 윈도우에서 첫
+  항목부터 실패했습니다. read()가 쓰는 것과 같은 기준으로 맞춰 둡니다.
+*/
 const digest = (path) =>
-  createHash("sha256")
-    .update(readFileSync(resolve(root, path)))
-    .digest("hex")
-    .toUpperCase();
+  createHash("sha256").update(read(path), "utf8").digest("hex").toUpperCase();
 
 function sliceBetween(text, start, end) {
   const startIndex = text.indexOf(start);
@@ -69,8 +74,18 @@ assert.equal(
   "validation_responses schema changed during extraction",
 );
 
+/*
+  떼어 온 5·6부 JSX는 `handoff/extracted-step5-step6.tsx.txt`에 그대로 둡니다.
+
+  원래는 `app/BudgetGame.tsx`였는데, 그 파일은 화면이 쓰는 부품(선택지를
+  뒤집는 함수, 분야 이름표 등)이 빠진 조각이라 그대로는 컴파일되지 않습니다.
+  그래서 타입 검사에서 파일 하나를 통째로 빼 두는 설정이 붙어 있었습니다.
+  검사에서 빼는 대신 실행 대상 밖으로 옮겼습니다. 내용은 한 글자도 바꾸지
+  않았고, 아래 대조도 계속 돕니다. 실제로 돌아가는 화면은 SurveyApp.tsx에
+  새로 짰습니다.
+*/
 const sourceBudgetGame = read("handoff/locked/BudgetGame.tsx.txt");
-const targetBudgetGame = read("app/BudgetGame.tsx");
+const targetBudgetGame = read("handoff/extracted-step5-step6.tsx.txt");
 assert.equal(
   sliceBetween(sourceBudgetGame, "function SurveyQuestionCard", "type BudgetCatalogResult"),
   sliceBetween(targetBudgetGame, "function SurveyQuestionCard", "export default function BudgetGame"),
