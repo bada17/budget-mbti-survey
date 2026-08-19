@@ -30,10 +30,17 @@ test("첫 화면이 설문 시작 화면으로 뜬다", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>예산 성향 설문<\/title>/);
-  assert.match(html, /어떻게 쓰는 사람입니까/);
-  // 문항 수는 React가 `15<!-- -->문항`처럼 주석을 끼워 넣으므로 안내 문구로 봅니다.
-  assert.match(html, /15개 질문, 2분이면 끝납니다/);
+  assert.match(html, /어떻게 쓰는 사람일까요/);
   assert.match(html, /시작하기/);
+  assert.match(html, /이름도 이메일도 묻지 않습니다/);
+
+  /*
+    첫 화면에 질문이 미리 보이면 안 됩니다. 한 문항씩 넘기는 화면인데 소스에
+    열다섯 개가 다 들어 있으면, 스크롤이나 브라우저 찾기로 앞질러 볼 수 있고
+    무엇보다 "한 문항씩"이 무너진 것입니다.
+  */
+  assert.doesNotMatch(html, /정부 예산에 여유가 생겼습니다/);
+  assert.doesNotMatch(html, /세금이 1조 원 더 걷혔습니다/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
 });
 

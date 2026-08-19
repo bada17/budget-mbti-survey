@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -25,6 +24,7 @@ import {
   shouldSwapSurveyOptions,
   type SurveyTiming,
 } from "./survey-response";
+import { neighbourTypes, oppositeType, type TypeCode } from "./type-match";
 
 /*
   분야 이름표는 문항 카드 머리에만 씁니다.
@@ -56,12 +56,11 @@ const FIELD_NAMES: Record<string, string> = {
   세션 아이디는 브라우저에서만 만듭니다.
 
   서버가 미리 만들어 두면 서버가 그린 화면과 브라우저가 그린 화면이 달라져
-  한 번 튑니다. 그래서 서버 쪽에는 빈 값을 주고(아래 useSyncExternalStore의
-  세 번째 인자), 브라우저에서 처음 물어볼 때 한 번만 만들어 계속 씁니다.
+  한 번 튑니다. 그래서 서버 쪽에는 빈 값을 주고(useSyncExternalStore의 세
+  번째 인자), 브라우저에서 처음 물어볼 때 한 번만 만들어 계속 씁니다.
 
   다시 하기를 누르면 새로 발급합니다. 세션이 그대로면 선택지 좌우 배치도
-  그대로라, 두 번째 시도에서 아까 본 것과 똑같은 화면을 마주하게 됩니다.
-  같은 배치를 다시 보면 앞서 누른 자리가 기억나 그대로 따라 누르기 쉽습니다.
+  그대로라, 두 번째 시도에서 아까 누른 자리를 그대로 따라 누르게 됩니다.
 */
 let clientSessionId = "";
 const sessionListeners = new Set<() => void>();
@@ -90,112 +89,145 @@ function axisSide(score: number, axis: (typeof AXES)[number]) {
   return score >= 0 ? axis.positive : axis.negative;
 }
 
-function describeAxisScore(score: number, axis: (typeof AXES)[number]) {
-  if (Math.abs(score) < 0.05) return "가운데 0";
-  return `${axisSide(score, axis)} ${Math.round(Math.abs(score) * 10) / 10}`;
-}
+/*
+  6점 척도를 두 번에 나눠 묻습니다.
 
-function SurveyQuestionCard({
+  점수는 그대로 1~6으로 남습니다. 다만 한 번에 여섯 개 중 하나를 고르라고
+  하면, 왼쪽 글과 오른쪽 글을 읽고 → 어느 쪽인지 정하고 → 얼마나인지 정하고
+  → 그걸 숫자로 환산하는 네 단계를 머릿속에서 해야 합니다. 편을 먼저 고르게
+  하고 세기를 따로 물으면 같은 답을 두 번의 가벼운 선택으로 얻습니다.
+
+  가운데가 없는 것은 그대로입니다. 어느 쪽도 아니라고 답할 수 있게 하면
+  그 답이 쌓여 아무것도 읽어낼 수 없게 됩니다.
+*/
+const INTENSITY_STEPS = [
+  { label: "조금", nearer: 3 },
+  { label: "많이", nearer: 2 },
+  { label: "훨씬", nearer: 1 },
+] as const;
+
+/** 왼쪽을 골랐으면 1~3, 오른쪽을 골랐으면 4~6이 됩니다(화면 기준). */
+const displayValueFor = (side: "left" | "right", nearer: number) =>
+  side === "left" ? nearer : 7 - nearer;
+
+function QuestionCard({
   question,
   index,
+  total,
   sessionId,
   answer,
   onAnswer,
-  onVisible,
 }: {
   question: SurveyQuestion;
   index: number;
+  total: number;
   sessionId: string;
   answer: number | undefined;
   onAnswer: (value: number) => void;
-  onVisible: () => void;
 }) {
-  const cardRef = useRef<HTMLElement>(null);
-  const visibilityRecorded = useRef(false);
   const swapped = shouldSwapSurveyOptions(sessionId, question.id);
   const leftOption = swapped ? question.optionB : question.optionA;
   const rightOption = swapped ? question.optionA : question.optionB;
   const displayedAnswer =
     answer === undefined ? undefined : swapped ? 7 - answer : answer;
-  const fieldName = question.fieldId
-    ? FIELD_NAMES[question.fieldId]
-    : "모두에게 묻는 공통 질문";
 
-  useEffect(() => {
-    const card = cardRef.current;
-    if (!card || visibilityRecorded.current) return;
-    if (!("IntersectionObserver" in window)) {
-      visibilityRecorded.current = true;
-      onVisible();
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting || visibilityRecorded.current) return;
-        visibilityRecorded.current = true;
-        onVisible();
-        observer.disconnect();
-      },
-      { threshold: 0.25 },
-    );
-    observer.observe(card);
-    return () => observer.disconnect();
-  }, [onVisible]);
+  /** 편만 고르고 아직 세기를 안 고른 상태. */
+  const [pendingSide, setPendingSide] = useState<"left" | "right" | null>(null);
+  const answeredSide =
+    displayedAnswer === undefined
+      ? null
+      : displayedAnswer <= 3
+        ? ("left" as const)
+        : ("right" as const);
+  const side = pendingSide ?? answeredSide;
+
+  const fieldName = question.fieldId ? FIELD_NAMES[question.fieldId] : null;
+
+  const chooseSide = (next: "left" | "right") => {
+    setPendingSide(next);
+  };
+
+  const chooseIntensity = (nearer: number) => {
+    if (!side) return;
+    const display = displayValueFor(side, nearer);
+    setPendingSide(null);
+    onAnswer(swapped ? 7 - display : display);
+  };
+
+  const chosenNearer =
+    displayedAnswer === undefined
+      ? null
+      : displayedAnswer <= 3
+        ? displayedAnswer
+        : 7 - displayedAnswer;
 
   return (
-    <article
-      ref={cardRef}
-      className={`survey-question-card ${answer !== undefined ? "is-answered" : ""}`}
-      id={`survey-question-${question.id}`}
-    >
-      <header>
-        <span>{String(index + 1).padStart(2, "0")}</span>
-        <div>
-          <small>{fieldName}</small>
-          <h2>{question.prompt}</h2>
-        </div>
+    <article className="quiz-card">
+      <header className="quiz-card-head">
+        <span className="quiz-count">
+          {index + 1} <i>/ {total}</i>
+        </span>
+        {fieldName && <span className="quiz-field">{fieldName}</span>}
       </header>
-      <div className="survey-option-poles">
-        <div>
-          <span>왼쪽 선택</span>
-          <strong>{leftOption.text}</strong>
-          {leftOption.group && <small>{leftOption.group}</small>}
-        </div>
-        <div>
-          <span>오른쪽 선택</span>
-          <strong>{rightOption.text}</strong>
-          {rightOption.group && <small>{rightOption.group}</small>}
-        </div>
+
+      <h1 className="quiz-prompt">{question.prompt}</h1>
+
+      <div className="quiz-options" role="group" aria-label="선택지">
+        {(["left", "right"] as const).map((position) => {
+          const option = position === "left" ? leftOption : rightOption;
+          return (
+            <button
+              type="button"
+              key={position}
+              className={`quiz-option ${side === position ? "is-picked" : ""} ${
+                side && side !== position ? "is-dimmed" : ""
+              }`}
+              onClick={() => chooseSide(position)}
+              aria-pressed={side === position}
+            >
+              <strong>{option.text}</strong>
+              {option.group && <small>{option.group}</small>}
+            </button>
+          );
+        })}
       </div>
-      <div
-        className="likert-scale"
-        role="radiogroup"
-        aria-label={`${question.prompt} 응답`}
-      >
-        <small>왼쪽에 가까움</small>
-        {[1, 2, 3, 4, 5, 6].map((value) => (
-          <button
-            type="button"
-            key={value}
-            className={displayedAnswer === value ? "is-selected" : ""}
-            onClick={() => onAnswer(swapped ? 7 - value : value)}
-            role="radio"
-            aria-checked={displayedAnswer === value}
-            aria-label={`${value}점`}
-          >
-            {value}
-          </button>
-        ))}
-        <small>오른쪽에 가까움</small>
-      </div>
+
+      {/*
+        편을 고르기 전에는 세기를 묻지 않습니다. 두 줄이 한꺼번에 뜨면
+        여섯 개 중 하나를 고르는 것과 같아져서, 나눈 의미가 없어집니다.
+      */}
+      {side && (
+        <div className="quiz-intensity">
+          <span className="quiz-intensity-label">얼마나 그런가요?</span>
+          <div role="group" aria-label="선택의 세기">
+            {INTENSITY_STEPS.map((step) => (
+              <button
+                type="button"
+                key={step.label}
+                className={
+                  chosenNearer === step.nearer && !pendingSide
+                    ? "is-selected"
+                    : ""
+                }
+                onClick={() => chooseIntensity(step.nearer)}
+              >
+                {step.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </article>
   );
 }
 
 export default function SurveyApp() {
-  const [step, setStep] = useState<"intro" | "survey" | "result">("intro");
+  const [step, setStep] = useState<"intro" | "quiz" | "result">("intro");
+  const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<SurveyAnswers>({});
   const [timing, setTiming] = useState<SurveyTiming>({});
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const shownAt = useRef<number>(0);
 
   const questions = useMemo(() => getFixedSurveyQuestions(), []);
 
@@ -205,26 +237,28 @@ export default function SurveyApp() {
     () => "",
   );
 
-  const recordVisible = useCallback((questionId: string) => {
-    setTiming((current) =>
-      current[questionId]
-        ? current
-        : { ...current, [questionId]: { firstVisibleAt: Date.now() } },
-    );
-  }, []);
+  const current = questions[index];
 
-  const answerQuestion = useCallback((questionId: string, value: number) => {
-    const answeredAt = Date.now();
-    setAnswers((current) => ({ ...current, [questionId]: value }));
-    setTiming((current) => {
-      const entry = current[questionId];
-      if (!entry || entry.firstAnsweredAt) return current;
-      return {
-        ...current,
-        [questionId]: { ...entry, firstAnsweredAt: answeredAt },
-      };
-    });
-  }, []);
+  const answerQuestion = useCallback(
+    (questionId: string, value: number) => {
+      const answeredAt = Date.now();
+      setAnswers((existing) => ({ ...existing, [questionId]: value }));
+      setTiming((existing) =>
+        existing[questionId]
+          ? existing
+          : {
+              ...existing,
+              [questionId]: {
+                firstVisibleAt: shownAt.current || answeredAt,
+                firstAnsweredAt: answeredAt,
+              },
+            },
+      );
+      shownAt.current = answeredAt;
+      setIndex((at) => Math.min(at + 1, questions.length));
+    },
+    [questions.length],
+  );
 
   const answeredCount = questions.filter(
     (question) => answers[question.id] !== undefined,
@@ -240,18 +274,14 @@ export default function SurveyApp() {
     [surveyScores],
   );
   const resultHighlight = TYPE_HIGHLIGHTS[scoreResult.code];
-  const resultKeywords = AXES.map((axis) =>
-    axisSide(scoreResult.score[axis.key], axis),
+  const opposite = useMemo(
+    () => oppositeType(scoreResult.code as TypeCode),
+    [scoreResult.code],
   );
-  const axisStrengths = AXES.map((axis) =>
-    readAxisStrength(scoreResult.score[axis.key]),
+  const neighbours = useMemo(
+    () => neighbourTypes(scoreResult.code as TypeCode),
+    [scoreResult.code],
   );
-  const clearAxisCount = axisStrengths.filter(
-    (strength) => strength === "clear",
-  ).length;
-  const evenAxisCount = axisStrengths.filter(
-    (strength) => strength === "even",
-  ).length;
 
   /*
     보낼 준비가 끝난 응답. 아직 보내지는 않습니다.
@@ -271,12 +301,14 @@ export default function SurveyApp() {
     surveyDatasetVersion: string;
   } | null>(null);
 
-  const startSurvey = () => {
-    setStep("survey");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const startQuiz = () => {
+    shownAt.current = Date.now();
+    setIndex(0);
+    setStep("quiz");
+    window.scrollTo({ top: 0 });
   };
 
-  const finishSurvey = () => {
+  const showResult = () => {
     if (!complete) return;
     pendingSubmission.current = {
       sessionId,
@@ -299,271 +331,199 @@ export default function SurveyApp() {
       검증하므로 그대로는 못 씁니다. 그 검증을 걷어내는 것이 다음 작업입니다.
     */
     setStep("result");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0 });
+  };
+
+  const goBack = () => {
+    setIndex((at) => Math.max(0, at - 1));
+    shownAt.current = Date.now();
   };
 
   const restart = () => {
     setAnswers({});
     setTiming({});
+    setIndex(0);
+    setDetailsOpen(false);
     pendingSubmission.current = null;
     startNewSession();
     setStep("intro");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0 });
   };
 
   if (step === "intro") {
     return (
-      <main className="game-shell">
-        <section className="stage validation-stage">
-          <div className="validation-heading">
-            <div>
-              <h1>
-                당신은 예산을
-                <br />
-                어떻게 쓰는 사람입니까?
-              </h1>
-            </div>
-            <div className="validation-explainer">
-              <b>15개 질문, 2분이면 끝납니다.</b>
-              <p>
-                정답이 있는 질문은 하나도 없습니다. 나라 살림에서 무엇을 먼저
-                할지 고르다 보면, 당신이 예산을 보는 세 가지 기준이 드러납니다.
-              </p>
-            </div>
-          </div>
-
-          <div className="action-dock validation-dock">
-            <div>
-              <span>문항</span>
-              <strong>{questions.length}문항</strong>
-            </div>
-            <div className="survey-dock-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={startSurvey}
-              >
-                시작하기
-                <span aria-hidden="true">→</span>
-              </button>
-            </div>
-          </div>
+      <main className="quiz-shell">
+        <section className="quiz-intro">
+          <span className="quiz-kicker">예산 성향 테스트</span>
+          <h1>
+            당신은 나라 살림을
+            <br />
+            어떻게 쓰는 사람일까요?
+          </h1>
+          <p>
+            정답이 있는 질문은 하나도 없습니다. {questions.length}개 질문에
+            답하다 보면 당신이 예산을 보는 세 가지 기준이 드러납니다.
+          </p>
+          <button type="button" className="quiz-primary" onClick={startQuiz}>
+            시작하기
+          </button>
+          <small className="quiz-note">
+            약 2분 · 이름도 이메일도 묻지 않습니다
+          </small>
         </section>
       </main>
     );
   }
 
-  if (step === "survey") {
+  if (step === "quiz") {
+    const progress = (answeredCount / questions.length) * 100;
     return (
-      <main className="game-shell">
-        <section className="stage validation-stage">
-          <div className="validation-heading">
-            <div>
-              <h1>
-                질문을 천천히 읽고
-                <br />
-                한 번에 답해주세요.
-              </h1>
-            </div>
-            <div className="validation-explainer">
-              <b>1부터 6까지, 더 가까운 쪽을 골라주세요.</b>
-              <p>
-                가운데 선택지가 없는 6점 척도입니다. 어느 쪽도 아니라고 답할 수
-                없게 한 것은, 애매한 답이 쌓이면 아무것도 읽어낼 수 없기
-                때문입니다.
-              </p>
-            </div>
-          </div>
+      <main className="quiz-shell">
+        <div className="quiz-progress" aria-hidden="true">
+          <i style={{ width: `${progress}%` }} />
+        </div>
 
-          <div className="validation-progress">
-            <span>응답 완료</span>
-            <strong>
-              {answeredCount} / {questions.length}
-            </strong>
-            <i>
-              <em
-                style={{
-                  width: `${(answeredCount / questions.length) * 100}%`,
-                }}
-              />
-            </i>
-          </div>
+        {current ? (
+          <QuestionCard
+            /*
+              key에 문항 id를 두는 이유: 다음 문항으로 넘어갈 때 카드 안의
+              "편만 고른 상태"가 남아 있으면, 새 질문에 이미 한쪽이 눌린
+              것처럼 보입니다.
+            */
+            key={current.id}
+            question={current}
+            index={index}
+            total={questions.length}
+            sessionId={sessionId}
+            answer={answers[current.id]}
+            onAnswer={(value) => answerQuestion(current.id, value)}
+          />
+        ) : (
+          <section className="quiz-done">
+            <h1>{questions.length}개 질문에 모두 답했습니다.</h1>
+            <p>이제 당신의 예산 성향을 볼 차례입니다.</p>
+            <button type="button" className="quiz-primary" onClick={showResult}>
+              결과 보기
+            </button>
+          </section>
+        )}
 
-          <div className="validation-questions">
-            {questions.map((question, index) => (
-              <SurveyQuestionCard
-                key={question.id}
-                question={question}
-                index={index}
-                sessionId={sessionId}
-                answer={answers[question.id]}
-                onVisible={() => recordVisible(question.id)}
-                onAnswer={(value) => answerQuestion(question.id, value)}
-              />
-            ))}
-          </div>
-
-          <div className="action-dock validation-dock">
-            <div>
-              <span>전체 응답</span>
-              <strong>
-                {complete
-                  ? `${questions.length}문항 완료`
-                  : `${questions.length - answeredCount}문항 남음`}
-              </strong>
-            </div>
-            <div className="survey-dock-actions">
-              <button
-                type="button"
-                className="primary-button"
-                disabled={!complete}
-                onClick={finishSurvey}
-              >
-                {complete ? "결과 보기" : "모든 질문에 답해주세요"}
-                <span aria-hidden="true">→</span>
-              </button>
-            </div>
-          </div>
-        </section>
+        <div className="quiz-foot">
+          {index > 0 && (
+            <button type="button" className="quiz-back" onClick={goBack}>
+              ← 이전 질문
+            </button>
+          )}
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="game-shell">
-      <section className={`result-screen result-type-${scoreResult.code}`}>
-        <div className="result-halo halo-left" />
-        <div className="result-halo halo-right" />
-        <div className="result-topline">
-          <span className="wordmark light">
-            <span className="wordmark-dot" />
-            예산 성향 설문
-          </span>
-          <span>SCORING · {SCORING_VERSION.toUpperCase()}</span>
+    <main className="quiz-shell">
+      <section className="type-card">
+        <span className="quiz-kicker">당신의 예산 성향</span>
+        <div className="type-symbol" aria-hidden="true">
+          {resultHighlight.symbol}
         </div>
-
-        <div className="result-main">
-          <span className="result-for">당신의 예산 성향 유형</span>
-          <div className="result-code">{scoreResult.code}</div>
-          <h1>{scoreResult.type.nickname}</h1>
-          <p>{scoreResult.type.description}</p>
-          <div className="result-personality-line">
-            <span aria-hidden="true">{resultHighlight.symbol}</span>
-            <strong>{resultHighlight.line}</strong>
-          </div>
-          <div className="result-label">{scoreResult.type.label}</div>
-          <div className="result-keywords" aria-label="나의 핵심 예산 성향">
-            {resultKeywords.map((keyword) => (
-              <span key={keyword}>{keyword}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="result-card-grid">
-          <article className="axis-card">
-            <span className="card-eyebrow">당신의 세 가지 기준</span>
-            <div className="axis-list">
-              {AXES.map((axis) => {
-                const raw = scoreResult.score[axis.key];
-                const position = Math.max(4, Math.min(96, 50 + raw / 2));
-                const strength = readAxisStrength(raw);
-                return (
-                  <div className="axis-row" key={axis.key}>
-                    <div className="axis-labels">
-                      <span className={raw < 0 ? "is-strong" : ""}>
-                        {axis.negative}
-                      </span>
-                      <strong>
-                        {strength === "even"
-                          ? "반반"
-                          : `${raw >= 0 ? axis.positive : axis.negative} ${Math.round(Math.abs(raw))}`}
-                      </strong>
-                      <span className={raw >= 0 ? "is-strong" : ""}>
-                        {axis.positive}
-                      </span>
-                    </div>
-                    <div className="axis-track">
-                      <i />
-                      <b style={{ left: `${position}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </article>
-
-          <article className="story-card">
-            <span className="card-eyebrow">이번 판정이 만들어진 방식</span>
-            <ol>
-              <li>
-                <span>자료</span>
-                <p>
-                  모두에게 동일한{" "}
-                  <strong>{questions.length}개 설문 응답</strong>만
-                  사용했습니다.
-                </p>
-              </li>
-              <li>
-                <span>기준</span>
-                <p>
-                  참여자 분포로 줄을 세우지 않습니다. 기준선은 <strong>0에
-                  고정</strong>이라 어제 받은 결과가 오늘 달라지지 않습니다.
-                </p>
-              </li>
-              <li>
-                <span>결과</span>
-                <p>
-                  세 가치축으로 환산해 <strong>{scoreResult.code}</strong> 유형을
-                  찾았습니다.
-                </p>
-              </li>
-            </ol>
-          </article>
-        </div>
-
-        {/*
-          숫자보다 축별 이야기를 앞에 둡니다. "신뢰도 24"는 그 자체로 아무
-          뜻이 아니고, 어느 축이 뚜렷하고 어느 축이 반반이었는지가 실제로
-          읽을 수 있는 정보입니다. 기준은 survey-response.ts에 근거와 함께
-          적어 두었습니다.
-        */}
-        <div className="confidence-pill">
-          판정 신뢰도 <strong>{scoreResult.confidence}</strong>
-          <span>
-            {clearAxisCount === 3
-              ? "세 축 모두 방향이 뚜렷합니다"
-              : clearAxisCount > 0
-                ? `${clearAxisCount}개 축은 뚜렷하고, 나머지는 가운데에 가깝습니다`
-                : evenAxisCount === 3
-                  ? "세 축 모두 가운데에 가깝습니다. 유형 경계에 있는 결과입니다"
-                  : "어느 축도 강하게 기울지 않았습니다"}
-          </span>
-        </div>
-
-        <article className="validation-result-card">
-          <div>
-            <span>설문 기반 세 가치축</span>
-            <strong>100%</strong>
-            <p>아래 점수는 오직 설문 응답으로만 계산됩니다.</p>
-          </div>
-          <div className="validation-axis-compare">
-            {AXES.map((axis) => (
-              <div key={axis.key}>
-                <span>
-                  {axis.negative} ↔ {axis.positive}
-                </span>
-                <b>설문 {describeAxisScore(scoreResult.score[axis.key], axis)} / 100</b>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <div className="result-actions">
-          <button type="button" className="restart-button" onClick={restart}>
-            다시 해보기
-          </button>
+        <h1 className="type-name">{scoreResult.type.nickname}</h1>
+        <p className="type-line">{resultHighlight.line}</p>
+        <p className="type-desc">{scoreResult.type.description}</p>
+        <div className="type-keywords">
+          {AXES.map((axis) => (
+            <span key={axis.key}>
+              {axisSide(scoreResult.score[axis.key], axis)}
+            </span>
+          ))}
         </div>
       </section>
+
+      <section className="match-grid">
+        <article className="match-card is-opposite">
+          <span className="match-eyebrow">예산을 두고 부딪히는 유형</span>
+          <strong>{opposite.type.nickname}</strong>
+          <p>세 가지 기준이 모두 반대입니다.</p>
+        </article>
+        <article className="match-card">
+          <span className="match-eyebrow">말이 잘 통할 유형</span>
+          <ul>
+            {neighbours.map((neighbour) => (
+              <li key={neighbour.code}>
+                <b>{neighbour.type.nickname}</b>
+                <small>
+                  {neighbour.mine} 대신 {neighbour.theirs}
+                </small>
+              </li>
+            ))}
+          </ul>
+          <p>딱 한 가지 기준만 갈립니다.</p>
+        </article>
+      </section>
+
+      {/*
+        코드와 점수는 접어 둡니다. 궁금한 사람만 열어 보면 되는 것이지,
+        결과를 받자마자 마주할 것은 아닙니다.
+      */}
+      <details
+        className="type-details"
+        open={detailsOpen}
+        onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+      >
+        <summary>점수와 판정 방법 보기</summary>
+        <div className="type-details-body">
+          <div className="type-axes">
+            {AXES.map((axis) => {
+              const raw = scoreResult.score[axis.key];
+              const strength = readAxisStrength(raw);
+              const position = Math.max(4, Math.min(96, 50 + raw / 2));
+              return (
+                <div className="type-axis" key={axis.key}>
+                  <div className="type-axis-labels">
+                    <span className={raw < 0 ? "is-strong" : ""}>
+                      {axis.negative}
+                    </span>
+                    <b>
+                      {strength === "even"
+                        ? "반반"
+                        : `${axisSide(raw, axis)} ${Math.round(Math.abs(raw))}`}
+                    </b>
+                    <span className={raw >= 0 ? "is-strong" : ""}>
+                      {axis.positive}
+                    </span>
+                  </div>
+                  <div className="type-axis-track">
+                    <i style={{ left: `${position}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <dl className="type-facts">
+            <div>
+              <dt>유형 코드</dt>
+              <dd>{scoreResult.code}</dd>
+            </div>
+            <div>
+              <dt>쓴 문항</dt>
+              <dd>{questions.length}개 (모두에게 같음)</dd>
+            </div>
+            <div>
+              <dt>판정 기준</dt>
+              <dd>가운데 0 고정 · 참여자 분포를 보지 않음</dd>
+            </div>
+            <div>
+              <dt>판정식</dt>
+              <dd>{SCORING_VERSION}</dd>
+            </div>
+          </dl>
+        </div>
+      </details>
+
+      <div className="quiz-foot">
+        <button type="button" className="quiz-back" onClick={restart}>
+          다시 해보기
+        </button>
+      </div>
     </main>
   );
 }
