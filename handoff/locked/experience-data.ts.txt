@@ -1,0 +1,252 @@
+import type { AxisKey, BudgetProgram } from "./budget-data";
+
+export const PRIORITY_OPTIONS = [
+  {
+    id: "future",
+    label: "미래세대에 투자",
+    description: "당장의 효과보다 다음 세대의 기회를 키운다",
+  },
+  {
+    id: "present",
+    label: "지금의 어려움 해결",
+    description: "오늘 체감할 수 있는 문제부터 해결한다",
+  },
+  {
+    id: "universal",
+    label: "모두에게 넓게",
+    description: "가능한 많은 사람이 혜택을 누리게 한다",
+  },
+  {
+    id: "targeted",
+    label: "필요한 곳에 집중",
+    description: "가장 절실하거나 효과가 큰 곳을 먼저 돕는다",
+  },
+  {
+    id: "growth",
+    label: "경제활력 우선",
+    description: "성장과 일자리로 더 큰 재원을 만든다",
+  },
+  {
+    id: "distribution",
+    label: "안전망 우선",
+    description: "불평등과 삶의 위험을 먼저 줄인다",
+  },
+] as const;
+
+export type PriorityId = (typeof PRIORITY_OPTIONS)[number]["id"];
+
+const FIELD_IMPACTS: Record<
+  string,
+  { effect: string; tradeoff: string; beneficiary: string }
+> = {
+  safety: {
+    effect: "재난·범죄에 대응하는 현장 역량과 예방 체계를 강화합니다.",
+    tradeoff: "안전 인프라 확대는 생활지원이나 성장투자에 쓸 재원을 줄일 수 있습니다.",
+    beneficiary: "전 국민과 재난·범죄 위험에 노출된 지역",
+  },
+  science: {
+    effect: "새로운 기술과 산업을 만드는 연구 기반과 인재 투자를 늘립니다.",
+    tradeoff: "성과가 나타나기까지 시간이 걸리고 연구 실패의 가능성도 감수해야 합니다.",
+    beneficiary: "연구자, 혁신기업, 미래 산업 종사자",
+  },
+  education: {
+    effect: "배움의 기회와 교육기관의 역량을 넓혀 장기적인 인적 기반을 만듭니다.",
+    tradeoff: "장기 투자이므로 당장의 경기·소득 개선 효과는 상대적으로 작을 수 있습니다.",
+    beneficiary: "학생, 청년, 교직원과 미래 세대",
+  },
+  transport: {
+    effect: "이동시간과 물류비를 줄이고 지역 간 연결성을 높입니다.",
+    tradeoff: "대규모 시설투자는 유지비와 환경 부담을 함께 만들 수 있습니다.",
+    beneficiary: "통근자, 지역 주민, 물류·운송 산업",
+  },
+  defense: {
+    effect: "군의 대응 역량과 장병의 복무 환경을 개선합니다.",
+    tradeoff: "안보 지출 증가는 복지·교육 같은 민간 분야의 재정 여력을 줄일 수 있습니다.",
+    beneficiary: "장병, 군 관련 종사자와 국가안보의 보호를 받는 국민",
+  },
+  land: {
+    effect: "도시 기반시설과 지역 생활환경을 개선하고 균형발전을 지원합니다.",
+    tradeoff: "개발 중심 투자는 지역 간 효과 차이와 환경 비용을 만들 수 있습니다.",
+    beneficiary: "지역 주민, 주거 취약지역, 지역경제",
+  },
+  agriculture: {
+    effect: "먹거리 생산 기반과 농어촌의 경영 안정성을 높입니다.",
+    tradeoff: "특정 산업 보호가 장기화되면 구조 혁신을 늦출 수 있습니다.",
+    beneficiary: "농어민, 산림 종사자와 식량 소비자",
+  },
+  culture: {
+    effect: "문화 접근성과 콘텐츠 생태계, 관광 수요를 함께 키웁니다.",
+    tradeoff: "경제적 성과가 지역과 사업에 따라 크게 달라질 수 있습니다.",
+    beneficiary: "시민, 예술인, 문화기관과 관광업 종사자",
+  },
+  health: {
+    effect: "질병을 예방하고 의료 접근성과 공공의료 대응력을 높입니다.",
+    tradeoff: "지속적인 운영비가 필요해 다른 분야의 일회성 투자보다 재정 부담이 길게 남습니다.",
+    beneficiary: "환자, 의료 취약계층과 전 국민",
+  },
+  welfare: {
+    effect: "소득·고용·돌봄의 위험을 줄이고 사회 안전망을 강화합니다.",
+    tradeoff: "지속 가능한 재원과 지원 대상·수준에 대한 사회적 합의가 필요합니다.",
+    beneficiary: "취약계층, 돌봄가구, 구직자와 연금 가입자",
+  },
+  industry: {
+    effect: "기업의 투자와 일자리, 에너지 전환을 촉진합니다.",
+    tradeoff: "기업 지원의 효과와 혜택이 국민 전체에 돌아오는지 검증이 필요합니다.",
+    beneficiary: "중소기업, 근로자, 신산업과 에너지 전환 분야",
+  },
+  reserve: {
+    effect: "예측하기 어려운 위기에 정부가 빠르게 대응할 여력을 확보합니다.",
+    tradeoff: "사용처가 미리 확정되지 않아 통제와 사후 검증이 특히 중요합니다.",
+    beneficiary: "재난·경제위기의 영향을 받는 국민과 지역",
+  },
+  administration: {
+    effect: "정부와 지방자치단체가 정책과 공공서비스를 안정적으로 집행하게 합니다.",
+    tradeoff: "행정 운영비 확대가 시민이 체감하는 직접 혜택으로 이어지는지 점검해야 합니다.",
+    beneficiary: "공공서비스를 이용하는 시민과 지방자치단체",
+  },
+  communication: {
+    effect: "디지털 인프라와 정보 접근성, 온라인 안전을 강화합니다.",
+    tradeoff: "기술 변화가 빨라 투자 설비가 예상보다 일찍 낡을 수 있습니다.",
+    beneficiary: "통신 이용자, 디지털 취약계층과 정보통신 산업",
+  },
+  diplomacy: {
+    effect: "국제 협력과 외교 네트워크, 한반도 평화 기반을 넓힙니다.",
+    tradeoff: "성과가 간접적이고 국제정세에 따라 효과가 크게 달라질 수 있습니다.",
+    beneficiary: "해외 국민·기업, 국제협력 대상국과 전 국민",
+  },
+  environment: {
+    effect: "기후위험과 오염을 줄이고 생태계와 생활환경을 보호합니다.",
+    tradeoff: "단기적으로 산업과 소비자에게 전환 비용이 발생할 수 있습니다.",
+    beneficiary: "전 국민, 기후 취약지역과 미래 세대",
+  },
+};
+
+export function getFieldImpact(fieldId: string) {
+  return (
+    FIELD_IMPACTS[fieldId] ?? {
+      effect: "해당 분야의 정책 집행 역량과 현장 서비스를 확대합니다.",
+      tradeoff: "이 선택만큼 다른 분야에 사용할 수 있는 예산은 줄어듭니다.",
+      beneficiary: "해당 정책의 이용자와 관련 종사자",
+    }
+  );
+}
+
+export const TYPE_HIGHLIGHTS = {
+  "111": {
+    symbol: "✦",
+    line: "모두의 내일을 위해, 가장 먼저 가능성에 투자해요.",
+  },
+  "110": {
+    symbol: "↗",
+    line: "큰 변화를 만들 곳을 골라 미래에 집중해요.",
+  },
+  "101": {
+    symbol: "⌂",
+    line: "내일의 기회를 모두가 함께 누릴 토대부터 세워요.",
+  },
+  "100": {
+    symbol: "♡",
+    line: "다음 세대가 가장 먼저 마주할 빈틈을 돌봐요.",
+  },
+  "011": {
+    symbol: "⚡",
+    line: "오늘의 활력이 모두에게 퍼지는 선택을 해요.",
+  },
+  "010": {
+    symbol: "✓",
+    line: "지금 효과가 가장 큰 곳부터 확실하게 해결해요.",
+  },
+  "001": {
+    symbol: "⊕",
+    line: "누구나 버틸 수 있는 일상의 안전망을 넓혀요.",
+  },
+  "000": {
+    symbol: "◎",
+    line: "가장 절실한 사람과 가까운 문제를 먼저 지켜요.",
+  },
+} as const;
+
+const SIGNAL_LABELS: Record<AxisKey, [string, string]> = {
+  future: ["점진적 미래설계", "적극적 미래설계"],
+  growth: ["분배·안전망", "성장·활력"],
+  universal: ["선별 집중", "보편 확대"],
+};
+
+export function getProgramInsight(program: BudgetProgram) {
+  const base = getFieldImpact(program.fieldId);
+
+  const signals = (Object.entries(program.tags) as Array<[AxisKey, number]>)
+    .filter(([, value]) => value !== 0)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 2)
+    .map(([axis, value]) => SIGNAL_LABELS[axis][value > 0 ? 1 : 0]);
+
+  return {
+    ...base,
+    signals,
+    citizenSummary: `${program.name}에 1만 원을 배정하면 전체 실험 예산의 10%를 이 선택에 쓰는 셈입니다.`,
+    opportunityCost:
+      "이 금액을 선택하면 다른 프로그램 하나에 배정할 수 있는 1만 원의 기회를 포기합니다.",
+  };
+}
+
+export const COMMUNITY_DEMO = {
+  sampleLabel: "화면 검토용 데모 표본",
+  participantCount: 1284,
+  sameTypePercent: {
+    "111": 17,
+    "110": 11,
+    "101": 14,
+    "100": 9,
+    "011": 13,
+    "010": 10,
+    "001": 16,
+    "000": 10,
+  },
+  axisAverages: {
+    future: 8,
+    growth: -4,
+    universal: 13,
+  },
+  topFields: [
+    { fieldId: "welfare", share: 18 },
+    { fieldId: "education", share: 16 },
+    { fieldId: "science", share: 13 },
+  ],
+  /**
+   * 분야별 "배분 비중"입니다. topFields가 분야를 고른 사람 수인 것과 달리,
+   * 실제로 간 돈이 전체에서 몇 %인지를 냅니다. 참여자가 자기 배분과 같은
+   * 축으로 견줘 볼 수 있는 값입니다. (화면 검토용 데모)
+   */
+  fieldShares: [
+    { fieldId: "welfare", fieldName: "사회복지", share: 19 },
+    { fieldId: "education", fieldName: "교육", share: 14 },
+    { fieldId: "health", fieldName: "보건", share: 11 },
+    { fieldId: "science", fieldName: "과학기술", share: 10 },
+    { fieldId: "environment", fieldName: "환경", share: 8 },
+    { fieldId: "safety", fieldName: "공공질서및안전", share: 7 },
+    { fieldId: "transport", fieldName: "교통및물류", share: 6 },
+    { fieldId: "industry", fieldName: "산업·중소기업및에너지", share: 6 },
+    { fieldId: "agriculture", fieldName: "농림수산", share: 5 },
+    { fieldId: "culture", fieldName: "문화및관광", share: 4 },
+    { fieldId: "land", fieldName: "국토및지역개발", share: 3 },
+    { fieldId: "defense", fieldName: "국방", share: 3 },
+    { fieldId: "administration", fieldName: "일반·지방행정", share: 2 },
+    { fieldId: "diplomacy", fieldName: "통일·외교", share: 1 },
+    { fieldId: "communication", fieldName: "통신", share: 1 },
+  ],
+  mostProtected: [
+    "아동·가족",
+    "감염병대응",
+    "산학·연구",
+    "기초생활보장",
+    "초중등 학교교육",
+  ],
+  mostCut: [
+    "재정·예산",
+    "관광",
+    "국경·치안",
+    "국제협력",
+    "청사관리",
+  ],
+};

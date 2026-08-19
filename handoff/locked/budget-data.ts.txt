@@ -1,0 +1,1298 @@
+// The citizen-facing bundles in program-groups.ts are no longer the selectable
+// unit — official programs are. They now ride on top as a browse-only category
+// layer (PROGRAM_CATEGORIES below) so a field shows ~9 groups instead of ~42
+// programs.
+import { PROGRAM_GROUPS, type ProgramGroup } from "./program-groups";
+import { PROGRAM_GROUPS_EXTRA } from "./program-groups-extra";
+import {
+  OFFICIAL_BUDGET_PROGRAMS,
+  type OfficialBudgetUnit,
+} from "./program-budget-data";
+import { BUDGET_GROUP_TAGS } from "./survey-data";
+
+export type AxisKey = "future" | "growth" | "universal";
+
+export type AxisProfile = Record<AxisKey, number>;
+
+export type BudgetField = {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  selectable?: boolean;
+  profile: AxisProfile;
+  programs: string[];
+};
+
+export type BudgetProgram = {
+  id: string;
+  fieldId: string;
+  fieldName: string;
+  name: string;
+  description: string;
+  officialName: string;
+  includedPrograms: string[];
+  owners: string[];
+  sectors: string[];
+  units: OfficialBudgetUnit[];
+  tags: AxisProfile;
+  /**
+   * 여러 프로그램을 한 줄로 합친 경우, 합쳐지기 전의 원래 프로그램 이름들입니다.
+   * 화면에는 쓰지 않고 보관만 합니다(PROGRAM_MERGES 참고). 합치지 않은
+   * 프로그램에는 없습니다.
+   */
+  mergedFrom?: string[];
+};
+
+const clamp = (value: number) => Math.max(-2, Math.min(2, value));
+
+export const FIELDS: BudgetField[] = [
+  {
+    id: "safety",
+    name: "공공질서및안전",
+    icon: "🛟",
+    description: "재난과 범죄로부터 일상을 지키는 예산",
+    profile: { future: -1, growth: -1, universal: 1 },
+    programs: [
+      "재난관리",
+      "검찰활동",
+      "경찰병원운영",
+      "공공안녕 위험예방 및 대응강화",
+      "공수처 활동",
+      "과학수사",
+      "과학치안 활성화",
+      "교정활동",
+      "교통안전·소통 확보",
+      "구조안전 활동",
+    ],
+  },
+  {
+    id: "science",
+    name: "과학기술",
+    icon: "🛰️",
+    description: "연구와 혁신으로 다음 성장동력을 만드는 예산",
+    profile: { future: 2, growth: 2, universal: 0 },
+    programs: [
+      "탄소중립 기반구축",
+      "과학기술정보통신부 운영지원",
+      "우주항공 진흥",
+      "지역경제 활성화",
+      "공공연구성과 활성화",
+      "과학기술 인력양성",
+      "연구개발 기획평가",
+      "인공지능 데이터 진흥",
+      "항공혁신 임무수행",
+      "과학기술 국제협력",
+    ],
+  },
+  {
+    id: "education",
+    name: "교육",
+    icon: "📚",
+    description: "배움의 기회와 미래 인재를 키우는 예산",
+    profile: { future: 2, growth: 1, universal: 2 },
+    programs: [
+      "과학기술정보통신부 운영지원",
+      "공공연구성과 활성화",
+      "과학기술 인력양성",
+      "국립국제교육원 지원",
+      "국립대학 운영지원",
+      "국립학교 운영",
+      "국제교육 협력 증진",
+      "대학교육 역량강화",
+      "대학교육 역량강화 기금·융자",
+      "대학 자율역량 강화",
+    ],
+  },
+  {
+    id: "transport",
+    name: "교통및물류",
+    icon: "🚆",
+    description: "사람과 물자의 이동을 빠르고 안전하게 잇는 예산",
+    profile: { future: 1, growth: 2, universal: 1 },
+    programs: [
+      "온실가스 감축",
+      "탄소중립 기반구축",
+      "저탄소 생태계 조성",
+      "환경행정 지원",
+      "경제자유구역 사업추진",
+      "수자원정책 및 홍수관리",
+      "건설정책 및 기술지원",
+      "고속도로 건설",
+      "고속철도 건설",
+      "광역교통 정책",
+    ],
+  },
+  {
+    id: "defense",
+    name: "국방",
+    icon: "🛡️",
+    description: "안보 역량과 장병의 생활을 책임지는 예산",
+    profile: { future: 0, growth: 1, universal: -1 },
+    programs: [
+      "국방군사시설 이전사업",
+      "국방 정보화",
+      "군사시설 건설 및 운영",
+      "군수지원 및 협력",
+      "군 인사 및 교육훈련",
+      "급식 및 피복",
+      "급여정책",
+      "기동화력 사업",
+      "미군기지 이전사업",
+      "방위사업 정책지원",
+    ],
+  },
+  {
+    id: "land",
+    name: "국토및지역개발",
+    icon: "🏙️",
+    description: "도시와 지역의 균형 있는 성장을 설계하는 예산",
+    profile: { future: 1, growth: 1, universal: 1 },
+    programs: [
+      "온실가스 감축",
+      "탄소중립 기반구축",
+      "환경행정 지원",
+      "수자원정책 및 홍수관리",
+      "건축정책",
+      "국토정보 관리",
+      "국토지리정보원 운영",
+      "댐 운영 및 관리",
+      "도시정책",
+      "맑은물 공급·이용",
+    ],
+  },
+  {
+    id: "agriculture",
+    name: "농림수산",
+    icon: "🌾",
+    description: "먹거리와 농어촌의 지속가능성을 지키는 예산",
+    profile: { future: 0, growth: -1, universal: -1 },
+    programs: [
+      "온실가스 감축",
+      "탄소중립 기반구축",
+      "가축방역 및 축산물 안전관리",
+      "국립수목원",
+      "국제산림 협력",
+      "국제협력 협상",
+      "기관운영 및 사업지원",
+      "농가경영능력 향상",
+      "농가경영 안정",
+      "농림수산업 금융지원",
+    ],
+  },
+  {
+    id: "culture",
+    name: "문화및관광",
+    icon: "🎭",
+    description: "문화 향유와 관광의 활력을 넓히는 예산",
+    profile: { future: 1, growth: 0, universal: 1 },
+    programs: [
+      "건강한 저작권 생태계 조성",
+      "관광산업 활성화",
+      "관광진흥 기반확충",
+      "교육·연구·전시",
+      "국내관광 활성화",
+      "국립국악원 운영",
+      "국립국어원 운영",
+      "국립민속박물관 운영",
+      "국립박물관 운영",
+      "국립장애인도서관 운영",
+    ],
+  },
+  {
+    id: "health",
+    name: "보건",
+    icon: "🩺",
+    description: "질병을 예방하고 모두의 건강을 돌보는 예산",
+    profile: { future: -1, growth: -1, universal: 2 },
+    programs: [
+      "감염병 위기대응",
+      "감염병 정책관리",
+      "감염병 진단분석",
+      "건강보험제도 운영",
+      "공공보건의료 확충",
+      "과학적 안전관리 연구 및 허가심사",
+      "국립공주병원",
+      "국립나주병원",
+      "국립마산병원",
+      "국립목포병원",
+    ],
+  },
+  {
+    id: "welfare",
+    name: "사회복지",
+    icon: "🤝",
+    description: "삶의 위험을 나누고 안전망을 두텁게 하는 예산",
+    profile: { future: -1, growth: -2, universal: 2 },
+    programs: [
+      "공정한 전환",
+      "가족정책 및 돌봄 지원",
+      "고용안전망 확충",
+      "고용창출",
+      "고용평등 증진",
+      "공무원 복지서비스 운영",
+      "공무원연금 급여지급",
+      "주택 구입·전세자금",
+      "국립재활원",
+      "국민연금 운영",
+    ],
+  },
+  {
+    id: "industry",
+    name: "산업·중소기업및에너지",
+    icon: "⚡",
+    description: "기업과 산업의 경쟁력, 에너지 전환을 돕는 예산",
+    profile: { future: 1, growth: 2, universal: 0 },
+    programs: [
+      "온실가스 감축",
+      "탄소중립 기반구축",
+      "저탄소 생태계 조성",
+      "환경행정 지원",
+      "공정한 전환",
+      "우주항공 진흥",
+      "지역경제 활성화",
+      "경제자유구역 사업추진",
+      "인터넷 융합산업",
+      "항공혁신 임무수행",
+    ],
+  },
+  {
+    id: "reserve",
+    name: "예비비",
+    icon: "🧰",
+    description: "예측하기 어려운 국가적 상황에 대비하는 예산",
+    selectable: false,
+    profile: { future: -2, growth: 0, universal: -1 },
+    programs: [
+      "일반 예비비",
+      "재난·재해 대응 예비비",
+      "감염병 긴급대응 예비비",
+      "민생안정 긴급지원",
+      "에너지 수급위기 대응",
+      "금융시장 안정 대응",
+      "농축수산물 수급 대응",
+      "국가시설 긴급복구",
+      "외교·안보 긴급대응",
+      "기타 불가피한 지출",
+    ],
+  },
+  {
+    id: "administration",
+    name: "일반·지방행정",
+    icon: "🏛️",
+    description: "정부와 지방자치의 기본 기능을 운영하는 예산",
+    profile: { future: -1, growth: 0, universal: 2 },
+    programs: [
+      "온실가스 감축",
+      "저탄소 생태계 조성",
+      "재난관리",
+      "10·29 이태원참사 특별조사",
+      "개발금융",
+      "개인정보보호 기반 데이터 활용",
+      "경쟁촉진",
+      "경제정책",
+      "경제협력",
+      "공공자금 관리",
+    ],
+  },
+  {
+    id: "communication",
+    name: "통신",
+    icon: "📡",
+    description: "디지털 인프라와 안전한 연결을 만드는 예산",
+    profile: { future: 2, growth: 2, universal: 1 },
+    programs: [
+      "과학기술정보통신부 운영지원",
+      "우주항공 진흥",
+      "지역경제 활성화",
+      "연구개발 기획평가",
+      "인공지능 데이터 진흥",
+      "인터넷 융합산업",
+      "공정하고 안전한 방송통신 환경조성",
+      "안전한 인터넷 활용기반 구축",
+      "우정서비스",
+      "우체국보험",
+    ],
+  },
+  {
+    id: "diplomacy",
+    name: "통일·외교",
+    icon: "🌐",
+    description: "국제협력과 한반도의 미래를 준비하는 예산",
+    profile: { future: 1, growth: 1, universal: 0 },
+    programs: [
+      "경제외교",
+      "공공자금관리기금 예탁",
+      "국제 안보협력 강화",
+      "국제개발협력",
+      "국제기구 분담금",
+      "국제법적 대응 강화",
+      "글로벌 네트워크 구축",
+      "남북관계 기반구축",
+      "남북 사회문화교류",
+      "남북협력기금 운영",
+    ],
+  },
+  {
+    id: "environment",
+    name: "환경",
+    icon: "🌿",
+    description: "기후위기에 대응하고 생태계를 보전하는 예산",
+    profile: { future: 2, growth: -1, universal: 2 },
+    programs: [
+      "온실가스 감축",
+      "탄소중립 기반구축",
+      "저탄소 생태계 조성",
+      "환경행정 지원",
+      "공정한 전환",
+      "4대강 유역관리",
+      "국제환경 협력",
+      "기후변화 대응",
+      "대기환경 보전",
+      "맑은물 공급·이용",
+    ],
+  },
+];
+
+export const SELECTABLE_FIELDS = FIELDS.filter(
+  (field) => field.selectable !== false,
+);
+
+export const FIELD_CONTEXT: Record<
+  string,
+  { question: string; constraint: string; horizon: string }
+> = {
+  safety: {
+    question: "예방에 더 쓸까요, 사건이 벌어진 뒤의 대응에 더 쓸까요?",
+    constraint: "인력과 시설은 한번 늘리면 다음 해에도 운영비가 듭니다.",
+    horizon: "체감 시점: 즉시~3년",
+  },
+  science: {
+    question: "성공 가능성이 낮아도 큰 변화를 만들 연구에 투자할까요?",
+    constraint: "성과가 늦고 실패할 수 있지만, 중단하면 연구 인력과 기반이 사라질 수 있습니다.",
+    horizon: "체감 시점: 3~10년",
+  },
+  education: {
+    question: "현재 학습격차와 장기 인재양성 중 무엇을 먼저 볼까요?",
+    constraint: "교원·학교 운영비는 반복 지출이고 시설 투자는 지역별 수요 차이가 큽니다.",
+    horizon: "체감 시점: 1~10년",
+  },
+  transport: {
+    question: "새 노선을 만들까요, 기존 시설을 더 안전하게 관리할까요?",
+    constraint: "건설 뒤에도 유지비가 들며 이용자가 적은 지역의 접근성도 함께 고려해야 합니다.",
+    horizon: "체감 시점: 2~10년",
+  },
+  defense: {
+    question: "첨단 전력, 장병 처우, 즉시 대비태세 사이에서 무엇을 우선할까요?",
+    constraint: "대규모 장비는 도입·유지 기간이 길어 중간에 방향을 바꾸기 어렵습니다.",
+    horizon: "체감 시점: 즉시~10년",
+  },
+  land: {
+    question: "성장 거점에 집중할까요, 생활 여건이 낮은 지역을 먼저 도울까요?",
+    constraint: "개발 효과와 환경·주거비 상승 같은 부작용이 지역마다 다르게 나타납니다.",
+    horizon: "체감 시점: 3~10년",
+  },
+  agriculture: {
+    question: "당장의 경영안정과 산업 전환 중 어디에 더 무게를 둘까요?",
+    constraint: "가격·기후 변동이 커서 지원 효과가 해마다 달라지고 대상 선정도 중요합니다.",
+    horizon: "체감 시점: 즉시~5년",
+  },
+  culture: {
+    question: "많은 시민의 접근성과 창작자의 지속가능성 중 무엇을 먼저 볼까요?",
+    constraint: "경제적 성과를 수치로 재기 어렵고 지역·장르별 격차가 큽니다.",
+    horizon: "체감 시점: 1~5년",
+  },
+  health: {
+    question: "예방, 필수의료, 위기대응 중 어디에 가장 먼저 투자할까요?",
+    constraint: "의료 인력과 시설은 단기간에 늘리기 어렵고 지속적인 운영비가 필요합니다.",
+    horizon: "체감 시점: 즉시~5년",
+  },
+  welfare: {
+    question: "모두에게 넓게 지원할까요, 가장 절실한 사람에게 집중할까요?",
+    constraint: "급여와 서비스는 한번 시작하면 계속 필요한 의무·반복 지출이 되기 쉽습니다.",
+    horizon: "체감 시점: 즉시~3년",
+  },
+  industry: {
+    question: "검증된 산업을 지킬까요, 새로운 산업의 위험을 감수할까요?",
+    constraint: "기업 지원이 실제 투자·고용과 시민 편익으로 이어지는지 사후 검증이 필요합니다.",
+    horizon: "체감 시점: 2~7년",
+  },
+  reserve: {
+    question: "지금 필요한 곳에 쓸까요, 알 수 없는 위기를 위해 남겨둘까요?",
+    constraint: "신속 대응에 유리하지만 사용처가 미리 정해지지 않아 강한 사후 통제가 필요합니다.",
+    horizon: "체감 시점: 위기 발생 시",
+  },
+  administration: {
+    question: "보이지 않는 행정 기반에 얼마만큼 투자해야 할까요?",
+    constraint: "효율화 투자는 체감이 늦지만 부족하면 모든 공공서비스의 집행력이 약해집니다.",
+    horizon: "체감 시점: 1~5년",
+  },
+  communication: {
+    question: "빠른 기술 혁신과 누구나 쓸 수 있는 접근성 중 무엇을 먼저 볼까요?",
+    constraint: "기술이 빨리 바뀌어 설비가 일찍 낡을 수 있고 개인정보·안전 비용도 필요합니다.",
+    horizon: "체감 시점: 1~5년",
+  },
+  diplomacy: {
+    question: "당장 보이는 국익과 장기적인 국제 신뢰 중 무엇을 먼저 볼까요?",
+    constraint: "상대국과 국제정세에 따라 성과가 달라지고 결과를 국내에서 체감하기 어렵습니다.",
+    horizon: "체감 시점: 3~10년",
+  },
+  environment: {
+    question: "당장의 전환 비용을 감수하고 미래 피해를 줄일까요?",
+    constraint: "효과는 장기·광역적으로 나타나지만 비용은 특정 산업과 지역에 먼저 생길 수 있습니다.",
+    horizon: "체감 시점: 2~20년",
+  },
+};
+
+export const LEGACY_CITIZEN_PROGRAMS: Record<string, string[]> = {
+  safety: [
+    "재난 사전예방과 위험지도",
+    "119 구조·구급 현장 대응",
+    "생활권 범죄예방 순찰",
+    "디지털·보이스피싱 범죄 대응",
+    "아동·여성 안전 지원",
+    "교통사고 예방과 안전시설",
+    "과학수사 역량 강화",
+    "범죄피해자 회복 지원",
+    "교정시설 안전과 인권",
+    "출소자 재범예방·사회복귀",
+  ],
+  science: [
+    "기초연구자 장기 연구지원",
+    "인공지능 핵심기술 연구",
+    "우주·위성 기술 개발",
+    "기후·탄소중립 기술 연구",
+    "바이오·보건 혁신 연구",
+    "청년 연구자 성장 지원",
+    "지역 연구기관 역량 강화",
+    "공공 연구성과 사업화",
+    "국제 공동연구",
+    "고위험·도전형 연구",
+  ],
+  education: [
+    "유아교육·보육의 질 개선",
+    "초중고 학습격차 완화",
+    "방과후학교와 돌봄",
+    "교원 역량과 수업 혁신",
+    "직업계고 취업·기술교육",
+    "국립대학 교육 기반",
+    "대학생 장학금·학자금",
+    "성인 평생교육",
+    "장애학생 맞춤교육",
+    "디지털 교육환경",
+  ],
+  transport: [
+    "노후 도로·교량 안전관리",
+    "철도망 확충",
+    "대중교통 환승·요금 지원",
+    "농어촌·교통약자 이동지원",
+    "물류 효율화와 배송 기반",
+    "친환경차 충전 인프라",
+    "침수·폭염에 강한 교통시설",
+    "보행·자전거 안전",
+    "항만·공항 접근성 개선",
+    "교통데이터와 스마트 신호",
+  ],
+  defense: [
+    "장병 급식·피복 개선",
+    "병영생활과 인권 보호",
+    "군 의료·재활 지원",
+    "군 주거·생활시설 개선",
+    "사이버 방어 역량",
+    "감시·정찰 체계",
+    "첨단 방위기술 연구",
+    "군수품 비축과 정비",
+    "재난 시 군 지원 역량",
+    "전역 장병 사회복귀",
+  ],
+  land: [
+    "노후 주거지 생활환경 개선",
+    "공공임대주택 공급",
+    "지역 거점도시 육성",
+    "인구감소지역 생활서비스",
+    "도시 침수·재해 예방",
+    "노후 건축물 안전관리",
+    "국토·공간정보 개방",
+    "공원과 생활 SOC",
+    "용수 공급과 수자원 관리",
+    "빈집·유휴공간 재생",
+  ],
+  agriculture: [
+    "농어가 소득·경영 안전망",
+    "청년 농어업인 정착",
+    "가축질병·수산질병 예방",
+    "먹거리 안전관리",
+    "스마트 농어업 전환",
+    "기후재해 대비 품종·시설",
+    "농산어촌 교통·생활서비스",
+    "산림재해 예방",
+    "친환경 농업 전환",
+    "농수산물 유통 개선",
+  ],
+  culture: [
+    "지역 문화시설 접근성",
+    "예술인 창작·생활 안전망",
+    "아동·청소년 문화예술교육",
+    "장애인 문화 접근성",
+    "공공도서관과 독서문화",
+    "국립박물관·문화유산 보존",
+    "독립·다양성 콘텐츠 제작",
+    "국내관광 활성화",
+    "지역축제·관광 품질 개선",
+    "저작권 보호와 공정계약",
+  ],
+  health: [
+    "감염병 감시·초기 대응",
+    "지역 필수의료 확충",
+    "응급의료 골든타임",
+    "정신건강 상담·치료",
+    "아동·청소년 건강",
+    "노인·만성질환 관리",
+    "건강보험 보장성",
+    "공공병원 시설·인력",
+    "의약품·식품 안전",
+    "건강검진과 예방",
+  ],
+  welfare: [
+    "기초생활 소득보장",
+    "아동수당과 양육지원",
+    "돌봄가족 휴식·서비스",
+    "노인 소득·돌봄",
+    "장애인 자립·활동지원",
+    "실업급여와 재취업",
+    "청년 주거·자립",
+    "한부모·위기가구 지원",
+    "사회서비스 종사자 처우",
+    "공적연금 운영",
+  ],
+  industry: [
+    "중소기업 디지털 전환",
+    "소상공인 경영회복",
+    "지역산업과 일자리",
+    "첨단 제조·반도체 생태계",
+    "재생에너지 보급",
+    "전력망과 에너지 저장",
+    "산업 탄소감축",
+    "창업·벤처 성장자금",
+    "수출시장 개척",
+    "산업전환 노동자 재교육",
+  ],
+  reserve: [
+    "대규모 자연재해 긴급대응",
+    "감염병 긴급대응",
+    "민생·물가 위기 대응",
+    "에너지 수급위기 대응",
+    "금융시장 충격 대응",
+    "먹거리 수급위기 대응",
+    "국가시설 긴급복구",
+    "외교·안보 긴급대응",
+    "지역 재난 긴급지원",
+    "기타 예측불가 지출",
+  ],
+  administration: [
+    "주민센터 공공서비스 개선",
+    "지방재정 격차 완화",
+    "정부 데이터 개방",
+    "개인정보 보호",
+    "공공기관 디지털 전환",
+    "정책 평가와 예산 성과관리",
+    "공무원 현장 역량",
+    "선거·민주주의 운영 기반",
+    "국민 민원·권리구제",
+    "공공조달 투명성",
+  ],
+  communication: [
+    "농어촌·도서지역 통신망",
+    "공공 와이파이",
+    "디지털 취약계층 교육",
+    "사이버 보안",
+    "불법·유해정보 대응",
+    "온라인 개인정보 보호",
+    "방송통신 이용자 보호",
+    "인공지능·데이터 인프라",
+    "재난 통신망",
+    "우편·생활물류 서비스",
+  ],
+  diplomacy: [
+    "재외국민 안전·영사서비스",
+    "경제·통상 외교",
+    "국제개발협력",
+    "국제기구 분담과 활동",
+    "기후·보건 국제협력",
+    "한반도 평화 기반",
+    "남북 인도적 협력",
+    "해외 문화·공공외교",
+    "국제법·분쟁 대응",
+    "청년 국제교류",
+  ],
+  environment: [
+    "온실가스 감축",
+    "재생에너지 전환 지원",
+    "미세먼지·대기오염 저감",
+    "하천·수질 개선",
+    "폐기물 감량과 재활용",
+    "생물다양성·보호지역",
+    "기후재난 적응",
+    "산업·지역 공정전환",
+    "생활 유해물질 관리",
+    "환경피해 주민 구제",
+  ],
+};
+
+const KEYWORD_TAGS: Array<{ words: string[]; axis: AxisKey; value: number }> = [
+  {
+    words: ["연구", "인공지능", "우주", "혁신", "기후", "탄소", "교육", "미래"],
+    axis: "future",
+    value: 1,
+  },
+  {
+    words: ["긴급", "급여", "운영", "재난", "감염병", "복구"],
+    axis: "future",
+    value: -1,
+  },
+  {
+    words: ["산업", "경제", "금융", "기술", "교통", "관광", "개발"],
+    axis: "growth",
+    value: 1,
+  },
+  {
+    words: ["복지", "연금", "돌봄", "재활", "지원", "보험"],
+    axis: "growth",
+    value: -1,
+  },
+  {
+    words: ["공공", "안전", "환경", "교육", "기반", "전국", "보험"],
+    axis: "universal",
+    value: 1,
+  },
+  {
+    words: ["긴급", "특별", "특정", "군", "농가", "중소기업"],
+    axis: "universal",
+    value: -1,
+  },
+];
+
+export function getProgramTags(field: BudgetField, name: string): AxisProfile {
+  const tags = { ...field.profile };
+  for (const rule of KEYWORD_TAGS) {
+    if (rule.words.some((word) => name.includes(word))) {
+      tags[rule.axis] = clamp(tags[rule.axis] + rule.value);
+    }
+  }
+  return tags;
+}
+
+/*
+ * Legacy category-bundle generator. Keep this block commented so the former
+ * 126 citizen-facing bundles can be restored without reconstructing the map.
+export const PROGRAMS: BudgetProgram[] = FIELDS.flatMap((field) => {
+  const groups =
+    PROGRAM_GROUPS[field.id] ??
+    (LEGACY_CITIZEN_PROGRAMS[field.id] ?? field.programs).map((name, index) => ({
+      name,
+      description: "",
+      programs: [field.programs[index] ?? name],
+    }));
+
+  return groups.map(({ name, description = "", programs }, index) => ({
+    id: `${field.id}-v5-bundle-${index + 1}`,
+    fieldId: field.id,
+    fieldName: field.name,
+    name,
+    description,
+    officialName: programs.join(", "),
+    includedPrograms: programs,
+    owners: [],
+    sectors: [],
+    units: [],
+    tags:
+      BUDGET_GROUP_TAGS[field.id]?.[name] ??
+      getProgramTags(field, [name, ...programs].join(" ")),
+  }));
+});
+*/
+
+/**
+ * 화면에서 잠시 걷어낼 프로그램 이름 조각입니다. 원본 데이터
+ * (program-budget-data.ts)는 건드리지 않고 여기서만 걸러내므로,
+ * 이 배열을 비우면 그대로 되살아납니다.
+ *
+ * - "공용재산취득": 부처별 청사·토지 취득비. 시민이 고를 만한 정책 사업이
+ *   아니라 19개 분야에 흩어져 목록만 채우고 있어 2026-08-05에 뺐습니다.
+ *
+ * - "행정지원": 기관마다 하나씩 있는 살림 항목입니다. 2026-08-07 기준 48개가
+ *   걸리고 기관 수와 정확히 같습니다("국세행정지원"·"경찰행정지원"처럼 기관명이
+ *   앞에 붙고, 공수처 것 하나는 이름이 그냥 "행정지원"입니다). 절반 이상이
+ *   나머지통이 아니라 정책 묶음 안에 섞여 있어, "경찰·치안"을 열면 경찰청
+ *   살림비가 같이 나오던 것을 걷어냅니다. 띄어쓰기가 다른 "환경행정 지원"은
+ *   이 조각에 걸리지 않아 아래 이름 목록에 따로 적어 두었습니다.
+ */
+const HIDDEN_PROGRAM_NAME_PARTS = ["공용재산취득", "행정지원"];
+
+/**
+ * 이름이 정확히 일치할 때만 빼는 목록입니다. 부분 일치로 처리하면 비슷한
+ * 이름까지 휩쓸려 나가서, 개별 프로그램은 여기에 온전한 이름으로 적습니다.
+ * (2026-08-05 지정)
+ */
+const HIDDEN_PROGRAM_NAMES = [
+  "출연연구기관지원",
+  "출연연구 기관지원",
+  "기금증식",
+  "우체국보험 적립금 운용",
+  /*
+    아래 둘은 같은 사업이 여러 분야에 흩어져 있는데, 어느 한 분야의 정책이라기보다
+    부처 살림에 가까워 남길 분야를 고르지 않고 통째로 걷어냈습니다. (2026-08-07 지정)
+      - "환경행정 지원": 환경·국토·산업·교통 4개 분야
+      - "과학기술정보통신부운영지원": 과학기술·통신·교육 3개 분야
+    되살리려면 이 두 줄만 지우면 됩니다.
+
+    "환경행정 지원"은 위 "행정지원" 조각과 같은 성격인데, 원본에 띄어쓰기가 든
+    철자로 따로 실려 있어 조각 규칙에 걸리지 않습니다. 그래서 여기 남깁니다.
+    (띄어쓰기 없는 "환경행정지원"은 환경 분야에 별도로 하나 더 있고, 그쪽은
+    조각 규칙이 걸러냅니다.)
+  */
+  "환경행정 지원",
+  "과학기술정보통신부운영지원",
+  /*
+    기관을 굴리는 데 드는 돈이라 시민이 "여기에 예산을 쓰겠다"고 고를 대상이
+    아닌 것들입니다. (2026-08-07 지정)
+
+    이름이 한 글자씩만 다른 것들이 섞여 있어 **반드시 정확히 일치할 때만**
+    빼야 합니다. 조각(HIDDEN_PROGRAM_NAME_PARTS)으로 처리하면 아래가 같이
+    쓸려 나갑니다.
+      - "책임운영기관 운영"(국방, 단위사업 22개) — 규모로 보아 살림이 아닙니다
+      - "기관운영 및 사업지원"(농촌진흥청, 단위사업 8개)
+
+    청사·관사
+  */
+  "청사관리",
+  "통합 청관사",
+  // 경호·의전. 앞의 둘은 같은 대통령경호처가 두 줄로 나뉜 것입니다.
+  "대통령경호처 운영",
+  "대통령 및 국가요인 경호",
+  "정부의전",
+  // 기관 살림
+  "기관운영",
+  "국회사무처운영",
+  "공무원후생복지",
+  "책임운영기관운영",
+  "성과중심 책임운영기관운영",
+  "소속책임운영기관운영",
+  "책임운영기관운영(국립해양측위정보원)",
+  // 홍보. 같은 문체부의 "국제문화홍보"는 대외 문화교류라 남깁니다.
+  "국정홍보기획",
+  /*
+    공무원 교육기관 운영비. 단위사업이 운영·인건비·기본경비 셋뿐이라 위 살림
+    목록과 같은 꼴입니다. (2026-08-07 지정)
+
+    같은 자리의 "국가인재원교육운영"(인사혁신처)도 성격이 같아 보이지만,
+    아직 확인받지 않아 남겨 두었습니다.
+  */
+  "관세인재개발원",
+];
+
+/**
+ * 같은 이름·같은 부처의 사업이 여러 분야에 들어가 있던 것을 분야 하나로 모읍니다.
+ * 여기 적힌 분야에만 남기고 나머지 분야에서는 걷어냅니다. (2026-08-07 지정)
+ *
+ * 이름만 겹치고 실제로는 부처마다 따로인 "기금운영비"(8개 분야)는 손대지 않았습니다.
+ *
+ * **Why:** 분야마다 id가 달라서(program-v1-environment-… / program-v1-transport-…)
+ * 같은 사업을 고른 사람이 여러 줄로 쪼개져 집계됐습니다. 지지가 실제보다 작아
+ * 보이고, 두 분야를 고른 사람은 한 사업에 두 번 배정할 수도 있었습니다.
+ */
+const PROGRAM_HOME_FIELD: Record<string, string> = {
+  온실가스감축: "environment",
+  탄소중립기반구축: "environment",
+  저탄소생태계조성: "environment",
+  공정한전환: "environment",
+  우주항공진흥: "science",
+  항공혁신임무수행: "science",
+  인공지능데이터진흥: "science",
+  공공연구성과활성화: "science",
+  과학기술인력양성: "science",
+  연구개발기획평가: "science",
+  인터넷융합산업: "communication",
+  경제자유구역사업추진: "industry",
+  지역경제활성화: "industry",
+  재난관리: "safety",
+  "수자원정책 및 홍수관리": "land",
+};
+
+/**
+ * 화면에 쓸 이름을 갈아 끼웁니다. 원본 이름은 officialName으로 그대로 남습니다.
+ * (2026-08-07 지정)
+ *
+ * **Why:** "기금운영비"라는 이름이 8개 분야에 똑같이 놓여 있어, 목록에서 어느
+ * 기금 얘기인지 알 수 없었습니다. 그런데 세부사업(units)에는 기금 이름이 적혀
+ * 있어서("기금운영비(범죄피해자보호기금)"), 그 이름을 끌어올렸습니다.
+ *
+ * 세부사업이 하나뿐인 셋은 괄호를 벗겨 기금 이름만 쓰고, 둘인 셋은 두 기금을
+ * 아우르는 이름을 붙였습니다. 여섯 개씩 묶인 나머지 둘은 대표 이름을 못 지어
+ * "기금운영비(…)" 형태를 남겨 두었습니다.
+ *
+ * id로 거는 이유는 여덟이 모두 이름이 같아 이름으로는 구분할 수 없어서입니다.
+ */
+const PROGRAM_RENAMES: Record<string, string> = {
+  // 세부사업 1개 — 그 기금 이름을 그대로 씁니다.
+  "program-v1-safety-2158di": "범죄피해자보호기금",
+  "program-v1-diplomacy-dnwxhr": "대외경제협력기금",
+  "program-v1-transport-101xfo1": "산업기반신용보증기금",
+  // 세부사업 2개 — 둘을 아우르는 이름입니다.
+  "program-v1-industry-xdpjac": "신용·기술보증기금",
+  "program-v1-agriculture-1f90axm": "농림수산 신용·저축기금",
+  // 사학진흥기금 + 정보화경비. 성격이 다른 뒤엣것은 이름에서 뺐습니다.
+  "program-v1-education-129y3wc": "사학진흥기금",
+  // 세부사업 6개 — 대표 이름을 짓기 어려워 범위만 적었습니다.
+  "program-v1-administration-zg1gbx": "기금운영비(재정·금융 기금)",
+  "program-v1-culture-pvfn7": "기금운영비(문화·체육·관광 기금)",
+};
+
+/**
+ * 회계상 여러 줄로 나뉜 같은 사업을 한 줄로 합칩니다. (2026-08-07 지정)
+ *
+ * **Why:** 사회복지 "연금" 묶음에 국민연금이 네 줄(제도운영 / 급여지급 /
+ * 여유자금운영위탁 / 기금운영비)로 들어 있었습니다. 시민이 이 넷 사이에서
+ * 선호를 가질 일은 없습니다. 기금 안에서 회계를 나눈 방식일 뿐이라, 넷으로
+ * 두면 갈리지 않아도 될 응답이 우연히 갈립니다.
+ *
+ * 합쳐도 내용은 사라지지 않습니다. 단위사업(units)을 모두 이어 붙이므로
+ * 프로그램을 펼치면 전부 그대로 보입니다. 선택의 단위만 굵어집니다.
+ *
+ * 원래 프로그램 이름은 mergedFrom에 남겨 둡니다. 화면에는 쓰지 않지만
+ * 나중에 되살리거나 출처를 밝힐 때 씁니다.
+ *
+ * 연금 넷은 같은 기금에서 나가는 것을 모두 담았습니다. "공무원복지서비스운영"
+ * (대부·주택·학자금융자)과 "사립학교교직원 연금제도 및 기금 운용"(생활안정자금
+ * 대여·회관운영)은 연금 급여가 아니라 공제회 성격의 사업이지만, 같은 기금에서
+ * 나가는 돈이라 한 줄로 묶는 쪽을 택했습니다(2026-08-07 결정). 그래서
+ * "공무원연금"의 단위사업에는 주택사업과 학자금융자가 함께 들어 있습니다.
+ * 떼어내려면 아래 absorb에서 해당 id만 빼면 원래대로 갈라집니다.
+ */
+const PROGRAM_MERGES: Array<{
+  name: string;
+  /** 합친 결과가 놓일 자리. 이 프로그램이 대표가 되어 남습니다. */
+  keep: string;
+  /** 대표에 흡수되어 목록에서 사라지는 프로그램들. */
+  absorb: string[];
+}> = [
+  {
+    // 국민연금운영 / (급여지급) / (여유자금운영위탁 등) / 기금 기금운영비
+    name: "국민연금",
+    keep: "program-v1-welfare-u9msu3",
+    absorb: [
+      "program-v1-welfare-8m5kpu",
+      "program-v1-welfare-1k8y2y9",
+      "program-v1-welfare-117id9x",
+    ],
+  },
+  {
+    // 공무원연금급여지급 / 공무원연금기금운영비 / 공무원복지서비스운영
+    name: "공무원연금",
+    keep: "program-v1-welfare-ci67i",
+    absorb: ["program-v1-welfare-s0uxot", "program-v1-welfare-4jb8rs"],
+  },
+  {
+    // 사립학교교직원연금 등 지급 / 사립학교교직원연금기금운영비
+    // / 사립학교교직원 연금제도 및 기금 운용
+    name: "사학연금",
+    keep: "program-v1-welfare-x1aij2",
+    absorb: ["program-v1-welfare-2vhqll", "program-v1-welfare-kf6yme"],
+  },
+  {
+    // 군인연금(연금정책) / 군인연금기금(기금운영비)
+    name: "군인연금",
+    keep: "program-v1-welfare-1xb6sqw",
+    absorb: ["program-v1-welfare-dluz7z"],
+  },
+  {
+    /*
+      보건의 국립병원 일곱 곳입니다. 병원마다 한 줄씩 있고, 그 안은 인건비·
+      운영(손익)·운영(자본)·기본경비·정보화사업으로 똑같이 갈라져 있습니다.
+      고르는 사람에게 "공주병원이냐 나주병원이냐"는 예산 선호가 아니라 사는
+      곳 얘기에 가까워, 한 줄로 묶고 병원 이름은 단위사업으로 내립니다.
+
+      소록도병원은 단위사업이 "소록도병원 지원" 하나뿐이라 결이 조금 다르지만,
+      같은 국립병원이라 함께 넣었습니다(2026-08-07 지정).
+
+      같은 묶음의 "국립정신건강센터"는 병원이 아니라 센터라 넣지 않았습니다.
+    */
+    name: "국립병원지원",
+    keep: "program-v1-health-cf7rro",
+    absorb: [
+      "program-v1-health-1jrpid5", // 국립나주병원
+      "program-v1-health-37fulp", // 국립마산병원
+      "program-v1-health-9do1q0", // 국립목포병원
+      "program-v1-health-1nnn1z2", // 국립부곡병원
+      "program-v1-health-1z0ftl", // 국립춘천병원
+      "program-v1-health-18u5tni", // 소록도병원
+    ],
+  },
+  /*
+    문화의 "국립○○운영" 열여섯 줄 가운데 열하나를 넷으로 모읍니다. 국립병원과
+    같은 이유입니다 — 기관 이름만 바뀌고 하는 일은 "그 기관 운영"이라, 시민이
+    "민속박물관이냐 한글박물관이냐"를 고를 일이 없습니다. (2026-08-07 지정)
+
+    국립국악원·국립중앙극장은 합치지 않았습니다. 둘을 합치면 "공연예술
+    (국악·극장)" 묶음에 프로그램이 하나만 남아 묶음 이름과 같은 말이 됩니다.
+    한국예술종합학교·국립국어원·한국정책방송원·사행산업통합감독위원회도
+    성격이 제각각이라 그대로 둡니다.
+  */
+  {
+    name: "국립박물관·미술관",
+    keep: "program-v1-culture-dxngmo", // 국립박물관운영
+    absorb: [
+      "program-v1-culture-9q7jqp", // 국립민속박물관운영
+      "program-v1-culture-44918q", // 국립한글박물관 운영
+      "program-v1-culture-sjxua6", // 대한민국역사박물관 운영
+      "program-v1-culture-2yqd2v", // 국립현대미술관운영
+    ],
+  },
+  {
+    name: "국립도서관",
+    keep: "program-v1-culture-1qg1urp", // 국립중앙도서관운영
+    absorb: ["program-v1-culture-7tc4"], // 국립장애인도서관 운영
+  },
+  {
+    /*
+      같은 대상을 "일"과 "그 일을 하는 조직"으로 두 줄 적어 둔 경우입니다.
+      궁궐·왕릉 관리와 그걸 맡은 본부 운영이 따로 있을 이유가 없어, 새 이름을
+      만들지 않고 원래 있던 "궁능원관리"가 흡수합니다.
+    */
+    name: "궁능원관리",
+    keep: "program-v1-culture-ymy3mk", // 궁능원관리
+    absorb: ["program-v1-culture-1rd5w9g"], // 궁능유적본부운영
+  },
+  {
+    name: "문화유산 연구",
+    keep: "program-v1-culture-1qd9kxd", // 문화유산연구원운영
+    absorb: ["program-v1-culture-h54c74"], // 해양유산연구소운영
+  },
+  {
+    /*
+      국회의 입법 활동을 뒷받침하는 세 기관입니다. 셋 다 소관이 "국회"이고
+      단위사업도 운영지원·정보화로 같은 꼴이라, 시민이 "예산정책처냐
+      입법조사처냐"를 고를 일이 없습니다. (2026-08-07 지정)
+
+      같은 국회의 "국회사무처운영"은 앞서 살림으로 보고 따로 걷어냈습니다.
+    */
+    name: "국회 입법지원기관",
+    keep: "program-v1-administration-vhzn7t", // 입법조사처운영
+    absorb: [
+      "program-v1-administration-1qgs8it", // 예산정책처운영
+      "program-v1-administration-9uod7c", // 국회도서관운영
+    ],
+  },
+];
+
+const isHiddenProgram = (name: string) =>
+  HIDDEN_PROGRAM_NAMES.includes(name) ||
+  HIDDEN_PROGRAM_NAME_PARTS.some((part) => name.includes(part));
+
+/** 남길 분야가 정해진 사업인데 다른 분야에 붙어 있는 것. */
+const isDisplacedProgram = (name: string, fieldId: string) => {
+  const home = PROGRAM_HOME_FIELD[name];
+  return home !== undefined && home !== fieldId;
+};
+
+export const HIDDEN_PROGRAMS = OFFICIAL_BUDGET_PROGRAMS.filter((program) =>
+  isHiddenProgram(program.name),
+);
+
+const UNMERGED_PROGRAMS: BudgetProgram[] = OFFICIAL_BUDGET_PROGRAMS.filter(
+  (program) =>
+    !isHiddenProgram(program.name) &&
+    !isDisplacedProgram(program.name, program.fieldId),
+).map(
+  (program) => {
+    const field = FIELDS.find((candidate) => candidate.id === program.fieldId);
+    if (!field) {
+      throw new Error(`Unknown budget field: ${program.fieldId}`);
+    }
+    const unitNames = program.units.map((unit) => unit.name);
+    return {
+      id: program.id,
+      fieldId: program.fieldId,
+      fieldName: program.fieldName,
+      // 원본 이름은 아래 officialName에 그대로 남습니다.
+      name: PROGRAM_RENAMES[program.id] ?? program.name,
+      // 화면에는 소관부처만 보여줍니다. 부문(sectors)까지 같이 늘어놓으면
+      // 어디까지가 부처인지 구분되지 않아 오히려 읽기 어려웠습니다.
+      description: program.owners.join(" · "),
+      officialName: program.name,
+      includedPrograms: unitNames,
+      owners: program.owners,
+      sectors: program.sectors,
+      units: program.units,
+      tags:
+        BUDGET_GROUP_TAGS[program.fieldId]?.[program.name] ??
+        getProgramTags(field, [program.name, ...unitNames].join(" ")),
+    };
+  },
+);
+
+/**
+ * PROGRAM_MERGES를 적용합니다. 대표 프로그램이 흡수 대상의 단위사업과 소관부처를
+ * 받아 가고, 흡수된 쪽은 목록에서 빠집니다. 대표의 id와 officialName은 그대로
+ * 두어 묶음 배치(program-groups.ts는 원본 이름으로 적혀 있습니다)가 유지됩니다.
+ */
+const mergedAwayIds = new Set(PROGRAM_MERGES.flatMap((merge) => merge.absorb));
+
+export const PROGRAMS: BudgetProgram[] = UNMERGED_PROGRAMS.filter(
+  (program) => !mergedAwayIds.has(program.id),
+).map((program) => {
+  const merge = PROGRAM_MERGES.find((entry) => entry.keep === program.id);
+  if (!merge) return program;
+
+  const absorbed = merge.absorb
+    .map((id) => UNMERGED_PROGRAMS.find((entry) => entry.id === id))
+    .filter((entry): entry is BudgetProgram => Boolean(entry));
+  const parts = [program, ...absorbed];
+  const unique = (values: string[]) => [...new Set(values)];
+
+  return {
+    ...program,
+    name: merge.name,
+    owners: unique(parts.flatMap((part) => part.owners)),
+    description: unique(parts.flatMap((part) => part.owners)).join(" · "),
+    sectors: unique(parts.flatMap((part) => part.sectors)),
+    units: parts.flatMap((part) => part.units),
+    includedPrograms: parts.flatMap((part) => part.includedPrograms),
+    mergedFrom: parts.map((part) => part.officialName),
+  };
+});
+
+export const SELECTABLE_PROGRAMS = PROGRAMS.filter(
+  (program) =>
+    FIELDS.find((field) => field.id === program.fieldId)?.selectable !== false,
+);
+
+/**
+ * 공식 프로그램 위에 씌우는 "범주" 계층입니다. 선택 단위는 여전히 프로그램이고,
+ * 범주는 목록을 접고 펴서 찾기 쉽게 하는 껍데기로만 씁니다. 분야 하나가
+ * 프로그램 40여 개를 한꺼번에 쏟아내던 것을 묶음 9개 정도로 줄입니다.
+ */
+export type ProgramCategory = {
+  id: string;
+  fieldId: string;
+  name: string;
+  description: string;
+  /** 설명의 첫 문장. 묶음을 펼치기 전, 이름 아래 한 줄로 보여 줍니다. */
+  summary: string;
+  programIds: string[];
+  /** 아직 어느 묶음에도 배치되지 않아 임시로 모아둔 칸인지. */
+  pending?: boolean;
+};
+
+/**
+ * 설명은 대개 "무엇인지" 한 문장 뒤에 "무엇을 포함하는지·옆 묶음과 뭐가 다른지"가
+ * 이어집니다. 닫힌 목록에서는 첫 문장이면 어느 묶음인지 가려낼 수 있어, 거기까지만
+ * 잘라 씁니다(126개 기준 평균 29자·최대 48자).
+ */
+const firstSentence = (description: string) =>
+  description.split(/(?<=다\.)\s/)[0] ?? description;
+
+/**
+ * 분류 대기 칸. program-groups-extra.ts가 채워질수록 비어가며, 완전히 비면
+ * 화면에서 사라집니다. 영구 분류가 아니라 임시 보관입니다.
+ */
+export const PENDING_CATEGORY_NAME = "아직 분류하지 않은 프로그램";
+
+/**
+ * 분야마다 "나머지"를 담을 묶음 이름입니다. 여기에 적힌 분야는 미분류 임시칸
+ * 대신 이 이름의 정식 묶음이 생기고, 적지 않은 분야는 그대로 임시칸에
+ * 남습니다. (2026-08-05 지정)
+ */
+export const FIELD_FALLBACK_CATEGORY: Record<string, string> = {
+  transport: "행정 지원 및 기타 프로그램",
+  agriculture: "행정지원 탄소중립기반",
+  culture: "행정지원 기타",
+  welfare: "일반복지 복권기금",
+  industry: "행정 지원 기타",
+  administration: "일반행정",
+  environment: "행정지원 기타",
+};
+
+const FALLBACK_CATEGORY_DESCRIPTION =
+  "위 묶음 어디에도 들어가지 않는 행정지원·기금운영 성격의 프로그램입니다.";
+
+/**
+ * 기존 묶음 이름 바꾸기. 바꾼 이름이 서로 같으면 한 묶음으로 합쳐집니다.
+ * (2026-08-05: 통일·외교의 두 묶음을 "남북관계 통일정책"으로 통합)
+ */
+const GROUP_RENAMES: Record<string, Record<string, string>> = {
+  diplomacy: {
+    "남북관계·협력기금": "남북관계 통일정책",
+    "통일정책·교육": "남북관계 통일정책",
+  },
+};
+
+/**
+ * 없앨 묶음. 여기 적힌 묶음은 사라지고, 속해 있던 프로그램은 그 분야의
+ * "나머지" 묶음으로 내려갑니다.
+ * (2026-08-05: 산업의 외국인투자유치를 "행정 지원 기타"로 흡수)
+ *
+ * 2026-08-07: 그 바람에 "외국인투자유치활성화"가 행정 항목처럼 보이게 되어,
+ * program-groups-extra.ts에서 "산업기술·경쟁력"으로 옮겼습니다. 묶음 이름만
+ * 없애고 프로그램은 제자리를 찾아 준 셈입니다.
+ */
+const DISSOLVED_GROUPS: Record<string, string[]> = {
+  industry: ["외국인투자유치"],
+};
+
+const mergeGroups = (fieldId: string): ProgramGroup[] => {
+  const renames = GROUP_RENAMES[fieldId] ?? {};
+  const dissolved = new Set(DISSOLVED_GROUPS[fieldId] ?? []);
+  const merged: ProgramGroup[] = [];
+  for (const group of PROGRAM_GROUPS[fieldId] ?? []) {
+    if (dissolved.has(group.name)) continue;
+    const name = renames[group.name] ?? group.name;
+    const existing = merged.find((candidate) => candidate.name === name);
+    if (existing) {
+      existing.programs.push(...group.programs);
+      continue;
+    }
+    merged.push({ ...group, name, programs: [...group.programs] });
+  }
+  for (const extra of PROGRAM_GROUPS_EXTRA[fieldId] ?? []) {
+    const existing = merged.find((group) => group.name === extra.name);
+    if (existing) {
+      existing.programs.push(...extra.programs);
+      if (extra.description) existing.description = extra.description;
+    } else {
+      merged.push({ ...extra, programs: [...extra.programs] });
+    }
+  }
+  return merged;
+};
+
+export const PROGRAM_CATEGORIES: ProgramCategory[] = FIELDS.flatMap((field) => {
+  const fieldPrograms = SELECTABLE_PROGRAMS.filter(
+    (program) => program.fieldId === field.id,
+  );
+  if (fieldPrograms.length === 0) return [];
+
+  // 같은 분야 안에서 이름이 겹치는 프로그램이 있어 이름 하나에 id 여러 개를 답니다.
+  //
+  // 화면 이름(name)이 아니라 원본 이름(officialName)으로 답니다. 묶음 목록
+  // (program-groups.ts)은 시트의 원본 이름으로 적혀 있어서, PROGRAM_RENAMES로
+  // 이름을 바꾼 프로그램을 화면 이름으로 찾으면 어느 묶음에도 못 들어가고
+  // "나머지" 칸으로 떨어집니다.
+  const idsByName = new Map<string, string[]>();
+  for (const program of fieldPrograms) {
+    const bucket = idsByName.get(program.officialName);
+    if (bucket) bucket.push(program.id);
+    else idsByName.set(program.officialName, [program.id]);
+  }
+
+  const placed = new Set<string>();
+  const categories: ProgramCategory[] = [];
+  mergeGroups(field.id).forEach((group, index) => {
+    const programIds = group.programs.flatMap((name) => idsByName.get(name) ?? []);
+    if (programIds.length === 0) return;
+    for (const id of programIds) placed.add(id);
+    categories.push({
+      id: `${field.id}-cat-${index + 1}`,
+      fieldId: field.id,
+      name: group.name,
+      description: group.description,
+      summary: firstSentence(group.description),
+      programIds,
+    });
+  });
+
+  const unplaced = fieldPrograms
+    .filter((program) => !placed.has(program.id))
+    .map((program) => program.id);
+  const fallbackName = FIELD_FALLBACK_CATEGORY[field.id];
+  if (unplaced.length > 0) {
+    const description = fallbackName
+      ? FALLBACK_CATEGORY_DESCRIPTION
+      : "묶음 분류를 아직 마치지 않은 프로그램입니다. 분류가 끝나면 위 묶음들로 옮겨집니다.";
+    categories.push({
+      id: fallbackName ? `${field.id}-cat-etc` : `${field.id}-cat-pending`,
+      fieldId: field.id,
+      name: fallbackName ?? PENDING_CATEGORY_NAME,
+      description,
+      summary: firstSentence(description),
+      programIds: unplaced,
+      pending: fallbackName ? undefined : true,
+    });
+  }
+
+  return categories;
+});
+
+export const CATEGORIES_BY_FIELD = new Map<string, ProgramCategory[]>();
+for (const category of PROGRAM_CATEGORIES) {
+  const bucket = CATEGORIES_BY_FIELD.get(category.fieldId);
+  if (bucket) bucket.push(category);
+  else CATEGORIES_BY_FIELD.set(category.fieldId, [category]);
+}
+
+export const CATEGORY_BY_PROGRAM_ID = new Map<string, ProgramCategory>();
+for (const category of PROGRAM_CATEGORIES) {
+  for (const programId of category.programIds) {
+    CATEGORY_BY_PROGRAM_ID.set(programId, category);
+  }
+}
+
+export function describeIncludedPrograms(program: BudgetProgram) {
+  return program.includedPrograms.join(", ");
+}
+
+export const TYPE_MAP = {
+  "111": {
+    label: "적극적 미래설계·성장·보편",
+    nickname: "내일을 여는 설계자",
+    description: "모두가 누릴 미래에 과감하게 투자합니다.",
+  },
+  "110": {
+    label: "적극적 미래설계·성장·선별",
+    nickname: "전략적 미래투자가",
+    description: "효과가 큰 곳을 골라 다음 성장에 베팅합니다.",
+  },
+  "101": {
+    label: "적극적 미래설계·분배·보편",
+    nickname: "미래의 토대 건축가",
+    description: "누구도 뒤처지지 않는 내일의 기반을 만듭니다.",
+  },
+  "100": {
+    label: "적극적 미래설계·분배·선별",
+    nickname: "다음 세대의 돌봄가",
+    description: "미래의 가장 약한 고리부터 단단히 보살핍니다.",
+  },
+  "011": {
+    label: "점진적 미래설계·성장·보편",
+    nickname: "오늘의 활력 촉진자",
+    description: "지금 모두의 경제에 활력을 불어넣습니다.",
+  },
+  "010": {
+    label: "점진적 미래설계·성장·선별",
+    nickname: "현실적인 해결사",
+    description: "당장 효과가 필요한 곳에 자원을 집중합니다.",
+  },
+  "001": {
+    label: "점진적 미래설계·분배·보편",
+    nickname: "일상의 안전망 수호자",
+    description: "오늘을 살아가는 모두의 삶을 함께 받칩니다.",
+  },
+  "000": {
+    label: "점진적 미래설계·분배·선별",
+    nickname: "가장 가까운 돌봄가",
+    description: "지금 가장 절실한 사람과 문제부터 지킵니다.",
+  },
+} as const;
+
+export const AXES = [
+  {
+    key: "future" as const,
+    negative: "점진적 미래설계",
+    positive: "적극적 미래설계",
+  },
+  { key: "growth" as const, negative: "분배", positive: "성장" },
+  { key: "universal" as const, negative: "선별", positive: "보편" },
+];
+
+export const formatWon = (amount: number) =>
+  `${new Intl.NumberFormat("ko-KR").format(amount)}원`;

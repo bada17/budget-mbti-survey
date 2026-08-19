@@ -1,0 +1,395 @@
+import { getDb } from "@/db";
+import { contacts, responses, validationResponses } from "@/db/schema";
+import {
+  calculateSurveyScore,
+  getSurveyQuestions,
+  getWeakAxes,
+  SURVEY_DATASET_VERSION,
+  type SurveyResponseMeta,
+} from "@/app/survey-v3-data";
+import {
+  calculateSurveyResult,
+  PROGRAM_DATASET_VERSION,
+  SCORING_VERSION,
+} from "@/app/scoring";
+import {
+  SELECTABLE_FIELDS,
+  SELECTABLE_PROGRAMS,
+} from "@/app/budget-data";
+import { jsonError, hashToken, isDatabaseUnavailable } from "../server-utils";
+import { REGION_VALUES } from "@/app/participant-data";
+import {
+  isChemistryOnlySessionId,
+  isTestParticipantEmail,
+} from "@/app/test-participant";
+
+type Submission = {
+  sessionId: string;
+  nickname: string;
+  ageGroup?: string | null;
+  region?: string | null;
+  email?: string | null;
+  emailConsent: boolean;
+  researchConsent: boolean;
+  consentVersion: string;
+  selectedFields: string[];
+  initialAllocation: Record<string, number>;
+  customProposal: {
+    title: string;
+    description: string;
+    fieldId: string;
+    customField: string;
+  };
+  cuts: Record<string, number>;
+  addition: Record<string, number>;
+  increaseProposal: {
+    title: string;
+    description: string;
+    fieldId: string;
+    customField: string;
+  };
+  finalAllocation: Record<string, number>;
+  statedPriority?: string | null;
+  axisScores: { future: number; growth: number; universal: number };
+  resultType: string;
+  confidence: number;
+  validationAnswers: Record<string, number>;
+  surveyResponseMeta: SurveyResponseMeta;
+  selfReportScores: { future: number; growth: number; universal: number };
+  agreement: number;
+  scoringVersion: string;
+  surveyDatasetVersion: string;
+  programDatasetVersion: string;
+  completionMs?: number | null;
+  deleteToken: string;
+};
+
+const isFiniteRecord = (value: unknown): value is Record<string, number> =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      Object.values(value).every(
+        (item) => typeof item === "number" && Number.isFinite(item),
+      ),
+  );
+
+const isAxisRecord = (
+  value: unknown,
+): value is { future: number; growth: number; universal: number } =>
+  isFiniteRecord(value) &&
+  ["future", "growth", "universal"].every(
+    (key) => typeof value[key] === "number" && Math.abs(value[key]) <= 100,
+  );
+
+const recordTotal = (value: Record<string, number>) =>
+  Object.values(value).reduce((total, amount) => total + amount, 0);
+
+const INCREASE_CUSTOM_PROPOSAL_ID = "increase-custom-proposal";
+const INITIAL_ALLOCATION_TOTAL = 90_000;
+const ADDITION_TOTAL = 10_000;
+const FINAL_ALLOCATION_TOTAL = 100_000;
+const TWO_FIELD_CAP = 50_000;
+const fieldIds = new Set(SELECTABLE_FIELDS.map((field) => field.id));
+const programIds = new Set(SELECTABLE_PROGRAMS.map((program) => program.id));
+const programById = new Map(
+  SELECTABLE_PROGRAMS.map((program) => [program.id, program]),
+);
+const ageGroups = new Set([
+  "10s",
+  "20s",
+  "30s",
+  "40s",
+  "50s",
+  "60s",
+  "70s",
+  "80s",
+  "90plus",
+]);
+
+const proposalIsValid = (
+  proposal: Submission["customProposal"] | undefined,
+  required: boolean,
+) =>
+  Boolean(
+    proposal &&
+      typeof proposal === "object" &&
+      typeof proposal.title === "string" &&
+      proposal.title.length <= 40 &&
+      typeof proposal.description === "string" &&
+      proposal.description.length <= 240 &&
+      typeof proposal.fieldId === "string" &&
+      proposal.fieldId.length <= 40 &&
+      (proposal.fieldId === "other" || fieldIds.has(proposal.fieldId)) &&
+      typeof proposal.customField === "string" &&
+      proposal.customField.length <= 40 &&
+      (!required ||
+        (proposal.title.trim().length > 0 &&
+          proposal.description.trim().length > 0 &&
+          proposal.fieldId === "other" &&
+          proposal.customField.trim().length > 0)),
+  );
+
+function validateSubmission(input: unknown): input is Submission {
+  if (!input || typeof input !== "object") return false;
+  const value = input as Partial<Submission>;
+  const expectedQuestions = getSurveyQuestions(
+    Array.isArray(value.selectedFields)
+      ? value.selectedFields.filter((fieldId): fieldId is string =>
+          typeof fieldId === "string",
+        )
+      : [],
+  );
+  const expectedQuestionIds = new Set(
+    expectedQuestions.map((question) => question.id),
+  );
+  const answerIds =
+    value.validationAnswers && typeof value.validationAnswers === "object"
+      ? Object.keys(value.validationAnswers)
+      : [];
+  const responseMeta = value.surveyResponseMeta;
+  const responseMetaIds =
+    responseMeta && typeof responseMeta === "object"
+      ? Object.keys(responseMeta)
+      : [];
+  const responseMetaIsValid = Boolean(
+    responseMeta &&
+      typeof responseMeta === "object" &&
+      responseMetaIds.length === expectedQuestionIds.size &&
+      responseMetaIds.every((id) => expectedQuestionIds.has(id)) &&
+      expectedQuestions.every((question) => {
+        const answer = value.validationAnswers?.[question.id];
+        const meta = responseMeta[question.id];
+        if (!meta || typeof answer !== "number" || !Number.isInteger(answer)) {
+          return false;
+        }
+        const expectedDisplay =
+          meta.displayOrder === "BA" ? 7 - answer : answer;
+        return (
+          (meta.displayOrder === "AB" || meta.displayOrder === "BA") &&
+          Number.isInteger(meta.displayResponse) &&
+          meta.displayResponse >= 1 &&
+          meta.displayResponse <= 6 &&
+          meta.displayResponse === expectedDisplay &&
+          Number.isInteger(meta.responseTimeMs) &&
+          meta.responseTimeMs >= 0 &&
+          meta.responseTimeMs <= 86_400_000
+        );
+      }),
+  );
+  const initialAllocation = value.initialAllocation ?? {};
+  const addition = value.addition ?? {};
+  const finalAllocation = value.finalAllocation ?? {};
+  const selectedFieldIds = new Set(
+    Array.isArray(value.selectedFields) ? value.selectedFields : [],
+  );
+  const initialIdsValid = Object.keys(initialAllocation).every(
+    (id) =>
+      programIds.has(id) &&
+      selectedFieldIds.has(programById.get(id)?.fieldId ?? ""),
+  );
+  const additionIdsValid = Object.keys(addition).every(
+    (id) => programIds.has(id) || id === INCREASE_CUSTOM_PROPOSAL_ID,
+  );
+  const finalMatches = Object.entries(finalAllocation).every(
+    ([id, amount]) =>
+      (programIds.has(id) ||
+        id === INCREASE_CUSTOM_PROPOSAL_ID) &&
+      amount === (initialAllocation[id] ?? 0) + (addition[id] ?? 0),
+  );
+  const fieldCapsAreValid =
+    selectedFieldIds.size !== 2 ||
+    [...selectedFieldIds].every((fieldId) => {
+      const initialFieldTotal = Object.entries(initialAllocation).reduce(
+        (total, [programId, amount]) =>
+          programById.get(programId)?.fieldId === fieldId
+            ? total + amount
+            : total,
+        0,
+      );
+      const finalFieldTotal = Object.entries(finalAllocation).reduce(
+        (total, [programId, amount]) =>
+          programById.get(programId)?.fieldId === fieldId
+            ? total + amount
+            : total,
+        0,
+      );
+      return (
+        initialFieldTotal <= TWO_FIELD_CAP &&
+        finalFieldTotal <= TWO_FIELD_CAP
+      );
+    });
+  return Boolean(
+    typeof value.sessionId === "string" &&
+      value.sessionId.length >= 8 &&
+      typeof value.nickname === "string" &&
+      value.nickname.trim().length > 0 &&
+      value.nickname.length <= 24 &&
+      (value.ageGroup === null ||
+        value.ageGroup === undefined ||
+        ageGroups.has(value.ageGroup)) &&
+      (value.region === null ||
+        value.region === undefined ||
+        REGION_VALUES.has(value.region)) &&
+      value.researchConsent === true &&
+      typeof value.consentVersion === "string" &&
+      Array.isArray(value.selectedFields) &&
+      value.selectedFields.length >= 1 &&
+      value.selectedFields.length <= 2 &&
+      value.selectedFields.every((id) => fieldIds.has(id)) &&
+      isFiniteRecord(value.initialAllocation) &&
+      initialIdsValid &&
+      fieldCapsAreValid &&
+      proposalIsValid(value.customProposal, false) &&
+      isFiniteRecord(value.cuts) &&
+      isFiniteRecord(value.addition) &&
+      additionIdsValid &&
+      proposalIsValid(
+        value.increaseProposal,
+        (value.addition?.[INCREASE_CUSTOM_PROPOSAL_ID] ?? 0) > 0,
+      ) &&
+      isFiniteRecord(value.finalAllocation) &&
+      finalMatches &&
+      isAxisRecord(value.axisScores) &&
+      isFiniteRecord(value.validationAnswers) &&
+      answerIds.length === expectedQuestionIds.size &&
+      answerIds.every((id) => expectedQuestionIds.has(id)) &&
+      Object.values(value.validationAnswers).every(
+        (answer) => Number.isInteger(answer) && answer >= 1 && answer <= 6,
+      ) &&
+      responseMetaIsValid &&
+      isAxisRecord(value.selfReportScores) &&
+      recordTotal(value.initialAllocation) === INITIAL_ALLOCATION_TOTAL &&
+      recordTotal(value.cuts) === 0 &&
+      recordTotal(value.addition) === ADDITION_TOTAL &&
+      recordTotal(value.finalAllocation) === FINAL_ALLOCATION_TOTAL &&
+      typeof value.resultType === "string" &&
+      /^[01]{3}$/.test(value.resultType) &&
+      typeof value.confidence === "number" &&
+      typeof value.agreement === "number" &&
+      value.scoringVersion === SCORING_VERSION &&
+      value.surveyDatasetVersion === SURVEY_DATASET_VERSION &&
+      value.programDatasetVersion === PROGRAM_DATASET_VERSION &&
+      (!value.email ||
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email)) &&
+      typeof value.emailConsent === "boolean" &&
+      typeof value.deleteToken === "string" &&
+      value.deleteToken.length >= 24
+  );
+}
+
+export async function POST(request: Request) {
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonError("올바른 JSON 요청이 아닙니다.");
+  }
+  if (!validateSubmission(payload)) {
+    return jsonError("응답 형식이 올바르지 않거나 연구 참여 동의가 없습니다.");
+  }
+  const submittedAt = new Date().toISOString();
+  const responseId = crypto.randomUUID();
+  const testMode = isTestParticipantEmail(payload.email);
+  const chemistryOnlyMode = isChemistryOnlySessionId(payload.sessionId);
+  const surveyQuestions = getSurveyQuestions(payload.selectedFields);
+  const serverSurveyScores = calculateSurveyScore(
+    surveyQuestions,
+    payload.validationAnswers,
+  );
+  const serverResult = calculateSurveyResult(serverSurveyScores);
+  try {
+    const db = await getDb();
+    const statements: unknown[] = [
+      db
+        .insert(responses)
+        .values({
+          id: responseId,
+          sessionId: payload.sessionId,
+          createdAt: submittedAt,
+          nickname: payload.nickname.trim(),
+          ageGroup: payload.ageGroup ?? null,
+          region: payload.region ?? null,
+          resultType: serverResult.code,
+          axisFuture: serverResult.score.future,
+          axisGrowth: serverResult.score.growth,
+          axisUniversal: serverResult.score.universal,
+          confidence: serverResult.confidence,
+          weakAxesJson: JSON.stringify(getWeakAxes(serverResult.score)),
+          statedPriority: payload.statedPriority ?? null,
+          selectedFieldsJson: JSON.stringify(payload.selectedFields),
+          initialAllocationJson: JSON.stringify(payload.initialAllocation),
+          customProposalJson: JSON.stringify(payload.customProposal),
+          cutsJson: JSON.stringify(payload.cuts),
+          additionJson: JSON.stringify(payload.addition),
+          increaseProposalJson: JSON.stringify(payload.increaseProposal),
+          finalAllocationJson: JSON.stringify(payload.finalAllocation),
+          scoringVersion: payload.scoringVersion,
+          surveyDatasetVersion: payload.surveyDatasetVersion,
+          programDatasetVersion: payload.programDatasetVersion,
+          consentVersion: payload.consentVersion,
+          researchConsent: true,
+          completionMs: payload.completionMs ?? null,
+          deleteTokenHash: hashToken(payload.deleteToken),
+          isTest: testMode || chemistryOnlyMode,
+        })
+        .onConflictDoNothing({ target: responses.sessionId }),
+      db
+        .insert(validationResponses)
+        .values({
+          responseId,
+          answersJson: JSON.stringify(payload.validationAnswers),
+          responseMetaJson: JSON.stringify(payload.surveyResponseMeta),
+          selfFuture: serverSurveyScores.future,
+          selfGrowth: serverSurveyScores.growth,
+          selfUniversal: serverSurveyScores.universal,
+          agreement: Math.round(payload.agreement),
+        })
+        .onConflictDoNothing(),
+    ];
+
+    if (payload.email) {
+      statements.push(
+        db
+          .insert(contacts)
+          .values({
+            id: crypto.randomUUID(),
+            responseId,
+            email: payload.email.trim().toLowerCase(),
+            marketingConsent: payload.emailConsent,
+            consentedAt: submittedAt,
+          })
+          .onConflictDoNothing(),
+      );
+    }
+    await db.batch(
+      statements as unknown as Parameters<typeof db.batch>[0],
+    );
+    return Response.json({
+      ok: true,
+      stored: testMode
+        ? "test"
+        : chemistryOnlyMode
+          ? "chemistry-only"
+          : "shared",
+      responseId,
+      minimumCommunitySample: 20,
+      testMode,
+      chemistryOnlyMode,
+    });
+  } catch (error) {
+    if (isDatabaseUnavailable(error)) {
+      return Response.json(
+        {
+          ok: true,
+          stored: "local-only",
+          responseId: null,
+          message:
+            "로컬 미리보기에는 공동 D1이 연결되지 않아 이 기기의 임시 보관함에 저장했습니다.",
+        },
+        { status: 202 },
+      );
+    }
+    console.error("response submission failed", error);
+    return jsonError("공동 데이터베이스 저장에 실패했습니다.", 500);
+  }
+}
