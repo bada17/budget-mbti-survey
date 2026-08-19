@@ -84,3 +84,30 @@ test("분야를 고르게 하던 옛 방식도 지우지 않았다", () => {
   assert.match(source, /getSurveyQuestions/);
   assert.match(readSource("app/survey-v3-data.ts"), /export function getSurveyQuestions/);
 });
+
+/*
+  분야 문항 90개는 사실 여섯 가지 문구를 돌려쓰는 구조입니다. 한 분야를 골라
+  그 분야만 몰아서 물을 때는 문구가 겹쳐도 "같은 분야를 여러 각도로 묻는구나"로
+  읽혔지만, 분야를 섞는 지금은 같은 질문이 또 나온 것처럼 보입니다.
+*/
+test("같은 질문 문구가 두 번 나오지 않는다", () => {
+  const prompts = fixedQuestions.map((q) => q.prompt);
+  const seen = new Map();
+  for (const prompt of prompts) seen.set(prompt, (seen.get(prompt) ?? 0) + 1);
+  const repeated = [...seen].filter(([, count]) => count > 1).map(([p]) => p);
+  assert.deepEqual(repeated, []);
+});
+
+/*
+  축별로 묶으면 사실상 같은 것을 묻는 문항 세 개가 바로 붙습니다. 선별↔보편
+  문항이 11·12·13번에 연달아 나오면 "아까 그거 아닌가"가 됩니다.
+*/
+test("같은 축 문항이 연달아 나오지 않는다", () => {
+  for (let i = 1; i < fixedQuestions.length; i += 1) {
+    assert.notEqual(
+      fixedQuestions[i].axis,
+      fixedQuestions[i - 1].axis,
+      `${i}번과 ${i + 1}번이 같은 축(${fixedQuestions[i].axis})입니다`,
+    );
+  }
+});
