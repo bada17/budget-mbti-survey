@@ -40,3 +40,6 @@ yarn-error.log*
 /work/
 *.tsbuildinfo
 /dist-static/
+
+/dist-game/
+/.playwright-cli/

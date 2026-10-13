@@ -9,13 +9,17 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "test": "npm run build && node --import tsx --test tests/rendered-html.test.mjs tests/survey-selection.test.mjs tests/survey-response.test.mjs tests/type-match.test.mjs tests/game-content.test.mjs",
+    "test": "npm run build && node --import tsx --test tests/rendered-html.test.mjs tests/survey-selection.test.mjs tests/survey-response.test.mjs tests/type-match.test.mjs tests/game-content.test.mjs tests/game-flow.test.mjs tests/game-world.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "verify:extraction": "node scripts/verify-extraction.mjs"
+    "verify:extraction": "node scripts/verify-extraction.mjs",
+    "dev:game": "vite --config vite.game.config.ts",
+    "build:game": "vite build --config vite.game.config.ts",
+    "test:game": "node --import tsx --test tests/game-*.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
+    "phaser": "4.2.1",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
