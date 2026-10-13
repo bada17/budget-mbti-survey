@@ -74,13 +74,19 @@ npx tsc --noEmit
 
 ## 정적판 (깃허브 페이지)
 
-**https://bada17.github.io/budget-mbti-survey/** — 저장·서버 없이 설문만 도는 판.
-`static/` 이 입구이고 `app/SurveyApp.tsx` 를 그대로 씁니다. 올리는 법:
+한 `gh-pages` 갈래에 둘이 같이 올라갑니다.
+- **https://bada17.github.io/budget-mbti-survey/** — 설문(후원주점 QR 용). 저장·서버 없이 돕니다.
+  `static/` 이 입구이고 `app/SurveyApp.tsx` 를 그대로 씁니다.
+- **https://bada17.github.io/budget-mbti-survey/game/** — 게임 시험판. 게임 서버가 없어서
+  테이블·다른 사람들 마음은 저절로 숨고, 연락처 칸은 개발판(`npm run dev:game`)에서만 보입니다.
+
+올리는 법 — ⚠️ **둘을 같이 구워 올립니다.** 하나만 강제로 올리면 다른 하나가 사라집니다.
 
 ```bash
-npx vite build -c vite.static.config.ts   # → dist-static/
-cd dist-static && git init -q -b gh-pages && git add -A && git commit -qm "정적판" \
-  && git push -f https://github.com/bada17/budget-mbti-survey.git gh-pages && rm -rf .git
+npx vite build -c vite.static.config.ts   # 설문 → dist-static/
+npm run build:game                        # 게임 → dist-game/
+cp -r dist-game dist-static/game
+cd dist-static && git init -q -b gh-pages && git add -A && git commit -qm "정적판"   && git push -f https://github.com/bada17/budget-mbti-survey.git gh-pages && rm -rf .git
 ```
 
 ## 남은 일
@@ -428,7 +434,8 @@ GPT 에게 넘기는 주문서입니다. 따로 문서를 만들지 않습니다
 끝나면 `npm test` · `npx tsc --noEmit` · `npm run build:game`, 360px 화면을 `game/review/` 에.
 
 **지금 상태 (2026-10-13)**
-- 로컬에서만 돕니다 — `npm run dev:game -- --port 4183` → `http://127.0.0.1:4183/`. 게임 빌드는 `dist-game/`(깃에 안 넣음).
+- 로컬 — `npm run dev:game -- --port 4183` → `http://127.0.0.1:4183/`(테이블·다른 사람들·연락처 칸까지 다 보임). 게임 빌드는 `dist-game/`(깃에 안 넣음).
+- **공개 시험판(2026-10-13)** — https://bada17.github.io/budget-mbti-survey/game/ — 서버 없는 판: 혼자 한 판·내 모습·버스·내 이웃·친구 초대만. 올리는 법은 위 「정적판」.
   테이블은 링크에 `?table=코드`, 친구 초대는 `?with=코드`.
 - 확인한 것(헤드리스 크롬 CDP, 360×760·360×640): 모습 고르기 → 열다섯 방(버스 넷, 하나는 눌러 넘김) → 언덕 → 언덕에서 눌러 이웃 고르기 →
   연락처(동의 없으면 막힘, 있으면 「시험판이라 저장 안 함」) → 다른 사람들(6명일 때 비율) → 한 번 더(이웃이 같이 걷는다는 안내).

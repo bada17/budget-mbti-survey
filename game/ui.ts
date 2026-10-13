@@ -57,7 +57,7 @@ export function createUI(root: HTMLElement, actions: {
     <p>주민 열다섯 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
     <ul class="g-notes"></ul>
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
-    <button class="g-link g-table-open" type="button">테이블에서 같이 하기</button>
+    <button class="g-link g-table-open" type="button" hidden>테이블에서 같이 하기</button>
     <p class="g-small">화면을 꾹 누르면 그쪽으로 걸어가요 · 2~3분</p>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
   const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·테이블·이웃이 번갈아 쓰는 아래 판
@@ -86,6 +86,8 @@ export function createUI(root: HTMLElement, actions: {
     ready() { start.disabled = false; start.textContent = '출발'; retry.hidden = true; },
     loadError() { start.disabled = true; start.textContent = '불러오지 못했어요'; retry.hidden = false; },
     hideIntro() { intro.classList.add('gone'); later(400, () => { intro.hidden = true; }); },
+    /** 게임 서버가 있을 때만 「테이블에서 같이 하기」 를 보인다. */
+    online(on: boolean) { intro.querySelector<HTMLElement>('.g-table-open')!.hidden = !on; },
     /** 시작 화면 아래 한 줄씩 — 초대한 친구, 지난번 이웃, 테이블. */
     notes(lines: string[]) { intro.querySelector('.g-notes')!.replaceChildren(...lines.map(line => el('li', '', line))); },
 
@@ -228,13 +230,13 @@ export function createUI(root: HTMLElement, actions: {
     },
 
     /** 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들. */
-    end(info: { code: TypeCode; lines: string[] }, on: { neighbor(): void; others(): void; share(): void; again(): void }) {
+    end(info: { code: TypeCode; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; again(): void }) {
       const card = el('div', 'g-end-card');
       card.append(el('span', 'g-kicker', `${DESTINATION.name}에 닿았어요`), el('p', 'g-you', '당신은'), el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line));
       const bar = el('div', 'g-end-actions');
       bar.append(
         button('g-primary', '함께 온 주민 중 내 이웃 정하기', on.neighbor),
-        button('g-ghost', '다른 사람들은 어떻게 골랐을까?', on.others),
+        ...(on.others ? [button('g-ghost', '다른 사람들은 어떻게 골랐을까?', on.others)] : []),
         button('g-ghost', '친구에게 보내기', on.share),
         button('g-link', '한 번 더 걷기', on.again),
       );
@@ -253,14 +255,14 @@ export function createUI(root: HTMLElement, actions: {
     },
 
     /** 내 이웃 — 이름 지어 주기, 그리고 소식 받기(연락처). */
-    neighborSheet(wish: string, on: { save(name: string): void; contact(form: ContactForm): Promise<string>; close(): void }) {
+    neighborSheet(wish: string, on: { save(name: string): void; contact?: (form: ContactForm) => Promise<string>; close(): void }) {
       let openedAt = Date.now();
       const name = el('input', 'g-input'); name.maxLength = 10; name.placeholder = '이웃 이름 지어 주기 (10자까지)';
       const contact = el('form', 'g-contact'); contact.hidden = true;
       const save = button('g-primary', '내 이웃으로 삼기', () => {
         on.save(cleanName(name.value));
         save.hidden = true; name.disabled = true;
-        contact.hidden = false; openedAt = Date.now();
+        if (on.contact) { contact.hidden = false; openedAt = Date.now(); }
       });
       contact.innerHTML = `<h3>이웃 소식 받기 <small>(안 받아도 돼요)</small></h3>
         <p class="g-small">시험판이라 아직 저장하지 않아요. 받을 방법만 미리 만들어 두었어요.</p>
@@ -292,13 +294,13 @@ export function createUI(root: HTMLElement, actions: {
       contact.onsubmit = async event => {
         event.preventDefault();
         const data = new FormData(contact);
-        contact.querySelector('.g-result')!.textContent = await on.contact({
+        contact.querySelector('.g-result')!.textContent = await on.contact!({
           channel: data.get('channel') as Channel, address: String(data.get('address') ?? ''),
           age14: data.has('age14'), collect: data.has('collect'), marketing: data.has('marketing'),
           website: String(data.get('website') ?? ''), openedAt,
         });
       };
-      openSheet(el('p', 'g-kicker', '내 이웃'), el('p', 'g-quote', `${josa(`「${wish}」`, '을', '를')} 바라던 주민`), name, save, contact, button('g-link', '닫기', () => { closeSheet(); on.close(); }));
+      openSheet(el('p', 'g-kicker', '내 이웃'), el('p', 'g-quote', `${josa(`「${wish}」`, '을', '를')} 바라던 주민`), name, save, ...(on.contact ? [contact] : []), button('g-link', '닫기', () => { closeSheet(); on.close(); }));
     },
     closeSheet,
 

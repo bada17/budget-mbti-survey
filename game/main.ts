@@ -32,6 +32,10 @@ const bus = createEvents();
 const abort = new AbortController();
 const view = { w: 360, h: 640, dpr: 1 };
 const here = () => `${location.origin}${location.pathname}`;
+/** 연락처 칸은 보낼 곳(contact.ts 의 sendContact)이 생기기 전까지 이 컴퓨터의 개발판에서만 보인다. */
+const contactReady = import.meta.env.DEV;
+/** 게임 서버(테이블·다른 사람들 마음)가 있나. 깃허브 페이지 시험판엔 없다 — 그때는 그 단추들을 숨긴다. */
+let online = false;
 
 const ui = createUI(root, {
   start: () => {
@@ -71,6 +75,13 @@ function notes() {
   ui.notes(lines);
 }
 notes();
+void net.stats().then(found => {
+  online = Boolean(found);
+  stats = found;
+  if (!online) tableCode = undefined;
+  ui.online(online);
+  notes();
+});
 
 type UntimedCommand = Command extends infer T ? T extends { at: number } ? Omit<T, 'at'> : never : never;
 function send(command: UntimedCommand | SceneCommand) {
@@ -117,7 +128,7 @@ bus.subscribe(event => {
     void net.progress(tableCode, state.sessionId, { stage: event.stageId - 1 }).then(view => { table = view ?? table; });
   }
   if (event.type === 'journey.arrived') {
-    void net.finish(state.sessionId, state.answers).then(result => { stats = result ?? stats; });
+    if (online) void net.finish(state.sessionId, state.answers).then(result => { stats = result ?? stats; });
     if (tableCode) void net.progress(tableCode, state.sessionId, { stage: ROUTE.length, type: event.typeCode }).then(view => { table = view ?? table; });
   }
 });
@@ -161,16 +172,16 @@ function showEnd() {
             saveNeighbor({ questionId: follower.questionId, key: follower.key, seed: follower.seed, name: name || '이웃', at: Date.now() });
             ui.toast(`${josa(`「${name || '이웃'}」`, '이', '가')} 내 이웃이 됐어요. 다음에 오면 같이 걸어요.`);
           },
-          contact: async form => {
+          contact: contactReady ? async form => {
             const checked = checkContact(form, Date.now());
             if (!checked.ok) return checked.error;
             return (await sendContact(checked.payload)) === 'sent' ? '고마워요! 소식이 생기면 보내 드릴게요.' : '고마워요! 다만 시험판이라 아직 저장하지 않았어요.';
-          },
+          } : undefined,
           close: () => ui.endActions(true),
         });
       });
     },
-    others: async () => ui.others((await net.stats()) ?? stats, mine()),
+    others: online ? async () => ui.others((await net.stats()) ?? stats, mine()) : undefined,
     share,
     again: () => { location.href = here(); },
   });
