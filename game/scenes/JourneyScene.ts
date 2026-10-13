@@ -1,186 +1,513 @@
+/*
+  한 판 전체를 돌리는 장면. 방(문항) 열다섯 개를 차례로 지난다.
+
+  시작:    내 모습 고르기(카메라가 나에게 다가감) → 출발
+  방 안:   두 주민이 말풍선으로 바람을 말함 → 한 사람에게 걸어감 → 대답 고르기(HTML)
+           → 그 주민이 하트를 날리며 내 뒤에 줄 섬, 그 자리에 고른 것의 표지판이 섬 → 문이 열림 → 위로 나감
+  방 사이: 화면이 위로 밀려 다음 방(같은 동네), 세 방마다 버스를 타고 다음 동네. 동네를 지날수록 아침 → 노을.
+  끝:      강 건너 언덕 — 따라온 주민·초대한 친구·같은 테이블 사람들이 모이고, 한 명을 내 이웃으로 고른다.
+
+  답·진행은 runtime.send 로 flow.ts 에 맡긴다. 여기서는 위치·그림·연출만 다룬다.
+*/
 import Phaser from 'phaser';
-import { ROUTE, DESTINATION } from '../content';
-import { currentQuestion, type JourneyState, type Command } from '../flow';
-import { displayOptions, type DisplaySide } from '../response';
-import { ART, tile } from '../art';
+import { DESTINATION } from '../content';
+import { currentQuestion, type JourneyState } from '../flow';
+import { orderedQuestions, displayOptions, type DisplaySide } from '../response';
 import { FEEL } from '../feel';
-import { WORLD, THEMES, movePlayer, residentPosition, type Point } from '../world';
-import type { MovementInput } from '../input';
+import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, type Point, type Room } from '../room';
+import { Dude, lookFrom, toLook, drawRoom, drawHill, drawBus, hearts, dust, tapRing, confetti, flee, sparkle, DAYLIGHT, type RoomArt } from '../draw';
+import type { Pick } from '../look';
+import type { Neighbor } from '../profile';
+import { sfx } from '../sfx';
+import type { Controls } from '../input';
+import type { GameUI } from '../ui';
+import type { GameEvent } from '../events';
+
+export type SceneCommand =
+  | { type: 'approach'; questionId: string; side: DisplaySide }
+  | { type: 'leave' }
+  | { type: 'exit'; stageIndex: number };
+
+/** 언덕에 함께 서는 사람 — 초대한 친구, 같은 테이블 사람. */
+export type Guest = { id: string; name: string; pick: Pick; label: string };
+/** 내 뒤를 따라오는 주민. 이웃으로 고르면 이 정보가 남는다. */
+export type Follower = { dude: Dude; questionId: string; key: 'a' | 'b'; seed: string };
 
 export type Runtime = {
-  state: () => JourneyState;
-  send: (command: Omit<Command, 'at'> | Record<string, unknown>) => void;
-  input: MovementInput;
-  visible: (id: string) => void;
-  onReady: () => void;
-  onError: () => void;
+  state(): JourneyState;
+  send(command: SceneCommand): void;
+  visible(questionId: string): void;
+  subscribe(listener: (event: GameEvent) => void): () => void;
+  view(): { w: number; h: number; dpr: number };
+  controls: Controls;
+  ui: GameUI;
+  ready(): void;
+  pick(): Pick;
+  /** 지난번에 고른 내 이웃 — 이번 판은 처음부터 같이 걷는다. */
+  returning?: Neighbor;
+  /** 언덕에서 다 같이 폴짝 뛴 뒤. 끝 화면은 main 이 띄운다. */
+  arrived(): void;
+  busCaption(stage: number, skip: () => void): void;
 };
 
+type Mode = 'intro' | 'dress' | 'enter' | 'play' | 'moving' | 'bus' | 'hill';
+const SIDES: DisplaySide[] = ['left', 'right'];
+const other = (side: DisplaySide): DisplaySide => (side === 'left' ? 'right' : 'left');
+const lerp = (a: Point, b: Point, k: number) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
+const touchScreen = matchMedia('(pointer: coarse)').matches;
+
 export class JourneyScene extends Phaser.Scene {
-  private player!: Phaser.GameObjects.Image;
-  private shadow!: Phaser.GameObjects.Ellipse;
-  private point: Point = { ...WORLD.spawn };
-  private target?: Point;
-  private stageIndex = -1;
-  private residents: Phaser.GameObjects.Image[] = [];
-  private markers: Phaser.GameObjects.Text[] = [];
-  private labels: Phaser.GameObjects.Text[] = [];
-  private lastQuestion = -1;
-  private needsSeparation = false;
-  private facing = ART.face.down as number;
+  private mode: Mode = 'intro';
+  private roomIndex = 0;
+  private room!: Room;
+  private art!: RoomArt;
+  private residents: Partial<Record<DisplaySide, Dude>> = {};
+  private chosen?: DisplaySide;
+  private doorOpen = false;
+  private player!: Dude;
+  private pos: Point = { x: 0, y: 0 };
+  private speed = 0;
+  private autoMoving = false;
+  private trail: Point[] = [];
+  private followers: Follower[] = [];
+  private guests = new Map<string, Dude>();
+  private hillTop?: Point;
+  private picking?: (follower: Follower) => void;
+  private light!: Phaser.GameObjects.Rectangle;
+  private busDone?: () => void;
+  private dustClock = 0;
+  private hintStep = 0;
+  /** 방을 넘어갈 때 건물 속을 지나는 띠 — 이 안에 든 사람은 감춘다(문으로 들어가 다음 방 아래로 나오는 것처럼). */
+  private insideBand?: { top: number; bottom: number };
+  private sizeBuilt = { w: 0, h: 0 };
   private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   constructor(private runtime: Runtime) { super('journey'); }
 
   create() {
-    this.buildStage();
-    const resize = () => this.resizeCamera(true);
-    this.scale.on('resize', resize);
-    this.events.once('shutdown', () => this.scale.off('resize', resize));
-    this.runtime.onReady();
+    const { w, h, dpr } = this.runtime.view();
+    this.cameras.main.setOrigin(0, 0).setZoom(dpr);
+    // 동네마다 빛(아침 → 노을)을 화면 전체에 곱한다.
+    this.light = this.add.rectangle(0, 0, w * 3, h * 3, DAYLIGHT[0][2]).setOrigin(0).setScrollFactor(0).setDepth(60000).setBlendMode(Phaser.BlendModes.MULTIPLY);
+    this.setRoom(this.buildRoom(0, 0));
+    this.pos = { ...this.room.spawn };
+    this.player = new Dude(this, toLook(this.runtime.pick()), this.pos.x, this.pos.y).place(this.pos);
+    this.trail = [{ x: this.pos.x, y: this.pos.y + 80 }, { ...this.pos }];
+    const back = this.runtime.returning;
+    if (back) {
+      const dude = new Dude(this, lookFrom(back.seed), this.pos.x, this.pos.y + 34, FEEL.followerScale).place({ x: this.pos.x, y: this.pos.y + 34 });
+      this.followers.push({ dude, questionId: back.questionId, key: back.key, seed: back.seed });
+    }
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.tapHill(p.worldX, p.worldY));
+    const stop = this.runtime.subscribe(event => this.onEvent(event));
+    this.events.once('shutdown', stop);
+    this.runtime.ready();
   }
 
-  private sprite(x: number, y: number, frame: number, scale = FEEL.sceneryScale) {
-    return this.add.image(x, y, 'urban', frame).setOrigin(0).setScale(scale);
+  // ── 내 모습 고르기: 카메라가 나에게 다가간다 ──
+  dress() {
+    if (this.mode !== 'intro') return;
+    this.mode = 'dress';
+    this.zoomTo(2.4);
   }
 
-  private tree(x: number, y: number) {
-    ART.tree.forEach((frame, i) => this.sprite(x, y + i * ART.tileSize * FEEL.sceneryScale, frame));
+  setLook(pick: Pick) {
+    this.player.destroy();
+    this.player = new Dude(this, toLook(pick), this.pos.x, this.pos.y).place(this.pos);
+    this.player.hop(10, 1, this.reduced);
   }
 
-  private building(cx: number, y: number, roofRow: number) {
-    const scale = FEEL.sceneryScale; const size = ART.tileSize * scale;
-    const x = cx - size * 1.5;
-    // Roof and facade are composed from the original urban atlas; labels carry place identity.
-    for (let row = 0; row < 2; row++) for (let col = 0; col < 3; col++) {
-      this.sprite(x + col * size, y + row * size, tile([17, 18, 22][col], roofRow + row));
-    }
-    for (let col = 0; col < 3; col++) this.sprite(x + col * size, y + 2 * size, tile(11 + col, 10));
-    this.sprite(x + size, y + 2 * size, tile(11, 14));
-  }
-
-  private buildStage() {
-    this.children.removeAll(true);
-    const state = this.runtime.state(); this.stageIndex = state.stageIndex;
-    this.lastQuestion = -1; this.target = undefined; this.needsSeparation = false;
-    this.residents = []; this.markers = []; this.labels = [];
-    const theme = THEMES[this.stageIndex];
-    this.cameras.main.setBackgroundColor(theme.grass);
-    const graphics = this.add.graphics();
-    graphics.fillStyle(theme.grass).fillRect(0, 0, WORLD.width, WORLD.height);
-    // A continuous walkable road, with separate meeting plazas. Scenery stays off the road.
-    graphics.fillStyle(theme.path).fillRect(142, 0, 76, WORLD.height);
-    graphics.lineStyle(2, 0xffffff, 0.25).strokeRect(140, 0, 80, WORLD.height);
-    for (let y = 30; y < WORLD.height; y += 64) {
-      graphics.fillStyle(0xffffff, 0.1).fillRect(148, y, 64, 2);
-    }
-    if (theme.water) {
-      graphics.fillStyle(0x80b9c0).fillRect(0, 0, 52, WORLD.height);
-      for (let y = 0; y < WORLD.height; y += 32) graphics.lineStyle(1, 0xc1e5dc, 0.7).lineBetween(7, y, 42, y);
-    }
-    for (let y = 40; y < WORLD.height; y += 160) {
-      this.tree(theme.water ? 54 : 9, y); this.tree(316, y + 55);
-    }
-    const route = ROUTE[this.stageIndex];
-    const stateForQuestions = { ...state };
-    WORLD.stops.forEach((y, index) => {
-      stateForQuestions.questionIndex = index;
-      const question = currentQuestion(stateForQuestions)!;
-      graphics.fillStyle(theme.path).fillRoundedRect(66, y - 40, 228, 92, 12);
-      graphics.fillStyle(0x738462, 0.2).fillEllipse(181, y - 115, 105, 15);
-      this.building(180, y - 182, theme.roof);
-      if (question.place === '공원' || question.place === '둑') {
-        this.tree(92, y - 154); this.tree(244, y - 150);
-      }
-      const sign = this.add.text(180, y - 72, question.place, {
-        fontFamily: 'system-ui, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#263e35',
-        backgroundColor: '#f6f0db', padding: { x: 9, y: 5 },
-      }).setOrigin(0.5).setDepth(3);
-      this.labels.push(sign);
-      for (const option of displayOptions(state.sessionId, question)) {
-        const point = residentPosition(index, option.side);
-        this.add.ellipse(point.x, point.y + 7, 28, 9, 0x4c604e, 0.25);
-        const row = ART.residents[this.stageIndex][index];
-        const actor = this.add.image(point.x, point.y, 'urban', tile(ART.face.down, row)).setScale(FEEL.actorScale).setOrigin(0.5, 0.8).setDepth(point.y);
-        this.residents.push(actor);
-        const marker = this.add.text(point.x, point.y - 43, '···', { fontSize: '15px', color: '#274a3e', backgroundColor: '#fbf8e9', padding: { x: 6, y: 0 } }).setOrigin(0.5).setDepth(point.y + 1);
-        this.markers.push(marker);
-      }
-      this.sprite(50, y + 27, ART.bench[0]); this.sprite(82, y + 27, ART.bench[1]);
+  private zoomTo(k: number, done?: () => void) {
+    const cam = this.cameras.main, { w, h, dpr } = this.runtime.view();
+    const from = { z: cam.zoom / dpr, x: cam.scrollX, y: cam.scrollY };
+    const to = k === 1 ? { z: 1, x: 0, y: 0 } : { z: k, x: this.pos.x - w / 2 / k, y: this.pos.y - 26 - (h * 0.27) / k };
+    this.tweens.addCounter({
+      from: 0, to: 1, duration: this.reduced ? 1 : 480, ease: 'Sine.easeInOut',
+      onUpdate: tween => {
+        const t = tween.getValue() ?? 1;
+        cam.setZoom(dpr * (from.z + (to.z - from.z) * t));
+        cam.scrollX = from.x + (to.x - from.x) * t; cam.scrollY = from.y + (to.y - from.y) * t;
+      },
+      onComplete: () => done?.(),
     });
-    this.add.text(180, WORLD.exit.y - 37, this.stageIndex === ROUTE.length - 1 ? DESTINATION.name : '다음 동네 ↑', {
-      fontSize: '13px', fontFamily: 'system-ui, sans-serif', color: '#294b3a', backgroundColor: '#f6f0db', padding: { x: 10, y: 7 },
-    }).setOrigin(0.5);
-    graphics.lineStyle(3, theme.accent, 0.5).lineBetween(145, WORLD.exit.y + 8, 215, WORLD.exit.y + 8);
-    this.point = { ...WORLD.spawn };
-    this.shadow = this.add.ellipse(this.point.x, this.point.y + 7, 26, 9, 0x324b3b, 0.25).setDepth(2000);
-    this.player = this.add.image(this.point.x, this.point.y, 'urban', tile(ART.face.up, ART.playerRow)).setScale(FEEL.actorScale).setOrigin(0.5, 0.8).setDepth(2001);
-    this.add.text(180, WORLD.spawn.y + 45, route.area, { fontFamily: 'system-ui', fontSize: '11px', color: '#526744' }).setOrigin(0.5);
-    this.resizeCamera(true);
-    if (!this.reduced && FEEL.effectsEnabled) this.cameras.main.fadeIn(FEEL.transitionMs);
   }
 
-  private resizeCamera(snap = false) {
-    const camera = this.cameras.main;
-    const zoom = Math.max(0.5, this.scale.width / WORLD.width);
-    camera.setZoom(zoom).setBounds(0, 0, WORLD.width, WORLD.height);
-    const desired = this.point.y - this.scale.height / zoom * FEEL.cameraLookAhead;
-    if (snap) camera.centerOn(WORLD.width / 2, desired);
-    else camera.centerOn(WORLD.width / 2, Phaser.Math.Linear(camera.midPoint.y, desired, FEEL.cameraFollow));
+  // ── 방 만들기 ──
+  private buildRoom(index: number, offsetY: number) {
+    const { w, h } = this.runtime.view();
+    const question = orderedQuestions[index];
+    const room = layoutRoom(w, h);
+    const art = drawRoom(this, room, Math.floor(index / 3), question.id, offsetY, question.place);
+    const residents: Partial<Record<DisplaySide, Dude>> = {};
+    for (const side of SIDES) {
+      const at = room.residents[side];
+      residents[side] = new Dude(this, lookFrom(`${question.id}:${side}`), at.x, at.y + offsetY).place({ x: at.x, y: at.y + offsetY });
+    }
+    return { index, room, art, residents };
   }
 
-  moveToResident(side: DisplaySide) {
+  private setRoom(built: ReturnType<JourneyScene['buildRoom']>) {
+    this.roomIndex = built.index; this.room = built.room; this.art = built.art; this.residents = built.residents;
+    this.chosen = undefined; this.doorOpen = false;
+    this.sizeBuilt = { w: built.room.w, h: built.room.h };
+  }
+
+  private dropRoom() {
+    this.art.destroy();
+    for (const side of SIDES) this.residents[side]?.destroy();
+    this.residents = {};
+  }
+
+  /** 아래에서 걸어 들어와 서면 질문을 띄운다. */
+  private enterRoom() {
+    this.mode = 'enter';
+    const from = { ...this.pos }, to = { ...this.room.spawn };
+    this.autoMoving = true;
+    this.tweens.addCounter({
+      from: 0, to: 1, duration: this.reduced ? 1 : FEEL.enterMs, ease: 'Sine.easeOut',
+      onUpdate: tween => { this.pos = lerp(from, to, tween.getValue() ?? 1); },
+      onComplete: () => { this.autoMoving = false; this.mode = 'play'; this.showAsk(); },
+    });
+  }
+
+  private showAsk() {
+    const question = orderedQuestions[this.roomIndex];
+    const anchors = Object.fromEntries(SIDES.map(side => [side, { x: this.room.residents[side].x, y: this.room.residents[side].y - 56 }])) as Record<DisplaySide, Point>;
+    const ms = this.runtime.ui.ask(question, this.runtime.state().sessionId, anchors, i => sfx.bubble(i));
+    this.time.delayedCall(ms, () => { if (this.mode === 'play' && !this.chosen) this.runtime.visible(question.id); });
+    if (this.hintStep === 0) this.runtime.ui.hint(touchScreen ? '화면을 꾹 누르면 그쪽으로 걸어가요' : '방향키나 마우스로 걸어가요');
+  }
+
+  // ── 매 프레임 ──
+  update(_time: number, delta: number) {
+    if (!this.player) return;
+    const dt = Math.min(delta, FEEL.maxDeltaMs);
     const state = this.runtime.state();
-    if (state.phase !== 'question' || state.paused) return;
-    const resident = residentPosition(state.questionIndex, side);
-    this.target = { x: resident.x, y: resident.y + FEEL.interactionRadius * 0.55 };
+    const before = { ...this.pos };
+    if (this.mode === 'play' && !state.paused) this.walk(dt);
+    const moving = this.autoMoving || distance(before, this.pos) > 0.05;
+    if (moving) this.player.look(this.pos.x - before.x, this.pos.y - before.y);
+    this.player.place(this.pos).walk(dt, moving, this.reduced);
+    if (moving && !this.reduced && this.mode !== 'bus' && (this.dustClock += dt) > FEEL.dustEveryMs) { this.dustClock = 0; dust(this, this.pos.x - 6, this.pos.y); }
+    this.recordTrail();
+    if (this.mode !== 'hill') this.follow(dt);
+    if (this.insideBand) for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(dude.y < this.insideBand.top || dude.y > this.insideBand.bottom);
+    if (this.mode !== 'play') return;
+    for (const side of SIDES) {
+      this.residents[side]?.look(this.pos.x - this.room.residents[side].x, this.pos.y - this.room.residents[side].y);
+      this.residents[side]?.walk(dt, false, this.reduced);
+    }
+    this.meet(state);
+    for (const bird of this.art.pigeons) {
+      if (!bird.fled && distance(this.pos, bird.at) < FEEL.pigeonFleeRadius) { flee(this, bird, this.pos); sfx.flutter(); }
+    }
+    if (this.doorOpen && passedDoor(this.pos, this.room)) this.leaveRoom();
   }
 
-  releaseResident() { this.target = undefined; this.needsSeparation = true; }
+  private walk(dt: number) {
+    const controls = this.runtime.controls;
+    if (controls.tapped) { tapRing(this, controls.tapped.x, controls.tapped.y); controls.tapped = undefined; }
+    let dir = controls.keyVector();
+    let speedCap = Infinity;
+    if (dir.x || dir.y) controls.target = undefined;
+    else if (controls.target) {
+      const d = distance(controls.target, this.pos);
+      if (d < 3) { if (!controls.holding) controls.target = undefined; dir = { x: 0, y: 0 }; }
+      else { dir = { x: (controls.target.x - this.pos.x) / d, y: (controls.target.y - this.pos.y) / d }; speedCap = d * 1000 / dt; }
+    }
+    if (!dir.x && !dir.y) { this.speed = 0; return; }
+    this.speed = Math.min(FEEL.walkSpeed, this.speed + FEEL.walkSpeed * dt / FEEL.accelMs);
+    const solid = SIDES.filter(side => this.residents[side]).map(side => this.room.residents[side]);
+    const next = step(this.pos, dir, Math.min(this.speed, speedCap), dt, this.room, this.doorOpen, solid);
+    if (distance(next, this.pos) < 0.05 && controls.target && !controls.holding) controls.target = undefined;
+    this.pos = next;
+  }
 
-  update(time: number, delta: number) {
-    const state = this.runtime.state();
-    if (!this.player || state.phase === 'intro' || state.phase === 'arrived') return;
-    if (state.stageIndex !== this.stageIndex) this.buildStage();
-    if (state.paused) { this.target = undefined; return; }
-    const question = currentQuestion(state);
-    if (this.lastQuestion !== state.questionIndex) {
-      this.lastQuestion = state.questionIndex; this.target = undefined;
-      this.markers.forEach((marker, i) => marker.setVisible(Math.floor(i / 2) === state.questionIndex));
-      this.labels.forEach((label, i) => label.setAlpha(i < state.questionIndex ? 0.55 : 1));
+  /** 주민 곁에 가면 대답 창이 열리고, 멀어지면 닫힌다. */
+  private meet(state: JourneyState) {
+    const question = orderedQuestions[this.roomIndex];
+    if (this.chosen || currentQuestion(state)?.id !== question.id || state.paused) return;
+    if (state.phase === 'question') {
+      const side = nearest(this.pos, this.room, FEEL.meetRadius);
+      if (!side) return;
+      if (!this.runtime.controls.holding) this.runtime.controls.target = undefined;
+      this.runtime.send({ type: 'approach', questionId: question.id, side });
+    } else if (state.phase === 'reply' && state.candidate) {
+      const switched = nearest(this.pos, this.room, FEEL.meetRadius, [other(state.candidate)]);
+      if (switched || distance(this.pos, this.room.residents[state.candidate]) > FEEL.leaveRadius) this.runtime.send({ type: 'leave' });
     }
-    if (state.phase === 'reply') { this.runtime.input.reset(); return; }
-    let vector = this.runtime.input.read();
-    if (vector.x || vector.y) this.target = undefined;
-    if (this.target) {
-      const dx = this.target.x - this.point.x; const dy = this.target.y - this.point.y;
-      const distance = Math.hypot(dx, dy);
-      if (distance <= 2) this.target = undefined;
-      else vector = { x: dx / distance, y: dy / distance };
+  }
+
+  // ── 따라오는 주민 ──
+  private recordTrail() {
+    const last = this.trail[this.trail.length - 1];
+    if (last && distance(last, this.pos) < 3) return;
+    this.trail.push({ ...this.pos });
+    const keep = Math.ceil(((this.followers.length + 2) * FEEL.followGap) / 3) + 40;
+    if (this.trail.length > keep) this.trail.splice(0, this.trail.length - keep);
+  }
+
+  private follow(dt: number) {
+    this.followers.forEach(({ dude }, i) => {
+      const want = alongTrail(this.trail, (i + 1) * FEEL.followGap);
+      if (!want) return;
+      const dx = want.x - dude.x, dy = want.y - dude.y, d = Math.hypot(dx, dy);
+      const reach = Math.max(FEEL.walkSpeed * FEEL.followerCatchUp, d * 4) * dt / 1000;
+      const k = d > 0.5 ? Math.min(1, reach / d) : 0;
+      dude.place({ x: dude.x + dx * k, y: dude.y + dy * k }).walk(dt, k > 0, this.reduced);
+      if (k > 0) dude.look(dx, dy);
+    });
+  }
+
+  // ── 신호에 붙는 연출 ──
+  private onEvent(event: GameEvent) {
+    if (event.type === 'journey.started') this.zoomTo(1, () => { this.mode = 'play'; this.showAsk(); });
+    if (event.type === 'resident.approached') {
+      this.residents[event.displaySide]?.hop(5, 1, this.reduced);
+      if (this.hintStep === 0) { this.hintStep = 1; this.runtime.ui.hint(); }
     }
-    const before = this.point;
-    this.point = movePlayer(this.point, vector, delta, state.questionIndex);
-    const walking = before.x !== this.point.x || before.y !== this.point.y;
-    if (walking) this.facing = Math.abs(vector.x) > Math.abs(vector.y) ? (vector.x < 0 ? ART.face.left : ART.face.right) : (vector.y < 0 ? ART.face.up : ART.face.down);
-    const bob = walking && !this.reduced ? Math.sin(time / FEEL.walkCycleMs * Math.PI * 2) * FEEL.walkBobPx : 0;
-    this.player.setPosition(this.point.x, this.point.y + bob).setFrame(tile(this.facing, ART.playerRow));
-    this.shadow.setPosition(this.point.x, this.point.y + 7);
-    this.resizeCamera();
-    if (question && state.phase === 'walking' && Math.abs(this.point.y - WORLD.stops[state.questionIndex]) < FEEL.questionRevealDistance) {
-      this.runtime.visible(question.id);
-    }
-    if (question && state.phase === 'question') {
-      const near = (['left', 'right'] as const).find(side => {
-        const resident = residentPosition(state.questionIndex, side);
-        return Math.hypot(resident.x - this.point.x, resident.y - this.point.y) < FEEL.interactionRadius;
-      });
-      if (!near) this.needsSeparation = false;
-      if (near && !this.needsSeparation) {
-        this.target = undefined;
-        this.runtime.send({ type: 'approach', questionId: question.id, side: near });
+    if (event.type === 'question.answered') this.answered(event.displaySide, event.level);
+  }
+
+  private answered(side: DisplaySide, level: number) {
+    const dude = this.residents[side];
+    if (!dude || this.chosen) return;
+    this.chosen = side;
+    // 방에서 바로 빼 둔다 — 줄에 서기 전에 방을 다시 깔아도(화면 회전) 이 사람은 지워지지 않게.
+    delete this.residents[side];
+    const question = orderedQuestions[this.roomIndex];
+    const option = displayOptions(this.runtime.state().sessionId, question).find(o => o.side === side)!;
+    const spot = { ...this.room.residents[side] };
+    this.runtime.ui.clearAsk(side);
+    dude.hop(FEEL.jumpPx[level], FEEL.jumps[level], this.reduced);
+    hearts(this, dude.x, dude.y - 44, FEEL.hearts[level], this.reduced);
+    if (FEEL.shake[level] && !this.reduced) this.cameras.main.shake(160, FEEL.shake[level]);
+    this.residents[other(side)]?.hop(4, 1, this.reduced);
+    this.time.delayedCall(FEEL.joinDelayMs, () => {
+      // 새 사람이 줄에 서면 먼저 온 사람들이 차례로 폴짝 반긴다.
+      this.followers.forEach((friend, i) => this.time.delayedCall(i * 45, () => friend.dude.hop(7, 1, this.reduced)));
+      this.followers.push({ dude, questionId: question.id, key: option.key, seed: `${question.id}:${side}` });
+      this.tweens.add({ targets: dude.root, scale: FEEL.followerScale, duration: 200 });
+      // 그 주민이 서 있던 자리에 고른 것이 생긴다 — 문항의 짧은 이름 그대로(새 문구를 짓지 않는다).
+      if (this.mode === 'play' && this.roomIndex === orderedQuestions.indexOf(question)) {
+        sparkle(this, spot.x, spot.y - 20, this.reduced);
+        this.runtime.ui.made(option.short, { x: spot.x, y: spot.y - 6 });
       }
+    });
+    this.time.delayedCall(260, () => {
+      if (this.mode !== 'play') return;
+      this.doorOpen = true;
+      this.art.openDoor(this.reduced);
+      sfx.door();
+      this.showDoor();
+      if (this.hintStep === 1) { this.hintStep = 2; this.runtime.ui.hint('문이 열렸어요! 위로 걸어가요'); }
+    });
+  }
+
+  private showDoor() {
+    const label = this.roomIndex === orderedQuestions.length - 1 ? DESTINATION.name : this.roomIndex % 3 === 2 ? '버스 타러' : '다음 장소';
+    this.runtime.ui.door(label, { x: this.room.door.x, y: this.room.wallY - 104 });
+  }
+
+  /** 말풍선을 누르면 그 주민 앞까지 걸어간다. */
+  goTo(side: DisplaySide) {
+    if (this.mode !== 'play' || this.chosen) return;
+    const at = this.room.residents[side];
+    this.runtime.controls.target = { x: at.x, y: at.y + FEEL.talkGap };
+  }
+
+  /** 문 단추를 누르면 문으로 걸어 나간다. */
+  goDoor() {
+    if (this.mode === 'play' && this.doorOpen) this.runtime.controls.target = { x: this.room.door.x, y: this.room.wallY - 30 };
+  }
+
+  // ── 방을 나서기 ──
+  private leaveRoom() {
+    const stageIndex = Math.floor(this.roomIndex / 3);
+    const last = this.roomIndex === orderedQuestions.length - 1;
+    const stageEnd = this.roomIndex % 3 === 2;
+    this.mode = 'moving';
+    this.insideBand = undefined;
+    for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(true);
+    this.runtime.controls.clear();
+    this.runtime.ui.door(); this.runtime.ui.hint(); this.runtime.ui.clearAsk(); this.runtime.ui.made();
+    if (stageEnd) {
+      this.runtime.send({ type: 'exit', stageIndex });
+      const state = this.runtime.state();
+      if (last ? state.phase !== 'arrived' : state.stageIndex !== stageIndex + 1) { this.mode = 'play'; return; }
     }
-    if (!question && Math.hypot(this.point.x - WORLD.exit.x, this.point.y - WORLD.exit.y) <= FEEL.arrivalRadius) {
-      this.runtime.send({ type: 'exit', stageIndex: state.stageIndex });
+    if (last) this.toHill();
+    else if (stageEnd) this.toBus(stageIndex + 1);
+    else {
+      const built = this.buildRoom(this.roomIndex + 1, -this.room.h);
+      this.scrollUp(built.art.box, built.room.spawn, () => {
+        this.setRoom(built);
+        for (const side of SIDES) built.residents[side]!.place(built.room.residents[side]);
+      });
     }
+  }
+
+  /** 화면이 위로 밀리며 다음 칸으로. 다 밀리면 좌표를 제자리(0)로 되돌린다. */
+  private scrollUp(box: Phaser.GameObjects.Container, spawn: Point, arrive: () => void) {
+    const H = this.room.h, cam = this.cameras.main;
+    const from = { ...this.pos }, to = { x: spawn.x, y: spawn.y - H };
+    this.insideBand = { top: -14, bottom: this.room.wallY - 8 };
+    sfx.whoosh();
+    this.autoMoving = true;
+    this.tweens.addCounter({
+      from: 0, to: 1, duration: this.reduced ? 1 : FEEL.roomScrollMs, ease: 'Sine.easeInOut',
+      onUpdate: tween => { const k = tween.getValue() ?? 1; this.pos = lerp(from, to, k); cam.scrollY = -H * k; },
+      onComplete: () => {
+        this.dropRoom();
+        const shift = (p: Point) => { p.y += H; };
+        shift(this.pos); this.trail.forEach(shift);
+        this.insideBand = { top: this.insideBand!.top + H, bottom: this.insideBand!.bottom + H };
+        for (const { dude } of this.followers) dude.place({ x: dude.x, y: dude.y + H });
+        cam.scrollY = 0;
+        box.setY(0);
+        arrive();
+        this.autoMoving = false;
+        if (this.mode === 'moving') { this.mode = 'play'; this.showAsk(); }
+      },
+    });
+  }
+
+  private fade(out: boolean, done: () => void) {
+    const cam = this.cameras.main;
+    if (this.reduced) { done(); return; }
+    cam.once(out ? Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE : Phaser.Cameras.Scene2D.Events.FADE_IN_COMPLETE, done);
+    if (out) cam.fadeOut(200, 255, 250, 240); else cam.fadeIn(220, 255, 250, 240);
+  }
+
+  /** 세 방마다 버스를 타고 다음 동네로. 버스 창에 내 얼굴. 눌러서 넘길 수 있다. */
+  private toBus(stage: number) {
+    this.mode = 'bus';
+    const people = [this.player, ...this.followers.map(f => f.dude)];
+    this.fade(true, () => {
+      this.dropRoom();
+      people.forEach(dude => dude.root.setVisible(false));
+      const { w, h } = this.runtime.view();
+      const { box, bus } = drawBus(this, w, h, stage, toLook(this.runtime.pick()), this.followers.length);
+      this.light.setFillStyle(DAYLIGHT[stage][2]);
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        this.busDone = undefined;
+        this.tweens.killTweensOf(bus);
+        this.runtime.busCaption(-1, () => {});
+        this.fade(true, () => {
+          box.destroy();
+          this.setRoom(this.buildRoom(this.roomIndex + 1, 0));
+          this.pos = { x: this.room.spawn.x, y: this.room.h + 40 };
+          this.trail = [{ x: this.pos.x, y: this.pos.y + (this.followers.length + 2) * FEEL.followGap }, { ...this.pos }];
+          this.followers.forEach(({ dude }, i) => dude.place(alongTrail(this.trail, (i + 1) * FEEL.followGap)!));
+          people.forEach(dude => dude.root.setVisible(true));
+          this.fade(false, () => {});
+          this.enterRoom();
+        });
+      };
+      this.busDone = finish;
+      this.fade(false, () => {});
+      sfx.whoosh();
+      this.runtime.busCaption(stage, finish);
+      this.tweens.chain({
+        targets: bus,
+        tweens: [
+          { x: w / 2, duration: this.reduced ? 1 : 800, ease: 'Cubic.easeOut' },
+          { x: w / 2, duration: this.reduced ? 1 : 700 },
+          { x: w + 160, duration: this.reduced ? 1 : 650, ease: 'Cubic.easeIn' },
+        ],
+        onComplete: finish,
+      });
+    });
+  }
+
+  skipBus() { this.busDone?.(); }
+
+  private toHill() {
+    const { w, h } = this.runtime.view();
+    const hill = drawHill(this, w, h, -h);
+    this.light.setFillStyle(DAYLIGHT[5][2]);
+    this.scrollUp(hill.box, hill.top, () => { this.mode = 'hill'; this.hillTop = hill.top; this.gather(hill.top); });
+  }
+
+  /** 언덕 꼭대기에 서면 따라온 주민들이 둘러서고, 다 같이 폴짝. */
+  private gather(top: Point) {
+    const n = this.followers.length;
+    this.followers.forEach(({ dude }, i) => {
+      const inner = i < 6, j = inner ? i : i - 6, count = inner ? Math.min(6, n) : n - 6;
+      const spread = Math.PI * (inner ? 1.15 : 1.35), angle = Math.PI / 2 - spread / 2 + spread * (j + 0.5) / Math.max(1, count);
+      const radius = inner ? 62 : 112;
+      const spot = { x: top.x - Math.cos(angle) * radius, y: top.y + Math.sin(angle) * radius * 0.55 - (inner ? 0 : 6) };
+      this.walkTo(dude, spot, FEEL.gatherMs + i * 30, top);
+    });
+    this.player.look(0, 1);
+    const cheerAt = this.reduced ? 0 : FEEL.gatherMs + n * 30 + 100;
+    this.time.delayedCall(cheerAt, () => {
+      sfx.fanfare();
+      confetti(this, this.runtime.view().w, 0, this.reduced);
+      this.player.hop(26, 2, this.reduced);
+      this.followers.forEach(({ dude }, i) => this.time.delayedCall(i * FEEL.cheerGapMs, () => dude.hop(16, 2, this.reduced)));
+      this.time.delayedCall(FEEL.revealDelayMs, () => this.runtime.arrived());
+    });
+  }
+
+  private walkTo(dude: Dude, spot: Point, ms: number, face: Point) {
+    const start = { x: dude.x, y: dude.y };
+    this.tweens.addCounter({
+      from: 0, to: 1, duration: this.reduced ? 1 : ms, ease: 'Sine.easeInOut',
+      onUpdate: tween => { const p = lerp(start, spot, tween.getValue() ?? 1); dude.look(p.x - dude.x, p.y - dude.y); dude.place(p).walk(16, true, this.reduced); },
+      onComplete: () => { dude.walk(16, false, this.reduced); dude.look(face.x - spot.x, face.y - spot.y); },
+    });
+  }
+
+  /** 초대한 친구·같은 테이블 사람을 언덕에 세운다. 새로 온 사람만 아래에서 걸어 올라온다. */
+  setGuests(guests: Guest[]) {
+    const top = this.hillTop;
+    if (!top || this.mode !== 'hill') return;
+    const { h } = this.runtime.view();
+    const spots = guests.map((_, i) => ({ x: top.x + (i % 2 ? 1 : -1) * (34 + Math.floor(i / 2) * 40), y: top.y - 26 - Math.floor(i / 2) * 4 }));
+    guests.forEach((guest, i) => {
+      if (this.guests.has(guest.id)) return;
+      const dude = new Dude(this, toLook(guest.pick), spots[i].x, h + 40).place({ x: spots[i].x, y: h + 40 });
+      this.guests.set(guest.id, dude);
+      this.walkTo(dude, spots[i], 900, { x: top.x, y: top.y + 40 });
+      this.time.delayedCall(this.reduced ? 0 : 950, () => dude.hop(14, 2, this.reduced));
+    });
+    this.time.delayedCall(this.reduced ? 0 : 960, () => this.runtime.ui.tags(guests.map((guest, i) => ({ text: guest.label, x: spots[i].x, y: spots[i].y - 58 }))));
+  }
+
+  /** 언덕에서 한 명을 눌러 내 이웃으로. */
+  pickNeighbor(onPick: (follower: Follower) => void) { this.picking = onPick; }
+
+  private tapHill(x: number, y: number) {
+    if (this.mode !== 'hill' || !this.picking) return;
+    let best: Follower | undefined, bestD = 36;
+    for (const follower of this.followers) {
+      const d = distance({ x, y }, { x: follower.dude.x, y: follower.dude.y - 22 });
+      if (d < bestD) { best = follower; bestD = d; }
+    }
+    if (!best) return;
+    best.dude.hop(14, 1, this.reduced);
+    tapRing(this, best.dude.x, best.dude.y);
+    sfx.meet();
+    this.picking(best);
+  }
+
+  /** 화면 크기가 크게 바뀌면(회전 등) 지금 방을 새 크기로 다시 깐다. 주소창이 들고 나는 정도는 넘긴다. */
+  relayout() {
+    if (!this.player) return;
+    const { w, h, dpr } = this.runtime.view();
+    if (this.mode !== 'dress') this.cameras.main.setZoom(dpr);
+    this.light.setSize(w * 3, h * 3);
+    if (this.mode !== 'play' || (w === this.sizeBuilt.w && Math.abs(h - this.sizeBuilt.h) < 80)) return;
+    const chosen = this.chosen, doorOpen = this.doorOpen;
+    this.dropRoom();
+    this.setRoom(this.buildRoom(this.roomIndex, 0));
+    if (chosen) { this.residents[chosen]?.destroy(); delete this.residents[chosen]; this.chosen = chosen; this.runtime.ui.made(); }
+    if (doorOpen) { this.doorOpen = true; this.art.openDoor(true); this.showDoor(); }
+    this.pos = { x: Math.min(Math.max(this.pos.x, 16), w - 16), y: Math.min(Math.max(this.pos.y, this.room.wallY + 10), this.room.floor) };
+    if (!chosen) this.showAsk();
   }
 }

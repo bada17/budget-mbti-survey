@@ -1,17 +1,11 @@
 import type { createEvents } from './events';
-import type { GameUI } from './ui';
 import { FEEL } from './feel';
+import { sfx, vibrate } from './sfx';
 
-/** Add sounds/tweens here. Never dispatch progress commands from this listener. */
-export function attachEffects(bus: ReturnType<typeof createEvents>, ui: GameUI) {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const unsubscribe = bus.subscribe(event => {
-    if (!FEEL.effectsEnabled) return;
-    if (event.type === 'question.answered') {
-      clearTimeout(timeout);
-      ui.feedback.textContent = '마음을 전했어요. 다음 이웃을 만나러 가요.';
-      timeout = setTimeout(() => { ui.feedback.textContent = ''; }, FEEL.replyFeedbackMs);
-    }
+/** 진행 신호에 소리·떨림을 붙인다. 여기서는 진행을 바꾸는 명령을 보내지 않는다. */
+export function attachEffects(bus: ReturnType<typeof createEvents>) {
+  return bus.subscribe(event => {
+    if (event.type === 'resident.approached') sfx.meet();
+    if (event.type === 'question.answered') { sfx.answer(event.level); vibrate(FEEL.vibrateMs[event.level] ?? 0); }
   });
-  return () => { unsubscribe(); clearTimeout(timeout); };
 }

@@ -6,7 +6,7 @@ export type GameEvent = Readonly<
   | { type: 'stage.entered'; stageId: number; area: string }
   | { type: 'question.visible'; questionId: string; stageId: number; at: number }
   | { type: 'resident.approached' | 'resident.left'; questionId: string; displaySide: DisplaySide }
-  | { type: 'question.answered'; questionId: string; stageId: number; displaySide: DisplaySide; at: number }
+  | { type: 'question.answered'; questionId: string; stageId: number; displaySide: DisplaySide; level: number; at: number }
   | { type: 'stage.completed'; stageId: number; answeredCount: number; at: number }
   | { type: 'journey.arrived'; typeCode: TypeCode; at: number }
   | { type: 'journey.paused' | 'journey.resumed'; reason: string; at: number }

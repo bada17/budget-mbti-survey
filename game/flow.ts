@@ -77,7 +77,7 @@ export function transition(state: JourneyState, command: Command): { state: Jour
       phase: 'walking', questionIndex: state.questionIndex + 1, candidate: undefined,
       answers: { ...state.answers, [question.id]: answerFor(state.sessionId, question, state.candidate, command.level) },
       timing: { ...state.timing, [question.id]: { ...state.timing[question.id], firstAnsweredAt: at } },
-    }, [{ type: 'question.answered', questionId: question.id, stageId: ROUTE[state.stageIndex].stage, displaySide: state.candidate, at }]);
+    }, [{ type: 'question.answered', questionId: question.id, stageId: ROUTE[state.stageIndex].stage, displaySide: state.candidate, level: command.level, at }]);
   }
   return unchanged;
 }
