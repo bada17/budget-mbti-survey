@@ -72,6 +72,17 @@ npx tsc --noEmit
 스키마를 바꾼 경우에만 `npm run db:generate`로 새 마이그레이션을
 생성합니다.
 
+## 정적판 (깃허브 페이지)
+
+**https://bada17.github.io/budget-mbti-survey/** — 저장·서버 없이 설문만 도는 판.
+`static/` 이 입구이고 `app/SurveyApp.tsx` 를 그대로 씁니다. 올리는 법:
+
+```bash
+npx vite build -c vite.static.config.ts   # → dist-static/
+cd dist-static && git init -q -b gh-pages && git add -A && git commit -qm "정적판" \
+  && git push -f https://github.com/bada17/budget-mbti-survey.git gh-pages && rm -rf .git
+```
+
 ## 남은 일
 
 1. **`/api/responses`의 예산 합계·필수 필드 검증** — 아직 그대로입니다. 배분
@@ -91,6 +102,16 @@ npx tsc --noEmit
 ## 기록
 
 > 여기에 덧붙입니다. 최신이 위. **무엇을 했는지보다 왜 그렇게 정했는지**를 적습니다.
+
+## [2026-10-13] 정적판을 깃허브 페이지에 올렸다
+
+- **후원주점(10/28) 테이블 QR 용 「재미판」이다.** 목적은 재미뿐이라 저장·N%·구독을
+  붙이지 않았다(손님 연락처는 이미 거의 다 있다). 기준은 10/21 까지 배포·폰 시험.
+- vinext 빌드는 워커·D1 을 끼고 있고 그 자리는 비어 있다(위 「의도적으로 비워 둔 부분」).
+  설문 화면은 전부 브라우저에서 돌아서, **서버 없이 굽는 길을 따로 냈다** —
+  `static/` + `vite.static.config.ts`. 화면 코드는 같은 것을 쓰므로 두 판이 갈라지지 않는다.
+- 깃허브 페이지를 고른 이유: 저장소가 원래 공개라 무료이고, 이 PC 에 클라우드플레어
+  로그인이 없다. 저장이 붙으면 그때 워커 배포로 옮긴다.
 
 ## [2026-09-11] 끝난 항목을 걷어냈다
 
