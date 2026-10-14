@@ -12,7 +12,9 @@ import { PLACES, PLAZA, FOUNTAIN, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VIL
 type Scene = Phaser.Scene;
 type Container = Phaser.GameObjects.Container;
 
-import { rng, type Look } from './look';
+import { rng, lookFrom as seedLook, type Look } from './look';
+import { sfx } from './sfx';
+import type { Outcome } from './outcomes';
 export { lookFrom, toLook, type Look } from './look';
 
 type DudeLeg = Phaser.GameObjects.Rectangle | Container;
@@ -1196,4 +1198,130 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
       [...culled.map(c => c.obj), ...live, ...works.objs, ...cats.map(c => c.root), ...pigeons.filter(p => !p.fled).map(p => p.root)].forEach(t => t.destroy());
     },
   };
+}
+
+// ───────────────────────── 고르면 방이 바뀐다(outcomes.ts 의 목록을 그린다) ─────────────────────────
+type Obj = Phaser.GameObjects.GameObject;
+
+/** 이모지 한 글자 — 카메라가 기기 화소만큼 키우므로 글자 그림도 그만큼 촘촘하게. */
+function emoji(scene: Scene, x: number, y: number, icon: string, size: number, dpr: number) {
+  return scene.add.text(x, y, icon, { fontSize: `${size}px`, resolution: dpr, padding: { x: 4, y: 4 } }).setOrigin(0.5, 1).setDepth(y);
+}
+function puff(scene: Scene, x: number, y: number, reduced: boolean) {
+  if (reduced) return;
+  for (let i = 0; i < 5; i++) {
+    const c = scene.add.circle(x + (i - 2) * 7, y, 5 + (i % 2) * 2, 0xf3ead6, 0.9).setDepth(y + 1);
+    scene.tweens.add({ targets: c, y: y - 10 - (i % 3) * 5, alpha: 0, scale: 1.8, duration: 520, delay: i * 30, onComplete: () => c.destroy() });
+  }
+}
+const pop = (scene: Scene, target: Phaser.GameObjects.Text, reduced: boolean, delay = 0, to = 1) => {
+  target.setScale(reduced ? to : 0);
+  if (!reduced) scene.tweens.add({ targets: target, scale: to, duration: 420, delay, ease: 'Back.easeOut' });
+};
+
+/**
+ * 일을 벌인다. spot = 고른 주민이 서 있던 자리. 남는 것(지어진 것·찾아온 사람)을 돌려준다 — 방을 떠날 때 지운다.
+ * 기다리는 시간은 문이 열리는 것(260ms)과 겹쳐도 된다 — 걸어 나가는 것을 막지 않는다.
+ */
+export function playOutcome(scene: Scene, o: Outcome, at: { spot: Point; room: Room; dpr: number; reduced: boolean; seed: string }): Obj[] {
+  const { spot, room, dpr, reduced } = at;
+  const left: Obj[] = [];
+  // 고른 쪽 벽 앞 — 내 뒤에 줄 선 주민들(아래쪽)에 가리지 않는 자리
+  const anchor = { x: spot.x + (room.w / 2 - spot.x) * 0.1, y: room.wallY + 66 };
+  const floorY = (k: number) => room.residents.left.y + 30 + (room.floor - room.residents.left.y - 70) * k;
+  switch (o.kind) {
+    case 'build': {
+      puff(scene, anchor.x, anchor.y, reduced);
+      const frame = scene.add.graphics().setDepth(anchor.y - 1);
+      frame.lineStyle(3, 0xb07a52).strokeRect(anchor.x - 24, anchor.y - 48, 48, 48).lineBetween(anchor.x - 24, anchor.y - 24, anchor.x + 24, anchor.y - 24).lineBetween(anchor.x - 24, anchor.y - 48, anchor.x + 24, anchor.y);
+      frame.setScale(1, reduced ? 1 : 0).setY(reduced ? 0 : anchor.y);
+      const thing = emoji(scene, anchor.x, anchor.y, o.icon, 52, dpr);
+      left.push(thing);
+      if (reduced) { frame.destroy(); break; }
+      thing.setScale(0);
+      scene.tweens.add({ targets: frame, scaleY: 1, y: 0, duration: 320, ease: 'Sine.easeOut' });
+      scene.time.delayedCall(260, () => sfx.build());
+      scene.time.delayedCall(560, () => { frame.destroy(); puff(scene, anchor.x, anchor.y, false); sparkle(scene, anchor.x, anchor.y - 24, false); });
+      pop(scene, thing, false, 560);
+      break;
+    }
+    case 'rain': {
+      sfx.rain();
+      for (let i = 0; i < 12; i++) {
+        const x = 30 + ((i * 53) % (room.w - 60)), y = floorY(((i * 37) % 10) / 10);
+        const drop = emoji(scene, x, room.wallY - 10, o.icon, 22, dpr).setDepth(y);
+        if (reduced) { drop.setY(y); left.push(drop); continue; }
+        scene.tweens.add({ targets: drop, y, duration: 520 + (i % 4) * 90, delay: i * 55, ease: 'Bounce.easeOut' });
+        scene.tweens.add({ targets: drop, alpha: 0, delay: 2200 + i * 40, duration: 500, onComplete: () => drop.destroy() });
+      }
+      break;
+    }
+    case 'visit': {
+      const fromX = spot.x < room.w / 2 ? -30 : room.w + 30;
+      const helper = new Dude(scene, seedLook(`helper:${at.seed}`), fromX, anchor.y, 0.95).place({ x: fromX, y: anchor.y });
+      const held = emoji(scene, fromX, anchor.y - 52, o.icon, 24, dpr).setDepth(9000);
+      left.push(helper.root, held);
+      const to = { x: anchor.x, y: anchor.y };
+      helper.look(to.x - fromX, 0);
+      const done = () => { helper.walk(16, false, reduced); helper.look(0, 1); helper.hop(12, 2, reduced); sparkle(scene, to.x, to.y - 30, reduced); sfx.meet(); };
+      if (reduced) { helper.place(to); held.setPosition(to.x, to.y - 52); done(); break; }
+      scene.tweens.addCounter({
+        from: 0, to: 1, duration: 1100, ease: 'Sine.easeInOut',
+        onUpdate: tw => { const k = tw.getValue() ?? 1, x = fromX + (to.x - fromX) * k; helper.place({ x, y: to.y }).walk(16, true, false); held.setPosition(x, to.y - 52 + Math.sin(k * 20) * 1.5); },
+        onComplete: done,
+      });
+      break;
+    }
+    case 'grow': {
+      const sprout = emoji(scene, anchor.x, anchor.y, '🌱', 22, dpr);
+      const grown = emoji(scene, anchor.x, anchor.y, o.icon, 54, dpr).setVisible(false);
+      left.push(sprout, grown);
+      if (reduced) { sprout.setVisible(false); grown.setVisible(true); break; }
+      pop(scene, sprout, false);
+      sfx.grow();
+      scene.tweens.add({ targets: sprout, scale: 1.6, duration: 420, delay: 480, ease: 'Sine.easeIn', onComplete: () => {
+        sprout.setVisible(false); grown.setVisible(true); pop(scene, grown, false); sparkle(scene, anchor.x, anchor.y - 30, false);
+        for (let i = 0; i < 6; i++) { const leaf = scene.add.ellipse(anchor.x, anchor.y - 30, 6, 3, 0x8cc07a).setDepth(9000); scene.tweens.add({ targets: leaf, x: anchor.x + (i - 2.5) * 16, y: anchor.y - 6, alpha: 0, angle: 200, duration: 700, onComplete: () => leaf.destroy() }); }
+      } });
+      break;
+    }
+    case 'spread': {
+      const spots = [0.12, 0.3, 0.5, 0.7, 0.88].map((kx, i) => ({ x: room.w * kx, y: floorY([0.15, 0.6, 0.35, 0.65, 0.2][i]) }));
+      spots.forEach((p, i) => {
+        const thing = emoji(scene, p.x, p.y, o.icon, 24, dpr);
+        left.push(thing);
+        pop(scene, thing, reduced, i * 130);
+        if (!reduced) scene.time.delayedCall(i * 130, () => { sfx.bubble(i); sparkle(scene, p.x, p.y - 14, false); });
+      });
+      break;
+    }
+    case 'focus': {
+      const ring = scene.add.circle(anchor.x, anchor.y - 28, 38, 0xffe39a, 0.45).setDepth(anchor.y - 2);
+      const thing = emoji(scene, anchor.x, anchor.y, o.icon, 58, dpr);
+      left.push(ring, thing);
+      pop(scene, thing, reduced, 120);
+      if (!reduced) {
+        ring.setScale(0.2);
+        scene.tweens.add({ targets: ring, scale: 1.4, duration: 520, ease: 'Back.easeOut' });
+        scene.tweens.add({ targets: ring, alpha: 0.25, duration: 900, yoyo: true, repeat: -1, delay: 520 });
+        scene.time.delayedCall(140, () => { sfx.focus(); sparkle(scene, anchor.x, anchor.y - 30, false); });
+      }
+      break;
+    }
+    case 'drive': {
+      const y = room.wallY + 44, from = room.w + 40, to = -40;
+      const car = emoji(scene, from, y, o.icon, 36, dpr).setDepth(y);
+      left.push(car);
+      sfx.honk();
+      if (reduced) { car.destroy(); left.pop(); break; }
+      scene.tweens.add({
+        targets: car, x: to, duration: 1500, ease: 'Sine.easeInOut',
+        onUpdate: () => { car.y = y + Math.sin(car.x / 9) * 1.2; },
+        onComplete: () => car.destroy(),
+      });
+      scene.time.addEvent({ delay: 140, repeat: 9, callback: () => { if (car.active) puff(scene, car.x + 20, y, false); } });
+      break;
+    }
+  }
+  return left;
 }

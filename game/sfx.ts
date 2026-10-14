@@ -48,6 +48,12 @@ export const sfx = {
     const code = ch.charCodeAt(0);
     tone(430 + pitch + (code % 9) * 38, 0.055, { type: 'triangle', gain: 0.032, slide: (code % 3 - 1) * 60 });
   },
+  /** 고르면 방이 바뀐다(outcomes.ts) — 뚝딱, 우수수, 쑥쑥, 반짝, 빵빵. */
+  build: () => { tone(330, 0.07, { type: 'square', gain: 0.03 }); tone(392, 0.07, { type: 'square', gain: 0.03, delay: 0.12 }); tone(784, 0.25, { gain: 0.045, delay: 0.3 }); },
+  rain: () => { for (let i = 0; i < 8; i++) tone(1200 + (i % 4) * 160, 0.07, { gain: 0.025, delay: i * 0.07 }); },
+  grow: () => [392, 494, 587, 784].forEach((f, i) => tone(f, 0.18, { delay: i * 0.12, gain: 0.04, slide: 40 })),
+  focus: () => { tone(523, 0.3, { gain: 0.04 }); tone(659, 0.3, { gain: 0.035, delay: 0.08 }); tone(1047, 0.5, { gain: 0.04, delay: 0.18 }); },
+  honk: () => { tone(440, 0.09, { type: 'square', gain: 0.025 }); tone(440, 0.12, { type: 'square', gain: 0.025, delay: 0.14 }); },
   /** 나무 흔들기·줍기(동물의 숲 ⓕ) — 잎 사락, 동전 딸랑, 열매 톡. */
   rustle: () => { for (let i = 0; i < 4; i++) tone(900 + (i % 2) * 180, 0.05, { type: 'triangle', gain: 0.012, delay: i * 0.035, slide: -300 }); },
   coin: () => { tone(1319, 0.09, { gain: 0.05 }); tone(1760, 0.22, { gain: 0.045, delay: 0.07 }); },

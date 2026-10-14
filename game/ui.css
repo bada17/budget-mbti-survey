@@ -186,7 +186,8 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-app-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:20px;background:#fffaf0;font-size:28px;box-shadow:0 4px 0 #d6bf98,inset 0 0 0 2px var(--line);transition:transform .08s}
 .g-app:active .g-app-icon{transform:translateY(2px);box-shadow:0 2px 0 #d6bf98,inset 0 0 0 2px var(--line)}
 .g-notice{position:absolute;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));z-index:4;animation:ask-in .25s both}
-.g-notice .g-talk{margin-top:0}.g-notice .g-quote{min-height:3em;font-size:17px}
+.g-notice .g-talk{margin-top:0}
+.g-say{pointer-events:none}.g-say .g-quote{min-height:0}.g-say.bye{animation:ask-out .25s ease-in forwards}.g-notice .g-quote{min-height:3em;font-size:17px}
 .g-notice-acts{display:grid;grid-template-columns:1.3fr 1fr;gap:8px;margin-top:8px}
 .g-notice-acts .g-primary,.g-notice-acts .g-ghost{margin:0;min-height:46px;font-size:16px}
 button.g-pocket{pointer-events:auto;cursor:pointer}

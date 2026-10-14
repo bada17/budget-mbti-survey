@@ -485,6 +485,17 @@ export function createUI(root: HTMLElement, actions: {
       typeOut(said, text);
       live.textContent = `${who}: ${text}`;
     },
+    /** 짧은 한마디 — 이름표 얹은 말 상자가 아래에 잠깐 떴다 사라진다(누를 것 없음, 조작을 막지 않는다). */
+    say(who: string, text: string, ms = 1900) {
+      shell.querySelector('.g-notice')?.remove();
+      const box = el('section', 'g-notice g-say'), talk = el('div', 'g-talk'), said = el('p', 'g-quote');
+      talk.append(el('span', 'g-name', who), said);
+      box.append(talk);
+      shell.append(box);
+      typeOut(said, text);
+      live.textContent = `${who}: ${text}`;
+      later(ms, () => { box.classList.add('bye'); later(250, () => box.remove()); });
+    },
     /** 지도 — 건물 목록. */
     placeList(list: { name: string; line: string; run(): void }[]) {
       openSheet(

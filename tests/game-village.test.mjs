@@ -272,3 +272,15 @@ test('마을 배경 가락: 여덟 마디가 늘 같고, 낮·밤이 다르며, 
     }
   }
 });
+
+test('고르면 방이 바뀐다: 열다섯 문항 모두 두 대답에 일이 있고, 한마디는 세기 셋', async () => {
+  const { OUTCOMES, THANKS } = await import('../game/outcomes.ts');
+  const kinds = new Set(['build', 'rain', 'visit', 'grow', 'spread', 'focus', 'drive']);
+  assert.equal(Object.keys(OUTCOMES).length, orderedQuestions.length);
+  for (const q of orderedQuestions) {
+    const o = OUTCOMES[q.id];
+    assert.ok(o, q.id);
+    for (const key of ['a', 'b']) assert.ok(kinds.has(o[key].kind) && o[key].icon, `${q.id} ${key}`);
+  }
+  assert.equal(THANKS.length, 3);
+});

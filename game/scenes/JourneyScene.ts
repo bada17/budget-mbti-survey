@@ -16,7 +16,9 @@ import { currentQuestion, type JourneyState } from '../flow';
 import { orderedQuestions, displayOptions, type DisplaySide } from '../response';
 import { FEEL } from '../feel';
 import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, rollBall, type Point, type Room } from '../room';
-import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
+import { OUTCOMES, THANKS } from '../outcomes';
+import { nameFrom } from '../look';
+import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
 import type { Pick } from '../look';
 import type { Neighbor } from '../profile';
 import { sfx } from '../sfx';
@@ -181,7 +183,11 @@ export class JourneyScene extends Phaser.Scene {
   private dropRoom() {
     this.art.destroy();
     this.dropResidents();
+    this.outcome.forEach(o => o.destroy());
+    this.outcome = [];
   }
+  /** 고른 대답으로 방에 생긴 것(outcomes.ts) — 방을 떠나면 지운다. */
+  private outcome: Phaser.GameObjects.GameObject[] = [];
   private dropResidents() {
     for (const side of SIDES) this.residents[side]?.destroy();
     this.residents = {};
@@ -354,6 +360,14 @@ export class JourneyScene extends Phaser.Scene {
     const option = displayOptions(this.runtime.state().sessionId, question).find(o => o.side === side)!;
     const spot = { ...this.room.residents[side] };
     this.runtime.ui.clearAsk(side);
+    // 고르면 방이 바로 바뀐다 + 고른 주민의 한마디(10-14 「게임으로 역할을 못 한다」 ⓐ)
+    const seed = `${question.id}:${side}`, roomAt = this.roomIndex;
+    this.runtime.ui.say(nameFrom(seed), THANKS[level] ?? THANKS[1]);
+    const plan = OUTCOMES[question.id]?.[option.key];
+    if (plan) this.time.delayedCall(this.reduced ? 0 : 300, () => {
+      if (this.mode !== 'play' || this.roomIndex !== roomAt) return;
+      this.outcome.push(...playOutcome(this, plan, { spot, room: this.room, dpr: this.runtime.view().dpr, reduced: this.reduced, seed }));
+    });
     dude.hop(FEEL.jumpPx[level], FEEL.jumps[level], this.reduced);
     hearts(this, dude.x, dude.y - 44, FEEL.hearts[level], this.reduced);
     if (FEEL.shake[level] && !this.reduced) this.cameras.main.shake(160, FEEL.shake[level]);
