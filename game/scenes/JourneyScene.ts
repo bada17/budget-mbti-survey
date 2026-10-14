@@ -494,6 +494,18 @@ export class JourneyScene extends Phaser.Scene {
 
   skipBus() { this.busDone?.(); }
 
+  /** 개발판 지름길(main.ts skipToEnd) — 고른 주민들을 내 뒤에 세우고 바로 언덕으로. */
+  skipToEnd(picked: { questionId: string; side: DisplaySide; key: 'a' | 'b' }[]) {
+    this.dropResidents();
+    for (const { questionId, side, key } of picked) {
+      const at = { x: this.pos.x, y: this.pos.y + 34 };
+      this.followers.push({ dude: new Dude(this, lookFrom(`${questionId}:${side}`), at.x, at.y, FEEL.followerScale).place(at), questionId, key, seed: `${questionId}:${side}` });
+    }
+    this.roomIndex = orderedQuestions.length - 1;
+    this.mode = 'moving';
+    this.toHill();
+  }
+
   private toHill() {
     const { w, h } = this.runtime.view();
     const hill = drawHill(this, w, h, -h);

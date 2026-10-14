@@ -1,9 +1,9 @@
 import './ui.css';
 import { createJourney, transition, currentQuestion, type Command } from './flow';
-import { buildGameResponse, orderedQuestions, type GameResponse } from './response';
+import { buildGameResponse, orderedQuestions, displayOptions, type GameResponse } from './response';
 import { scoreAnswers } from './score';
-import { ROUTE, TYPES } from './content';
-import { createEvents } from './events';
+import { ROUTE, TYPES, REPLIES } from './content';
+import { createEvents, type GameEvent } from './events';
 import { Controls } from './input';
 import { createUI } from './ui';
 import { attachEffects } from './effects';
@@ -279,6 +279,32 @@ function openHub(person: Person, sessionId: string, extra: { photo?: string } = 
   }, () => {}, backText);
 }
 
+/**
+ * 개발판 전용 지름길 `?end` — 열다섯 방을 건너뛰고 끝(공터)부터 본다(사용자 10-14 「처음부터 말고 마지막만」).
+ * 답은 아무렇게나 골라 flow.ts 규칙 그대로 끝까지 돌리고, 장면에는 따라온 주민만 세워 언덕으로 보낸다. 공개판(빌드)에는 없다.
+ */
+function skipToEnd() {
+  ui.hideIntro();
+  let at = Math.max(Date.now(), state.lastAt);
+  const arrived: GameEvent[] = [];
+  const go = (command: UntimedCommand) => { const next = transition(state, { ...command, at: at++ } as Command); state = next.state; arrived.push(...next.events.filter(e => e.type === 'journey.arrived')); };
+  const picked: { questionId: string; side: 'left' | 'right'; key: 'a' | 'b' }[] = [];
+  go({ type: 'start' });
+  ROUTE.forEach((stage, stageIndex) => {
+    for (const id of stage.ids) {
+      const side = Math.random() < 0.5 ? 'left' : 'right';
+      const question = orderedQuestions.find(q => q.id === id)!;
+      picked.push({ questionId: id, side, key: displayOptions(state.sessionId, question).find(o => o.side === side)!.key });
+      go({ type: 'visible', questionId: id }); go({ type: 'approach', questionId: id, side }); go({ type: 'answer', questionId: id, level: Math.floor(Math.random() * REPLIES.length) });
+    }
+    go({ type: 'exit', stageIndex });
+  });
+  response = buildGameResponse(state);
+  ui.render(state);
+  bus.emit(arrived); // 도장·서버 알리기는 평소처럼
+  scene?.skipToEnd(picked);
+}
+
 /** 언덕에서 다 같이 폴짝 뛴 뒤 — 끝 화면과 할 수 있는 것들. */
 function showEnd() {
   if (!state.result) return;
@@ -314,7 +340,7 @@ async function boot() {
     const [{ default: Phaser }, { JourneyScene }] = await Promise.all([import('phaser'), import('./scenes/JourneyScene')]);
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
-      view: () => view, controls, ui, ready: () => ui.ready(),
+      view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); },
       pick: () => me.pick, name: () => me.name, returning, arrived: showEnd,
       npc: kind => {
         if (kind === 'budget') { openBudget(shell, () => {}); return; }
