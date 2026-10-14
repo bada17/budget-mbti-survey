@@ -5,6 +5,7 @@
 */
 import Phaser from 'phaser';
 import { FEEL } from './feel';
+import { ROUTE } from './content';
 import type { Point, Room } from './room';
 import { PLACES, PLAZA, FOUNTAIN, LOT, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId } from './village';
 
@@ -14,11 +15,60 @@ type Container = Phaser.GameObjects.Container;
 import { rng, type Look } from './look';
 export { lookFrom, toLook, type Look } from './look';
 
+type DudeLeg = Phaser.GameObjects.Rectangle | Container;
+type DudeParts = {
+  body: Container;
+  legs: DudeLeg[];
+  eyes: Phaser.GameObjects.Arc[];
+  rightArm: (Phaser.GameObjects.Rectangle | Phaser.GameObjects.Arc)[];
+};
+
+/** 주민 시안의 첫 줄무늬 옷. 머리·색은 기존 선택 값을 그대로 쓴다. */
+function characterPreview(scene: Scene, look: Look): DudeParts {
+  const s = scene.add;
+  const legs = [-5.5, 5.5].map(x => s.container(x, -6, [
+    s.rectangle(0, 0, 9, 13, 0x707c8b).setRounded(3),
+    s.ellipse(0, 6, 11, 5, 0xfff8e8), s.rectangle(0, 5, 5, 1, 0xc9bdad).setRounded(0.5),
+  ]));
+  const sleeves = [-12.5, 12.5].map(x => s.rectangle(x, -20, 8, 15, look.coat).setRounded(4).setAngle(x < 0 ? 15 : -15));
+  const hands = [-14, 14].map(x => s.circle(x, -12.5, 3.8, look.skin));
+  const torso = s.rectangle(0, -20, 26, 24, look.coat).setRounded(9);
+  const shirt = s.graphics();
+  shirt.fillStyle(0xfffaed, 0.86);
+  for (const y of [-28, -22, -16]) shirt.fillRoundedRect(-11, y, 22, 3, 1.2);
+  for (const x of [-15.5, 10]) shirt.fillRoundedRect(x, -22, 5.5, 3, 1);
+  shirt.fillStyle(0xfffaed).fillRoundedRect(-8, -10, 16, 2, 1);
+  const neck = s.ellipse(0, -29, 9, 6, look.skin);
+  const backHair = s.graphics().fillStyle(look.hair);
+  if (look.style === 2) backHair.fillRoundedRect(-18, -47, 36, 25, 10);
+  const ears = [-16.5, 16.5].map(x => s.circle(x, -37, 3.7, look.skin));
+  const head = s.ellipse(0, -38, 35, 29, look.skin);
+  const hair = s.graphics().fillStyle(look.hair);
+  if (look.style === 9) {
+    hair.fillStyle(look.coat).slice(0, -42, 17, Math.PI, 0, false).fillPath().fillRoundedRect(-2, -46, 22, 6, 3);
+    hair.fillStyle(0xfffaed, 0.65).fillCircle(-8, -49, 2);
+  } else {
+    hair.slice(0, -42, 17.5, Math.PI, 0, false).fillPath();
+    hair.fillCircle(-12, -45, 5).fillCircle(-6, -48, 6).fillCircle(1, -47, 5).fillCircle(9, -46, 6);
+    hair.fillTriangle(-17, -43, -12, -43, -15, -35).fillTriangle(12, -43, 17, -43, 15, -35);
+    if (look.style === 1) hair.fillCircle(2, -54, 6);
+    if (look.style === 2) hair.fillRoundedRect(-18, -43, 5, 14, 2.5).fillRoundedRect(13, -43, 5, 14, 2.5);
+    if (look.style === 3) hair.fillStyle(look.coat).fillRoundedRect(-14, -53, 28, 3, 1.5);
+  }
+  const eyes = [-4.5, 4.5].map(x => s.circle(x, -39, 1.65, 0x37333b));
+  const cheeks = [-10, 10].map(x => s.ellipse(x, -35.5, 6.5, 4.5, 0xf09b90, 0.58));
+  const smile = s.graphics().fillStyle(0xea997e, 0.6).fillCircle(0, -36.8, 1.1);
+  smile.lineStyle(1.2, 0x705044).beginPath().arc(0, -34, 2.3, 0.12, Math.PI - 0.12, false).strokePath();
+  const body = s.container(0, 0, [...legs, ...sleeves, ...hands, torso, shirt, neck, backHair, ...ears, head, hair, ...eyes, ...cheeks, smile]);
+  return { body, legs, eyes, rightArm: [sleeves[1], hands[1]] };
+}
+
 export class Dude {
   readonly root: Container;
   private body: Container;
-  private legs: Phaser.GameObjects.Rectangle[];
+  private legs: DudeLeg[];
   private eyes: Phaser.GameObjects.Arc[];
+  private normal?: DudeParts;
   private walkClock = 0;
   private idleClock = Math.random() * 4000;
   private hopping = false;
@@ -61,6 +111,14 @@ export class Dude {
     smile.beginPath().arc(0, -34.5, 2.1, 0.15, Math.PI - 0.15, false).strokePath();
     this.body = s.container(0, 0, [...this.legs, ...sleeves, ...hands, torso, seams, ...ears, head, hair, ...this.eyes, ...cheeks, smile]).setScale(1, look.tall);
     this.root = s.container(x, y, [shadow, this.body]).setScale(scale);
+    // 첫 방의 나만 비교한다. 주민은 무작위 키, 동행은 작은 scale을 쓰므로 제외된다.
+    if (scene.sys.settings.key === 'journey' && scene.data.get('character-preview-room')?.active && look.tall === 1 && scale === 1) {
+      this.normal = { body: this.body, legs: this.legs, eyes: this.eyes, rightArm: this.restingRightArm };
+      const preview = characterPreview(scene, look);
+      this.body.setVisible(false);
+      this.body = preview.body; this.legs = preview.legs; this.eyes = preview.eyes; this.restingRightArm = preview.rightArm;
+      this.root.add(this.body);
+    }
   }
   get x() { return this.root.x; }
   get y() { return this.root.y; }
@@ -72,6 +130,12 @@ export class Dude {
   }
   /** 걷는 모습: 다리 번갈아, 몸 통통. */
   walk(dtMs: number, moving: boolean, reduced: boolean) {
+    if (this.normal && !this.scene.data.get('character-preview-room')?.active) {
+      this.scene.tweens.killTweensOf(this.body);
+      this.body.destroy();
+      this.body = this.normal.body; this.legs = this.normal.legs; this.eyes = this.normal.eyes; this.restingRightArm = this.normal.rightArm;
+      this.body.setVisible(true); this.normal = undefined; this.hopping = false;
+    }
     if (this.hopping) return;
     if (!moving || reduced) {
       this.walkClock = 0;
@@ -636,6 +700,7 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
   }
   // 방 그림은 늘 사람들 밑에 깔린다(컨테이너 안의 깊이는 그리는 차례를 바꾸지 않는다).
   const box = scene.add.container(0, offsetY, items).setDepth(-100000);
+  if (seed === ROUTE[0].ids[0]) scene.data.set('character-preview-room', box);
   return {
     box, pigeons, ball: toy, cat: kitty,
     destroy() {
@@ -655,6 +720,7 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
 
 /** 강 건너 언덕 — 도착하는 곳. 언덕 꼭대기 자리를 돌려준다. */
 export function drawHill(scene: Scene, w: number, h: number, offsetY: number) {
+  scene.data.remove('character-preview-room');
   const g = scene.add.graphics();
   g.fillGradientStyle(0xe7acb3, 0xe7acb3, 0xffd6b4, 0xffd6b4).fillRect(0, 0, w, h * 0.32);
   g.fillStyle(0xffe7b1).fillCircle(w * 0.76, h * 0.23, 30);

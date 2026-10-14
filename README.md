@@ -635,7 +635,14 @@ Claude 가 질문을 몰아 묻고(사용자 「질문 있으면 몰아서 줘�
   화면: [광장](game/review/village-plaza-360.jpg) · [쪽지 카드](game/review/village-note-card-360.jpg) · [지도](game/review/village-map-360.jpg) ·
   [상담소](game/review/village-counsel-360.jpg) · [독상](game/review/village-dok-360.jpg) · [나라살림 창고](game/review/village-finance-360.jpg) ·
   [쪽지판](game/review/village-board-360.jpg) · [주민센터](game/review/village-hub-360.jpg) · [언덕 끝 화면](game/review/village-hill-end-360.jpg) · [남쪽 문](game/review/village-gate-360.jpg).
-- **캐릭터 방향 시안 — 미적용.** 사용자가 [둥근 파스텔 주민 네 명](game/review/cute-character-direction.jpg)(줄무늬 옷·가디건·초록 점퍼·보라 조끼)을 마음에 들어 하며 나중에 쓰도록 기록해 달라고 했다. 생성 주문은 [여기](game/prompts/cute-character-direction.md). 기본 얼굴·몸 틀을 공유하고 머리·옷 모양을 조합하며 색은 팔레트로 바꾸는 방향이다. 작은 실제 게임 크기에서 읽힘을 먼저 확인한다. 주민 모습은 답의 a/b와 연결하지 않는다. 게임 코드·런타임 에셋은 이번에 바꾸지 않았다.
+- **캐릭터 방향 시안 — 첫 방의 나만 적용.** 사용자가 [둥근 파스텔 주민 네 명](game/review/cute-character-direction.jpg)(줄무늬 옷·가디건·초록 점퍼·보라 조끼)을 마음에 들어 하며 나중에 쓰도록 기록해 달라고 했다. 생성 주문은 [여기](game/prompts/cute-character-direction.md). 기본 얼굴·몸 틀을 공유하고 머리·옷 모양을 조합하며 색은 팔레트로 바꾸는 방향이다. 작은 실제 게임 크기에서 읽힘을 먼저 확인한다. 주민 모습은 답의 a/b와 연결하지 않는다. 큰 시안 이미지를 런타임에 줄여 넣지 않고 `draw.ts`에서 게임 크기에 맞춰 그린다.
+  사용자 「일단 마을 말고 하나만」「첫 방에 구현, 내 커스터마이징도」에 따라 **첫 방(광장)의 내 캐릭터만** 줄무늬 상의·큰 둥근 얼굴·작은 운동화로 적용했다.
+  기존 선택기(머리 모양 다섯·머리색·옷색·피부색)와 저장은 그대로 연결된다. 머리·옷·피부는 답의 a/b와 엮지 않는다.
+  다음 방부터 기존 그림으로 돌아가고, 다른 주민·마을에는 적용하지 않는다. 첫 방의 그림 컨테이너가 살아 있는 동안만 시안을 보여 주어 장면 진행 코드를 바꾸지 않았다.
+  **검토 뒤 멈춤.** [모습 고르기](game/review/character-first-dress-360x640.png) · [첫 방](game/review/character-first-room-360x640.png) ·
+  [다른 조합](game/review/character-first-custom-360x640.png) · [작은 폰](game/review/character-first-dress-360x560.png) · [다음 방 기존 그림](game/review/character-second-room-360x640.png).
+  `npm test`(68개)·`npx tsc --noEmit`·`npm run build:game` 통과. 브라우저에서 머리 다섯·각 색 세 가지, 선택 저장, 360×640·360×560, 첫 방→큰길 전환을 확인했다.
+  Chrome CDP로 CPU 4배 느리게 하고 첫 방에서 좌우로 걷는 동안 Phaser `postrender` 완료를 4초 측정: 약 46.2fps(187장 / 4.044초), 35fps 기준 통과. 브라우저 오류 0. 공개판(gh-pages)은 올리지 않는다.
 - **2026-10-14 GPT 귀여움 꾸미기 — 전체 장소 확장 완료.** 첫 시안 커밋 `862aa51`을 본 사용자가 「낫배드인듯. 계속해」로 승인했다.
   귀여움의 기준은 기존 둥근 도형·파스텔·납작한 그림자. 시안의 주민 작은 손·볼·미소·옷깃, 기존 고양이·비둘기·공과 합성음을 유지하고
   나머지 열두 방·버스·이웃 판까지 같은 분위기로 넓혔다. 새 소품·외부 에셋·런타임 그림/소리 파일·의존성 추가 없음.
