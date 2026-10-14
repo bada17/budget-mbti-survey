@@ -128,7 +128,7 @@
 .g .g-end-actions{display:grid;grid-template-columns:1fr 1fr;gap:4px 6px;padding:8px;background:#fff9eeeb;border:1px solid #e1ccac;border-radius:20px;box-shadow:0 3px 0 #a58d6926}
 .g .g-end-actions>.g-primary{grid-column:1 / -1;min-height:42px;font-size:14px;border-radius:13px;margin-bottom:3px}
 .g .g-end-actions>.g-ghost{margin:0;min-height:40px;font-size:12px;border-radius:11px;background:#f0e5d0;color:#745b48;border:1px solid #e2d2b6}
-.g .g-end-actions>.g-ghost:nth-child(2):nth-last-child(3){grid-column:1 / -1}
+.g .g-end-actions>.g-ghost:nth-child(even):nth-last-child(3){grid-column:1 / -1} /* 회색 단추가 홀수 개면 마지막 것을 넓힌다(답장·다른 사람들은 있다 없다 한다) */
 .g .g-end-actions>.g-link{grid-column:1 / -1;margin:0;padding:2px 3px;min-height:20px;font-size:11px;text-underline-offset:3px}
 .g .g-end-actions>.g-give{font-size:10px;line-height:1.5;color:#9c6954}
 .g .g-end-card .g-notes{font-size:11px;margin-top:6px}
