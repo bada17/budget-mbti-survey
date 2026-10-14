@@ -43,3 +43,6 @@ yarn-error.log*
 
 /dist-game/
 /.playwright-cli/
+
+# 구글 시트 서버 묶음(npm run build:gas 가 만든다)
+/server/gas/server.js

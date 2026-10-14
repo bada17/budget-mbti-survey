@@ -1,7 +1,7 @@
 /*
-  「이웃 소식 받기」 연락처 — 법적으로 받아야 할 것을 다 갖춘 꼴만 준비해 둔다.
-  아직 어디에도 보내거나 쌓지 않는다(명단 쌓기·관리는 나중에 — 사용자, 2026-10-13).
-  보낼 곳이 정해지면 sendContact 한 곳만 채운다. 무엇을 정해야 하는지는 README 「연락처」.
+  「이웃 소식 받기」 연락처 — 법적으로 받아야 할 것을 다 갖춘 꼴.
+  받는 곳은 게임 서버의 `/contact`(api.ts, 구글 시트면 「연락처」 탭) — 10-14 이웃의 편지 때문에 이었다.
+  화면은 아직 이 컴퓨터의 개발판에서만 보인다(main.ts 의 contactReady) — 보유 기간이 정해져야 켠다(README 「연락처」).
 
   동의는 나눠 받는다(개인정보 보호법 22조): 필수 = 만 14세 이상 확인·수집·이용,
   선택 = 시민행동 활동·후원 안내(광고성 정보, 정보통신망법 50조). 어느 것도 미리 체크해 두지 않는다.
@@ -47,7 +47,14 @@ export function checkContact(form: ContactForm, now: number): { ok: true; payloa
   return { ok: true, payload: { consentVersion: CONSENT_VERSION, channel: form.channel, address, consents: { age14: true, collect: true, marketing: form.marketing }, at: now } };
 }
 
-/** 보낼 곳이 아직 없다. 연결되기 전까지는 받은 것을 버리고 「준비 중」 이라고 알린다. */
-export async function sendContact(_payload: ContactPayload): Promise<'sent' | 'not-connected'> {
-  return 'not-connected';
+/**
+ * 서버 쪽 다시 검사 — 브라우저가 보낸 값은 믿지 않는다. 받는 곳은 게임 서버의 `/contact`(api.ts),
+ * 보내는 건 main.ts 가 net.contact 로(10-14). 화면은 여전히 개발판에서만 보인다 — 보유 기간이 정해지기 전이라.
+ */
+export function validPayload(raw: unknown): ContactPayload | undefined {
+  const p = (raw && typeof raw === 'object' ? raw : {}) as Partial<ContactPayload>;
+  if (p.consentVersion !== CONSENT_VERSION || typeof p.address !== 'string') return undefined;
+  const okAddress = p.channel === 'email' ? p.address.length <= 254 && EMAIL.test(p.address) : p.channel === 'sms' && MOBILE.test(p.address);
+  if (!okAddress || p.consents?.age14 !== true || p.consents?.collect !== true || typeof p.consents.marketing !== 'boolean') return undefined;
+  return { consentVersion: CONSENT_VERSION, channel: p.channel!, address: p.address, consents: { age14: true, collect: true, marketing: p.consents.marketing }, at: Number(p.at) || 0 };
 }
