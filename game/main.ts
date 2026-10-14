@@ -13,7 +13,7 @@ import {
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
 import { openTown, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
-import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, noteCard, loadMarks } from './places';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, noteCard, loadMarks, rememberMine } from './places';
 import { PLACES, type PlaceId } from './village';
 import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
@@ -38,7 +38,9 @@ let home = loadHome(); // 내 방명록 집 — 끝까지 걸으면 서버에서
 let tableCode = cleanTableCode(params.get('table'));
 let table: TableView | undefined;
 let me: Me = loadMe();
-let state = createJourney(crypto.randomUUID(), Date.now());
+// randomUUID 는 https(또는 이 컴퓨터)에서만 있다 — 와이파이 주소(http)로 폰에서 여는 개발판 시험에서 멈췄다. getRandomValues 는 어디서나 된다.
+const newSessionId = () => crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), (b, i) => (i === 4 || i === 6 || i === 8 || i === 10 ? '-' : '') + b.toString(16).padStart(2, '0')).join('');
+let state = createJourney(newSessionId(), Date.now());
 let response: GameResponse | undefined;
 let stats: Stats | undefined;
 let scene: JourneyScene | undefined;
@@ -249,7 +251,8 @@ function share(reply = false) {
   // 그림이 준비됐고 받는 쪽이 파일을 받으면 그림 + 글(링크 포함), 아니면 지금처럼 링크만.
   const files = card && navigator.canShare?.({ files: [card] }) ? [card] : undefined;
   if (navigator.share) navigator.share(files ? { files, text: `${text}\n${url}` } : { title: '동네 한 바퀴', text, url }).catch(() => {});
-  else void navigator.clipboard?.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
+  else if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
+  else ui.toast(url); // 공유·복사가 다 없는 곳(https 가 아닌 주소) — 주소라도 보인다
 }
 
 /**
@@ -370,7 +373,7 @@ function openPlace(id: PlaceId) {
     post: async text => {
       const sid = who?.sessionId;
       const made = sid ? await net.note(sid, me.name, me.pick, text) : undefined;
-      if (made) showVillage(made.view);
+      if (made) { rememberMine(made.note.id); showVillage(made.view); }
       return made;
     },
   }, done);

@@ -194,6 +194,8 @@ export function loadMarks(): Marks {
   } catch { return { mine: [], liked: [], reported: [], lastAt: 0 }; }
 }
 const saveMarks = (marks: Marks) => { try { localStorage.setItem(MARKS_KEY, JSON.stringify(marks)); } catch { /* 막힌 창 */ } };
+/** 내가 붙인 쪽지 — 광장을 다시 그리기 **전에** 적어야 내 모습을 한 주민이 하나 더 서지 않는다(main.ts 의 post). */
+export function rememberMine(id: string, now = Date.now()) { const marks = loadMarks(); marks.mine = [...marks.mine, id].slice(-200); marks.lastAt = now; saveMarks(marks); }
 
 export function ago(at: number, now = Date.now()) {
   const m = Math.floor((now - at) / 60000);
@@ -280,7 +282,6 @@ export function openBoard(shell: HTMLElement, opts: BoardOpts, onClose: () => vo
     const made = await opts.post(checked.text);
     send.disabled = false;
     if (!made) { result.textContent = '지금은 붙일 수 없어요. 조금 뒤에 다시 해 주세요(하루에 세 장까지예요).'; return; }
-    const marks = loadMarks(); marks.mine = [...marks.mine, made.note.id]; marks.lastAt = Date.now(); saveMarks(marks);
     input.value = ''; result.textContent = '붙였어요. 광장을 지나는 사람들이 읽어요.';
     view = made.view; draw();
   };

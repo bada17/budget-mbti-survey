@@ -11,8 +11,8 @@
 import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, type Point } from '../room';
-import { PLACES, SPAWN, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, placeAt, wanderSpot, type PlaceId } from '../village';
-import { Dude, lookFrom, toLook, drawVillage, dust, tapRing, flee, meow, type VillageArt } from '../draw';
+import { PLACES, SPAWN, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, type PlaceId } from '../village';
+import { Dude, lookFrom, toLook, drawVillage, noteTag, dust, tapRing, flee, meow, type VillageArt } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -44,6 +44,8 @@ export class VillageScene extends Phaser.Scene {
   private player!: Dude;
   private pos: Point = { ...SPAWN.plaza };
   private goal?: Point;
+  /** 톡 친 곳까지 거쳐 갈 자리들(findPath) — goal 에 닿으면 다음 것. */
+  private route: Point[] = [];
   private wasHolding = false;
   private speed = 0;
   private art!: VillageArt;
@@ -84,13 +86,14 @@ export class VillageScene extends Phaser.Scene {
   setPaused(paused: boolean) {
     this.paused = paused;
     this.runtime.controls.clear();
-    this.goal = undefined;
+    this.goal = undefined; this.route = [];
   }
 
   /** 지도에서 고른 곳 — 잠깐 어두워졌다가 그 문 앞에 선다. 문이 열리는 건 다음 판이 한다(main 이 연다). */
   jump(id: PlaceId, done: () => void) {
     const place = PLACES.find(p => p.id === id)!;
     const go = () => {
+      this.goal = undefined; this.route = [];
       this.pos = { x: place.door.x, y: place.door.y + 4 };
       this.trail = [{ x: this.pos.x, y: this.pos.y + 40 }, { ...this.pos }];
       this.buddy?.place({ x: this.pos.x, y: this.pos.y + 30 });
@@ -126,21 +129,9 @@ export class VillageScene extends Phaser.Scene {
       const dude = new Dude(this, toLook(pick), at.x, at.y, 0.92).place(at);
       if (!this.reduced) { dude.root.setAlpha(0); this.tweens.add({ targets: dude.root, alpha: 1, duration: 500 }); }
       const folk: Folk = { dude, at, wait: random() * 2000, note, random, wavedAt: 0 };
-      if (note) folk.mark = this.noteMark();
+      if (note) folk.mark = noteTag(this, this.reduced);
       this.folks.set(key, folk);
     }
-  }
-
-  /** 머리 위 쪽지 — 작은 종이에 점 셋. */
-  private noteMark() {
-    const g = this.add.graphics();
-    g.fillStyle(0x756956, 0.18).fillRoundedRect(-11, -7, 24, 18, 4);
-    g.fillStyle(0xfff3b0).fillRoundedRect(-12, -9, 24, 18, 4);
-    g.lineStyle(1, 0xd9c3a1).strokeRoundedRect(-12, -9, 24, 18, 4);
-    g.fillStyle(0x9a7356).fillCircle(-6, 0, 1.6).fillCircle(0, 0, 1.6).fillCircle(6, 0, 1.6);
-    const mark = this.add.container(0, 0, [g]);
-    if (!this.reduced) this.tweens.add({ targets: g, y: -3, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    return mark;
   }
 
   /** 화면(CSS px) → 지도 자리. */
@@ -169,6 +160,7 @@ export class VillageScene extends Phaser.Scene {
     this.wander(dt);
     for (const { dude, at } of this.keepers) { dude.look(this.pos.x - at.x, this.pos.y - at.y); dude.walk(dt, false, this.reduced); }
     this.toys();
+    this.cull(); // 화면 밖은 안 그린다 — 느린 폰에서 끊기지 않게
     if (this.paused) return;
     this.doors();
     this.notes();
@@ -178,21 +170,32 @@ export class VillageScene extends Phaser.Scene {
     const c = this.runtime.controls;
     if (c.tapped) { const at = this.world(c.tapped); tapRing(this, at.x, at.y); c.tapped = undefined; }
     let dir = c.keyVector(), cap = Infinity;
-    if (dir.x || dir.y) { this.goal = undefined; c.target = undefined; }
-    else if (c.holding && c.target) this.goal = this.world(c.target); // 꾹 — 손가락 밑 자리를 매번 다시 잰다(화면이 따라 움직이니까)
-    else if (c.target) { this.goal = this.tapGoal(this.world(c.target)); c.target = undefined; } // 톡 — 그 자리를 한 번만 잡는다
-    else if (this.wasHolding) this.goal = undefined; // 끌다가 뗐다
+    if (dir.x || dir.y) { this.goal = undefined; this.route = []; c.target = undefined; }
+    else if (c.holding && c.target) { this.route = []; this.goal = this.world(c.target); } // 꾹 — 손가락 밑 자리를 매번 다시 잰다(화면이 따라 움직이니까)
+    else if (c.target) { this.route = findPath(this.pos, this.tapGoal(this.world(c.target))); this.goal = this.route.shift(); c.target = undefined; } // 톡 — 돌아갈 길을 한 번 짠다
+    else if (this.wasHolding) { this.goal = undefined; this.route = []; } // 끌다가 뗐다
     this.wasHolding = c.holding;
     if (!dir.x && !dir.y && this.goal) {
-      const d = distance(this.goal, this.pos);
-      if (d < 3) this.goal = undefined;
-      else { dir = { x: (this.goal.x - this.pos.x) / d, y: (this.goal.y - this.pos.y) / d }; cap = d; }
+      let d = distance(this.goal, this.pos);
+      if (d < 3) { this.goal = this.route.shift(); d = this.goal ? distance(this.goal, this.pos) : 0; }
+      if (this.goal && d >= 3) { dir = { x: (this.goal.x - this.pos.x) / d, y: (this.goal.y - this.pos.y) / d }; cap = d; }
     }
     if (!dir.x && !dir.y) { this.speed = 0; return; }
     this.speed = Math.min(FEEL.walkSpeed, this.speed + FEEL.walkSpeed * dt / FEEL.accelMs);
     const next = walkVillage(this.pos, dir, Math.min(this.speed * dt / 1000, cap));
-    if (distance(next, this.pos) < 0.05 && !c.holding) this.goal = undefined; // 벽에 막혔다 — 선다(길찾기 없음, village.ts)
+    if (distance(next, this.pos) < 0.05 && !c.holding) { this.goal = undefined; this.route = []; } // 그래도 막혔다 — 선다
     this.pos = next;
+  }
+
+  /** 화면(+여유) 밖의 그림·사람은 숨긴다. 걷기·서성이기는 그대로 돈다(보이기만 끈다). */
+  private cull() {
+    const view = this.cameras.main.worldView, m = 90;
+    this.art.cull(view);
+    const seen = (x: number, y: number) => x > view.x - m && x < view.right + m && y > view.y - m && y < view.bottom + m + 60;
+    for (const { dude, at } of this.keepers) dude.root.setVisible(seen(at.x, at.y));
+    for (const folk of this.folks.values()) { const on = seen(folk.at.x, folk.at.y); folk.dude.root.setVisible(on); folk.mark?.setVisible(on); }
+    for (const kitty of this.art.cats) kitty.root.setVisible(seen(kitty.at.x, kitty.at.y));
+    for (const bird of this.art.pigeons) if (!bird.fled) bird.root.setVisible(seen(bird.at.x, bird.at.y));
   }
 
   /** 내 이웃이 지나온 길을 따라온다(걷기 판의 줄과 같은 식). */
@@ -236,7 +239,7 @@ export class VillageScene extends Phaser.Scene {
     const at = placeAt(this.pos, ENTER_RADIUS);
     if (at && at.id !== this.inside) {
       this.inside = at.id;
-      this.runtime.controls.clear(); this.goal = undefined;
+      this.runtime.controls.clear(); this.goal = undefined; this.route = [];
       sfx.door();
       this.runtime.enter(at.id);
     } else if (this.inside) {

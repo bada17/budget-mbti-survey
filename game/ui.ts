@@ -25,6 +25,23 @@ const button = (className: string, text: string, onClick: () => void) => {
 };
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 const SIDES: DisplaySide[] = ['left', 'right'];
+/**
+ * 폰의 「뒤로」 가 화면을 덮은 판만 닫게(기획 4차 — 판을 닫으려고 뒤로를 누르면 게임 밖으로 나가 버렸다).
+ * 판을 열 때 기록을 하나 쌓고, 뒤로(popstate)면 맨 위 판을 닫는다. 단추로 닫으면 돌려준 함수가 쌓은 기록을 되돌린다(그 뒤로는 무시).
+ */
+const backStack: (() => void)[] = [];
+let skipPop = 0;
+if (typeof window !== 'undefined') window.addEventListener('popstate', () => { if (skipPop) { skipPop--; return; } backStack.pop()?.(); });
+export function backCloses(close: () => void) {
+  backStack.push(close);
+  history.pushState({ dongne: backStack.length }, '');
+  return () => {
+    const i = backStack.lastIndexOf(close);
+    if (i < 0) return;
+    backStack.splice(i, 1); skipPop++; history.back();
+  };
+}
+
 /** 도너스 정기후원. utm 은 도너스 약정에 남아 「게임에서 온 후원」을 가를 수 있다. */
 export const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
 

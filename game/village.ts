@@ -59,7 +59,7 @@ export function blocked(p: Point, solid: Box[] = SOLID) {
 
 /**
  * 한 프레임 걷기 — 가로·세로를 따로 옮겨, 벽에 비스듬히 부딪히면 벽을 따라 미끄러진다.
- * ponytail: 길찾기 없이 곧장 — 건물 뒤를 누르면 벽에 붙어 선다. 「막힌다」 는 말이 나오면 길(ROADS) 위 A* 로.
+ * 꾹 누르고 끄는 걷기(손가락 쪽으로)는 이것만 쓴다. 톡 친 곳으로 갈 때는 findPath 가 돌아갈 길을 먼저 짠다.
  */
 export function walkVillage(p: Point, dir: Point, distance: number): Point {
   const len = Math.hypot(dir.x, dir.y);
@@ -69,6 +69,59 @@ export function walkVillage(p: Point, dir: Point, distance: number): Point {
   if (!blocked({ x: next.x + dx, y: next.y })) next = { x: next.x + dx, y: next.y };
   if (!blocked({ x: next.x, y: next.y + dy })) next = { x: next.x, y: next.y + dy };
   return next;
+}
+
+/** a 에서 b 까지 곧장 걸어도 아무것에도 안 걸리나(6px 마다 디뎌 본다). */
+export function clearLine(a: Point, b: Point) {
+  const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 6);
+  for (let i = 1; i <= steps; i++) if (blocked({ x: a.x + (b.x - a.x) * i / steps, y: a.y + (b.y - a.y) * i / steps })) return false;
+  return true;
+}
+
+const CELL = 16;
+const GW = Math.ceil(VILLAGE_W / CELL), GH = Math.ceil(VILLAGE_H / CELL);
+const cellAt = (p: Point) => Math.min(GH - 1, Math.max(0, Math.floor(p.y / CELL))) * GW + Math.min(GW - 1, Math.max(0, Math.floor(p.x / CELL)));
+const center = (i: number): Point => ({ x: (i % GW) * CELL + CELL / 2, y: Math.floor(i / GW) * CELL + CELL / 2 });
+let open: Uint8Array | undefined; // 디딜 수 있는 칸 — 처음 한 번만 잰다(지도는 안 바뀐다)
+
+/**
+ * 톡 친 곳까지 돌아갈 길 — 16px 칸을 넓게 훑어(BFS, 여덟 방향, 모서리는 못 자름) 가장 가까이 닿는 칸까지 가고,
+ * 곧장 보이는 데까지 건너뛰어 꺾는 곳만 남긴다. 닿을 수 없는 곳(분수 안·연못)을 누르면 가장 가까운 데까지.
+ * 돌려주는 건 거쳐 갈 자리들(끝이 목적지). 지도 한 장 6천 칸이라 누를 때마다 훑어도 폰에서 가볍다.
+ */
+export function findPath(from: Point, to: Point): Point[] {
+  if (clearLine(from, to)) return [{ ...to }];
+  open ??= Uint8Array.from({ length: GW * GH }, (_, i) => (blocked(center(i)) ? 0 : 1));
+  const start = cellAt(from), prev = new Int32Array(GW * GH).fill(-1);
+  prev[start] = start;
+  const queue = [start];
+  let best = start, bestD = Infinity;
+  for (let head = 0; head < queue.length; head++) {
+    const i = queue[head], c = center(i), d = Math.hypot(c.x - to.x, c.y - to.y);
+    if (d < bestD) { best = i; bestD = d; if (d < CELL) break; }
+    const x = i % GW, y = Math.floor(i / GW);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+      const n = ny * GW + nx;
+      if (prev[n] !== -1 || !open[n]) continue;
+      if (dx && dy && (!open[y * GW + nx] || !open[ny * GW + x])) continue; // 모서리를 비스듬히 자르지 않는다
+      prev[n] = i; queue.push(n);
+    }
+  }
+  const cells: Point[] = [];
+  for (let i = best; i !== start; i = prev[i]) cells.unshift(center(i));
+  const end = blocked(to) ? cells[cells.length - 1] ?? { ...from } : { ...to };
+  cells.push(end);
+  // 곧장 보이는 가장 먼 칸으로 건너뛴다 — 칸마다 꺾으면 계단처럼 걷는다.
+  const route: Point[] = [];
+  let at = from;
+  for (let k = 0; k < cells.length;) {
+    let far = k;
+    for (let j = cells.length - 1; j > k; j--) if (clearLine(at, cells[j])) { far = j; break; }
+    route.push(cells[far]); at = cells[far]; k = far + 1;
+  }
+  return route;
 }
 
 /** 문 앞 radius 안의 곳. */

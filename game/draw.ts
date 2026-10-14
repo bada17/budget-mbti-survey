@@ -758,12 +758,24 @@ function house(scene: Scene, place: Place, dpr: number) {
     mark.fillStyle(0xffffff, 0.2).fillEllipse(jx - 6, jy - 24, 6, 14);
     mark.lineStyle(1.5, 0x5c3a2c).lineBetween(jx + 4, jy - 30, jx + 1, jy - 20).lineBetween(jx + 1, jy - 20, jx + 6, jy - 12);
     mark.fillStyle(0x9fd3e6, 0.8).fillEllipse(jx + 14, jy + 1, 18, 5);
-    const drop = scene.add.circle(jx + 6, jy - 8, 2.2, 0x9fd3e6);
-    items.push(drop);
-    scene.tweens.add({ targets: drop, y: jy, alpha: 0, duration: 900, repeat: -1, ease: 'Quad.easeIn' });
+    // 새는 물방울은 움직여서 굽지 않는다 — drawVillage 가 따로 세운다(DOK_DRIP 자리).
   }
   return scene.add.container(x, y, items).setDepth(y + h);
 }
+
+/** 쪽지 든 주민 머리 위 쪽지 — 작은 종이에 점 셋, 둥실. 장면이 주민 머리 위(오른쪽)로 따라 옮긴다. */
+export function noteTag(scene: Scene, reduced: boolean) {
+  const g = scene.add.graphics();
+  g.fillStyle(0x756956, 0.18).fillRoundedRect(-11, -7, 24, 18, 4);
+  g.fillStyle(0xfff3b0).fillRoundedRect(-12, -9, 24, 18, 4);
+  g.lineStyle(1, 0xd9c3a1).strokeRoundedRect(-12, -9, 24, 18, 4);
+  g.fillStyle(0x9a7356).fillCircle(-6, 0, 1.6).fillCircle(0, 0, 1.6).fillCircle(6, 0, 1.6);
+  if (!reduced) scene.tweens.add({ targets: g, y: -3, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  return scene.add.container(0, 0, [g]);
+}
+
+/** 독상 항아리에서 새는 물방울 자리(건물 왼쪽 아래 기준) — 굽지 않고 따로 움직인다. */
+const DOK_DRIP = { x: 28, y: -10 };
 
 /** 버스 정류장 — 지붕 얹은 쉼터와 동그란 표지판. */
 function busStop(scene: Scene, place: Place, dpr: number) {
@@ -796,88 +808,166 @@ function noteBoard(scene: Scene, place: Place, dpr: number) {
   return scene.add.container(x, y, [g, name]).setDepth(y + h);
 }
 
-export type VillageArt = { pigeons: Pigeon[]; cats: Cat[]; destroy: () => void };
+/**
+ * 마을 그림은 안 움직이는 것을 **처음에 한 번 그림 한 장으로 굽는다**(bake). Graphics 는 Phaser 가 장면마다 다시 계산해서,
+ * 지도 한 장을 다 그리면 느린 폰에서 끊겼다(CPU 4배 느리게: 초당 9장 → 굽고 나서 아래 README 「지금 상태」).
+ * 그림을 고칠 때는 house·busStop·noteBoard·tree 같은 그리는 함수만 고치면 된다 — 굽기는 저절로 따라간다.
+ * 움직이는 것(분수 물방울·독에서 새는 물·고양이·비둘기)은 굽지 않는다. 새 물건은 bake 로 굽고 keep 에 자리 상자와 함께 넣는다.
+ * cull(화면) — 화면(+여유) 밖의 것은 그리지 않는다.
+ */
+export type VillageArt = { pigeons: Pigeon[]; cats: Cat[]; cull: (view: { x: number; y: number; width: number; height: number }) => void; destroy: () => void };
+type Bounds = { x0: number; y0: number; x1: number; y1: number };
+type Bakeable = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform;
+
+/**
+ * obj 를 b(지도 자리 상자) 크기 그림 한 장으로 굽고 obj 는 버린다. res = 촘촘함(기기 화소 배수) — 카메라가 그만큼 키워 보이므로 맞춰 굽는다.
+ * 같은 key 를 다시 쓰면(나무처럼) 한 번만 굽는다.
+ */
+function bake(scene: Scene, key: string, make: () => Bakeable, b: Bounds, res: number, at = { x: b.x0, y: b.y0 }) {
+  if (!scene.textures.exists(key)) {
+    const obj = make();
+    const tex = scene.textures.addDynamicTexture(key, Math.ceil((b.x1 - b.x0) * res), Math.ceil((b.y1 - b.y0) * res))!;
+    // 자리는 직접 옮기고 draw 엔 자리를 주지 않는다 — Phaser 4 의 draw(x, y) 는 WebGL 에선 원래 자리에 더하고 캔버스에선 덮어써서,
+    // 지도 위 제자리(0,0 이 아닌)에 있던 건물이 그림 밖으로 밀려 빈 그림이 됐다(10-14).
+    obj.setPosition((obj.x - b.x0) * res, (obj.y - b.y0) * res).setScale(res);
+    tex.draw(obj);
+    tex.render();
+    obj.destroy();
+  }
+  return scene.add.image(at.x, at.y, key).setOrigin(0).setScale(1 / res);
+}
 
 /** 마을 한 장 — 바닥(풀·길·광장·연못)과 건물·나무·장난감. 사람(Dude)은 장면이 세운다. */
 export function drawVillage(scene: Scene, dpr: number): VillageArt {
   const r = rng('village');
   const W = VILLAGE_W, H = VILLAGE_H;
-  const g = scene.add.graphics();
-  const things: Phaser.GameObjects.GameObject[] = [];
+  // 지난번에 구운 그림이 남아 있으면(장면을 다시 열면) 지우고 다시 굽는다.
+  for (const key of scene.textures.getTextureKeys()) if (key.startsWith('village-')) scene.textures.remove(key);
+  const sharp = Math.min(dpr, 3), soft = Math.min(dpr, 2); // 글씨 든 건물은 또렷하게, 넓은 바닥은 메모리를 아껴(바닥 다섯 장 ≈ 25MB)
+  const culled: { obj: Phaser.GameObjects.Components.Visible & Phaser.GameObjects.GameObject; b: Bounds }[] = [];
+  const keep = <T extends Phaser.GameObjects.Components.Visible & Phaser.GameObjects.GameObject>(obj: T, b: Bounds) => { culled.push({ obj, b }); return obj; };
+  // 바닥은 300px 띠마다 따로 굽는다 — 띠를 걸치는 것은 걸친 띠마다 그리고, 구울 때 띠 밖은 잘려서 이음매 없이 이어진다.
+  const BAND = 300;
+  const bands = Array.from({ length: Math.ceil(H / BAND) }, () => scene.add.graphics());
+  const paint = (y0: number, y1: number, draw: (g: Phaser.GameObjects.Graphics) => void) => {
+    for (let i = Math.max(0, Math.floor(y0 / BAND)); i <= Math.min(bands.length - 1, Math.floor(y1 / BAND)); i++) draw(bands[i]);
+  };
   // 풀밭 — 맨 위 띠는 언덕과 노을
-  g.fillGradientStyle(0xf6c9a8, 0xf6c9a8, 0xfbe4c6, 0xfbe4c6).fillRect(0, 0, W, 90);
-  g.fillStyle(0xb8cf9b).fillEllipse(W * 0.2, 96, W * 0.7, 70).fillEllipse(W * 0.78, 92, W * 0.8, 60);
-  g.fillStyle(0xd3e3b4).fillRect(0, 100, W, H - 100);
-  for (let i = 0; i < 70; i++) g.fillStyle(0xffffff, 0.16).fillEllipse(r() * W, 110 + r() * (H - 110), 30 + r() * 60, 8 + r() * 10);
+  paint(0, 131, g => {
+    g.fillGradientStyle(0xf6c9a8, 0xf6c9a8, 0xfbe4c6, 0xfbe4c6).fillRect(0, 0, W, 90);
+    g.fillStyle(0xb8cf9b).fillEllipse(W * 0.2, 96, W * 0.7, 70).fillEllipse(W * 0.78, 92, W * 0.8, 60);
+  });
+  bands.forEach((g, i) => { const top = Math.max(100, i * BAND); g.fillStyle(0xd3e3b4).fillRect(0, top, W, Math.min(H, (i + 1) * BAND) - top); });
+  for (let i = 0; i < 70; i++) {
+    const x = r() * W, y = 110 + r() * (H - 110), w = 30 + r() * 60, h = 8 + r() * 10;
+    paint(y - h, y + h, g => g.fillStyle(0xffffff, 0.16).fillEllipse(x, y, w, h));
+  }
   // 길
-  for (const road of ROADS) g.fillStyle(0xf1e8cf).fillRoundedRect(road.x, road.y, road.w, road.h, 18);
-  for (const road of ROADS) g.lineStyle(1, 0xddcdae, 0.5).strokeRoundedRect(road.x + 4, road.y + 4, road.w - 8, road.h - 8, 14);
+  for (const road of ROADS) paint(road.y, road.y + road.h, g => g.fillStyle(0xf1e8cf).fillRoundedRect(road.x, road.y, road.w, road.h, 18));
+  for (const road of ROADS) paint(road.y, road.y + road.h, g => g.lineStyle(1, 0xddcdae, 0.5).strokeRoundedRect(road.x + 4, road.y + 4, road.w - 8, road.h - 8, 14));
   // 광장
-  g.fillStyle(0xe7dcc0).fillEllipse(PLAZA.x, PLAZA.y, PLAZA.r * 2.3, PLAZA.r * 1.9);
-  g.fillStyle(0xf3ead2).fillEllipse(PLAZA.x, PLAZA.y, PLAZA.r * 2.1, PLAZA.r * 1.72);
-  for (const k of [0.45, 0.72]) g.lineStyle(1.5, 0xe0d2b2, 0.8).strokeEllipse(PLAZA.x, PLAZA.y, PLAZA.r * 2.1 * k, PLAZA.r * 1.72 * k);
+  paint(PLAZA.y - PLAZA.r, PLAZA.y + PLAZA.r, g => {
+    g.fillStyle(0xe7dcc0).fillEllipse(PLAZA.x, PLAZA.y, PLAZA.r * 2.3, PLAZA.r * 1.9);
+    g.fillStyle(0xf3ead2).fillEllipse(PLAZA.x, PLAZA.y, PLAZA.r * 2.1, PLAZA.r * 1.72);
+    for (const k of [0.45, 0.72]) g.lineStyle(1.5, 0xe0d2b2, 0.8).strokeEllipse(PLAZA.x, PLAZA.y, PLAZA.r * 2.1 * k, PLAZA.r * 1.72 * k);
+  });
   // 연못
-  g.fillStyle(0x7fbcd2).fillEllipse(POND.x + POND.w / 2, POND.y + POND.h / 2 + 3, POND.w + 10, POND.h + 6);
-  g.fillStyle(0x9fd3e6).fillEllipse(POND.x + POND.w / 2, POND.y + POND.h / 2, POND.w, POND.h);
-  for (const [px, py] of [[0.3, 0.35], [0.62, 0.6], [0.45, 0.72]]) g.fillStyle(0x8cc07a).fillCircle(POND.x + POND.w * px, POND.y + POND.h * py, 7).fillStyle(0xf7c6cf).fillCircle(POND.x + POND.w * px + 3, POND.y + POND.h * py - 2, 2.5);
-  for (let i = 0; i < 4; i++) g.lineStyle(2, 0xffffff, 0.45).lineBetween(POND.x + 30 + i * 28, POND.y + 30 + (i % 2) * 22, POND.x + 44 + i * 28, POND.y + 30 + (i % 2) * 22);
+  paint(POND.y - 4, POND.y + POND.h + 8, g => {
+    g.fillStyle(0x7fbcd2).fillEllipse(POND.x + POND.w / 2, POND.y + POND.h / 2 + 3, POND.w + 10, POND.h + 6);
+    g.fillStyle(0x9fd3e6).fillEllipse(POND.x + POND.w / 2, POND.y + POND.h / 2, POND.w, POND.h);
+    for (const [px, py] of [[0.3, 0.35], [0.62, 0.6], [0.45, 0.72]]) g.fillStyle(0x8cc07a).fillCircle(POND.x + POND.w * px, POND.y + POND.h * py, 7).fillStyle(0xf7c6cf).fillCircle(POND.x + POND.w * px + 3, POND.y + POND.h * py - 2, 2.5);
+    for (let i = 0; i < 4; i++) g.lineStyle(2, 0xffffff, 0.45).lineBetween(POND.x + 30 + i * 28, POND.y + 30 + (i % 2) * 22, POND.x + 44 + i * 28, POND.y + 30 + (i % 2) * 22);
+  });
   // 꽃 — 길 위는 비운다
   for (let i = 0; i < 90; i++) {
     const fx = r() * W, fy = 130 + r() * (H - 160);
     if (ROADS.some(b => fx > b.x - 6 && fx < b.x + b.w + 6 && fy > b.y - 6 && fy < b.y + b.h + 6)) continue;
-    g.fillStyle([0xfff8e4, 0xf7d391, 0xeeb1b8, 0xc9b6e8][i % 4]);
-    for (let p = 0; p < 5; p++) g.fillCircle(fx + Math.cos(p * Math.PI * 0.4) * 2.4, fy + Math.sin(p * Math.PI * 0.4) * 2.4, 2);
-    g.fillStyle(0xe6b368).fillCircle(fx, fy, 1.6);
+    paint(fy - 6, fy + 6, g => {
+      g.fillStyle([0xfff8e4, 0xf7d391, 0xeeb1b8, 0xc9b6e8][i % 4]);
+      for (let p = 0; p < 5; p++) g.fillCircle(fx + Math.cos(p * Math.PI * 0.4) * 2.4, fy + Math.sin(p * Math.PI * 0.4) * 2.4, 2);
+      g.fillStyle(0xe6b368).fillCircle(fx, fy, 1.6);
+    });
   }
-  // 분수
+  bands.forEach((g, i) => {
+    const b = { x0: 0, x1: W, y0: i * BAND, y1: Math.min(H, (i + 1) * BAND) };
+    keep(bake(scene, `village-ground-${i}`, () => g, b, soft).setDepth(-100000), b);
+  });
+  // 분수 — 돌은 굽고 물방울은 움직인다
   const cx = FOUNTAIN.x + FOUNTAIN.w / 2, cy = FOUNTAIN.y + FOUNTAIN.h / 2;
-  const fountain = scene.add.graphics();
-  fountain.fillStyle(0x756956, 0.15).fillEllipse(cx, cy + 22, FOUNTAIN.w + 20, 18);
-  fountain.fillStyle(0xd6d2c4).fillEllipse(cx, cy + 8, FOUNTAIN.w + 8, 40).fillStyle(0x9fd3e6).fillEllipse(cx, cy + 4, FOUNTAIN.w - 6, 28);
-  fountain.fillStyle(0xd6d2c4).fillRoundedRect(cx - 7, cy - 34, 14, 40, 5).fillEllipse(cx, cy - 34, 30, 10);
-  fountain.fillStyle(0x9fd3e6).fillEllipse(cx, cy - 36, 22, 6);
-  const spray = [-1, 1, 0].map(k => scene.add.circle(cx + k * 6, cy - 40, 2.6, 0xd9f1fa));
+  const fb = { x0: FOUNTAIN.x - 30, x1: FOUNTAIN.x + FOUNTAIN.w + 30, y0: FOUNTAIN.y - 50, y1: FOUNTAIN.y + FOUNTAIN.h + 34 };
+  keep(bake(scene, 'village-fountain', () => {
+    const f = scene.add.graphics();
+    f.fillStyle(0x756956, 0.15).fillEllipse(cx, cy + 22, FOUNTAIN.w + 20, 18);
+    f.fillStyle(0xd6d2c4).fillEllipse(cx, cy + 8, FOUNTAIN.w + 8, 40).fillStyle(0x9fd3e6).fillEllipse(cx, cy + 4, FOUNTAIN.w - 6, 28);
+    f.fillStyle(0xd6d2c4).fillRoundedRect(cx - 7, cy - 34, 14, 40, 5).fillEllipse(cx, cy - 34, 30, 10);
+    f.fillStyle(0x9fd3e6).fillEllipse(cx, cy - 36, 22, 6);
+    return f;
+  }, fb, sharp).setDepth(FOUNTAIN.y + FOUNTAIN.h), fb);
+  const spray = [-1, 1, 0].map(k => scene.add.circle(cx + k * 6, cy - 40, 2.6, 0xd9f1fa).setDepth(FOUNTAIN.y + FOUNTAIN.h + 1));
   spray.forEach((drop, i) => scene.tweens.add({ targets: drop, x: cx + (i - 1) * 22, y: cy, alpha: 0.2, duration: 800, delay: i * 260, repeat: -1, ease: 'Quad.easeIn' }));
-  things.push(scene.add.container(0, 0, [fountain, ...spray]).setDepth(FOUNTAIN.y + FOUNTAIN.h));
   // 건물 · 빈 터 · 남쪽 문
-  for (const place of PLACES) things.push(place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
-  const lot = scene.add.graphics();
-  lot.fillStyle(0xe2d6b8).fillRoundedRect(0, -10, LOT.w, LOT.h + 10, 10);
-  for (let px = 0; px <= LOT.w; px += 20) lot.fillStyle(0xc9a27e).fillRoundedRect(px - 3, LOT.h - 22, 6, 24, 2).fillRoundedRect(px - 3, -24, 6, 24, 2);
-  lot.fillStyle(0xd8b48c).fillRect(0, LOT.h - 16, LOT.w, 4).fillRect(0, -18, LOT.w, 4);
-  lot.fillStyle(0x6d5444).fillRect(LOT.w / 2 - 2, 20, 4, 40).fillStyle(0xfffaf0).fillRoundedRect(LOT.w / 2 - 62, 6, 124, 24, 6);
-  things.push(scene.add.container(LOT.x, LOT.y, [lot, label(scene, LOT.w / 2, 18, '빈 터 · 새 가게 자리', 11, dpr)]).setDepth(LOT.y + LOT.h));
-  const gate = scene.add.graphics();
-  gate.fillStyle(0x9a7356).fillRoundedRect(-62, -70, 10, 70, 4).fillRoundedRect(52, -70, 10, 70, 4).fillStyle(0xd9785f).fillRoundedRect(-74, -88, 148, 24, 10);
-  things.push(scene.add.container(520, GATE_Y + 26, [gate, label(scene, 0, -76, VILLAGE_NAME, 12, dpr, '#ffffff')]).setDepth(GATE_Y + 26));
-  // 나무 — 길·건물·광장을 비워 가장자리와 빈 풀밭에
+  const live: Phaser.GameObjects.GameObject[] = [...spray];
+  for (const place of PLACES) {
+    const { x, y, w, h } = place.box, b = { x0: x - 24, x1: x + w + 36, y0: y - 92, y1: y + h + 12 };
+    const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
+    keep(bake(scene, `village-${place.id}`, make, b, sharp).setDepth(y + h), b);
+    if (place.id === 'dok') {
+      const drop = scene.add.circle(x + DOK_DRIP.x, y + h + DOK_DRIP.y, 2.2, 0x9fd3e6).setDepth(y + h + 1);
+      scene.tweens.add({ targets: drop, y: y + h - 2, alpha: 0, duration: 900, repeat: -1, ease: 'Quad.easeIn' });
+      live.push(drop);
+    }
+  }
+  const lb = { x0: LOT.x - 8, x1: LOT.x + LOT.w + 8, y0: LOT.y - 30, y1: LOT.y + LOT.h + 8 };
+  keep(bake(scene, 'village-lot', () => {
+    const lot = scene.add.graphics();
+    lot.fillStyle(0xe2d6b8).fillRoundedRect(0, -10, LOT.w, LOT.h + 10, 10);
+    for (let px = 0; px <= LOT.w; px += 20) lot.fillStyle(0xc9a27e).fillRoundedRect(px - 3, LOT.h - 22, 6, 24, 2).fillRoundedRect(px - 3, -24, 6, 24, 2);
+    lot.fillStyle(0xd8b48c).fillRect(0, LOT.h - 16, LOT.w, 4).fillRect(0, -18, LOT.w, 4);
+    lot.fillStyle(0x6d5444).fillRect(LOT.w / 2 - 2, 20, 4, 40).fillStyle(0xfffaf0).fillRoundedRect(LOT.w / 2 - 62, 6, 124, 24, 6);
+    return scene.add.container(LOT.x, LOT.y, [lot, label(scene, LOT.w / 2, 18, '빈 터 · 새 가게 자리', 11, dpr)]);
+  }, lb, sharp).setDepth(LOT.y + LOT.h), lb);
+  const gb = { x0: 440, x1: 600, y0: GATE_Y - 70, y1: GATE_Y + 34 };
+  keep(bake(scene, 'village-gate', () => {
+    const gate = scene.add.graphics();
+    gate.fillStyle(0x9a7356).fillRoundedRect(-62, -70, 10, 70, 4).fillRoundedRect(52, -70, 10, 70, 4).fillStyle(0xd9785f).fillRoundedRect(-74, -88, 148, 24, 10);
+    return scene.add.container(520, GATE_Y + 26, [gate, label(scene, 0, -76, VILLAGE_NAME, 12, dpr, '#ffffff')]);
+  }, gb, sharp).setDepth(GATE_Y + 26), gb);
+  // 나무 — 색 넷을 한 번씩 굽고 그림을 여러 번 쓴다. 길·건물·광장을 비워 가장자리와 빈 풀밭에.
   const near = (at: Point, b: { x: number; y: number; w: number; h: number }, m: number) => at.x > b.x - m && at.x < b.x + b.w + m && at.y > b.y - m && at.y < b.y + b.h + m + 40;
+  const TREE = { x0: -30, x1: 30, y0: -60, y1: 8 };
   for (let ty = 150; ty < H - 10; ty += 64) for (let tx = 24; tx < W; tx += 64) {
     const at = { x: tx + (r() - 0.5) * 30, y: ty + (r() - 0.5) * 24 };
     if (r() < 0.45) continue;
     if (ROADS.some(b => near(at, b, 18)) || PLACES.some(p => near(at, p.box, 34)) || near(at, LOT, 30) || near(at, POND, 20)) continue;
     if (((at.x - PLAZA.x) / (PLAZA.r * 1.25)) ** 2 + ((at.y - PLAZA.y) / (PLAZA.r * 1.05)) ** 2 < 1) continue;
-    things.push(tree(scene, at.x, at.y, [0x8cc07a, 0x6fae6a, 0x9cba8a, 0x5fa585][Math.floor(r() * 4)]));
+    const color = [0x8cc07a, 0x6fae6a, 0x9cba8a, 0x5fa585][Math.floor(r() * 4)];
+    const b = { x0: at.x + TREE.x0, x1: at.x + TREE.x1, y0: at.y + TREE.y0, y1: at.y + TREE.y1 };
+    keep(bake(scene, `village-tree-${color}`, () => tree(scene, 0, 0, color), TREE, sharp, { x: b.x0, y: b.y0 }).setDepth(at.y), b);
   }
-  // 광장 벤치·가로등
+  // 광장 벤치·가로등 — 하나씩 굽고 여러 번
+  const BENCH = { x0: -24, x1: 24, y0: -22, y1: 4 }, LAMP = { x0: -12, x1: 12, y0: -66, y1: 4 };
   for (const [bx, by] of [[PLAZA.x - 118, PLAZA.y + 70], [PLAZA.x + 118, PLAZA.y + 70]]) {
-    things.push(scene.add.container(bx, by, [
+    keep(bake(scene, 'village-bench', () => scene.add.container(0, 0, [
       scene.add.rectangle(0, -8, 40, 6, 0xb07a52).setRounded(2), scene.add.rectangle(0, -16, 40, 5, 0xb07a52).setRounded(2),
       scene.add.rectangle(-15, -2, 4, 10, 0x6d5444), scene.add.rectangle(15, -2, 4, 10, 0x6d5444),
-    ]).setDepth(by));
+    ]), BENCH, sharp, { x: bx + BENCH.x0, y: by + BENCH.y0 }).setDepth(by), { x0: bx - 24, x1: bx + 24, y0: by - 22, y1: by + 4 });
   }
   for (const [lx, ly] of [[PLAZA.x - 150, PLAZA.y - 40], [PLAZA.x + 150, PLAZA.y - 40], [PLAZA.x - 60, PLAZA.y + 130], [PLAZA.x + 60, PLAZA.y + 130]]) {
-    things.push(scene.add.container(lx, ly, [scene.add.ellipse(0, 0, 14, 5, 0x2d3a2e, 0.15), scene.add.rectangle(0, -26, 4, 52, 0x6d6a73).setRounded(2), scene.add.circle(0, -54, 7, 0xfff3c4), scene.add.circle(0, -54, 11, 0xfff3c4, 0.25)]).setDepth(ly));
+    keep(bake(scene, 'village-lamp', () => scene.add.container(0, 0, [scene.add.ellipse(0, 0, 14, 5, 0x2d3a2e, 0.15), scene.add.rectangle(0, -26, 4, 52, 0x6d6a73).setRounded(2), scene.add.circle(0, -54, 7, 0xfff3c4), scene.add.circle(0, -54, 11, 0xfff3c4, 0.25)]),
+      LAMP, sharp, { x: lx + LAMP.x0, y: ly + LAMP.y0 }).setDepth(ly), { x0: lx - 12, x1: lx + 12, y0: ly - 66, y1: ly + 4 });
   }
   const cats = [cat(scene, PLAZA.x - 92, PLAZA.y + 72, 0xf0a04b), cat(scene, 300, 372, 0x8f8f96)];
   for (const kitty of cats) kitty.root.setDepth(kitty.at.y);
   const pigeons = [[PLAZA.x + 40, PLAZA.y + 90], [PLAZA.x + 70, PLAZA.y + 100], [PLAZA.x - 50, PLAZA.y - 66], [560, 1200]].map(([px, py]) => pigeon(scene, px, py));
-  const groundBox = scene.add.container(0, 0, [g]).setDepth(-100000);
+  const MARGIN = 90; // 화면 밖 이만큼까지는 그려 둔다(걸어가며 들어올 때 갑자기 나타나지 않게)
   return {
     pigeons, cats,
+    cull(view) {
+      const x0 = view.x - MARGIN, x1 = view.x + view.width + MARGIN, y0 = view.y - MARGIN, y1 = view.y + view.height + MARGIN;
+      for (const { obj, b } of culled) obj.setVisible(b.x1 > x0 && b.x0 < x1 && b.y1 > y0 && b.y0 < y1);
+    },
     destroy() {
-      groundBox.destroy();
-      [...things, ...cats.map(c => c.root), ...pigeons.filter(p => !p.fled).map(p => p.root)].forEach(t => t.destroy());
+      [...culled.map(c => c.obj), ...live, ...cats.map(c => c.root), ...pigeons.filter(p => !p.fled).map(p => p.root)].forEach(t => t.destroy());
     },
   };
 }

@@ -17,7 +17,7 @@ import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, type Town, type Neighbor
 import { toLook, lookFrom, type Look, type Pick } from './look';
 import { board } from './stamps';
 import { letterFor, type Season } from './seasons';
-import { DONATE_URL } from './ui';
+import { DONATE_URL, backCloses } from './ui';
 import { PRIVACY_URL } from './contact';
 import { PROVIDER_NAME, type Provider } from './login';
 import type { RegionView, Visit } from './api';
@@ -91,7 +91,10 @@ function lotsView(mine: Town, beside?: { name: string; town?: Town }) {
 
 export function panelShell(shell: HTMLElement, onClose: () => void, backText = '← 마을로') {
   const panel = el('section', 't-panel');
-  const close = () => { panel.remove(); onClose(); };
+  let closed = false;
+  const finish = () => { if (closed) return; closed = true; panel.remove(); onClose(); };
+  const leave = backCloses(finish); // 폰 「뒤로」 = 이 판 닫기
+  const close = () => { leave(); finish(); };
   const back = btn('t-back', backText, close);
   panel.append(back);
   shell.append(panel);

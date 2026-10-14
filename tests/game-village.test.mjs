@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import {
-  PLACES, SPAWN, VILLAGE_W, VILLAGE_H, blocked, walkVillage, placeAt, wanderSpot, checkNote, kstDayStart,
+  PLACES, SPAWN, VILLAGE_W, VILLAGE_H, blocked, walkVillage, findPath, placeAt, wanderSpot, checkNote, kstDayStart,
   NOTE_MAX, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, CROWD_SHOW,
 } from '../game/village.ts';
 import { createStore, handle } from '../game/api.ts';
@@ -56,6 +56,36 @@ test('걷기: 남쪽 문에서 모든 문 앞까지 걸어서 닿고(8px 칸 훑
   for (let i = 0; i < 300; i++) { p = walkVillage(p, { x: 0.2, y: -1 }, 3); assert.equal(blocked(p), false); }
   assert.deepEqual(walkVillage(below, { x: 0, y: 0 }, 5), below);
   assert.deepEqual(walkVillage(below, { x: NaN, y: 1 }, 5), below);
+});
+
+test('길찾기: 남쪽 문·광장·아무 데서나 모든 문 앞까지 길을 따라 걸으면 닿고, 못 디디는 곳을 누르면 가장 가까이까지', () => {
+  const follow = (from, route) => {
+    let p = { ...from };
+    for (const spot of route) for (let i = 0; i < 400 && Math.hypot(spot.x - p.x, spot.y - p.y) > 0.5; i++) {
+      const d = Math.hypot(spot.x - p.x, spot.y - p.y);
+      p = walkVillage(p, { x: spot.x - p.x, y: spot.y - p.y }, Math.min(4, d));
+    }
+    return p;
+  };
+  let seed = 11;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const starts = [SPAWN.gate, SPAWN.plaza, ...Array.from({ length: 12 }, () => wanderSpot(random))];
+  let slowest = 0;
+  for (const from of starts) for (const place of PLACES) {
+    const t = performance.now();
+    const route = findPath(from, place.door);
+    slowest = Math.max(slowest, performance.now() - t);
+    const end = follow(from, route);
+    assert.ok(Math.hypot(end.x - place.door.x, end.y - place.door.y) < 3, `${JSON.stringify(from)} → ${place.name}: ${JSON.stringify(end)}`);
+    assert.ok(route.length <= 8, `${place.name} 꺾는 곳 ${route.length}`);
+  }
+  assert.ok(slowest < 60, `가장 느린 길찾기 ${slowest.toFixed(1)}ms`);
+  // 분수 한가운데를 누르면 — 분수 가장자리 근처에 선다
+  const end = follow(SPAWN.gate, findPath(SPAWN.gate, { x: 520, y: 796 }));
+  assert.equal(blocked(end), false);
+  assert.ok(Math.hypot(end.x - 520, end.y - 796) < 60, JSON.stringify(end));
+  // 곧장 보이면 한 번에
+  assert.deepEqual(findPath(SPAWN.plaza, { x: SPAWN.plaza.x, y: SPAWN.plaza.y + 100 }), [{ x: SPAWN.plaza.x, y: SPAWN.plaza.y + 100 }]);
 });
 
 test('서성이는 자리는 늘 디딜 수 있는 곳', () => {
