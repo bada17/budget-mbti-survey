@@ -48,7 +48,6 @@
 .t-pair{display:flex;gap:18px;margin:8px 0 6px}.t-who{display:inline-flex;flex-direction:column;align-items:center;gap:10px;font-size:12px;color:var(--soft)}.t-who .t-ava{transform:scale(1.4);margin-top:8px}
 
 /* 주민증 */
-.t-card-title{margin-top:26px!important}
 .t-card{margin:6px 0 8px;border-radius:18px;background:#fffdf8;box-shadow:0 0 0 2px var(--line),0 8px 20px #2d2a3214;overflow:hidden}
 .t-card-top{padding:9px 14px;background:var(--accent);color:#fff;font-size:14px;font-weight:800;letter-spacing:-.3px}
 .t-card-body{display:flex;gap:14px;padding:14px 14px 6px}
@@ -59,6 +58,30 @@
 .t-stamp.on{border:2.5px solid var(--accent);color:var(--accent);transform:rotate(-8deg);background:#fff4ef}
 .t-stamp sup{position:absolute;right:-2px;top:-4px;font-size:10px;color:var(--accent-dark)}
 .t-issued{margin:8px 14px 12px;font-size:11px;color:var(--soft);text-align:right}
-.t-how{margin:0 0 12px;font-size:13px;color:var(--soft)}.t-how ul{margin:6px 0 0;padding-left:18px;line-height:1.7}.t-how .t-done{color:var(--accent-dark)}
+.t-stamp.sel{box-shadow:0 0 0 2px #ffffff,0 0 0 4px var(--accent)}
+.t-tip{min-height:1.6em;margin:2px 4px 12px;font-size:13px;color:var(--soft);text-align:center;word-break:keep-all}
+
+/* 도장 주민 판 위 갈래(탭) — 주민증 · 방명록 · 우리 지역 · 이웃 편지 */
+.t-tabs{position:sticky;top:-4px;z-index:1;display:flex;gap:3px;margin:6px 0 14px;padding:4px;border-radius:999px;background:#f0e5d0;box-shadow:0 0 0 1px #e2d2b6}
+.t-tab{flex:1;min-height:34px;padding:0 4px;border-radius:999px;font-size:13px;font-weight:750;color:#8a6f58;white-space:nowrap}
+.t-tab.on{background:#fffaf0;color:#765943;box-shadow:0 2px 0 #a58d6926}
 .t-join{color:var(--accent-dark)}
-.t-local-slot{min-height:140px;border:2px dashed var(--line);border-radius:16px} /* 우리 동네 예산 — 빈 자리(내용은 아직) */
+
+/* 우리 동네 예산(예산 주민) — 지금은 망원동 시험 자료 */
+.t-bigcard{margin:10px 0 12px;padding:14px;border-radius:18px;background:#fffdf8;box-shadow:0 0 0 1.5px var(--line),0 6px 16px #2d2a3210}
+.t-bigcard>.t-small{margin:0}
+.t-big{margin:2px 0 4px;font-size:30px;font-weight:850;letter-spacing:-1px;color:#795344}
+.t-share{display:flex;margin-top:10px;border-radius:10px;overflow:hidden;font-size:12px;font-weight:700}
+.t-share span{padding:7px 9px;white-space:nowrap}
+.t-share span:first-child{flex:0 0 var(--a);background:#f6d9c6;color:#8a4f35}
+.t-share span:last-child{flex:1;background:#eee6d6;color:var(--soft);text-align:right}
+.t-years{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:7px;font-size:12px}
+.t-years li{display:grid;grid-template-columns:34px 1fr 108px;align-items:center;gap:8px}
+.t-years i{display:block;height:10px;min-width:4px;border-radius:5px;background:#a9cfe0}
+.t-years b{font-weight:750;text-align:right}
+.t-sub{margin:14px 0 6px;font-size:12px;font-weight:800;color:var(--accent-dark)}
+.t-deals{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.t-deals li{display:grid;grid-template-columns:1fr auto;gap:1px 10px;padding:8px 10px;border-radius:12px;background:#f7f1e5;font-size:13px;line-height:1.35;word-break:keep-all}
+.t-deals small{grid-row:2;font-size:11px;color:var(--soft)}
+.t-deals b{grid-row:1 / span 2;grid-column:2;align-self:center;color:#795344}
+.t-source{margin-top:4px;font-size:11px}
