@@ -206,9 +206,9 @@ export function createUI(root: HTMLElement, actions: {
         rows.append(line);
       });
       draw();
-      const random = button('g-link', '아무거나', () => { current.pick = randomPick(); changed(); });
+      const random = button('g-link', '어떤 모습이 나올까?', () => { current.pick = randomPick(); changed(); });
       const done = button('g-primary', '이 모습으로 걷기', () => { closeSheet(); on.done({ name: cleanName(name.value), pick: [...current.pick] as Pick }); });
-      openSheet(el('p', 'g-kicker', '내 모습 고르기'), name, rows, random, done);
+      openSheet(el('p', 'g-kicker', '오늘은 이 모습으로'), name, rows, random, done);
     },
 
     /** 테이블에서 같이 하기 — 새로 만들거나 코드로 들어간다. */
@@ -258,8 +258,8 @@ export function createUI(root: HTMLElement, actions: {
       give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
       bar.append(
-        button('g-primary', '함께 온 주민 중 내 이웃 정하기', on.neighbor),
-        ...(on.others ? [button('g-ghost', '다른 사람들은 어떻게 골랐을까?', on.others)] : []),
+        button('g-primary', '내 이웃 정하기', on.neighbor),
+        ...(on.others ? [button('g-ghost', '다른 사람들은?', on.others)] : []),
         button('g-ghost', '친구에게 보내기', on.share),
         ...(on.reply ? [button('g-ghost', on.reply.label, on.reply.run)] : []), // 나를 부른 친구에게 답장(기획 3차 ①)
         button('g-ghost', '내 동네 · 주민증', on.town),
