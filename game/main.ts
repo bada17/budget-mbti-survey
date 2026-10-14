@@ -12,14 +12,17 @@ import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
-import { openTown, openBudget, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
+import { openTown, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, noteCard, loadMarks } from './places';
+import { PLACES, type PlaceId } from './village';
 import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact } from './contact';
 import { net, TABLES } from './net';
-import type { Stats, TableView } from './api';
+import type { Stats, TableView, VillageView } from './api';
 import type { JourneyScene, SceneCommand, Guest } from './scenes/JourneyScene';
+import type { VillageScene } from './scenes/VillageScene';
 
 const root = document.querySelector<HTMLElement>('#game-root')!;
 const params = new URLSearchParams(location.search);
@@ -55,6 +58,16 @@ const here = () => `${location.origin}${location.pathname}`;
 const contactReady = import.meta.env.DEV;
 /** 게임 서버(다른 사람들 마음·방명록·우리 지역, 테이블은 TABLES 일 때만)가 있나. 서버 없는 시험판엔 없다 — 그때는 그 단추들을 숨긴다. */
 let online = false;
+/** 지난번 판 — 유형이 남은 판(10-14 뒤)이면 다시 온 사람이다. */
+let lastPlay = loadLast();
+/** 마을(기획 4차) — 지금 어디(걷기 판 / 마을), 마을에 어디서 나타나나, 판이 열려 있나(그동안 나는 멈춘다). */
+let where: 'walk' | 'village' = 'walk';
+let villageStart: 'gate' | 'plaza' = 'plaza';
+let village: VillageScene | undefined;
+let villageView: VillageView | undefined;
+let panelOpen = false;
+/** 끝낸 판을 서버에 알린 뒤에야 마을에 들를 수 있다(서버는 끝낸 판만 받는다). */
+let finishing: Promise<void> = Promise.resolve();
 
 const ui = createUI(root, {
   start: () => {
@@ -83,7 +96,7 @@ const ui = createUI(root, {
   goDoor: () => scene?.goDoor(),
 });
 ui.setSound(isMuted());
-const controls = new Controls(ui.surface, () => !state.paused && ['walking', 'question', 'reply', 'arrived'].includes(state.phase)); // arrived = 끝 공터를 걷는다
+const controls = new Controls(ui.surface, () => (where === 'village' ? !panelOpen : !state.paused && ['walking', 'question', 'reply'].includes(state.phase)));
 const stopEffects = attachEffects(bus);
 
 function notes() {
@@ -98,7 +111,7 @@ function notes() {
   ui.notes(lines);
 }
 notes();
-void net.stats().then(found => {
+const statsReady = net.stats().then(found => {
   online = Boolean(found);
   stats = found;
   if (!online || !TABLES) tableCode = undefined;
@@ -106,12 +119,7 @@ void net.stats().then(found => {
   notes();
 });
 
-// 링크로 들어온 사람에게 걷기 전에 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 닫으면 처음 화면.
 const shell = root.querySelector<HTMLElement>('.g')!;
-// 다시 온 사람 — 걷지 않고 지난번 내 동네·방명록·주민증(기획 3차: 「보러 오는」 길). 유형이 남은 판(10-14 뒤)만.
-const lastPlay = loadLast();
-const openLast = () => openHub({ name: me.name, pick: me.pick, type: lastPlay!.type!, town: lastPlay!.town }, lastPlay!.sessionId ?? '', {}, '← 처음 화면으로');
-if (lastPlay?.type) ui.homeOpen(openLast);
 
 // 로그인(login.ts) — 키를 넣기 전 공개판엔 단추가 없다. 카카오·구글에서 돌아왔으면 확인하고 다시 연다.
 const loginOpts: LoginOpts = { providers: providers(), current: loginNow, start: startLogin, logout, forget };
@@ -121,10 +129,8 @@ void finishLogin().then(result => {
   if (result === 'cancelled') ui.toast('로그인을 그만뒀어요');
 });
 const loggedIn = justLoggedIn();
-if (loggedIn) { ui.toast(`${PROVIDER_NAME[loggedIn]}로 주민증을 지켰어요`); if (lastPlay?.type) openLast(); }
+if (loggedIn) ui.toast(`${PROVIDER_NAME[loggedIn]}로 주민증을 지켰어요`); // 마을이 열리면 주민센터를 바로 연다(enteredVillage)
 else if (loginOpts.providers.length && !loginNow()) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}));
-if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
-else if (letterSeason) openLetter(shell, letterSeason, returning, me.name, () => {});
 
 type UntimedCommand = Command extends infer T ? T extends { at: number } ? Omit<T, 'at'> : never : never;
 function send(command: UntimedCommand | SceneCommand) {
@@ -176,7 +182,7 @@ bus.subscribe(event => {
     if (tableCode) addStamp('table');
     const season = seasonAt(Date.now());
     if (season) addStamp(seasonStamp(season.id));
-    if (online) void afterFinish();
+    finishing = statsReady.then(() => (online ? afterFinish() : undefined));
     if (tableCode) void net.progress(tableCode, state.sessionId, { stage: ROUTE.length, type: event.typeCode }).then(view => { table = view ?? table; });
   }
 });
@@ -275,7 +281,7 @@ function neighborSheet(who: Pick<Neighbor, 'questionId' | 'key' | 'seed'>, keepN
  * 「내 동네」 판(town.ts) — 끝 화면에서, 그리고 다시 온 사람은 시작 화면에서 걷지 않고(지난번 판으로) 연다.
  * 서버가 있을 때만 방명록·우리 지역이 붙는다. sessionId 는 우리 지역에 「그 판」으로 한 채 짓는 데 쓴다.
  */
-function openHub(person: Person, sessionId: string, extra: { photo?: string } = {}, backText?: string) {
+function openHub(person: Person, sessionId: string, extra: { photo?: string } = {}, backText?: string, onClose = () => {}) {
   const now = Date.now();
   openTown(shell, {
     me: person, ...extra, neighbor: loadNeighbor(),
@@ -290,15 +296,91 @@ function openHub(person: Person, sessionId: string, extra: { photo?: string } = 
     } : undefined,
     subscribe: contactReady ? () => { const n = loadNeighbor(); if (n) { ui.endActions(false); neighborSheet(n, n.name); } } : undefined,
     login: loginOpts,
-  }, () => {}, backText);
+  }, onClose, backText);
+}
+
+// ───────────────────────── 마을(기획 4차) ─────────────────────────
+/** 마을에서 「나」 — 방금 걸었으면 이번 판, 아니면 지난번 판. */
+function villageMe(): { sessionId: string; person: Person } | undefined {
+  if (state.result && town) return { sessionId: state.sessionId, person: { name: me.name, pick: me.pick, type: state.result, town } };
+  if (lastPlay?.type) return { sessionId: lastPlay.sessionId ?? '', person: { name: me.name, pick: me.pick, type: lastPlay.type, town: lastPlay.town } };
+  return undefined;
+}
+
+const likeNote = async (id: string) => { const sid = villageMe()?.sessionId; return sid ? (await net.like(sid, id))?.likes : undefined; };
+const reportNote = async (id: string) => { const sid = villageMe()?.sessionId; return Boolean(sid && (await net.report(sid, id))); };
+const notesCard = noteCard(shell, { like: likeNote, report: reportNote });
+
+/** 끝 화면 「마을로 들어가기」 — 언덕이 어두워지고, 마을 남쪽 문에서 나타난다. */
+function toVillage() {
+  if (where === 'village' || !game) return;
+  clearInterval(poll);
+  villageStart = 'gate';
+  ui.toast('마을로 내려가요');
+  scene?.leave(() => { game!.scene.stop('journey'); game!.scene.start('village'); });
+}
+
+/** 마을 장면이 섰다 — 위 띠를 마을 것으로, 서버에 「들렀다」 알리고 다녀간 사람들을 세운다. */
+function enteredVillage() {
+  where = 'village';
+  ui.village({ map: openMap });
+  if (villageStart === 'plaza') {
+    if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 주민센터 주민증에 찍혀 있어요.`);
+    if (loggedIn) openPlace('hub');
+  }
+  void meetVillage();
+}
+
+async function meetVillage() {
+  await statsReady; await finishing;
+  if (!online) return;
+  const sid = villageMe()?.sessionId;
+  const view = (sid ? await net.here(sid, me.pick) : undefined) ?? (await net.village(sid || undefined));
+  if (view) showVillage(view);
+}
+
+function showVillage(view: VillageView) {
+  villageView = view;
+  // 내 쪽지는 광장에 세우지 않는다 — 내 모습을 한 주민이 하나 더 서성이면 내가 둘로 보인다(쪽지판 목록엔 있다).
+  const mine = new Set(loadMarks().mine);
+  village?.setCrowd({ ...view, notes: view.notes.filter(n => !mine.has(n.id)) });
+  ui.villageToday(`오늘 ${view.today}명이 들렀어요`);
+}
+
+/** 지도 — 건물 목록. 고르면 그 문 앞으로 옮겨 가서 연다. */
+function openMap() {
+  if (panelOpen) return;
+  ui.placeList(PLACES.map(p => ({ name: p.name, line: p.line, run: () => village?.jump(p.id, () => openPlace(p.id)) })));
+}
+
+/** 문 앞에 닿았다 — 그 건물의 판. 판이 열린 동안 나는 멈추고, 닫으면 다시 걷는다. */
+function openPlace(id: PlaceId) {
+  const who = villageMe();
+  panelOpen = true; village?.setPaused(true); notesCard.hide(); ui.closeSheet();
+  const done = () => { panelOpen = false; village?.setPaused(false); };
+  if (id === 'hub') { if (who) openHub(who.person, who.sessionId, { photo }, '← 마을로', done); else done(); }
+  else if (id === 'bus') openBus(shell, loadNeighbor(), () => { location.href = `${here()}?walk`; }, done);
+  else if (id === 'counsel') openCounsel(shell, done);
+  else if (id === 'dok') openDok(shell, done);
+  else if (id === 'finance') openFinance(shell, loadRegion(), done);
+  else if (id === 'house') openHouse(shell, done);
+  else openBoard(shell, {
+    view: villageView, online, myName: me.name, like: likeNote, report: reportNote,
+    refresh: async () => { const fresh = await net.village(who?.sessionId || undefined); if (fresh) showVillage(fresh); return fresh; },
+    post: async text => {
+      const sid = who?.sessionId;
+      const made = sid ? await net.note(sid, me.name, me.pick, text) : undefined;
+      if (made) showVillage(made.view);
+      return made;
+    },
+  }, done);
 }
 
 /**
- * 개발판 전용 지름길 `?end` — 열다섯 방을 건너뛰고 끝(공터)부터 본다(사용자 10-14 「처음부터 말고 마지막만」).
+ * 개발판 전용 지름길 `?end` — 열다섯 방을 건너뛰고 언덕(끝 화면)부터, `?village` — 마을부터(사용자 10-14 「처음부터 말고 마지막만」).
  * 답은 아무렇게나 골라 flow.ts 규칙 그대로 끝까지 돌리고, 장면에는 따라온 주민만 세워 언덕으로 보낸다. 공개판(빌드)에는 없다.
  */
-function skipToEnd() {
-  ui.hideIntro();
+function autoAnswer() {
   let at = Math.max(Date.now(), state.lastAt);
   const arrived: GameEvent[] = [];
   const go = (command: UntimedCommand) => { const next = transition(state, { ...command, at: at++ } as Command); state = next.state; arrived.push(...next.events.filter(e => e.type === 'journey.arrived')); };
@@ -314,6 +396,11 @@ function skipToEnd() {
     go({ type: 'exit', stageIndex });
   });
   response = buildGameResponse(state);
+  return { picked, arrived };
+}
+function skipToEnd() {
+  ui.hideIntro();
+  const { picked, arrived } = autoAnswer();
   ui.render(state);
   bus.emit(arrived); // 도장·서버 알리기는 평소처럼
   scene?.skipToEnd(picked);
@@ -334,7 +421,7 @@ function showEnd() {
     others: online ? async () => ui.others((await net.stats()) ?? stats, mine()) : undefined,
     share: () => share(),
     reply: invite ? { label: `${invite.name}님에게 답장`, run: () => share(true) } : undefined,
-    again: () => { location.href = here(); },
+    village: toVillage,
   });
   // 테이블 사람들이 하나둘 언덕에 닿으면 그때그때 세운다.
   if (tableCode) poll = setInterval(async () => { await refreshTable(); scene?.setGuests(guests()); ui.endLines(endLines()); setTimeout(prepareCard, 1600); }, 4000);
@@ -351,40 +438,57 @@ function measure() {
 async function boot() {
   try {
     measure();
-    const [{ default: Phaser }, { JourneyScene }] = await Promise.all([import('phaser'), import('./scenes/JourneyScene')]);
+    const [{ default: Phaser }, { JourneyScene }, { VillageScene }] = await Promise.all([import('phaser'), import('./scenes/JourneyScene'), import('./scenes/VillageScene')]);
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
       view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); },
       pick: () => me.pick, name: () => me.name, returning, arrived: showEnd,
-      npc: kind => {
-        if (kind === 'budget') { openBudget(shell, () => {}); return; }
-        if (town && state.result) openHub({ name: me.name, pick: me.pick, type: state.result, town }, state.sessionId, { photo }, '← 공터로');
-      },
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);
       },
     });
     scene = journey;
+    const villageScene = new VillageScene({
+      view: () => view, controls, pick: () => me.pick, neighbor: loadNeighbor, start: () => villageStart,
+      enter: openPlace, near: note => (note ? notesCard.show(note) : notesCard.hide()), ready: enteredVillage,
+    });
+    village = villageScene;
+    if (import.meta.env.DEV) Object.assign(window, { __village: villageScene }); // 개발판 봇이 마을 안 자리를 읽는다(공개판엔 없다)
     // 폰 화면이 흐려지지 않게 캔버스는 기기 화소로 만들고, 화면에는 CSS 크기로 줄여 보인다.
     const phaser = new Phaser.Game({
       type: Phaser.AUTO, parent: ui.surface, backgroundColor: '#fffaf0',
       width: view.w * view.dpr, height: view.h * view.dpr,
       scale: { mode: Phaser.Scale.NONE, zoom: 1 / view.dpr },
       render: { antialias: true }, audio: { noAudio: true }, banner: false,
-      scene: [journey],
+      scene: startInVillage ? [villageScene, journey] : [journey, villageScene], // 맨 앞 장면만 바로 선다
     });
     game = phaser;
     const resize = new ResizeObserver(() => {
       measure();
       phaser.scale.resize(view.w * view.dpr, view.h * view.dpr);
       phaser.scale.setZoom(1 / view.dpr);
-      journey.relayout();
+      if (phaser.scene.isActive('journey')) journey.relayout(); // 마을로 넘어간 뒤엔 걷기 장면이 닫혀 있다
+      if (phaser.scene.isActive('village')) villageScene.relayout();
     });
     resize.observe(ui.surface);
     abort.signal.addEventListener('abort', () => resize.disconnect());
   } catch (error) { console.error(error); ui.loadError(); }
 }
+// ── 시작 — 다시 온 사람은 걷지 않고 마을에서(사용자 10-14, 2ⓐ). 걸으러 온 링크(?walk·친구 초대·테이블)면 걷기 화면. ──
+if (import.meta.env.DEV && params.has('village') && !lastPlay?.type) {
+  // 개발판 ?village — 아직 한 판도 안 끝낸 브라우저면 아무렇게나 한 판을 끝낸 셈 치고 마을로.
+  bus.emit(autoAnswer().arrived);
+  town = townFrom(state.answers);
+  saveTown(town!, { type: state.result, sessionId: state.sessionId });
+  lastPlay = loadLast();
+}
+const startInVillage = Boolean(lastPlay?.type) && !params.has('walk') && !invite && !tableCode && !(import.meta.env.DEV && params.has('end'));
+if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unlockAudio, { once: true }); } // 「출발」 을 안 누르니 첫 손길에 소리를 푼다
+else if (lastPlay?.type) ui.homeOpen(() => { location.href = here(); }); // 걸으러 왔지만 마을로 갈 수도
+// 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.
+if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
+else if (letterSeason) openLetter(shell, letterSeason, returning, me.name, () => {}, startInVillage ? () => { location.href = `${here()}?walk`; } : undefined);
 void boot();
 
 // 저장 단계에서 붙일 자리. 답은 「다른 사람들 마음」 서버로만 간다(개인정보 없음).

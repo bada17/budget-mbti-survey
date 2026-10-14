@@ -1,0 +1,142 @@
+/*
+  마을(기획 4차, 2026-10-14) — 한 바퀴를 끝내면 나오는 곳. 그림·Phaser 없이 시험되는 것만 둔다: 지도 배치, 걷기(부딪힘), 쪽지 규칙.
+
+  · 사용자 「일단 크게 자유롭게, 다른 요소들도 집어넣을 수 있게」 — 지도는 화면 서너 개 크기, 건물은 PLACES 에 한 줄을 더하면 생긴다.
+    (그림은 draw.ts 의 drawVillage, 판은 places.ts, 들어갔을 때 무엇을 여는지는 main.ts 의 openPlace.)
+  · 사용자 「커뮤니티 기능보다는 혼자가 아니다는 느낌」 — 그래서 대화방이 아니라 쪽지(한 줄)와 다녀간 사람들의 모습이다.
+    쪽지는 답글이 없고, 「나도」 와 「신고」 만 있다.
+  · 이름 「언덕 너머 마을」·건물 이름·주민 한마디는 Claude 가 붙인 임시(사용자 「임시 이름으로 해」).
+*/
+import type { Point } from './room';
+
+export type Box = { x: number; y: number; w: number; h: number };
+export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house';
+/** 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다). */
+export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point };
+
+export const VILLAGE_NAME = '언덕 너머 마을';
+export const VILLAGE_W = 1040;
+export const VILLAGE_H = 1500;
+/** 광장 — 가운데 분수. 다녀간 주민들이 여기서 서성인다. */
+export const PLAZA = { x: 520, y: 800, r: 150 };
+export const FOUNTAIN: Box = { x: 486, y: 770, w: 68, h: 52 };
+
+export const PLACES: Place[] = [
+  { id: 'hub', name: '주민센터', line: '주민증과 도장, 방명록은 여기서 봐요.', box: { x: 420, y: 230, w: 200, h: 100 }, door: { x: 520, y: 352 } },
+  { id: 'house', name: '시민행동 집', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 } },
+  { id: 'counsel', name: '시민참여 상담소', line: '참여예산이 궁금하면 여기 물어보세요.', box: { x: 84, y: 500, w: 190, h: 96 }, door: { x: 179, y: 618 } },
+  { id: 'finance', name: '나라살림 창고', line: '우리 지역의 한 해 살림을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 } },
+  { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
+  { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 } },
+  { id: 'bus', name: '버스 정류장', line: '열다섯 동네 주민들이 또 기다려요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
+];
+
+/** 빈 터 — 새 가게가 들어올 자리(울타리만). 「다른 요소도 넣을 수 있게」 를 눈으로 보이게. */
+export const LOT: Box = { x: 790, y: 232, w: 160, h: 96 };
+export const POND: Box = { x: 740, y: 1210, w: 170, h: 100 };
+/** 길 — 그림과 서성이는 주민의 갈 곳에 쓴다. 걷기는 길 밖(풀밭)도 된다. */
+export const ROADS: Box[] = [
+  { x: 470, y: 330, w: 100, h: 1170 }, // 남북 큰길 — 언덕에서 내려와 주민센터까지
+  { x: 0, y: 760, w: VILLAGE_W, h: 80 }, // 동서 큰길 — 광장을 지난다
+  { x: 120, y: 340, w: 800, h: 50 }, // 윗길 — 시민행동 집·주민센터·빈 터
+  { x: 144, y: 596, w: 70, h: 170 }, { x: 826, y: 596, w: 70, h: 170 }, // 상담소·창고로(문이 큰길 쪽)
+  { x: 290, y: 836, w: 60, h: 300 }, { x: 110, y: 1086, w: 240, h: 50 }, // 독상으로 — 건물 옆을 돌아 앞으로
+  { x: 690, y: 836, w: 60, h: 250 }, { x: 690, y: 1052, w: 250, h: 50 }, // 정류장으로
+];
+/** 처음 온 사람은 언덕에서 내려오는 남쪽 문, 다시 온 사람은 광장 아래. */
+export const SPAWN = { gate: { x: 520, y: 1372 }, plaza: { x: 520, y: 900 } }; // 문 안쪽 — 문 간판이 얼굴을 가리지 않게
+export const GATE_Y = 1462;
+
+const SOLID: Box[] = [...PLACES.map(p => p.box), LOT, POND, FOUNTAIN];
+const EDGE = 16, TOP = 120; // 맨 위 띠는 하늘·지붕 자리
+const BODY_X = 10, BODY_UP = 4, BODY_DOWN = 8; // 발 둘레 — 앞벽 바로 밑에 설 수 있고, 옆으로는 몸 반쯤 떨어진다
+
+/** 이 자리에 발을 디딜 수 없나 — 지도 밖이거나 벽·울타리·연못·분수 안. */
+export function blocked(p: Point, solid: Box[] = SOLID) {
+  if (p.x < EDGE || p.x > VILLAGE_W - EDGE || p.y < TOP || p.y > VILLAGE_H - EDGE) return true;
+  return solid.some(b => p.x > b.x - BODY_X && p.x < b.x + b.w + BODY_X && p.y > b.y - BODY_UP && p.y < b.y + b.h + BODY_DOWN);
+}
+
+/**
+ * 한 프레임 걷기 — 가로·세로를 따로 옮겨, 벽에 비스듬히 부딪히면 벽을 따라 미끄러진다.
+ * ponytail: 길찾기 없이 곧장 — 건물 뒤를 누르면 벽에 붙어 선다. 「막힌다」 는 말이 나오면 길(ROADS) 위 A* 로.
+ */
+export function walkVillage(p: Point, dir: Point, distance: number): Point {
+  const len = Math.hypot(dir.x, dir.y);
+  if (!len || !(distance > 0) || !Number.isFinite(p.x + p.y + dir.x + dir.y)) return { ...p };
+  const dx = dir.x / Math.max(1, len) * distance, dy = dir.y / Math.max(1, len) * distance;
+  let next = { ...p };
+  if (!blocked({ x: next.x + dx, y: next.y })) next = { x: next.x + dx, y: next.y };
+  if (!blocked({ x: next.x, y: next.y + dy })) next = { x: next.x, y: next.y + dy };
+  return next;
+}
+
+/** 문 앞 radius 안의 곳. */
+export function placeAt(p: Point, radius: number) {
+  let best: Place | undefined, bestD = radius;
+  for (const place of PLACES) {
+    const d = Math.hypot(place.door.x - p.x, place.door.y - p.y);
+    if (d < bestD) { best = place; bestD = d; }
+  }
+  return best;
+}
+
+/** 서성이는 주민이 다음에 갈 곳 — 광장 둘레나 길 위의 디딜 수 있는 자리. random 은 0~1. */
+export function wanderSpot(random: () => number): Point {
+  for (let tries = 0; tries < 30; tries++) {
+    const spot = random() < 0.6
+      ? (() => { const a = random() * Math.PI * 2, r = 50 + random() * (PLAZA.r - 30); return { x: PLAZA.x + Math.cos(a) * r, y: PLAZA.y + Math.sin(a) * r * 0.8 }; })()
+      : (() => { const road = ROADS[Math.floor(random() * ROADS.length)]; return { x: road.x + 12 + random() * (road.w - 24), y: road.y + 12 + random() * (road.h - 24) }; })();
+    if (!blocked(spot)) return spot;
+  }
+  return { ...SPAWN.plaza };
+}
+
+// ───────────────────────── 쪽지 — 화면과 서버가 같은 규칙으로 본다 ─────────────────────────
+export const NOTE_MAX = 40;
+/** 같은 판(세션)이 다시 쓰려면 이만큼 기다린다, 하루(한국 날짜)에 이만큼까지. */
+export const NOTE_GAP_MS = 10 * 60 * 1000;
+export const NOTE_DAY_MAX = 3;
+/** 신고가 이만큼 모이면 사람이 보기 전이라도 숨긴다. 시트의 「숨김」 칸에 무엇이든 적으면 바로 숨는다. */
+export const REPORT_HIDE = 3;
+export const NOTES_SHOW = 30;
+export const CROWD_SHOW = 16;
+
+/**
+ * 거친 말 — 띄어쓰기·기호를 빼고 찾는다. 단체가 고칠 목록(한 줄 더하면 된다).
+ * 넓게 잡으면 멀쩡한 말이 막히니 뜻이 하나인 것만 — 「홍어」 처럼 먹는 것과 겹치는 말은 넣지 않았다.
+ */
+export const BLOCKED_WORDS = [
+  '시발', '씨발', '씨바', '씨빨', 'ㅅㅂ', 'ㅆㅂ', '병신', '븅신', 'ㅂㅅ', '좆', '존나', '졸라', '개새', '새끼', 'ㅅㄲ', '지랄', 'ㅈㄹ',
+  '미친놈', '미친년', '엠창', '느금', '니애미', '니미', '꺼져', '닥쳐', '썅', '쌍년', '걸레', '한남충', '김치녀', '틀딱', '급식충', '맘충',
+  'fuck', 'shit', 'bitch',
+];
+const LINKISH = /https?:|www\.|\.(com|net|org|kr|io|me|ly|co|xyz|site)\b|@|open\.kakao|오픈\s*채팅|카톡\s*(아이디|id)/i;
+const PHONEISH = /\d(?:[\s.-]*\d){6,}/; // 숫자 일곱 개 넘게 이어지면(전화번호·계좌)
+
+const compact = (text: string) => text.toLowerCase().replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-z]/g, '');
+export const rude = (text: string) => { const c = compact(text); return BLOCKED_WORDS.some(word => c.includes(word)); };
+
+export type NoteCheck = { ok: true; text: string } | { ok: false; why: 'short' | 'long' | 'link' | 'word' };
+/** 쪽지 글 다듬기 + 검사. 링크·연락처·숫자 줄은 막는다(광고와 개인정보), 거친 말도. */
+export function checkNote(raw: unknown): NoteCheck {
+  const text = typeof raw === 'string' ? raw.replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+  const length = [...text].length;
+  if (length < 2) return { ok: false, why: 'short' };
+  if (length > NOTE_MAX) return { ok: false, why: 'long' };
+  if (LINKISH.test(text) || PHONEISH.test(text)) return { ok: false, why: 'link' };
+  if (rude(text)) return { ok: false, why: 'word' };
+  return { ok: true, text };
+}
+export const NOTE_WHY = {
+  short: '두 글자 넘게 적어 주세요.',
+  long: `${NOTE_MAX}자까지 남길 수 있어요.`,
+  link: '링크·연락처·긴 숫자는 남길 수 없어요.',
+  word: '거친 말은 남길 수 없어요.',
+} as const;
+
+/** 한국 날짜로 오늘 0시(밀리초). */
+export function kstDayStart(now: number) {
+  const day = 24 * 60 * 60 * 1000, kst = 9 * 60 * 60 * 1000;
+  return Math.floor((now + kst) / day) * day - kst;
+}

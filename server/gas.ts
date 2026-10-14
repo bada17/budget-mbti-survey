@@ -6,6 +6,8 @@
   · 응답·방명록집·방명록: 열쇠 | 값(JSON) | 고친 시각. 요청마다 읽어 Map 으로 만들고, 바뀐 줄만 다시 쓴다.
   · 연락처: 사람이 읽는 칸으로 한 줄씩 덧붙이기만(읽어 들이지 않는다 — 게임이 연락처를 읽을 일이 없다).
   · 주민(로그인, 10-14): 계정(회원번호를 소금 친 해시로) | {열쇠, 기록 묶음} | 고친 시각.
+  · 쪽지(마을, 기획 4차): 사람이 읽는 칸 + 「숨김」 칸 + 기록(JSON). **숨김 칸에 무엇이든 적으면 그 쪽지는 바로 안 보인다** — 지우는 사람이 시트에서 하는 일.
+    서버는 숨김 칸을 읽기만 하고 쓰지 않는다(사람이 적는 사이 요청이 와도 지워지지 않게).
   테이블은 안 붙인다(net.ts 의 TABLES).
 
   로그인 확인(verifyLogin) — 카카오는 받은 code 를 토큰으로 바꿔 회원번호를 묻고, 구글은 id_token 을 tokeninfo 로 확인한다.
@@ -15,7 +17,7 @@
 
   ponytail: 요청마다 탭 전체를 읽는다 — 응답이 수천 건을 넘어 느려지면 진짜 서버(README 정할 것 10)로 옮긴다.
 */
-import { handle, login, type Store, type Contact, type Finished, type Visit, type Resident } from '../game/api';
+import { handle, login, type Store, type Contact, type Finished, type Visit, type Resident, type Note } from '../game/api';
 import { TYPES } from '../game/content';
 
 /** 쓰는 곳(set)을 기억하는 Map — 시트에는 이것만 다시 쓴다. */
@@ -62,6 +64,33 @@ function writeKV<V>(sheet: Sheet, map: Tracked<V>, now: number) {
     else fresh.push(row);
   }
   if (fresh.length) sheet.getRange(sheet.getLastRow() + 1, 1, fresh.length, 3).setValues(fresh);
+}
+
+const NOTE_TAB = '쪽지';
+const NOTE_HEAD = ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록'];
+function readNotes(sheet: Sheet) {
+  const map = new Tracked<Note>();
+  const last = sheet.getLastRow();
+  if (last < 2) return map;
+  sheet.getRange(2, 1, last - 1, NOTE_HEAD.length).getValues().forEach((row, i) => {
+    try {
+      const [id, , name, text, , , hide, json] = row;
+      const rest = JSON.parse(String(json)) as Pick<Note, 'at' | 'pick' | 'sessionId' | 'likes' | 'reports'>;
+      if (id) map.load(String(id), { ...rest, id: String(id), name: String(name ?? ''), text: String(text ?? ''), hidden: String(hide ?? '').trim() !== '' }, i + 2);
+    } catch { /* 사람이 손으로 망친 줄은 건너뛴다 */ }
+  });
+  return map;
+}
+function writeNotes(sheet: Sheet, map: Tracked<Note>) {
+  for (const id of map.dirty) {
+    const n = map.get(id)!;
+    const shown = [n.id, new Date(n.at).toISOString(), n.name, n.text, n.likes.length, n.reports.length];
+    const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, likes: n.likes, reports: n.reports });
+    const at = map.rows.get(id) ?? sheet.getLastRow() + 1;
+    sheet.getRange(at, 1, 1, shown.length).setValues([shown]); // 숨김 칸(7)은 건드리지 않는다
+    sheet.getRange(at, 8, 1, 1).setValues([[record]]);
+    map.rows.set(id, at);
+  }
 }
 
 const contactRow = (c: Contact) => [
@@ -126,10 +155,11 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   const sheets = {
     finished: tab(book, KV.finished, ['세션', '값', '고친 시각']), homes: tab(book, KV.homes, ['집 번호', '값', '고친 시각']), books: tab(book, KV.books, ['집 번호', '값', '고친 시각']),
     residents: tab(book, KV.residents, ['계정(해시)', '값', '고친 시각']),
+    notes: tab(book, NOTE_TAB, NOTE_HEAD),
   };
   const store: Store = {
     finished: readKV<Finished>(sheets.finished), homes: readKV<{ key: string; at: number }>(sheets.homes), books: readKV<Visit[]>(sheets.books),
-    residents: readKV<Resident>(sheets.residents), tables: new Map(), contacts: [],
+    residents: readKV<Resident>(sheets.residents), tables: new Map(), contacts: [], notes: readNotes(sheets.notes),
   };
   let result;
   if (method === 'POST' && path === '/login') {
@@ -139,6 +169,7 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   } else result = handle(store, method, path, body, now);
   if (method === 'POST' && result.status < 400) {
     for (const name of ['finished', 'homes', 'books', 'residents'] as const) writeKV(sheets[name], store[name] as Tracked<unknown>, now);
+    writeNotes(sheets.notes, store.notes as Tracked<Note>);
     if (store.contacts.length) {
       const sheet = tab(book, CONTACT_TAB, CONTACT_HEAD);
       store.contacts.forEach(c => sheet.appendRow(contactRow(c)));

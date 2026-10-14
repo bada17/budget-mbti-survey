@@ -12,6 +12,7 @@ import { cleanName, josa, type Me } from './profile';
 import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
 import type { Stats } from './api';
 import type { Point } from './room';
+import { VILLAGE_NAME } from './village';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
   const node = document.createElement(tag);
@@ -61,7 +62,7 @@ export function createUI(root: HTMLElement, actions: {
     <ul class="g-notes"></ul>
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
     <button class="g-link g-table-open" type="button" hidden>테이블에서 같이 하기</button>
-    <button class="g-link g-home-open" type="button" hidden>지난번 내 동네 · 주민증</button>
+    <button class="g-link g-home-open" type="button" hidden>걷지 않고 마을로 가기</button>
     <button class="g-link g-login-open" type="button" hidden>전에 해 봤어요 — 내 주민증 불러오기</button>
     <p class="g-small">화면을 꾹 누르면 그쪽으로 걸어가요 · 2~3분</p>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
@@ -93,7 +94,7 @@ export function createUI(root: HTMLElement, actions: {
     hideIntro() { intro.classList.add('gone'); later(400, () => { intro.hidden = true; }); },
     /** 게임 서버가 있을 때만 「테이블에서 같이 하기」 를 보인다. */
     online(on: boolean) { intro.querySelector<HTMLElement>('.g-table-open')!.hidden = !on; },
-    /** 다시 온 사람 — 걷지 않고 지난번 내 동네·방명록·주민증을 본다(기획 3차). */
+    /** 다시 온 사람이 링크로 걷기 화면에 왔을 때 — 걷지 않고 마을로(기획 4차). */
     homeOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-home-open')!; b.hidden = false; b.onclick = run; },
     /** 로그인 안 한 사람 — 다른 기기에서 지켜 둔 주민증 불러오기(login.ts). */
     loginOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-login-open')!; b.hidden = false; b.onclick = run; },
@@ -101,6 +102,7 @@ export function createUI(root: HTMLElement, actions: {
     notes(lines: string[]) { intro.querySelector('.g-notes')!.replaceChildren(...lines.map(line => el('li', '', line))); },
 
     render(state: JourneyState) {
+      if (shell.dataset.phase === 'village') return; // 마을에선 걷기 진행을 그리지 않는다
       shell.dataset.phase = state.phase;
       const answered = Object.keys(state.answers).length;
       area.textContent = state.phase === 'arrived' ? DESTINATION.name : ROUTE[Math.min(state.stageIndex, 4)].area;
@@ -245,9 +247,9 @@ export function createUI(root: HTMLElement, actions: {
 
     /**
      * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들.
-     * 주민증·우리 동네 예산은 단추가 아니라 공터의 두 주민이 맡는다(npcs). 아래 판은 공터가 넓게 보이게 작게(사용자 10-14).
+     * 주민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차) — 끝 화면엔 「마을로 들어가기」 하나.
      */
-    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; again(): void }) {
+    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; village(): void }) {
       const card = el('div', 'g-end-card');
       // 세 축 — 왜 이 유형인지. 점은 -100~+100 을 막대 위 자리로, 가운데 금이 갈림길.
       const axes = el('ul', 'g-axes');
@@ -265,10 +267,11 @@ export function createUI(root: HTMLElement, actions: {
       const bar = el('div', 'g-end-actions');
       const row = el('div', 'g-end-row'), links = el('div', 'g-end-links');
       row.append(button('g-primary', '친구에게 보내기', on.share), button('g-ghost', '내 이웃 정하기', on.neighbor));
-      links.append(...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : []), button('g-link', '한 번 더 걷기', on.again));
+      links.append(...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : []));
       bar.append(
         row,
         ...(on.reply ? [button('g-ghost', on.reply.label, on.reply.run)] : []), // 나를 부른 친구에게 답장(기획 3차 ①)
+        button('g-ghost g-village', `${VILLAGE_NAME}로 들어가기 →`, on.village),
         links,
         give,
       );
@@ -289,20 +292,6 @@ export function createUI(root: HTMLElement, actions: {
       try {
         return await toBlob(shell, { pixelRatio: 2, filter: node => !skip.has(node), style: { backgroundImage: `url(${scene})`, backgroundSize: '100% 100%' } });
       } finally { shell.classList.remove('shooting'); }
-    },
-    /** 공터 두 주민의 말풍선 — 누르면 그 주민에게 걸어간다. */
-    npcs(list: { text: string; x: number; y: number; run(): void }[]) {
-      bubbles.replaceChildren(...list.map(({ text, x, y, run }) => {
-        const b = button('g-bubble g-npc', text, run);
-        b.style.left = `${x}px`; b.style.top = `${y}px`;
-        b.setAttribute('aria-label', `${text} — 누르면 이 주민에게 걸어가요.`);
-        return b;
-      }));
-    },
-    /** 끝 화면 아래 판의 윗선(CSS px) — 공터에서 이 위까지만 걷는다. */
-    endTop() {
-      const box = shell.getBoundingClientRect(), bar = end.querySelector('.g-end-actions');
-      return bar ? bar.getBoundingClientRect().top - box.top : box.height;
     },
     endActions(show: boolean) { const bar = end.querySelector<HTMLElement>('.g-end-actions'); if (bar) bar.hidden = !show; },
     /** 끝 화면 카드 아래 줄 — 초대한 친구와 테이블 사람들(새로 온 사람이 있으면 다시 부른다). */
@@ -368,6 +357,32 @@ export function createUI(root: HTMLElement, actions: {
       openSheet(el('p', 'g-kicker', '내 이웃'), el('p', 'g-quote', `${josa(`「${wish}」`, '을', '를')} 바라던 주민`), name, save, ...(on.contact ? [contact] : []), button('g-link', '닫기', () => { closeSheet(); on.close(); }));
     },
     closeSheet,
+
+    /**
+     * 마을(기획 4차) — 위 띠를 마을 것으로(이름·오늘 몇 명·지도 단추), 걷기 판의 글은 다 치운다.
+     * 지도 단추 = 건물 목록. 누르면 그 문 앞으로 간다 — 손이 불편하거나 화면 읽기 도구로도 모든 건물에 들어갈 수 있게.
+     */
+    village(on: { map(): void }) {
+      shell.dataset.phase = 'village';
+      for (const node of [end, ask, door, hint, intro, caption, panel]) node.hidden = true;
+      closeSheet(); bubbles.replaceChildren(); marks.replaceChildren(); replies.classList.remove('open');
+      area.textContent = VILLAGE_NAME;
+      if (!hud.querySelector('.g-map')) hud.insertBefore(button('g-map', '지도', on.map), sound);
+      live.textContent = `${VILLAGE_NAME}에 들어왔어요. 지도 단추로 건물을 고를 수 있어요.`;
+    },
+    /** 위 띠 이름 아래 한 줄 — 「오늘 ○명이 들렀어요」. 서버가 없으면 비운다. */
+    villageToday(text = '') {
+      where.querySelector('.g-today')?.remove();
+      if (text) where.append(el('small', 'g-today', text));
+    },
+    /** 지도 — 건물 목록. */
+    placeList(list: { name: string; line: string; run(): void }[]) {
+      openSheet(
+        el('p', 'g-kicker', '어디로 갈까요?'),
+        ...list.map(({ name, line, run }) => { const b = button('g-place-row', '', () => { closeSheet(); run(); }); b.append(el('b', '', name), el('small', '', line)); return b; }),
+        button('g-link', '닫기', closeSheet),
+      );
+    },
 
     /** 다른 사람들은 어떻게 골랐을까 — 문항마다 두 쪽 비율. 편 수가 아니라 생각이 갈린 모양을 보여 준다. */
     others(stats: Stats | undefined, mine: Record<string, 'a' | 'b'>) {

@@ -131,8 +131,6 @@
 /* 끝 화면 아래 판 — 친구에게 보내기·내 이웃 한 줄, 그 아래 작은 글. 주민증·예산은 공터 주민이 맡아 단추에서 뺐다(10-14). */
 .g .g-end-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .g .g-end-links{display:flex;justify-content:center;gap:16px}
-.g .g-npc{max-width:none;font-size:12px;padding:6px 11px;background:#fff7e5;border-color:#d2b58a;color:#765943;font-weight:800}
-.g .g-npc::after{border-color:#d2b58a;background:#fff7e5}
 .g .g-end-actions .g-link{margin:0;padding:2px 3px;min-height:20px;font-size:11px;text-underline-offset:3px}
 .g .g-end-actions>.g-give{font-size:10px;line-height:1.5;color:#9c6954}
 .g .g-end-card .g-notes{font-size:11px;margin-top:6px}
@@ -161,3 +159,13 @@
 .g .g-bar{border:1px solid #e5d5b9;border-radius:9px}.g .g-bar span:first-child{background:#eedbc4}.g .g-bar span:last-child{background:#d6e2dc}
 .g .g-toast{background:#796450ed;color:#fff9ec;border:1px solid #a58a6e;border-radius:14px;box-shadow:0 3px 0 #59473925}
 .g .g-primary:disabled{background:#c9bfb2;border-color:#b8a88e;box-shadow:0 4px 0 #b2a797}
+
+/* 마을(기획 4차) — 위 띠: 진행 점 대신 「오늘 ○명」·지도 단추. 지도는 건물 목록 판. */
+.g[data-phase=village] .g-progress{display:none}
+.g[data-phase=village] .g-hud{padding-bottom:14px;background:linear-gradient(#fff9ebf0 55%,#fff9eb00)}
+.g-where{display:flex;flex-direction:column;gap:1px}
+.g-today{font-size:11px;font-weight:600;opacity:.8}
+.g-map{pointer-events:auto;margin-left:auto;min-height:34px;padding:0 14px;border-radius:999px;background:#fffcf0e6;box-shadow:0 2px 0 #cfbea660;font-size:13px;font-weight:800;color:#65574b}
+.g-place-row{display:grid;width:100%;gap:2px;margin:6px 0 0;padding:10px 12px;border-radius:14px;background:#f7f1e5;text-align:left;color:var(--ink)}
+.g-place-row b{font-size:15px}.g-place-row small{font-size:12px;color:var(--soft)}
+.g .g-end-actions .g-village{background:#e3efd9;border-color:#c5dbb2;color:#4f6f45;font-weight:800}

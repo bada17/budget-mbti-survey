@@ -10,7 +10,7 @@
     테이블은 붙이지 않는다(TABLES) — 4초마다 묻는 게 앱스 스크립트 한도에 걸린다.
 */
 import { CONTENT_VERSION } from './content';
-import type { Stats, TableView, RegionView, Visit } from './api';
+import type { Stats, TableView, RegionView, Visit, VillageView, PublicNote } from './api';
 import type { ContactPayload } from './contact';
 import type { Neighbor, Region, Save } from './profile';
 import type { Pick } from './look';
@@ -49,6 +49,12 @@ export const net = {
   region: (sessionId: string, region: Region, pick: Pick) => call<RegionView>('POST', '/region', { sessionId, region, pick }),
   regionView: (region: Region) => call<RegionView>('GET', `/regions/${encodeURIComponent(region)}`),
   contact: (payload: ContactPayload, extra: { neighbor?: Neighbor; type?: string }) => call<{ ok: true }>('POST', '/contact', { payload, ...extra }),
+  // 마을(기획 4차) — 들르기(끝낸 판만, 보기와 같은 값을 돌려준다)·쪽지·나도·신고
+  village: (sessionId?: string) => call<VillageView>('GET', sessionId ? `/village/${sessionId}` : '/village'),
+  here: (sessionId: string, pick: Pick) => call<VillageView>('POST', '/village/here', { sessionId, pick }),
+  note: (sessionId: string, name: string, pick: Pick, text: string) => call<{ note: PublicNote; view: VillageView }>('POST', '/village/notes', { sessionId, name, pick, text }),
+  like: (sessionId: string, id: string) => call<{ likes: number }>('POST', `/village/notes/${id}/like`, { sessionId }),
+  report: (sessionId: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/report`, { sessionId }),
   // 로그인(10-14) — 확인은 서버가 카카오·구글에 묻는다. 그다음은 열쇠로.
   login: (proof: { provider: string; redirectUri: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save }>('POST', '/login', proof),
   me: (key: string) => call<{ save: Save }>('POST', '/me', { key }),

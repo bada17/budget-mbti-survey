@@ -9,6 +9,9 @@
   연락처는 읽는 길이 없다(받아 쌓기만, 읽는 건 시트를 여는 사람).
   쓰는 곳은 모두 Map.set / 배열 push 로만 바꾼다 — 시트 저장소가 바뀐 줄만 골라 쓰기 때문이다(server/gas.ts).
 
+  마을(기획 4차, 10-14) — 「다녀간 사람」(끝낸 판에 마을에 들른 시각·모습을 붙인다)·「쪽지」(한 줄, 나도·신고). 끝낸 판만 쓸 수 있다.
+  쪽지는 누구나 읽는 글이라 규칙(village.ts checkNote)을 서버가 다시 보고, 세션 id 는 돌려주지 않는다.
+
   로그인(10-14) — 「주민」 기록. 카카오·구글이 「이 사람 맞다」고 확인하는 일은 서버 입구가 한다(그쪽에 물어야 해서 —
   server/gas.ts 의 verify, 개발 서버는 가짜). 여기는 그 뒤 — 확인된 계정(account, 회원번호를 해시로 바꾼 값)에 열쇠를 주고,
   열쇠로 기록 묶음(Save, profile.ts)을 읽고 쓰고 지운다. 회원번호 그 자체는 어디에도 남기지 않는다.
@@ -18,10 +21,13 @@ import { scoreAnswers, typeCode } from './score';
 import { orderedQuestions } from './response';
 import { cleanName, cleanTableCode, cleanNeighbor, cleanSave, isRegion, townFrom, TABLE_CHARS, type Neighbor, type Region, type Save } from './profile';
 import { validPayload, type ContactPayload } from './contact';
-import { isPick, type Pick } from './look';
+import { isPick, DEFAULT_PICK, type Pick } from './look';
+import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW } from './village';
 
 export type Member = { id: string; name: string; pick: Pick; stage: number; type?: TypeCode; at: number };
-export type Finished = { answers: Record<string, number>; type: TypeCode; at: number; region?: Region; pick?: Pick };
+export type Finished = { answers: Record<string, number>; type: TypeCode; at: number; region?: Region; pick?: Pick; /** 마을에 마지막으로 들른 시각 */ seenAt?: number };
+/** 쪽지 한 장. likes·reports 는 누른 판(세션)들 — 한 판에 한 번. hidden 은 시트의 「숨김」 칸(사람이 적는다)에서만 온다. */
+export type Note = { id: string; at: number; name: string; text: string; pick: Pick; sessionId: string; likes: string[]; reports: string[]; hidden?: boolean };
 /** 방명록 한 줄 — 내 링크로 들어와 끝까지 걸은 사람. 동네·유형은 그 사람이 끝낸 답에서 서버가 만든다. */
 export type Visit = { sessionId: string; name: string; pick: Pick; type: TypeCode; town: string; at: number };
 /** 연락처 한 줄 — 동의 화면의 항목(주소, 내 이웃·유형 결과)만. 지역은 항목에 없어 받지 않는다. */
@@ -37,6 +43,8 @@ export type Store = {
   contacts: Contact[];
   /** 로그인한 주민 — 계정(해시) → 열쇠·기록 묶음. */
   residents: Map<string, Resident>;
+  /** 마을 쪽지 — 번호 → 쪽지. */
+  notes: Map<string, Note>;
 };
 export type Resident = { key: string; save: Save; at: number };
 export type ApiResult = { status: number; body: unknown };
@@ -51,7 +59,7 @@ const ID = /^[A-Za-z0-9-]{8,64}$/;
 const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
 const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
-export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], residents: new Map() });
+export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], residents: new Map(), notes: new Map() });
 const ACCOUNT = /^(kakao|google):[0-9a-f]{64}$/;
 const LOGIN_KEY = /^[A-Za-z0-9]{32}$/;
 
@@ -96,6 +104,20 @@ export function regionView(store: Store, region: Region) {
   return { region, total: people.length, crowd: people.slice(-CROWD_MAX).map(f => f.pick ?? [0, 0, 0, 0]) as Pick[], ...(enough ? { questions } : {}) };
 }
 
+/**
+ * 마을 — 오늘(한국 날짜) 들른 판 수, 최근에 들른 주민 모습(CROWD_SHOW, 이름 없이), 보이는 쪽지(NOTES_SHOW, 새것부터).
+ * exclude = 보는 사람 자신의 판(자기 모습이 광장에 하나 더 서지 않게).
+ */
+export function villageView(store: Store, now: number, exclude?: string) {
+  const seen = [...store.finished].filter(([, f]) => f.seenAt).sort((x, y) => y[1].seenAt! - x[1].seenAt!);
+  const today = seen.filter(([, f]) => f.seenAt! >= kstDayStart(now)).length;
+  const crowd = seen.filter(([id]) => id !== exclude).slice(0, CROWD_SHOW).map(([, f]) => f.pick ?? DEFAULT_PICK) as Pick[];
+  const notes = [...store.notes.values()].filter(shown).sort((x, y) => y.at - x.at).slice(0, NOTES_SHOW).map(publicNote);
+  return { today, crowd, notes };
+}
+const shown = (note: Note) => !note.hidden && note.reports.length < REPORT_HIDE;
+const publicNote = ({ id, at, name, text, pick, likes }: Note) => ({ id, at, name, text, pick, likes: likes.length });
+
 function validAnswers(raw: unknown): Record<string, number> | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const answers: Record<string, number> = {};
@@ -117,6 +139,8 @@ function liveTable(store: Store, code: string | undefined, now: number) {
 export type Stats = ReturnType<typeof stats>;
 export type TableView = ReturnType<typeof tableView>;
 export type RegionView = ReturnType<typeof regionView>;
+export type VillageView = ReturnType<typeof villageView>;
+export type PublicNote = ReturnType<typeof publicNote>;
 
 const tableView = (code: string, table: { members: Member[] }) => ({
   code, members: table.members.map(({ id, name, pick, stage, type }) => ({ id, name, pick, stage, type })),
@@ -188,6 +212,45 @@ export function handle(store: Store, method: string, path: string, body: unknown
   if (method === 'GET' && parts[0] === 'regions' && parts.length === 2) {
     const region = decode(parts[1]);
     return isRegion(region) ? { status: 200, body: regionView(store, region) } : { status: 404, body: { error: 'no-region' } };
+  }
+
+  // ── 마을 — 들르기·쪽지·나도·신고(끝낸 판만), 보기(누구나) ──
+  if (parts[0] === 'village') {
+    if (method === 'GET' && parts.length <= 2) return { status: 200, body: villageView(store, now, parts[1]) };
+    if (method !== 'POST') return { status: 404, body: { error: 'not-found' } };
+    const sessionId = typeof input.sessionId === 'string' ? input.sessionId : '';
+    const done = store.finished.get(sessionId);
+    if (!done) return { status: 400, body: { error: 'not-finished' } };
+    if (path === '/village/here') {
+      if (!isPick(input.pick)) return { status: 400, body: { error: 'bad-pick' } };
+      store.finished.set(sessionId, { ...done, pick: input.pick, seenAt: now });
+      return { status: 200, body: villageView(store, now, sessionId) };
+    }
+    if (path === '/village/notes') {
+      const checked = checkNote(input.text);
+      if (!checked.ok || !isPick(input.pick)) return { status: 400, body: { error: 'bad-note', why: checked.ok ? 'pick' : checked.why } };
+      const mine = [...store.notes.values()].filter(n => n.sessionId === sessionId);
+      if (mine.some(n => now - n.at < NOTE_GAP_MS)) return { status: 429, body: { error: 'note-wait' } };
+      if (mine.filter(n => n.at >= kstDayStart(now)).length >= NOTE_DAY_MAX) return { status: 429, body: { error: 'note-day' } };
+      const name = cleanName(input.name);
+      let id = '';
+      for (let tries = 0; tries < 5 && (!id || store.notes.has(id)); tries++) id = randomText(10, KEY_CHARS, random);
+      const note: Note = { id, at: now, name: rude(name) ? '' : name, text: checked.text, pick: input.pick, sessionId, likes: [], reports: [] };
+      store.notes.set(id, note);
+      return { status: 201, body: { note: publicNote(note), view: villageView(store, now, sessionId) } };
+    }
+    const note = parts[1] === 'notes' && parts.length === 4 ? store.notes.get(parts[2]) : undefined;
+    if (!note || !shown(note)) return { status: 404, body: { error: 'no-note' } };
+    // 한 판에 한 번. 쓰는 곳은 set 으로만(시트가 바뀐 줄만 다시 쓴다).
+    if (parts[3] === 'like') {
+      if (!note.likes.includes(sessionId)) store.notes.set(note.id, { ...note, likes: [...note.likes, sessionId].slice(-300) });
+      return { status: 200, body: { likes: store.notes.get(note.id)!.likes.length } };
+    }
+    if (parts[3] === 'report') {
+      if (!note.reports.includes(sessionId)) store.notes.set(note.id, { ...note, reports: [...note.reports, sessionId] });
+      return { status: 200, body: { ok: true } };
+    }
+    return { status: 404, body: { error: 'not-found' } };
   }
 
   // ── 로그인한 주민 — 열쇠로 기록 묶음 읽기·쓰기·지우기(로그인 자체는 login(), 서버 입구가 부른다) ──

@@ -1,9 +1,9 @@
 /*
-  끝에서 여는 판 「내 동네」 — 기획 2차(주민증)와 기획 3차(다시 올 이유, 10-14).
+  마을 주민센터의 판 「주민증」 — 기획 2차(주민증)와 기획 3차(다시 올 이유, 10-14).
   그리고 링크로 들어왔을 때 걷기 전에 뜨는 판 둘 — 답장(openReply)·이웃의 편지(openLetter).
 
-  · 끝 공터의 두 주민이 연다(10-14 「NPC 처럼」) — 도장 주민 = openTown(주민증 먼저), 예산 주민 = openBudget.
-  · 우리 동네 예산(지방재정 자료, `t-local`) — 10-14 「빈 자리만」 → 같은 날 「망원동 자료 한 번 넣어봐」로 시험 자료 하나(local-sample.ts).
+  · 마을(기획 4차) 주민센터 문 앞에 서면 연다 — openTown(주민증 먼저). 다른 건물의 판은 places.ts(여기 panelShell 을 같이 쓴다).
+  · 우리 동네 예산은 마을 「나라살림 창고」 로 옮겼다(places.ts openFinance — 망원동 시험 자료를 243곳으로 넓힘).
   · 「내가 지은 동네」(고른 열다섯 가지 판)는 10-14 걷었다 — 사용자 「어차피 안 봐」. 답장 판에만 두 사람 것을 나란히 남겼다.
   · 방명록 — 내가 보낸 링크로 들어와 끝까지 걸은 사람(서버가 있을 때만). 열쇠가 이 기기에만 있어 나만 본다.
   · 우리 지역 동네 — 시·도에 한 채 짓고 같은 지역 사람들이 어떻게 골랐는지 본다(다섯 명부터). **지역에 유형 딱지는 안 붙인다.**
@@ -18,7 +18,6 @@ import { toLook, lookFrom, type Look, type Pick } from './look';
 import { board } from './stamps';
 import { letterFor, type Season } from './seasons';
 import { DONATE_URL } from './ui';
-import { MANGWON, won } from './local-sample';
 import { PRIVACY_URL } from './contact';
 import { PROVIDER_NAME, type Provider } from './login';
 import type { RegionView, Visit } from './api';
@@ -42,13 +41,13 @@ export type HubData = {
 export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; start(provider: Provider): void; logout(): void; forget(): Promise<boolean> };
 
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
+export const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
 };
-const btn = (className: string, text: string, onClick: () => void) => {
+export const btn = (className: string, text: string, onClick: () => void) => {
   const b = el('button', className, text); b.type = 'button'; b.onclick = onClick; return b;
 };
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
@@ -90,7 +89,7 @@ function lotsView(mine: Town, beside?: { name: string; town?: Town }) {
   return wrap;
 }
 
-function panelShell(shell: HTMLElement, onClose: () => void, backText = '← 끝 화면으로') {
+export function panelShell(shell: HTMLElement, onClose: () => void, backText = '← 마을로') {
   const panel = el('section', 't-panel');
   const close = () => { panel.remove(); onClose(); };
   const back = btn('t-back', backText, close);
@@ -100,7 +99,7 @@ function panelShell(shell: HTMLElement, onClose: () => void, backText = '← 끝
   return { panel, close };
 }
 
-// ───────────────────────── 도장 주민(공터 왼쪽) — 주민증·도장판, 그리고 방명록·우리 지역·이웃의 편지 ─────────────────────────
+// ───────────────────────── 주민센터 — 주민증·도장판, 그리고 방명록·우리 지역·이웃의 편지 ─────────────────────────
 export function openTown(shell: HTMLElement, data: HubData, onClose: () => void, backText?: string) {
   const { panel, close } = panelShell(shell, onClose, backText);
   const { me } = data;
@@ -314,43 +313,6 @@ function letterSection(data: HubData, closeHub: () => void) {
   return box;
 }
 
-// ───────────────────────── 예산 주민(공터 오른쪽) — 우리 동네 예산 ─────────────────────────
-/**
- * 지금은 망원동 시험 자료 하나(local-sample.ts, 사용자 10-14 「어떤 느낌인지 보게」). 판정·순위는 내지 않는다 —
- * 구의 한 해 살림과 동네 이름이 든 계약을 나란히 보여 주기만.
- */
-export function openBudget(shell: HTMLElement, onClose: () => void) {
-  const { panel } = panelShell(shell, onClose, '← 공터로');
-  const m = MANGWON, c = m.contracts;
-  const local = el('section', 't-local');
-  local.append(el('p', 't-kicker', `${m.gu} ${m.dong} · 시험판`), el('h2', '', '우리 동네 예산'));
-
-  const year = el('div', 't-bigcard');
-  const share = el('div', 't-share'); share.style.setProperty('--a', `${m.welfare}%`);
-  share.append(el('span', '', `사회복지 ${m.welfare}%`), el('span', '', '그 밖'));
-  year.append(el('p', 't-small', `${m.gu}의 ${m.year}년 살림`), el('p', 't-big', won(m.budget)), el('p', 't-small', `주민 ${m.people.toLocaleString('ko-KR')}명 · 한 사람에 ${won(m.perPerson)}꼴`), share);
-
-  const deals = el('div', 't-bigcard');
-  const years = el('ul', 't-years');
-  const most = Math.max(...c.byYear.map(y => y.total));
-  for (const y of c.byYear) {
-    const bar = el('i'); bar.style.width = `${(y.total / most) * 100}%`;
-    const row = el('li'); row.append(el('span', '', y.year), bar, el('b', '', `${won(y.total)}${y.note ? ` · ${y.note}` : ''}`));
-    years.append(row);
-  }
-  const list = el('ul', 't-deals');
-  for (const d of c.thisYear) {
-    const row = el('li'); row.append(el('span', '', d.name), el('small', '', `${d.who} · ${d.kind}`), el('b', '', won(d.amount)));
-    list.append(row);
-  }
-  deals.append(el('p', 't-small', `이름에 「${m.dong.replace('동', '')}」이 든 계약 · ${c.from}~${c.to}`), el('p', 't-big', won(c.total)),
-    el('p', 't-small', `${c.count}건 · 서울시와 ${m.gu}`), years, el('p', 't-sub', '올해 큰 것'), list);
-
-  local.append(year, deals, el('p', 't-small t-source',
-    '동네 단위 예산표는 따로 공개되지 않아요. 계약 이름으로 찾은 것이라 이 동네에 쓴 돈 전부는 아니에요. 출처: 지방재정365(2026 예산), 지방자치단체 계약정보(2024.1~2026.9).'));
-  panel.append(local);
-}
-
 // ───────────────────────── 답장(?with= 에 r 이 있을 때) ─────────────────────────
 /** 처음에 친구를 부른 사람이 친구의 답장을 열었을 때 — 걷지 않고 바로 두 동네를 나란히. */
 export function openReply(shell: HTMLElement, me: Friend, friend: Friend, onWalk: () => void) {
@@ -373,15 +335,16 @@ export function openReply(shell: HTMLElement, me: Friend, friend: Friend, onWalk
 }
 
 // ───────────────────────── 이웃의 편지(?letter= 로 들어왔을 때) ─────────────────────────
-export function openLetter(shell: HTMLElement, season: Season, neighbor: Neighbor | undefined, myName: string, onWalk: () => void) {
+/** walk 가 있으면(마을에서 연 편지) 「같이 걷기」 는 걸으러 가고, 뒤로는 그냥 닫힌다. 없으면 닫으면 처음 화면(걷기 전). */
+export function openLetter(shell: HTMLElement, season: Season, neighbor: Neighbor | undefined, myName: string, onWalk: () => void, walk?: () => void) {
   const letter = letterFor(season, neighbor, myName);
-  const { panel, close } = panelShell(shell, onWalk, '← 처음 화면으로');
+  const { panel, close } = panelShell(shell, onWalk, walk ? '← 마을로' : '← 처음 화면으로');
   const paper = el('blockquote', 't-letter');
   paper.append(avatar(neighbor ? lookFrom(neighbor.seed) : lookFrom('letter'), letter.from), ...letter.lines.map(line => el('p', '', line)));
   panel.append(
     el('p', 't-kicker', '편지가 왔어요'),
     el('h2', '', letter.title),
     paper,
-    btn('g-primary', neighbor ? `${josa(`「${neighbor.name}」`, '이랑', '랑')} 한 바퀴 걷기` : '동네 한 바퀴 걷기', close),
+    btn('g-primary', neighbor ? `${josa(`「${neighbor.name}」`, '이랑', '랑')} 한 바퀴 걷기` : '동네 한 바퀴 걷기', walk ?? close),
   );
 }

@@ -61,13 +61,13 @@
 .t-stamp.sel{box-shadow:0 0 0 2px #ffffff,0 0 0 4px var(--accent)}
 .t-tip{min-height:1.6em;margin:2px 4px 12px;font-size:13px;color:var(--soft);text-align:center;word-break:keep-all}
 
-/* 도장 주민 판 위 갈래(탭) — 주민증 · 방명록 · 우리 지역 · 이웃 편지 */
+/* 주민센터 판 위 갈래(탭) — 주민증 · 방명록 · 우리 지역 · 이웃 편지 */
 .t-tabs{position:sticky;top:-4px;z-index:1;display:flex;gap:3px;margin:6px 0 14px;padding:4px;border-radius:999px;background:#f0e5d0;box-shadow:0 0 0 1px #e2d2b6}
 .t-tab{flex:1;min-height:34px;padding:0 4px;border-radius:999px;font-size:13px;font-weight:750;color:#8a6f58;white-space:nowrap}
 .t-tab.on{background:#fffaf0;color:#765943;box-shadow:0 2px 0 #a58d6926}
 .t-join{color:var(--accent-dark)}
 
-/* 우리 동네 예산(예산 주민) — 지금은 망원동 시험 자료 */
+/* 나라살림 창고(places.ts openFinance) — 한 해 살림 카드 */
 .t-bigcard{margin:10px 0 12px;padding:14px;border-radius:18px;background:#fffdf8;box-shadow:0 0 0 1.5px var(--line),0 6px 16px #2d2a3210}
 .t-bigcard>.t-small{margin:0}
 .t-big{margin:2px 0 4px;font-size:30px;font-weight:850;letter-spacing:-1px;color:#795344}
@@ -75,15 +75,6 @@
 .t-share span{padding:7px 9px;white-space:nowrap}
 .t-share span:first-child{flex:0 0 var(--a);background:#f6d9c6;color:#8a4f35}
 .t-share span:last-child{flex:1;background:#eee6d6;color:var(--soft);text-align:right}
-.t-years{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:7px;font-size:12px}
-.t-years li{display:grid;grid-template-columns:34px 1fr 108px;align-items:center;gap:8px}
-.t-years i{display:block;height:10px;min-width:4px;border-radius:5px;background:#a9cfe0}
-.t-years b{font-weight:750;text-align:right}
-.t-sub{margin:14px 0 6px;font-size:12px;font-weight:800;color:var(--accent-dark)}
-.t-deals{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.t-deals li{display:grid;grid-template-columns:1fr auto;gap:1px 10px;padding:8px 10px;border-radius:12px;background:#f7f1e5;font-size:13px;line-height:1.35;word-break:keep-all}
-.t-deals small{grid-row:2;font-size:11px;color:var(--soft)}
-.t-deals b{grid-row:1 / span 2;grid-column:2;align-self:center;color:#795344}
 .t-source{margin-top:4px;font-size:11px}
 
 /* 로그인 자리(주민증 탭 아래 · 시작 화면 「전에 해 봤어요」). 카카오 단추는 카카오 색(#FEE500) 그대로. */
@@ -95,3 +86,35 @@
 .t-login-note{margin:10px 0 0;font-size:11.5px}.t-login-note a{color:var(--accent-dark)}
 .t-login-on{margin:0 0 6px;font-size:13px;line-height:1.55;color:#765943;word-break:keep-all}
 .t-login-links{display:flex;gap:16px}
+
+/* 마을 건물 판(places.ts, 기획 4차) — Claude 가 잡아 둔 자리. 꾸미기는 GPT, 클래스 이름은 지킨다. */
+.v-npc{display:flex;align-items:center;gap:10px;margin:4px 0 12px;padding:10px 12px;border-radius:16px;background:#f7f1e5}
+.v-npc p{margin:0;font-size:14px;font-weight:700;line-height:1.45;color:#765943;word-break:keep-all}
+.v-npc .t-ava{transform:scale(1.15)}
+a.v-go{display:flex;align-items:center;justify-content:center;margin:14px 0 4px;text-decoration:none}
+a.g-link{text-align:center}
+.v-qa{margin:6px 0 14px;padding:12px 14px;border-radius:16px;background:#fffdf8;box-shadow:0 0 0 1.5px var(--line)}
+.v-q,.v-a{margin:0;font-size:14px;line-height:1.55;word-break:keep-all}
+.v-q{font-weight:800}.v-q::before{content:"Q ";color:var(--accent)}
+.v-a{margin-top:6px;color:var(--soft)}.v-a::before{content:"A ";font-weight:800;color:#5f8aa6}
+.v-list{list-style:none;margin:6px 0 10px;padding:0;display:grid;gap:6px}
+a.v-item{display:grid;gap:3px;padding:10px 12px;border-radius:14px;background:#fffdf8;box-shadow:0 2px 0 #0000000d;color:var(--ink);font-size:14px;font-weight:750;line-height:1.4;text-decoration:none;word-break:keep-all}
+a.v-item small{font-size:11.5px;font-weight:500;color:var(--soft)}
+.v-sum{font-size:12.5px;font-weight:500;color:var(--soft)}
+
+/* 쪽지 — 쪽지판 목록과 광장 카드가 같이 쓴다 */
+.v-write{margin:4px 0 16px}
+.v-write .g-primary{min-height:46px;font-size:15px}
+.v-notes{display:grid;gap:8px}
+.v-note{padding:10px 12px;border-radius:16px;background:#fffdf8;box-shadow:0 0 0 1.5px #f0e5d0,0 2px 0 #0000000a}
+.v-who{display:flex;align-items:center;gap:6px;font-size:13px}
+.v-who small{color:var(--soft);font-size:11.5px}
+.v-mine{margin-left:auto;font-style:normal;font-size:11px;font-weight:800;color:var(--accent-dark)}
+.v-text{margin:6px 0 8px;font-size:15px;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
+.v-acts{display:flex;gap:8px}
+.v-like,.v-report{min-height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:750}
+.v-like{background:#fff1ec;color:var(--accent-dark)}.v-like:disabled{opacity:1;background:#ffe1d6}
+.v-report{margin-left:auto;background:transparent;color:var(--soft);text-decoration:underline}.v-report:disabled{text-decoration:none;opacity:.7}
+.v-card{position:absolute;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));z-index:3;padding:10px;border-radius:20px;background:#fff9eeeb;border:1px solid #e1ccac;box-shadow:0 6px 20px #2d2a3226;animation:ask-in .2s both;user-select:text;-webkit-user-select:text}
+.v-card-title{margin:0 0 6px 4px;font-size:11px;font-weight:800;color:#9c6954}
+.v-card .v-note{box-shadow:none;background:transparent;padding:2px 4px}

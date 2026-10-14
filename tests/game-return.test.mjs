@@ -9,6 +9,7 @@ import { board, eventStamp, seasonStamp, STAMPS } from '../game/stamps.ts';
 import { orderedQuestions } from '../game/response.ts';
 import { CONTENT_VERSION } from '../game/content.ts';
 import { CONSENT_VERSION } from '../game/contact.ts';
+import { fakeBook } from './fake-sheet.mjs';
 
 const answersFor = value => Object.fromEntries(orderedQuestions.map(q => [q.id, value]));
 const finish = (store, sessionId, value = 2, now = 1000) => handle(store, 'POST', '/finish', { sessionId, contentVersion: CONTENT_VERSION, answers: answersFor(value) }, now);
@@ -125,28 +126,7 @@ test('연락처: 동의·형식을 서버가 다시 보고, 이웃·유형은 �
   assert.deepEqual(Object.keys(store.contacts[1]).filter(k => ['neighbor', 'type', 'region'].includes(k)), []);
 });
 
-// ── 구글 시트 저장소 — 앱스 스크립트의 시트를 흉내 낸 가짜로 ──
-function fakeBook() {
-  const sheets = new Map();
-  const sheetOf = () => {
-    const rows = [];
-    return {
-      rows,
-      getLastRow: () => rows.length,
-      appendRow: row => rows.push([...row]),
-      getRange: (row, column, numRows = 1, numColumns = 1) => ({
-        getValues: () => rows.slice(row - 1, row - 1 + numRows).map(r => r.slice(column - 1, column - 1 + numColumns)),
-        setValues: values => values.forEach((v, i) => { rows[row - 1 + i] = [...(rows[row - 1 + i] ?? []).slice(0, column - 1), ...v]; }),
-      }),
-    };
-  };
-  return {
-    sheets,
-    getSheetByName: name => sheets.get(name) ?? null,
-    insertSheet: name => { const s = sheetOf(); sheets.set(name, s); return s; },
-  };
-}
-
+// ── 구글 시트 저장소 — 앱스 스크립트의 시트를 흉내 낸 가짜로(fake-sheet.mjs) ──
 test('구글 시트 저장소: 요청마다 읽고 바뀐 줄만 쓴다, 연락처는 사람이 읽는 칸으로, 테이블은 없다', () => {
   const book = fakeBook();
   const post = (p, body, now = 1000) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, now);
