@@ -2,7 +2,8 @@
   끝에서 여는 판 「내 동네」 — 기획 2차(주민증)와 기획 3차(다시 올 이유, 10-14).
   그리고 링크로 들어왔을 때 걷기 전에 뜨는 판 둘 — 답장(openReply)·이웃의 편지(openLetter).
 
-  · 우리 동네 예산(지방재정 자료) — 판 맨 위에 **빈 자리만**(`t-local`). 사용자 10-14: 「자리만 보여줘, 내용은 채워 넣지 말고」.
+  · 끝 공터의 두 주민이 연다(10-14 「NPC 처럼」) — 도장 주민 = openTown(주민증 먼저), 예산 주민 = openBudget.
+  · 우리 동네 예산(지방재정 자료) — **빈 자리만**(`t-local`). 사용자 10-14: 「자리만 보여줘, 내용은 채워 넣지 말고」.
   · 「내가 지은 동네」(고른 열다섯 가지 판)는 10-14 걷었다 — 사용자 「어차피 안 봐」. 답장 판에만 두 사람 것을 나란히 남겼다.
   · 방명록 — 내가 보낸 링크로 들어와 끝까지 걸은 사람(서버가 있을 때만). 열쇠가 이 기기에만 있어 나만 본다.
   · 우리 지역 동네 — 시·도에 한 채 짓고 같은 지역 사람들이 어떻게 골랐는지 본다(다섯 명부터). **지역에 유형 딱지는 안 붙인다.**
@@ -93,41 +94,10 @@ function panelShell(shell: HTMLElement, onClose: () => void, backText = '← 끝
   return { panel, close };
 }
 
-// ───────────────────────── 내 동네(끝 화면에서) ─────────────────────────
+// ───────────────────────── 도장 주민(공터 왼쪽) — 주민증·도장판, 그리고 방명록·우리 지역·이웃의 편지 ─────────────────────────
 export function openTown(shell: HTMLElement, data: HubData, onClose: () => void, backText?: string) {
   const { panel, close } = panelShell(shell, onClose, backText);
   const { me } = data;
-
-  // ── 우리 동네 예산 — 자리만(사용자 10-14: 「자리만 보여줘, 내용은 채워 넣지 말고」). 형태가 정해지면 여기에 채운다. ──
-  const local = el('section', 't-section t-local');
-  local.append(el('h2', '', '우리 동네 예산'), el('div', 't-local-slot'));
-  panel.append(local);
-
-  // ── 방명록 ──
-  if (data.book) {
-    const book = el('section', 't-section');
-    const list = el('ul', 't-guests');
-    const status = el('p', 't-small', '불러오는 중…');
-    book.append(el('h2', '', '내 동네에 다녀간 사람'), status, list);
-    panel.append(book);
-    void data.book().then(guests => {
-      if (!guests) { status.textContent = '지금은 방명록을 불러올 수 없어요.'; return; }
-      if (!guests.length) { status.textContent = '아직 없어요. 「친구에게 보내기」 로 링크를 보내면, 그 링크로 끝까지 걸은 친구가 여기에 남아요.'; return; }
-      addStamp('guest');
-      status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요.`;
-      for (const g of guests) {
-        const item = el('li', 't-guest');
-        item.append(avatar(toLook(g.pick)), el('b', '', g.name), el('span', 't-small', `「${TYPES[g.type].name}」 · ${new Date(g.at).getMonth() + 1}월 ${new Date(g.at).getDate()}일`));
-        list.append(item);
-      }
-    });
-  }
-
-  // ── 우리 지역 동네 ──
-  if (data.regionView && data.buildRegion) panel.append(regionSection(data));
-
-  // ── 이웃의 편지 ──
-  panel.append(letterSection(data, close));
 
   // ── 주민증 + 도장판 ──
   const stamps = board(loadStamps());
@@ -160,6 +130,33 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   const note = el('p', 't-small', '그림에는 이름·모습·유형·내 이웃·우리 지역·도장이 들어가요.');
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   panel.append(el('h2', 't-card-title', '주민증'), card, how, save, join, note, status);
+
+
+  // ── 방명록 ──
+  if (data.book) {
+    const book = el('section', 't-section');
+    const list = el('ul', 't-guests');
+    const status = el('p', 't-small', '불러오는 중…');
+    book.append(el('h2', '', '내 동네에 다녀간 사람'), status, list);
+    panel.append(book);
+    void data.book().then(guests => {
+      if (!guests) { status.textContent = '지금은 방명록을 불러올 수 없어요.'; return; }
+      if (!guests.length) { status.textContent = '아직 없어요. 「친구에게 보내기」 로 링크를 보내면, 그 링크로 끝까지 걸은 친구가 여기에 남아요.'; return; }
+      addStamp('guest');
+      status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요.`;
+      for (const g of guests) {
+        const item = el('li', 't-guest');
+        item.append(avatar(toLook(g.pick)), el('b', '', g.name), el('span', 't-small', `「${TYPES[g.type].name}」 · ${new Date(g.at).getMonth() + 1}월 ${new Date(g.at).getDate()}일`));
+        list.append(item);
+      }
+    });
+  }
+
+  // ── 우리 지역 동네 ──
+  if (data.regionView && data.buildRegion) panel.append(regionSection(data));
+
+  // ── 이웃의 편지 ──
+  panel.append(letterSection(data, close));
 
   // ── 그림 — 미리 찍어 둔다(누른 뒤에 찍으면 아이폰이 공유창을 막는다, main.ts 와 같은 까닭) ──
   let file: File | undefined;
@@ -256,6 +253,15 @@ function letterSection(data: HubData, closeHub: () => void) {
   else if (data.subscribe) box.append(btn('g-ghost', '편지 받기 — 소식 받기', () => { closeHub(); data.subscribe!(); })); // 판을 닫아야 아래 판(소식 받기)이 보인다
   else box.append(el('p', 't-small', '편지 받기는 곧 열려요.'));
   return box;
+}
+
+// ───────────────────────── 예산 주민(공터 오른쪽) — 우리 동네 예산 ─────────────────────────
+/** 자리만(사용자 10-14: 「자리만 보여줘, 내용은 채워 넣지 말고」). 형태가 정해지면 여기에 채운다. */
+export function openBudget(shell: HTMLElement, onClose: () => void) {
+  const { panel } = panelShell(shell, onClose, '← 공터로');
+  const local = el('section', 't-local');
+  local.append(el('h2', '', '우리 동네 예산'), el('div', 't-local-slot'));
+  panel.append(local);
 }
 
 // ───────────────────────── 답장(?with= 에 r 이 있을 때) ─────────────────────────

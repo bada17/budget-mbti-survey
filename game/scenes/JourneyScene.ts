@@ -6,6 +6,7 @@
            → 그 주민이 하트를 날리며 내 뒤에 줄 섬, 그 자리에 고른 것의 표지판이 섬 → 문이 열림 → 위로 나감
   방 사이: 화면이 위로 밀려 다음 방(같은 동네), 세 방마다 버스를 타고 다음 동네. 동네를 지날수록 아침 → 노을.
   끝:      강 건너 언덕 — 따라온 주민·초대한 친구·같은 테이블 사람들이 모이고, 한 명을 내 이웃으로 고른다.
+           그다음 넓은 공터를 걸어 다닌다. 양옆 두 주민(도장·우리 동네 예산)에게 다가가면 그 판이 열린다(사용자 10-14 「NPC 처럼」).
 
   답·진행은 runtime.send 로 flow.ts 에 맡긴다. 여기서는 위치·그림·연출만 다룬다.
 */
@@ -49,10 +50,18 @@ export type Runtime = {
   returning?: Neighbor;
   /** 언덕에서 다 같이 폴짝 뛴 뒤. 끝 화면은 main 이 띄운다. */
   arrived(): void;
+  /** 공터의 주민에게 다가갔다 — 도장(주민증)·우리 동네 예산 판을 연다. */
+  npc(kind: NpcKind): void;
   busCaption(stage: number, skip: () => void): void;
 };
 
 type Mode = 'intro' | 'dress' | 'enter' | 'play' | 'moving' | 'bus' | 'hill';
+export type NpcKind = 'stamp' | 'budget';
+/** 공터 주민 머리 위 말풍선. 왼쪽이 도장, 오른쪽이 예산(그림 draw.ts drawHill 의 책상·게시판과 짝). */
+const NPCS: { kind: NpcKind; side: DisplaySide; text: string }[] = [
+  { kind: 'stamp', side: 'left', text: '주민 도장 받기' },
+  { kind: 'budget', side: 'right', text: '우리 동네 예산' },
+];
 const SIDES: DisplaySide[] = ['left', 'right'];
 const other = (side: DisplaySide): DisplaySide => (side === 'left' ? 'right' : 'left');
 const lerp = (a: Point, b: Point, k: number) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
@@ -74,6 +83,12 @@ export class JourneyScene extends Phaser.Scene {
   private followers: Follower[] = [];
   private guests = new Map<string, Dude>();
   private hillTop?: Point;
+  /** 공터 — 걸을 수 있는 칸(Room 모양을 빌려 쓴다: residents 가 두 주민 자리)과 주민, 지금 곁에 선 주민. */
+  private field?: Room;
+  private npcs: Partial<Record<DisplaySide, Dude>> = {};
+  private npcNear?: DisplaySide;
+  private guestTags: { text: string; x: number; y: number }[] = [];
+  private tagsCleared = false;
   private picking?: (follower: Follower) => void;
   private light!: Phaser.GameObjects.Rectangle;
   private busDone?: () => void;
@@ -213,12 +228,14 @@ export class JourneyScene extends Phaser.Scene {
     const state = this.runtime.state();
     const before = { ...this.pos };
     if (this.mode === 'play' && !state.paused) this.walk(dt);
+    else if (this.mode === 'hill' && this.field && !this.picking && !state.paused) this.walk(dt, this.field, SIDES.map(side => this.field!.residents[side]), false);
     const moving = this.autoMoving || distance(before, this.pos) > 0.05;
     if (moving) this.player.look(this.pos.x - before.x, this.pos.y - before.y);
     this.player.place(this.pos).walk(dt, moving, this.reduced);
     if (moving && !this.reduced && this.mode !== 'bus' && (this.dustClock += dt) > FEEL.dustEveryMs) { this.dustClock = 0; dust(this, this.pos.x - 6, this.pos.y); }
     this.recordTrail();
     if (this.mode !== 'hill') this.follow(dt);
+    if (this.field) this.roam(dt, moving);
     if (this.insideBand) for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(dude.y < this.insideBand.top || dude.y > this.insideBand.bottom);
     if (this.mode !== 'play') return;
     // 고른 뒤엔 남은 주민이 손 흔들고 나가는 중이라 여기서 붙잡지 않는다.
@@ -245,7 +262,7 @@ export class JourneyScene extends Phaser.Scene {
     if (this.doorOpen && passedDoor(this.pos, this.room)) this.leaveRoom();
   }
 
-  private walk(dt: number) {
+  private walk(dt: number, room = this.room, solid = SIDES.filter(side => this.residents[side]).map(side => this.room.residents[side]), doorOpen = this.doorOpen) {
     const controls = this.runtime.controls;
     if (controls.tapped) { tapRing(this, controls.tapped.x, controls.tapped.y); controls.tapped = undefined; }
     let dir = controls.keyVector();
@@ -258,8 +275,7 @@ export class JourneyScene extends Phaser.Scene {
     }
     if (!dir.x && !dir.y) { this.speed = 0; return; }
     this.speed = Math.min(FEEL.walkSpeed, this.speed + FEEL.walkSpeed * dt / FEEL.accelMs);
-    const solid = SIDES.filter(side => this.residents[side]).map(side => this.room.residents[side]);
-    const next = step(this.pos, dir, Math.min(this.speed, speedCap), dt, this.room, this.doorOpen, solid);
+    const next = step(this.pos, dir, Math.min(this.speed, speedCap), dt, room, doorOpen, solid);
     if (distance(next, this.pos) < 0.05 && controls.target && !controls.holding) controls.target = undefined;
     this.pos = next;
   }
@@ -482,7 +498,40 @@ export class JourneyScene extends Phaser.Scene {
     const { w, h } = this.runtime.view();
     const hill = drawHill(this, w, h, -h);
     this.light.setFillStyle(DAYLIGHT[5][2]);
-    this.scrollUp(hill.box, hill.top, () => { this.mode = 'hill'; this.hillTop = hill.top; this.gather(hill.top); });
+    const spots: Record<DisplaySide, Point> = { left: hill.npc.stamp, right: hill.npc.budget };
+    // 공터 주민은 언덕과 같이 위에서 내려온다(화면이 밀리는 동안은 언덕 그림 자리에).
+    for (const { kind, side } of NPCS) this.npcs[side] = new Dude(this, lookFrom(`npc:${kind}`), spots[side].x, spots[side].y - h).place({ x: spots[side].x, y: spots[side].y - h });
+    this.scrollUp(hill.box, hill.top, () => {
+      for (const side of SIDES) this.npcs[side]!.place(spots[side]);
+      this.mode = 'hill'; this.hillTop = hill.top; this.gather(hill.top);
+    });
+  }
+
+  /** 공터 — 두 주민은 나를 바라보며 숨 쉬고, 곁에 가면 그 판이 열린다. 멀어졌다 다시 와야 또 열린다(닫은 뒤 바로 다시 열리지 않게). */
+  private roam(dt: number, moving: boolean) {
+    const field = this.field!;
+    for (const side of SIDES) {
+      this.npcs[side]?.look(this.pos.x - field.residents[side].x, this.pos.y - field.residents[side].y);
+      this.npcs[side]?.walk(dt, false, this.reduced);
+    }
+    if (moving && !this.tagsCleared) { this.tagsCleared = true; this.runtime.ui.tags(this.guestTags); } // 「나」 이름표는 걷기 시작하면 뗀다
+    if (!this.runtime.state().result || this.picking) return;
+    const side = nearest(this.pos, field, FEEL.meetRadius);
+    if (side && !this.npcNear) {
+      this.npcNear = side;
+      this.npcs[side]?.hop(8, 1, this.reduced);
+      sfx.meet();
+      this.runtime.controls.clear();
+      this.runtime.npc(NPCS.find(n => n.side === side)!.kind);
+    } else if (this.npcNear && distance(this.pos, field.residents[this.npcNear]) > FEEL.leaveRadius) this.npcNear = undefined;
+  }
+
+  /** 공터 주민 말풍선을 누르면 그 주민 앞까지 걸어간다. 이미 곁이면 바로 연다. */
+  goToNpc(kind: NpcKind) {
+    const field = this.field, side = NPCS.find(n => n.kind === kind)!.side;
+    if (!field || this.picking) return;
+    if (this.npcNear === side) { this.runtime.npc(kind); return; }
+    this.runtime.controls.target = { x: field.residents[side].x, y: field.residents[side].y + FEEL.talkGap };
   }
 
   /** 언덕 꼭대기에 서면 따라온 주민들이 둘러서고, 다 같이 폴짝. */
@@ -490,8 +539,8 @@ export class JourneyScene extends Phaser.Scene {
     const n = this.followers.length;
     this.followers.forEach(({ dude }, i) => {
       const inner = i < 6, j = inner ? i : i - 6, count = inner ? Math.min(6, n) : n - 6;
-      const spread = Math.PI * (inner ? 1.15 : 1.35), angle = Math.PI / 2 - spread / 2 + spread * (j + 0.5) / Math.max(1, count);
-      const radius = inner ? 62 : 112;
+      const spread = Math.PI * 1.15, angle = Math.PI / 2 - spread / 2 + spread * (j + 0.5) / Math.max(1, count);
+      const radius = inner ? 60 : 100; // 양옆 공터 주민과 겹치지 않게 아래쪽으로만 둘러선다
       const spot = { x: top.x - Math.cos(angle) * radius, y: top.y + Math.sin(angle) * radius * 0.55 - (inner ? 0 : 6) };
       this.walkTo(dude, spot, FEEL.gatherMs + i * 30, top);
     });
@@ -502,7 +551,15 @@ export class JourneyScene extends Phaser.Scene {
       confetti(this, this.runtime.view().w, 0, this.reduced);
       this.player.hop(26, 2, this.reduced);
       this.followers.forEach(({ dude }, i) => this.time.delayedCall(i * FEEL.cheerGapMs, () => dude.hop(16, 2, this.reduced)));
-      this.time.delayedCall(FEEL.revealDelayMs, () => this.runtime.arrived());
+      this.time.delayedCall(FEEL.revealDelayMs, () => {
+        this.runtime.arrived();
+        // 끝 화면이 뜬 뒤부터 공터를 걷는다 — 아래 판 위까지만. 주민 말풍선도 이때 띄운다.
+        const { w, h } = this.runtime.view(), wallY = Math.round(h * 0.42); // 풀밭 윗선(draw.ts drawHill)
+        const at = (side: DisplaySide) => ({ x: this.npcs[side]!.x, y: this.npcs[side]!.y });
+        const field: Room = { w, h, wallY, door: { x: -999, half: 0 }, residents: { left: at('left'), right: at('right') }, spawn: top, floor: Math.max(wallY + 20, this.runtime.ui.endTop() - 8) };
+        this.field = field;
+        this.runtime.ui.npcs(NPCS.map(n => ({ text: n.text, x: field.residents[n.side].x, y: field.residents[n.side].y - 56, run: () => this.goToNpc(n.kind) })));
+      });
     });
   }
 
@@ -529,7 +586,8 @@ export class JourneyScene extends Phaser.Scene {
       this.time.delayedCall(this.reduced ? 0 : 950, () => dude.hop(14, 2, this.reduced));
     });
     const mine = { text: this.runtime.name() || '나', x: this.player.x, y: this.player.y - 58 };
-    this.time.delayedCall(this.reduced ? 0 : 960, () => this.runtime.ui.tags([mine, ...guests.map((guest, i) => ({ text: guest.label, x: spots[i].x, y: spots[i].y - 58 }))]));
+    this.guestTags = guests.map((guest, i) => ({ text: guest.label, x: spots[i].x, y: spots[i].y - 58 }));
+    this.time.delayedCall(this.reduced ? 0 : 960, () => this.runtime.ui.tags(this.tagsCleared ? this.guestTags : [mine, ...this.guestTags]));
   }
 
   /** 언덕에서 한 명을 눌러 내 이웃으로. */

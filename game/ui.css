@@ -125,11 +125,15 @@
 .g .g-track i{background:#cd8b6c;width:12px;height:12px;border:2px solid #fff8e9;box-shadow:0 1px 0 #946c4b55}
 .g .g-track::after{background:#baa98a}
 .g .g-tag{background:#fff7e5;color:#765943;border:1.5px solid #d2b58a;font-size:10px;font-weight:750;box-shadow:0 2px 0 #93795726}
-.g .g-end-actions{display:grid;grid-template-columns:1fr 1fr;gap:4px 6px;padding:8px;background:#fff9eeeb;border:1px solid #e1ccac;border-radius:20px;box-shadow:0 3px 0 #a58d6926}
-.g .g-end-actions>.g-primary{grid-column:1 / -1;min-height:42px;font-size:14px;border-radius:13px;margin-bottom:3px}
-.g .g-end-actions>.g-ghost{margin:0;min-height:40px;font-size:12px;border-radius:11px;background:#f0e5d0;color:#745b48;border:1px solid #e2d2b6}
-.g .g-end-actions>.g-ghost:nth-child(even):nth-last-child(3){grid-column:1 / -1} /* 회색 단추가 홀수 개면 마지막 것을 넓힌다(답장·다른 사람들은 있다 없다 한다) */
-.g .g-end-actions>.g-link{grid-column:1 / -1;margin:0;padding:2px 3px;min-height:20px;font-size:11px;text-underline-offset:3px}
+.g .g-end-actions{display:grid;grid-template-columns:1fr;gap:4px 6px;padding:8px;background:#fff9eeeb;border:1px solid #e1ccac;border-radius:20px;box-shadow:0 3px 0 #a58d6926}
+.g .g-end-actions .g-primary{margin:0;min-height:42px;font-size:14px;border-radius:13px}
+.g .g-end-actions .g-ghost{margin:0;min-height:40px;font-size:12px;border-radius:11px;background:#f0e5d0;color:#745b48;border:1px solid #e2d2b6}
+/* 끝 화면 아래 판 — 친구에게 보내기·내 이웃 한 줄, 그 아래 작은 글. 주민증·예산은 공터 주민이 맡아 단추에서 뺐다(10-14). */
+.g .g-end-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.g .g-end-links{display:flex;justify-content:center;gap:16px}
+.g .g-npc{max-width:none;font-size:12px;padding:6px 11px;background:#fff7e5;border-color:#d2b58a;color:#765943;font-weight:800}
+.g .g-npc::after{border-color:#d2b58a;background:#fff7e5}
+.g .g-end-actions .g-link{margin:0;padding:2px 3px;min-height:20px;font-size:11px;text-underline-offset:3px}
 .g .g-end-actions>.g-give{font-size:10px;line-height:1.5;color:#9c6954}
 .g .g-end-card .g-notes{font-size:11px;margin-top:6px}
 @media(max-height:620px){.g .g-prompt{font-size:15px}.g .g-bubble{font-size:12px;padding:7px 9px}.g .g-end-card{padding:8px 12px}.g .g-end-card h1{font-size:26px}}

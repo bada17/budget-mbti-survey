@@ -12,7 +12,7 @@ import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
-import { openTown, openReply, openLetter, type Person } from './town';
+import { openTown, openBudget, openReply, openLetter, type Person } from './town';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact } from './contact';
@@ -82,7 +82,7 @@ const ui = createUI(root, {
   goDoor: () => scene?.goDoor(),
 });
 ui.setSound(isMuted());
-const controls = new Controls(ui.surface, () => !state.paused && ['walking', 'question', 'reply'].includes(state.phase));
+const controls = new Controls(ui.surface, () => !state.paused && ['walking', 'question', 'reply', 'arrived'].includes(state.phase)); // arrived = 끝 공터를 걷는다
 const stopEffects = attachEffects(bus);
 
 function notes() {
@@ -294,7 +294,6 @@ function showEnd() {
     others: online ? async () => ui.others((await net.stats()) ?? stats, mine()) : undefined,
     share: () => share(),
     reply: invite ? { label: `${invite.name}님에게 답장`, run: () => share(true) } : undefined,
-    town: () => { if (town && state.result) openHub({ name: me.name, pick: me.pick, type: state.result, town }, state.sessionId, { photo }); },
     again: () => { location.href = here(); },
   });
   // 테이블 사람들이 하나둘 언덕에 닿으면 그때그때 세운다.
@@ -317,6 +316,10 @@ async function boot() {
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
       view: () => view, controls, ui, ready: () => ui.ready(),
       pick: () => me.pick, name: () => me.name, returning, arrived: showEnd,
+      npc: kind => {
+        if (kind === 'budget') { openBudget(shell, () => {}); return; }
+        if (town && state.result) openHub({ name: me.name, pick: me.pick, type: state.result, town }, state.sessionId, { photo }, '← 공터로');
+      },
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);
