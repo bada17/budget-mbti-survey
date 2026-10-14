@@ -1,7 +1,6 @@
 import '@fontsource/jua/korean-400.css';
 import '@fontsource/jua/latin-400.css';
-import '@fontsource/gowun-dodum/korean-400.css';
-import '@fontsource/gowun-dodum/latin-400.css';
+import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './ui.css';
 import { createJourney, transition, currentQuestion, type Command } from './flow';
 import { buildGameResponse, orderedQuestions, displayOptions, type GameResponse } from './response';
@@ -523,7 +522,7 @@ async function boot() {
   try {
     measure();
     // 마을 간판은 캔버스에 구워 두므로 둥근 글꼴이 먼저 와 있어야 한다(늦으면 기본 글꼴로 굳는다). 1.5초까지만 기다린다.
-    await Promise.race([Promise.all(['16px Jua', '16px "Gowun Dodum"'].map(f => document.fonts?.load(f, '마을'))), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
+    await Promise.race([Promise.all(['16px Jua', '600 16px "Pretendard Variable"'].map(f => document.fonts?.load(f, '마을'))), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
     const [{ default: Phaser }, { JourneyScene }, { VillageScene }] = await Promise.all([import('phaser'), import('./scenes/JourneyScene'), import('./scenes/VillageScene')]);
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
