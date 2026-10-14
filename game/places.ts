@@ -445,15 +445,15 @@ export function noteCard(shell: HTMLElement, on: NoteActions) {
 /**
  * 주머니 — 이 기기에만. taken = 오늘 주운 나무(날이 바뀌면 비운다), given = 공사터에 넣은 동전(서버 없는 시험판은 이 수로 공사를 채운다).
  */
-export type Pocket = { day: number; taken: number[]; coins: number; fruits: number; given: number };
+export type Pocket = { day: number; taken: number[]; coins: number; fruits: number; given: number; /** 공사터를 알려 줬나(첫 동전에 한 번) */ told: boolean };
 const POCKET_KEY = 'budget-game-pocket';
 export function loadPocket(day: number): Pocket {
   try {
     const raw = JSON.parse(localStorage.getItem(POCKET_KEY) ?? 'null');
     const num = (v: unknown) => (Number.isInteger(v) && (v as number) >= 0 ? (v as number) : 0);
     const sameDay = raw?.day === day;
-    return { day, taken: sameDay && Array.isArray(raw.taken) ? raw.taken.filter(Number.isInteger).slice(0, 200) : [], coins: num(raw?.coins), fruits: num(raw?.fruits), given: num(raw?.given) };
-  } catch { return { day, taken: [], coins: 0, fruits: 0, given: 0 }; }
+    return { day, taken: sameDay && Array.isArray(raw.taken) ? raw.taken.filter(Number.isInteger).slice(0, 200) : [], coins: num(raw?.coins), fruits: num(raw?.fruits), given: num(raw?.given), told: raw?.told === true };
+  } catch { return { day, taken: [], coins: 0, fruits: 0, given: 0, told: false }; }
 }
 export const savePocket = (pocket: Pocket) => { try { localStorage.setItem(POCKET_KEY, JSON.stringify(pocket)); } catch { /* 막힌 창 */ } };
 

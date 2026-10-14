@@ -18,7 +18,8 @@ import {
 } from './profile';
 import { openTown, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
 import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, noteCard, loadMarks, rememberMine, loadPocket, savePocket } from './places';
-import { PLACES, dropsOn, kstDay, type PlaceId, type Drop } from './village';
+import { PLACES, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
+import { nameFrom } from './look';
 import { seasonOf, type Season } from './draw';
 import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
@@ -335,7 +336,7 @@ function toVillage() {
 function enteredVillage() {
   where = 'village';
   ui.village({ phone: openPhone });
-  ui.villagePocket(loadPocket(kstDay(Date.now())).coins);
+  ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
     if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 주민센터 주민증에 찍혀 있어요.`);
@@ -382,9 +383,16 @@ function picked(tree: number, kind: Drop) {
   if (pocket.taken.includes(tree)) return;
   pocket.taken.push(tree);
   if (kind === 'coin') pocket.coins++; else pocket.fruits++;
+  const first = kind === 'coin' && !pocket.told;
+  if (first) pocket.told = true;
   savePocket(pocket);
-  ui.villagePocket(pocket.coins);
+  ui.villagePocket(pocket.coins, toWorks);
+  // 첫 동전 — 공사터 주민이 넣는 곳을 알려 준다(한 번만). 「나중에」 해도 위 띠 동전을 누르면 공사터로 간다.
+  if (first) ui.villageNotice(nameFrom('npc:works'), `동전을 주웠네요! 마을 공사터에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
+    [{ label: '공사터로 가기', run: toWorks }, { label: '나중에' }]);
 }
+/** 공사터 문 앞으로 가서 판을 연다. */
+function toWorks() { if (!panelOpen) village?.jump('works', () => openPlace('works')); }
 /** 주민 폰 — 날짜·시각·철과 앱 여섯. 건물 앱은 그 문 앞으로 옮겨 가서 연다(지도와 같은 길). */
 function openPhone() {
   if (panelOpen) return;
@@ -410,6 +418,7 @@ function openMap() {
 /** 문 앞에 닿았다 — 그 건물의 판. 판이 열린 동안 나는 멈추고, 닫으면 다시 걷는다. */
 function openPlace(id: PlaceId) {
   const who = villageMe();
+  ui.villageNotice();
   panelOpen = true; village?.setPaused(true); notesCard.hide(); ui.closeSheet();
   const done = () => { panelOpen = false; village?.setPaused(false); };
   if (id === 'hub') { if (who) openHub(who.person, who.sessionId, { photo }, '← 마을로', done); else done(); }

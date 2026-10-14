@@ -200,11 +200,11 @@ export function kstDayStart(now: number) {
 // ───────────────────────── 마을 공사·나무 흔들기(사용자 10-14 동물의 숲 ⓑⓕ) ─────────────────────────
 /**
  * 공사 차례 — 모두가 넣은 동전이 앞 공사부터 채운다. 다 차면 그 공사가 마을에 선다(다리는 연못 위, 정자는 공사터 자리).
- * 목표 동전 수는 [정할 것] — 다녀가는 사람 수를 보고 고친다(한 판이 하루에 COIN_DAY_MAX 개까지).
+ * 목표 동전 수는 다녀가는 사람 수를 보고 고친다(한 판이 하루에 COIN_DAY_MAX 개까지).
  */
 export const WORKS = [
-  { id: 'bridge', name: '연못 다리', goal: 100 },
-  { id: 'pavilion', name: '쉼터 정자', goal: 300 },
+  { id: 'bridge', name: '연못 다리', goal: 10 },
+  { id: 'pavilion', name: '쉼터 정자', goal: 10 }, // 사용자 10-14 「300개는 에바」 → 「30개도 많아, 10개만」 — 다리도 같이
 ] as const;
 export type WorkId = (typeof WORKS)[number]['id'];
 export type WorksState = { done: WorkId[]; now?: { id: WorkId; name: string; have: number; goal: number } };

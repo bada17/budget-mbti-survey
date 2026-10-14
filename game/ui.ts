@@ -449,11 +449,12 @@ export function createUI(root: HTMLElement, actions: {
       where.append(today);
     },
     /** 위 띠 — 주머니 동전(0이면 숨김). 늘면 톡 튄다. */
-    villagePocket(coins: number) {
+    villagePocket(coins: number, open?: () => void) {
       let chip = where.querySelector<HTMLElement>('.g-pocket');
       if (!coins) { chip?.remove(); return; }
-      if (!chip) { chip = icon(el('small', 'g-today g-pocket'), ICONS.coin, ''); chip.setAttribute('role', 'img'); chip.append(el('span')); where.append(chip); }
-      chip.setAttribute('aria-label', `주머니 동전 ${coins}개`);
+      // 누르면 공사터로 — 넣을 곳을 찾아 헤매지 않게(사용자 10-14 「동전을 어디에 넣는데?」)
+      if (!chip) { chip = icon(button('g-today g-pocket', '', () => open?.()), ICONS.coin, ''); chip.append(el('span')); where.append(chip); }
+      chip.setAttribute('aria-label', `주머니 동전 ${coins}개 — 공사터에 넣으러 가기`);
       chip.lastElementChild!.textContent = String(coins);
       chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
     },
@@ -467,6 +468,22 @@ export function createUI(root: HTMLElement, actions: {
       grid.append(...apps.map(app => { const b = button('g-app', '', () => { closeSheet(); app.run(); }); b.append(el('span', 'g-app-icon', app.icon), el('span', '', app.name)); return b; }));
       screen.append(top, grid);
       openSheet(screen, button('g-link', '닫기', closeSheet));
+    },
+    /**
+     * 마을 아래 말 상자 — 이름표 + 한 자씩, 아래 단추(누르면 닫고 run). 첫 동전을 주웠을 때 공사터를 알려 준다.
+     * 다시 부르면 갈아 끼우고, 인자 없이 부르면 닫는다.
+     */
+    villageNotice(who?: string, text = '', acts: { label: string; run?(): void }[] = []) {
+      shell.querySelector('.g-notice')?.remove();
+      if (!who) return;
+      const box = el('section', 'g-notice'), talk = el('div', 'g-talk'), said = el('p', 'g-quote'), row = el('div', 'g-notice-acts');
+      talk.append(el('span', 'g-name', who), said);
+      talk.onclick = () => finishTyping(said);
+      row.append(...acts.map((act, i) => button(i ? 'g-ghost' : 'g-primary', act.label, () => { box.remove(); act.run?.(); })));
+      box.append(talk, row);
+      shell.append(box);
+      typeOut(said, text);
+      live.textContent = `${who}: ${text}`;
     },
     /** 지도 — 건물 목록. */
     placeList(list: { name: string; line: string; run(): void }[]) {
