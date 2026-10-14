@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>동글형 비율 · 첫 방 비교</title><link rel="icon" href="data:,"></head>
+<body>
+<main class="demo">
+  <header class="heading"><div><p>동네 한 바퀴 · 캐릭터 시안</p><h1>짧고 둥근 동글형 비교</h1></div><a href="../../?walk">게임으로</a></header>
+  <div class="layout">
+    <section class="world" aria-label="첫 방 캐릭터 미리보기"><div id="canvas"></div><div class="world-title"><b>동글형 비율 비교</b><p>왼쪽 동글형 · 오른쪽 이전 시안<br>같은 얼굴로 몸의 비율과 옷 표현을 비교해요.</p></div><div id="ready" role="status">주민들이 준비하고 있어요…</div><div class="toolbar"><button id="walk" aria-pressed="true">산책 멈추기</button><button id="compare" aria-pressed="false">크게 비교</button><button id="edit">동글형 확대 · 옷 바꾸기</button></div></section>
+    <aside class="editor" id="editor" hidden aria-label="주민 모습 꾸미기"><header><div><p id="who">주민 1</p><h2>오늘은 어떤 모습?</h2></div><button id="close" aria-label="꾸미기 닫기">×</button></header><nav class="tabs" aria-label="꾸미기 항목"><button data-tab="hair" aria-selected="true">머리</button><button data-tab="clothes" aria-selected="false">옷</button><button data-tab="face" aria-selected="false">얼굴</button><button data-tab="colors" aria-selected="false">색</button></nav><div class="choices" id="choices"></div><footer><button id="reset">기본 조합</button><button id="shuffle">새 조합</button><button id="done">이 모습으로 걷기</button></footer></aside>
+  </div>
+  <p class="note">같은 얼굴·옷 종류·기존 걷기 동작으로 비교해요.<br>왼쪽은 큰 머리·통통한 몸·짧은 다리·단순한 색면으로 바꿨어요.</p>
+</main>
+<script type="module" src="./preview.ts"></script>
+</body></html>
