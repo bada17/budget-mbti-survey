@@ -81,6 +81,28 @@ export function nearest(p: Point, room: Room, radius: number, sides: ('left' | '
 
 export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
+/** 공 — 발에 닿으면 발 반대쪽으로 차이고, 방 가장자리에 튕기고, 점점 선다. 찼으면 true. */
+export function rollBall(ball: { at: Point; v: Point }, foot: Point, dtMs: number, room: Room) {
+  const dt = Math.min(dtMs, FEEL.maxDeltaMs) / 1000;
+  const d = distance(foot, ball.at);
+  let kicked = false;
+  if (d < FEEL.kickRadius) {
+    const nx = d ? (ball.at.x - foot.x) / d : 0, ny = d ? (ball.at.y - foot.y) / d : -1;
+    // 이미 멀어지는 중이면 또 차지 않는다(한 번 닿을 때 한 번만).
+    if (ball.v.x * nx + ball.v.y * ny < FEEL.kickSpeed / 2) { ball.v = { x: nx * FEEL.kickSpeed, y: ny * FEEL.kickSpeed }; kicked = true; }
+  }
+  ball.at.x += ball.v.x * dt; ball.at.y += ball.v.y * dt;
+  const box = { x: [EDGE, room.w - EDGE], y: [room.wallY + WALL_GAP, room.floor] } as const;
+  for (const axis of ['x', 'y'] as const) {
+    const [lo, hi] = box[axis];
+    if (ball.at[axis] < lo || ball.at[axis] > hi) { ball.at[axis] = Math.min(hi, Math.max(lo, ball.at[axis])); ball.v[axis] *= -FEEL.ballBounce; }
+  }
+  const keep = Math.pow(FEEL.ballFriction, dt);
+  ball.v.x *= keep; ball.v.y *= keep;
+  if (Math.hypot(ball.v.x, ball.v.y) < 6) ball.v = { x: 0, y: 0 };
+  return kicked;
+}
+
 /** 지나온 길(최근 점이 끝)에서 뒤로 gap 만큼 떨어진 자리. 길이 짧으면 맨 처음 점. */
 export function alongTrail(trail: Point[], gap: number): Point | undefined {
   let left = gap;

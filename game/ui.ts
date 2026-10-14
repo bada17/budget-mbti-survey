@@ -3,7 +3,8 @@
   게임 진행은 여기서 정하지 않는다. 단추를 누르면 받은 콜백을 부르기만 한다.
   모양은 대충 잡아 둔 자리다 — 꾸미기는 GPT 몫(README 「게임 뼈대」).
 */
-import { ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode } from './content';
+import { AXES, ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode } from './content';
+import type { AxisScores } from './score';
 import { currentQuestion, type JourneyState } from './flow';
 import { displayOptions, orderedQuestions, type DisplaySide } from './response';
 import { COATS, HAIRS, SKINS, STYLE_NAMES, PICK_SIZES, randomPick, type Pick } from './look';
@@ -23,6 +24,8 @@ const button = (className: string, text: string, onClick: () => void) => {
 };
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 const SIDES: DisplaySide[] = ['left', 'right'];
+/** 도너스 정기후원. utm 은 도너스 약정에 남아 「게임에서 온 후원」을 가를 수 있다. */
+const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
 
 export function createUI(root: HTMLElement, actions: {
   start(): void; retry(): void; sound(): void; openTable(): void;
@@ -175,6 +178,11 @@ export function createUI(root: HTMLElement, actions: {
     setSound(muted: boolean) { sound.classList.toggle('muted', muted); sound.setAttribute('aria-label', muted ? '소리 켜기' : '소리 끄기'); },
 
     /** 내 모습 고르기 — 이름(선택)과 머리 모양·머리 색·옷 색·피부. 고를 때마다 change, 다 고르면 done. */
+    /** 아래 판의 윗선(게임 화면 위에서부터 CSS px). 판이 닫혀 있으면 화면 맨 아래. */
+    sheetTop() {
+      const box = shell.getBoundingClientRect();
+      return sheet.hidden ? box.height : sheet.getBoundingClientRect().top - box.top;
+    },
     dresser(me: Me, on: { change(me: Me): void; done(me: Me): void }) {
       const current: Me = { name: me.name, pick: [...me.pick] as Pick };
       const name = el('input', 'g-input'); name.maxLength = 10; name.value = me.name; name.placeholder = '이름이나 별명 (안 써도 돼요)';
@@ -230,20 +238,46 @@ export function createUI(root: HTMLElement, actions: {
     },
 
     /** 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들. */
-    end(info: { code: TypeCode; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; again(): void }) {
+    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; again(): void }) {
       const card = el('div', 'g-end-card');
-      card.append(el('span', 'g-kicker', `${DESTINATION.name}에 닿았어요`), el('p', 'g-you', '당신은'), el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line));
+      // 세 축 — 왜 이 유형인지. 점은 -100~+100 을 막대 위 자리로, 가운데 금이 갈림길.
+      const axes = el('ul', 'g-axes');
+      for (const axis of AXES) {
+        const score = info.scores[axis.key], right = score > 0;
+        const track = el('span', 'g-track'), dot = el('i');
+        dot.style.left = `${(score + 100) / 2}%`; track.append(dot); track.setAttribute('aria-hidden', 'true');
+        const row = el('li');
+        row.append(el('span', `g-ax-l${right ? '' : ' on'}`, axis.left), track, el('span', `g-ax-r${right ? ' on' : ''}`, axis.right), el('span', 'g-sr', ` — ${right ? axis.right : axis.left} 쪽`));
+        axes.append(row);
+      }
+      card.append(el('span', 'g-kicker', `${DESTINATION.name}에 닿았어요`), el('p', 'g-you', '당신은'), el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes);
+      const give = el('a', 'g-link g-give', '이 게임을 만든 함께하는 시민행동 후원하기 →');
+      give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
       bar.append(
         button('g-primary', '함께 온 주민 중 내 이웃 정하기', on.neighbor),
         ...(on.others ? [button('g-ghost', '다른 사람들은 어떻게 골랐을까?', on.others)] : []),
         button('g-ghost', '친구에게 보내기', on.share),
         button('g-link', '한 번 더 걷기', on.again),
+        give,
       );
       end.replaceChildren(card, bar);
       end.hidden = false;
       this.endLines(info.lines);
       live.textContent = `당신은 ${TYPES[info.code].name}. ${TYPES[info.code].line}`;
+    },
+    /**
+     * 공유 그림 — 끝 화면을 보이는 그대로 찍는다(위 띠·누를 것은 빼고). 화면과 그림을 한 벌로 두려는 것(예산게임에서 두 벌로 그리다 어긋났다).
+     * 게임 캔버스(WebGL)는 html-to-image 가 바로 못 찍어서, 장면 스냅숏(`scene`, data URL)을 바탕에 깔고 캔버스는 뺀다.
+     */
+    async picture(scene: string) {
+      const { toBlob } = await import('html-to-image');
+      await document.fonts?.ready;
+      const skip = new Set<Node | null>([stage, hud, sheet, panel, toast, hint, end.querySelector('.g-end-actions')]);
+      shell.classList.add('shooting'); // 움직임을 멈춰야 복사본이 첫 장면(투명)으로 찍히지 않는다
+      try {
+        return await toBlob(shell, { pixelRatio: 2, filter: node => !skip.has(node), style: { backgroundImage: `url(${scene})`, backgroundSize: '100% 100%' } });
+      } finally { shell.classList.remove('shooting'); }
     },
     endActions(show: boolean) { const bar = end.querySelector<HTMLElement>('.g-end-actions'); if (bar) bar.hidden = !show; },
     /** 끝 화면 카드 아래 줄 — 초대한 친구와 테이블 사람들(새로 온 사람이 있으면 다시 부른다). */
@@ -255,7 +289,7 @@ export function createUI(root: HTMLElement, actions: {
     },
 
     /** 내 이웃 — 이름 지어 주기, 그리고 소식 받기(연락처). */
-    neighborSheet(wish: string, on: { save(name: string): void; contact?: (form: ContactForm) => Promise<string>; close(): void }) {
+    neighborSheet(wish: string, on: { save(name: string): void; contact?: (form: ContactForm) => Promise<{ ok: boolean; text: string }>; close(): void }) {
       let openedAt = Date.now();
       const name = el('input', 'g-input'); name.maxLength = 10; name.placeholder = '이웃 이름 지어 주기 (10자까지)';
       const contact = el('form', 'g-contact'); contact.hidden = true;
@@ -294,11 +328,17 @@ export function createUI(root: HTMLElement, actions: {
       contact.onsubmit = async event => {
         event.preventDefault();
         const data = new FormData(contact);
-        contact.querySelector('.g-result')!.textContent = await on.contact!({
+        const result = await on.contact!({
           channel: data.get('channel') as Channel, address: String(data.get('address') ?? ''),
           age14: data.has('age14'), collect: data.has('collect'), marketing: data.has('marketing'),
           website: String(data.get('website') ?? ''), openedAt,
         });
+        contact.querySelector('.g-result')!.textContent = result.text;
+        if (!result.ok || contact.querySelector('.g-join')) return;
+        // 소식 받기와 회원 권유를 묶는다(사용자 10-14). 회원 = 도너스 정기후원(일반·후원회원).
+        const join = el('a', 'g-link g-give g-join', '소식에서 한 걸음 더 — 함께하는 시민행동 회원 되기 →');
+        join.href = `${DONATE_URL}&utm_content=after-news`; join.target = '_blank'; join.rel = 'noopener';
+        contact.append(join);
       };
       openSheet(el('p', 'g-kicker', '내 이웃'), el('p', 'g-quote', `${josa(`「${wish}」`, '을', '를')} 바라던 주민`), name, save, ...(on.contact ? [contact] : []), button('g-link', '닫기', () => { closeSheet(); on.close(); }));
     },

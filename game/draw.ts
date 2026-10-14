@@ -22,9 +22,11 @@ export class Dude {
   private idleClock = Math.random() * 4000;
   private hopping = false;
   private tall: number;
+  private arm: { coat: number; skin: number };
   constructor(private scene: Scene, look: Look, x: number, y: number, scale = 1) {
     const s = scene.add;
     this.tall = look.tall;
+    this.arm = { coat: look.coat, skin: look.skin };
     const shadow = s.ellipse(0, 0, 26, 8, 0x2d3a2e, 0.16);
     this.legs = [-5, 5].map(lx => s.rectangle(lx, -6, 6, 12, 0x3d4250).setRounded(3));
     const torso = s.rectangle(0, -20, 24, 24, look.coat).setRounded(10);
@@ -77,6 +79,14 @@ export class Dude {
       targets: this.body, y: -height, duration: 150, ease: 'Quad.easeOut', yoyo: true, repeat: times - 1,
       onComplete: () => { this.hopping = false; this.body.setY(0); },
     });
+  }
+  /** 손 흔들기 — 평소엔 팔이 없고, 흔들 때만 어깨에서 팔이 올라온다. */
+  wave(times: number, reduced: boolean) {
+    if (reduced || !times) return;
+    const s = this.scene.add;
+    const arm = s.container(11, -24, [s.rectangle(0, -7, 5, 14, this.arm.coat).setRounded(2.5), s.circle(0, -15, 3.6, this.arm.skin)]).setAngle(25);
+    this.body.add(arm);
+    this.scene.tweens.add({ targets: arm, angle: -10, duration: 160, ease: 'Sine.easeInOut', yoyo: true, repeat: times - 1, onComplete: () => arm.destroy() });
   }
   destroy() { this.root.destroy(); }
 }
@@ -167,7 +177,38 @@ export const DAYLIGHT = [
 ] as const;
 
 export type Pigeon = { root: Container; at: Point; fled: boolean };
-export type RoomArt = { box: Container; openDoor: (reduced: boolean) => void; pigeons: Pigeon[]; destroy: () => void };
+export type Ball = { root: Container; spin: Container; at: Point; v: Point };
+export type Cat = { root: Container; at: Point; near: boolean };
+export type RoomArt = { box: Container; openDoor: (reduced: boolean) => void; pigeons: Pigeon[]; ball?: Ball; cat?: Cat; destroy: () => void };
+
+/** 축구공 — 흰 바탕에 검은 점 여섯. 굴러가는 게 보이게 무늬가 돈다(spin). */
+function ball(scene: Scene, x: number, y: number): Ball {
+  const s = scene.add;
+  const dots = [0, 72, 144, 216, 288].map(a => s.circle(Math.cos(a * Math.PI / 180) * 6.4, Math.sin(a * Math.PI / 180) * 6.4, 1.8, 0x2d2a32));
+  const spin = s.container(0, -9, [s.circle(0, 0, 9, 0xffffff).setStrokeStyle(1.3, 0x2d2a32), s.circle(0, 0, 3, 0x2d2a32), ...dots]);
+  const root = s.container(x, y, [s.ellipse(0, 0, 18, 5, 0x2d3a2e, 0.18), spin]);
+  return { root, spin, at: { x, y }, v: { x: 0, y: 0 } };
+}
+
+/** 고양이 — 앉아서 꼬리를 살랑. 털색은 방마다 다르다. */
+function cat(scene: Scene, x: number, y: number, fur: number): Cat {
+  const s = scene.add;
+  const tail = s.rectangle(9, -4, 3.5, 15, fur).setRounded(1.7).setOrigin(0.5, 1).setAngle(20);
+  const root = s.container(x, y, [
+    s.ellipse(0, 0, 22, 6, 0x2d3a2e, 0.14), tail,
+    s.ellipse(1, -7, 17, 14, fur), s.circle(-4, -17, 6.5, fur),
+    s.triangle(-8.5, -19, 0, 0, 3, -6, 6, 0, fur), s.triangle(0.5, -19, 0, 0, 3, -6, 6, 0, fur),
+    s.circle(-6.5, -17.5, 1, 0x2a2a33), s.circle(-1.5, -17.5, 1, 0x2a2a33), s.circle(-4, -15, 0.9, 0xff8f8f),
+  ]);
+  scene.tweens.add({ targets: tail, angle: -15, duration: 700, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: Math.random() * 700 });
+  return { root, at: { x, y }, near: false };
+}
+
+/** 다가가면 야옹 — 폴짝, 하트 하나. */
+export function meow(scene: Scene, kitty: Cat, reduced: boolean) {
+  hearts(scene, kitty.at.x - 4, kitty.at.y - 26, 1, reduced);
+  if (!reduced) scene.tweens.add({ targets: kitty.root, y: kitty.at.y - 7, duration: 130, ease: 'Quad.easeOut', yoyo: true });
+}
 
 function tree(scene: Scene, x: number, y: number, color: number) {
   return scene.add.container(x, y, [
@@ -314,8 +355,14 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
     scene.add.rectangle(0, -8, 40, 6, 0xb07a52).setRounded(2), scene.add.rectangle(0, -16, 40, 5, 0xb07a52).setRounded(2),
     scene.add.rectangle(-15, -2, 4, 10, 0x6d5444), scene.add.rectangle(15, -2, 4, 10, 0x6d5444),
   ]).setDepth(benchY));
+  // 동네 장난감 — 방마다 공·고양이·비둘기를 섞는다. 고양이는 벤치 옆, 공은 벤치 반대쪽 마당 아래.
+  const hasBall = r() < 0.6, hasCat = r() < 0.55;
+  const kitty = hasCat ? cat(scene, benchX + (benchX < w / 2 ? 34 : -34), benchY, [0xf0a04b, 0x8f8f96, 0x3d3a40, 0xf3ece0][Math.floor(r() * 4)]) : undefined;
+  const toy = hasBall ? ball(scene, benchX < w / 2 ? w * 0.7 : w * 0.3, Math.min(h - 60, residents.left.y + 90 + r() * 50)) : undefined;
+  if (kitty) items.push(kitty.root);
+  if (toy) items.push(toy.root);
   const pigeons: Pigeon[] = [];
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < (hasBall && hasCat ? 0 : hasBall || hasCat ? 1 : 2); i++) {
     const at = { x: w * (0.22 + r() * 0.56), y: residents.left.y + 70 + r() * Math.max(10, h - residents.left.y - 170) };
     if (Math.abs(at.x - w / 2) < 30) at.x += 50;
     const bird = pigeon(scene, at.x, at.y);
@@ -324,9 +371,10 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
   // 방 그림은 늘 사람들 밑에 깔린다(컨테이너 안의 깊이는 그리는 차례를 바꾸지 않는다).
   const box = scene.add.container(0, offsetY, items).setDepth(-100000);
   return {
-    box, pigeons,
+    box, pigeons, ball: toy, cat: kitty,
     destroy() {
       for (const bird of pigeons) { scene.tweens.killTweensOf(bird.root); scene.tweens.killTweensOf(bird.root.list); }
+      if (kitty) { scene.tweens.killTweensOf(kitty.root); scene.tweens.killTweensOf(kitty.root.list); }
       scene.tweens.killTweensOf([...panels, light]);
       box.destroy();
     },

@@ -35,6 +35,9 @@ export const FEEL = {
   shake: [0, 0, 0.006],
   vibrateMs: [8, 14, 30],
   joinDelayMs: 420,
+  /** 안 고른 주민 — 손 흔드는 시간, 그다음 옆으로 걸어 나가는 시간. */
+  waveMs: 640,
+  walkOffMs: 1100,
 
   // 따라오는 주민
   followGap: 30, // 지나온 길을 따라 이만큼씩 떨어져 선다
@@ -43,6 +46,16 @@ export const FEEL = {
 
   // 동네 장난감
   pigeonFleeRadius: 70,
+  kickRadius: 16, // 발이 공에 이만큼 닿으면 찬다
+  kickSpeed: 340, // 찬 공의 처음 빠르기(px/초) — 대충 180px 굴러간다
+  ballFriction: 0.15, // 1초 뒤 남는 빠르기 비율
+  ballBounce: 0.7, // 벽에 튕길 때 남는 빠르기
+  catRadius: 60, // 이만큼 다가가면 고양이가 야옹
+
+  // 내 모습 고르기 — 위 띠 아래부터 판 윗선까지 남은 자리에 나를 맞춘다
+  dressTopPx: 52, // 위 띠(동네 이름·소리 단추) 높이
+  dressZoom: 2.4, // 자리가 넉넉할 때 최대 확대
+  dressBodyPx: 72, // 내 키(모자 끝~발 56px) + 위아래 여유
 
   // 도착
   gatherMs: 900,

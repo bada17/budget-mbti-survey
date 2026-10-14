@@ -36,6 +36,8 @@ export const sfx = {
   door: () => { tone(196, 0.14, { type: 'square', gain: 0.03 }); tone(294, 0.16, { type: 'square', gain: 0.03, delay: 0.09 }); },
   whoosh: () => tone(420, 0.3, { slide: -260, gain: 0.05 }),
   flutter: () => { for (let i = 0; i < 6; i++) tone(820 + (i % 2) * 260, 0.03, { type: 'square', gain: 0.018, delay: i * 0.035 }); },
+  kick: () => tone(150, 0.09, { type: 'triangle', slide: -70, gain: 0.14 }),
+  meow: () => { tone(720, 0.12, { slide: 260, gain: 0.06 }); tone(980, 0.24, { slide: -520, gain: 0.06, delay: 0.1 }); },
   fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.5 : 0.16, { type: 'triangle', delay: i * 0.12, gain: 0.09 })),
 };
 

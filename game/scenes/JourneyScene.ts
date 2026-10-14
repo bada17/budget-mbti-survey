@@ -14,8 +14,8 @@ import { DESTINATION } from '../content';
 import { currentQuestion, type JourneyState } from '../flow';
 import { orderedQuestions, displayOptions, type DisplaySide } from '../response';
 import { FEEL } from '../feel';
-import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, type Point, type Room } from '../room';
-import { Dude, lookFrom, toLook, drawRoom, drawHill, drawBus, hearts, dust, tapRing, confetti, flee, sparkle, DAYLIGHT, type RoomArt } from '../draw';
+import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, rollBall, type Point, type Room } from '../room';
+import { Dude, lookFrom, toLook, drawRoom, drawHill, drawBus, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
 import type { Pick } from '../look';
 import type { Neighbor } from '../profile';
 import { sfx } from '../sfx';
@@ -43,6 +43,8 @@ export type Runtime = {
   ui: GameUI;
   ready(): void;
   pick(): Pick;
+  /** 내 이름(안 썼으면 빈 칸) — 언덕에서 내 머리 위 이름표. */
+  name(): string;
   /** 지난번에 고른 내 이웃 — 이번 판은 처음부터 같이 걷는다. */
   returning?: Neighbor;
   /** 언덕에서 다 같이 폴짝 뛴 뒤. 끝 화면은 main 이 띄운다. */
@@ -108,7 +110,18 @@ export class JourneyScene extends Phaser.Scene {
   dress() {
     if (this.mode !== 'intro') return;
     this.mode = 'dress';
-    this.zoomTo(2.4);
+    this.zoomTo(this.dressView());
+  }
+
+  /**
+   * 내 모습 고르기 — 아래 고르는 판 위에 남은 자리 가운데에 나를 둔다. 판 높이는 폰마다 달라서
+   * 자리를 재서 맞춘다(작은 폰에서 판이 나를 가리던 것, 10-14).
+   */
+  private dressView() {
+    const { w } = this.runtime.view();
+    const top = FEEL.dressTopPx, room = Math.max(40, this.runtime.ui.sheetTop() - top);
+    const k = Math.min(FEEL.dressZoom, room / FEEL.dressBodyPx);
+    return { z: k, x: this.pos.x - w / 2 / k, y: this.pos.y - 28 - (top + room / 2) / k };
   }
 
   setLook(pick: Pick) {
@@ -117,10 +130,9 @@ export class JourneyScene extends Phaser.Scene {
     this.player.hop(10, 1, this.reduced);
   }
 
-  private zoomTo(k: number, done?: () => void) {
-    const cam = this.cameras.main, { w, h, dpr } = this.runtime.view();
+  private zoomTo(to: { z: number; x: number; y: number }, done?: () => void) {
+    const cam = this.cameras.main, { dpr } = this.runtime.view();
     const from = { z: cam.zoom / dpr, x: cam.scrollX, y: cam.scrollY };
-    const to = k === 1 ? { z: 1, x: 0, y: 0 } : { z: k, x: this.pos.x - w / 2 / k, y: this.pos.y - 26 - (h * 0.27) / k };
     this.tweens.addCounter({
       from: 0, to: 1, duration: this.reduced ? 1 : 480, ease: 'Sine.easeInOut',
       onUpdate: tween => {
@@ -154,6 +166,9 @@ export class JourneyScene extends Phaser.Scene {
 
   private dropRoom() {
     this.art.destroy();
+    this.dropResidents();
+  }
+  private dropResidents() {
     for (const side of SIDES) this.residents[side]?.destroy();
     this.residents = {};
   }
@@ -193,13 +208,26 @@ export class JourneyScene extends Phaser.Scene {
     if (this.mode !== 'hill') this.follow(dt);
     if (this.insideBand) for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(dude.y < this.insideBand.top || dude.y > this.insideBand.bottom);
     if (this.mode !== 'play') return;
-    for (const side of SIDES) {
+    // 고른 뒤엔 남은 주민이 손 흔들고 나가는 중이라 여기서 붙잡지 않는다.
+    if (!this.chosen) for (const side of SIDES) {
       this.residents[side]?.look(this.pos.x - this.room.residents[side].x, this.pos.y - this.room.residents[side].y);
       this.residents[side]?.walk(dt, false, this.reduced);
     }
     this.meet(state);
     for (const bird of this.art.pigeons) {
       if (!bird.fled && distance(this.pos, bird.at) < FEEL.pigeonFleeRadius) { flee(this, bird, this.pos); sfx.flutter(); }
+    }
+    const toy = this.art.ball;
+    if (toy) {
+      if (rollBall(toy, this.pos, dt, this.room)) sfx.kick();
+      toy.root.setPosition(toy.at.x, toy.at.y);
+      toy.spin.angle += (Math.hypot(toy.v.x, toy.v.y) * dt / 1000 / 9) * (180 / Math.PI) * (toy.v.x < 0 ? -1 : 1);
+    }
+    const kitty = this.art.cat;
+    if (kitty) {
+      const d = distance(this.pos, kitty.at);
+      if (!kitty.near && d < FEEL.catRadius) { kitty.near = true; meow(this, kitty, this.reduced); sfx.meow(); }
+      else if (kitty.near && d > FEEL.catRadius + 30) kitty.near = false; // 멀어졌다 다시 오면 또 야옹
     }
     if (this.doorOpen && passedDoor(this.pos, this.room)) this.leaveRoom();
   }
@@ -261,7 +289,7 @@ export class JourneyScene extends Phaser.Scene {
 
   // ── 신호에 붙는 연출 ──
   private onEvent(event: GameEvent) {
-    if (event.type === 'journey.started') this.zoomTo(1, () => { this.mode = 'play'; this.showAsk(); });
+    if (event.type === 'journey.started') this.zoomTo({ z: 1, x: 0, y: 0 }, () => { this.mode = 'play'; this.showAsk(); });
     if (event.type === 'resident.approached') {
       this.residents[event.displaySide]?.hop(5, 1, this.reduced);
       if (this.hintStep === 0) { this.hintStep = 1; this.runtime.ui.hint(); }
@@ -282,7 +310,19 @@ export class JourneyScene extends Phaser.Scene {
     dude.hop(FEEL.jumpPx[level], FEEL.jumps[level], this.reduced);
     hearts(this, dude.x, dude.y - 44, FEEL.hearts[level], this.reduced);
     if (FEEL.shake[level] && !this.reduced) this.cameras.main.shake(160, FEEL.shake[level]);
-    this.residents[other(side)]?.hop(4, 1, this.reduced);
+    // 안 고른 주민은 손 흔들고 옆으로 걸어 나간다 — 시무룩하면 미안해서 다음 답이 끌린다(사용자 10-14).
+    const passed = this.residents[other(side)];
+    if (passed) {
+      const outX = other(side) === 'left' ? -40 : this.room.w + 40;
+      passed.look(this.pos.x - passed.x, this.pos.y - passed.y);
+      passed.wave(2, this.reduced);
+      if (this.reduced) passed.root.setVisible(false);
+      else this.tweens.add({
+        targets: passed.root, x: outX, delay: FEEL.waveMs, duration: FEEL.walkOffMs, ease: 'Sine.easeIn',
+        onStart: () => passed.look(outX - passed.x, 0),
+        onUpdate: () => { if (passed.root.active) passed.walk(16, true, false); },
+      });
+    }
     this.time.delayedCall(FEEL.joinDelayMs, () => {
       // 새 사람이 줄에 서면 먼저 온 사람들이 차례로 폴짝 반긴다.
       this.followers.forEach((friend, i) => this.time.delayedCall(i * 45, () => friend.dude.hop(7, 1, this.reduced)));
@@ -475,7 +515,8 @@ export class JourneyScene extends Phaser.Scene {
       this.walkTo(dude, spots[i], 900, { x: top.x, y: top.y + 40 });
       this.time.delayedCall(this.reduced ? 0 : 950, () => dude.hop(14, 2, this.reduced));
     });
-    this.time.delayedCall(this.reduced ? 0 : 960, () => this.runtime.ui.tags(guests.map((guest, i) => ({ text: guest.label, x: spots[i].x, y: spots[i].y - 58 }))));
+    const mine = { text: this.runtime.name() || '나', x: this.player.x, y: this.player.y - 58 };
+    this.time.delayedCall(this.reduced ? 0 : 960, () => this.runtime.ui.tags([mine, ...guests.map((guest, i) => ({ text: guest.label, x: spots[i].x, y: spots[i].y - 58 }))]));
   }
 
   /** 언덕에서 한 명을 눌러 내 이웃으로. */
@@ -499,13 +540,15 @@ export class JourneyScene extends Phaser.Scene {
   relayout() {
     if (!this.player) return;
     const { w, h, dpr } = this.runtime.view();
-    if (this.mode !== 'dress') this.cameras.main.setZoom(dpr);
+    if (this.mode === 'dress') this.zoomTo(this.dressView());
+    else this.cameras.main.setZoom(dpr);
     this.light.setSize(w * 3, h * 3);
     if (this.mode !== 'play' || (w === this.sizeBuilt.w && Math.abs(h - this.sizeBuilt.h) < 80)) return;
     const chosen = this.chosen, doorOpen = this.doorOpen;
     this.dropRoom();
     this.setRoom(this.buildRoom(this.roomIndex, 0));
-    if (chosen) { this.residents[chosen]?.destroy(); delete this.residents[chosen]; this.chosen = chosen; this.runtime.ui.made(); }
+    // 고른 뒤라면 두 주민 다 이 방에 없다 — 고른 쪽은 줄에, 안 고른 쪽은 손 흔들고 나갔다.
+    if (chosen) { this.dropResidents(); this.chosen = chosen; this.runtime.ui.made(); }
     if (doorOpen) { this.doorOpen = true; this.art.openDoor(true); this.showDoor(); }
     this.pos = { x: Math.min(Math.max(this.pos.x, 16), w - 16), y: Math.min(Math.max(this.pos.y, this.room.wallY + 10), this.room.floor) };
     if (!chosen) this.showAsk();

@@ -1,6 +1,7 @@
 import './ui.css';
 import { createJourney, transition, currentQuestion, type Command } from './flow';
 import { buildGameResponse, orderedQuestions, type GameResponse } from './response';
+import { scoreAnswers } from './score';
 import { ROUTE, TYPES } from './content';
 import { createEvents } from './events';
 import { Controls } from './input';
@@ -28,6 +29,8 @@ let game: import('phaser').Game | undefined;
 let pendingReveal: string | undefined;
 let frame = 0;
 let poll: ReturnType<typeof setInterval> | undefined;
+let card: File | undefined; // 공유 그림 — 미리 만들어 둔다(아래 prepareCard)
+let cardFor: string | undefined;
 const bus = createEvents();
 const abort = new AbortController();
 const view = { w: 360, h: 640, dpr: 1 };
@@ -41,11 +44,11 @@ const ui = createUI(root, {
   start: () => {
     unlockAudio();
     ui.hideIntro();
-    scene?.dress();
     ui.dresser(me, {
       change: next => { me = next; scene?.setLook(next.pick); },
       done: next => { me = next; saveMe(next); send({ type: 'start' }); void joinTable(); },
     });
+    scene?.dress(); // 판을 먼저 열어야 판 위에 남은 자리를 잴 수 있다
   },
   retry: () => location.reload(),
   sound: () => { setMuted(!isMuted()); ui.setSound(isMuted()); if (!isMuted()) unlockAudio(); },
@@ -148,11 +151,28 @@ function endLines() {
 }
 const mine = () => Object.fromEntries(Object.entries(state.answers).map(([id, value]) => [id, value <= 3 ? 'a' : 'b'])) as Record<string, 'a' | 'b'>;
 
+/**
+ * 공유 그림을 미리 찍어 둔다. 누른 뒤에 찍으면 아이폰 사파리가 「누른 직후」가 지났다며 공유창을 막는다.
+ * 언덕에 테이블 사람이 새로 서면(끝 화면 줄이 바뀌면) 다시 찍는다.
+ */
+async function prepareCard() {
+  const key = endLines().join('|');
+  if (!game || !state.result || key === cardFor) return;
+  cardFor = key;
+  try {
+    const scene = await new Promise<string>(resolve => game!.renderer.snapshot(shot => resolve((shot as HTMLImageElement).src)));
+    const blob = await ui.picture(scene);
+    if (blob && cardFor === key) card = new File([blob], `dongne-${state.result}.png`, { type: 'image/png' });
+  } catch (error) { console.warn(error); cardFor = undefined; }
+}
+
 function share() {
   if (!state.result) return;
   const url = `${here()}?with=${encodeInvite({ name: me.name, pick: me.pick, type: state.result })}`;
   const text = `동네 한 바퀴 — 나는 「${TYPES[state.result].name}」래요. 너도 걸어 봐!`;
-  if (navigator.share) navigator.share({ title: '동네 한 바퀴', text, url }).catch(() => {});
+  // 그림이 준비됐고 받는 쪽이 파일을 받으면 그림 + 글(링크 포함), 아니면 지금처럼 링크만.
+  const files = card && navigator.canShare?.({ files: [card] }) ? [card] : undefined;
+  if (navigator.share) navigator.share(files ? { files, text: `${text}\n${url}` } : { title: '동네 한 바퀴', text, url }).catch(() => {});
   else void navigator.clipboard?.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
 }
 
@@ -160,7 +180,7 @@ function share() {
 function showEnd() {
   if (!state.result) return;
   scene?.setGuests(guests());
-  ui.end({ code: state.result, lines: endLines() }, {
+  ui.end({ code: state.result, scores: scoreAnswers(orderedQuestions, state.answers), lines: endLines() }, {
     neighbor: () => {
       ui.endActions(false);
       ui.hint('언덕에서 한 명을 눌러 내 이웃으로 삼으세요');
@@ -174,8 +194,8 @@ function showEnd() {
           },
           contact: contactReady ? async form => {
             const checked = checkContact(form, Date.now());
-            if (!checked.ok) return checked.error;
-            return (await sendContact(checked.payload)) === 'sent' ? '고마워요! 소식이 생기면 보내 드릴게요.' : '고마워요! 다만 시험판이라 아직 저장하지 않았어요.';
+            if (!checked.ok) return { ok: false, text: checked.error };
+            return { ok: true, text: (await sendContact(checked.payload)) === 'sent' ? '고마워요! 소식이 생기면 보내 드릴게요.' : '고마워요! 다만 시험판이라 아직 저장하지 않았어요.' };
           } : undefined,
           close: () => ui.endActions(true),
         });
@@ -186,7 +206,8 @@ function showEnd() {
     again: () => { location.href = here(); },
   });
   // 테이블 사람들이 하나둘 언덕에 닿으면 그때그때 세운다.
-  if (tableCode) poll = setInterval(async () => { await refreshTable(); scene?.setGuests(guests()); ui.endLines(endLines()); }, 4000);
+  if (tableCode) poll = setInterval(async () => { await refreshTable(); scene?.setGuests(guests()); ui.endLines(endLines()); setTimeout(prepareCard, 1600); }, 4000);
+  setTimeout(prepareCard, 1600); // 카드가 내려앉고 손님이 언덕에 다 올라온 뒤
 }
 
 function measure() {
@@ -203,7 +224,7 @@ async function boot() {
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
       view: () => view, controls, ui, ready: () => ui.ready(),
-      pick: () => me.pick, returning, arrived: showEnd,
+      pick: () => me.pick, name: () => me.name, returning, arrived: showEnd,
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);
