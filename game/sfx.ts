@@ -39,6 +39,9 @@ export const sfx = {
   flutter: () => { for (let i = 0; i < 6; i++) tone(600 + (i % 2) * 140, 0.045, { type: 'triangle', gain: 0.02, delay: i * 0.04 }); },
   kick: () => tone(190, 0.12, { slide: -95, gain: 0.12 }),
   meow: () => { tone(620, 0.14, { type: 'triangle', slide: 210, gain: 0.045 }); tone(830, 0.27, { slide: -400, gain: 0.055, delay: 0.11 }); },
+  /** 빛 아치 — 생길 때는 짧게 반짝, 들어갈 때는 위로 쓸려 올라가는 소리. */
+  portal: () => [784, 988, 1175].forEach((f, i) => tone(f, 0.22, { delay: i * 0.06, gain: 0.04 })),
+  warp: () => { tone(330, 0.55, { slide: 900, gain: 0.05 }); [1047, 1319, 1568].forEach((f, i) => tone(f, 0.25, { delay: 0.25 + i * 0.07, gain: 0.035 })); },
   fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.5 : 0.16, { delay: i * 0.13, gain: 0.065 })),
 };
 

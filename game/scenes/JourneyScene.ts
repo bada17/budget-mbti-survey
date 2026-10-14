@@ -6,7 +6,7 @@
            → 그 주민이 하트를 날리며 내 뒤에 줄 섬, 그 자리에 고른 것의 표지판이 섬 → 문이 열림 → 위로 나감
   방 사이: 화면이 위로 밀려 다음 방(같은 동네), 세 방마다 버스를 타고 다음 동네. 동네를 지날수록 아침 → 노을.
   끝:      강 건너 언덕 — 따라온 주민·초대한 친구·같은 테이블 사람들이 모이고, 한 명을 내 이웃으로 고른다.
-           끝 화면의 「마을로 들어가기」 를 누르면 화면이 어두워지고 마을(VillageScene)로 간다(기획 4차).
+           끝 카드가 내려앉으면 언덕 위에 빛 아치가 피어난다 — 걸어서 지나면 마을(VillageScene)로 간다(10-14).
 
   답·진행은 runtime.send 로 flow.ts 에 맡긴다. 여기서는 위치·그림·연출만 다룬다.
 */
@@ -16,7 +16,7 @@ import { currentQuestion, type JourneyState } from '../flow';
 import { orderedQuestions, displayOptions, type DisplaySide } from '../response';
 import { FEEL } from '../feel';
 import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, rollBall, type Point, type Room } from '../room';
-import { Dude, lookFrom, toLook, drawRoom, drawHill, drawBus, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
+import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
 import type { Pick } from '../look';
 import type { Neighbor } from '../profile';
 import { sfx } from '../sfx';
@@ -50,6 +50,8 @@ export type Runtime = {
   returning?: Neighbor;
   /** 언덕에서 다 같이 폴짝 뛴 뒤. 끝 화면은 main 이 띄운다. */
   arrived(): void;
+  /** 언덕의 빛 아치를 지났다 — main 이 마을을 연다. */
+  enter(): void;
   busCaption(stage: number, skip: () => void): void;
 };
 
@@ -75,6 +77,10 @@ export class JourneyScene extends Phaser.Scene {
   private followers: Follower[] = [];
   private guests = new Map<string, Dude>();
   private hillTop?: Point;
+  /** 언덕을 방처럼 걷는다 — 빛 아치가 「문」(wallY 가 아치 발밑). 아치가 피기 전엔 없다. */
+  private hillRoom?: Room;
+  private warping = false;
+  private tagsShown?: { text: string; x: number; y: number }[];
   private guestTags: { text: string; x: number; y: number }[] = [];
   private picking?: (follower: Follower) => void;
   private light!: Phaser.GameObjects.Rectangle;
@@ -215,12 +221,15 @@ export class JourneyScene extends Phaser.Scene {
     const state = this.runtime.state();
     const before = { ...this.pos };
     if (this.mode === 'play' && !state.paused) this.walk(dt);
+    else if (this.hillRoom && !this.warping) this.walk(dt, this.hillRoom, [], true);
     const moving = this.autoMoving || distance(before, this.pos) > 0.05;
     if (moving) this.player.look(this.pos.x - before.x, this.pos.y - before.y);
-    this.player.place(this.pos).walk(dt, moving, this.reduced);
+    if (moving && this.hillRoom && this.guestTags !== this.tagsShown) { this.tagsShown = this.guestTags; this.runtime.ui.tags(this.guestTags); } // 걷기 시작하면 「나」 이름표는 떼어 둔다(글이라 따라오지 못한다)
+    if (!this.warping) this.player.place(this.pos).walk(dt, moving, this.reduced); // 빨려 들어가는 동안은 트윈이 옮긴다
     if (moving && !this.reduced && this.mode !== 'bus' && (this.dustClock += dt) > FEEL.dustEveryMs) { this.dustClock = 0; dust(this, this.pos.x - 6, this.pos.y); }
     this.recordTrail();
     if (this.mode !== 'hill') this.follow(dt);
+    if (this.hillRoom && !this.warping && passedDoor(this.pos, this.hillRoom)) this.warp();
     if (this.insideBand) for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(dude.y < this.insideBand.top || dude.y > this.insideBand.bottom);
     if (this.mode !== 'play') return;
     // 고른 뒤엔 남은 주민이 손 흔들고 나가는 중이라 여기서 붙잡지 않는다.
@@ -245,6 +254,36 @@ export class JourneyScene extends Phaser.Scene {
       else if (kitty.near && d > FEEL.catRadius + 30) kitty.near = false; // 멀어졌다 다시 오면 또 야옹
     }
     if (this.doorOpen && passedDoor(this.pos, this.room)) this.leaveRoom();
+  }
+
+  /** 언덕에서 걸을 수 있나 — 빛 아치가 피었고, 이웃을 고르는 중이 아닐 때(main 의 조작 켜기가 묻는다). */
+  hillOpen() { return Boolean(this.hillRoom) && !this.warping && !this.picking; }
+
+  /** 끝 카드 아래 남은 풀밭에 빛 아치를 세운다. 나는 그 아래 몇 걸음 떨어져 있다. */
+  private openPortal() {
+    const top = this.hillTop;
+    if (!top || this.mode !== 'hill' || this.hillRoom) return;
+    const { w, h } = this.runtime.view();
+    const free = this.runtime.ui.endFree();
+    const base = Math.round(Math.min(top.y - FEEL.portalGapPx, Math.max(free.top + PORTAL.height + 16, top.y - FEEL.portalGapPx * 1.6)));
+    drawPortal(this, top.x, base, this.reduced);
+    sparkle(this, top.x, base - PORTAL.height / 2, this.reduced);
+    sfx.portal();
+    const far = { x: -999, y: -999 };
+    this.hillRoom = { w, h, wallY: base, door: { x: top.x, half: PORTAL.half }, residents: { left: far, right: far }, spawn: { ...top }, floor: Math.min(h - 22, free.bottom - 8) };
+    this.player.look(0, -1);
+  }
+
+  /** 빛 아치를 지났다 — 작아지며 빛 속으로, 그다음 main 이 마을을 연다. */
+  private warp() {
+    this.warping = true;
+    this.runtime.controls.clear();
+    const room = this.hillRoom!, into = { x: room.door.x, y: room.wallY - PORTAL.height * 0.45 };
+    sfx.warp();
+    sparkle(this, into.x, into.y, this.reduced);
+    this.followers.forEach(({ dude }, i) => this.time.delayedCall(i * FEEL.cheerGapMs, () => dude.hop(12, 1, this.reduced)));
+    this.tweens.add({ targets: this.player.root, x: into.x, y: into.y, scale: 0.25, alpha: 0, duration: this.reduced ? 1 : FEEL.warpMs, ease: 'Cubic.easeIn' });
+    this.time.delayedCall(this.reduced ? 0 : FEEL.warpMs, () => this.runtime.enter());
   }
 
   private walk(dt: number, room = this.room, solid = SIDES.filter(side => this.residents[side]).map(side => this.room.residents[side]), doorOpen = this.doorOpen) {
@@ -521,7 +560,10 @@ export class JourneyScene extends Phaser.Scene {
       confetti(this, this.runtime.view().w, 0, this.reduced);
       this.player.hop(26, 2, this.reduced);
       this.followers.forEach(({ dude }, i) => this.time.delayedCall(i * FEEL.cheerGapMs, () => dude.hop(16, 2, this.reduced)));
-      this.time.delayedCall(FEEL.revealDelayMs, () => this.runtime.arrived());
+      this.time.delayedCall(FEEL.revealDelayMs, () => {
+        this.runtime.arrived();
+        this.time.delayedCall(this.reduced ? 0 : FEEL.portalDelayMs, () => this.openPortal());
+      });
     });
   }
 
@@ -566,7 +608,9 @@ export class JourneyScene extends Phaser.Scene {
     best.dude.hop(14, 1, this.reduced);
     tapRing(this, best.dude.x, best.dude.y);
     sfx.meet();
-    this.picking(best);
+    const picked = this.picking;
+    this.picking = undefined; // 고른 뒤엔 다시 걸을 수 있다
+    picked(best);
   }
 
   /** 화면 크기가 크게 바뀌면(회전 등) 지금 방을 새 크기로 다시 깐다. 주소창이 들고 나는 정도는 넘긴다. */

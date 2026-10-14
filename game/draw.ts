@@ -749,6 +749,69 @@ export function drawHill(scene: Scene, w: number, h: number, offsetY: number) {
   return { box, top: { x: w / 2, y: Math.round(h * 0.68) } };
 }
 
+/** 빛 아치의 안쪽 폭 반·높이 — 장면이 「문」 폭으로 쓴다(이 안으로만 지나간다). */
+export const PORTAL = { half: 30, height: 82 };
+
+/**
+ * 언덕의 빛 아치 — 걸어서 지나면 마을(사용자 10-14 「눌러서 말고 포탈을 통과해서」). 꽃·덩굴 감긴 둥근 아치, 안은 빛이 일렁인다.
+ * (x, base) 는 아치 발밑 가운데. 깊이를 발밑에 둬서, 아치를 지나 위로 가면 빛 뒤로 가려진다 — 빨려 들어가는 것처럼.
+ */
+export function drawPortal(scene: Scene, x: number, base: number, reduced: boolean) {
+  const { half, height } = PORTAL, R = half + 7, top = height - half; // 기둥 높이(둥근 머리 아래까지)
+  const arch = (g: Phaser.GameObjects.Graphics, r: number) => {
+    g.beginPath().moveTo(-r, 0).lineTo(-r, -top).arc(0, -top, r, Math.PI, 0, false).lineTo(r, 0);
+  };
+  const back = scene.add.graphics();
+  back.fillStyle(0x756956, 0.16).fillEllipse(0, 3, R * 2 + 30, 16);
+  // 빛 — 겹 타원으로 가운데가 밝게(그래디언트는 사각형에만 먹는다).
+  back.fillStyle(0xcfeff0); arch(back, half); back.closePath().fillPath();
+  back.fillStyle(0xe6dcfa, 0.8).fillEllipse(0, -top + 4, half * 1.7, height * 0.95);
+  back.fillStyle(0xfff6dc, 0.9).fillEllipse(0, -top + 10, half * 1.05, height * 0.6);
+  back.fillStyle(0xffffff, 0.85).fillEllipse(0, -top + 14, half * 0.45, height * 0.3);
+  const swirl = scene.add.graphics();
+  swirl.lineStyle(2, 0xffffff, 0.55);
+  for (const k of [0.45, 0.75]) swirl.strokeEllipse(0, 0, half * 2 * k, height * 0.7 * k);
+  swirl.setPosition(0, -top + 10);
+  const front = scene.add.graphics();
+  front.lineStyle(13, 0x9a7a5c); arch(front, R); front.strokePath(); // 나무 테
+  front.lineStyle(7, 0x8fbf7c); arch(front, R); front.strokePath(); // 덩굴
+  for (const s of [-1, 1]) front.fillStyle(0x7c6048).fillRoundedRect(s * R - 9, -8, 18, 10, 4); // 받침돌
+  // 덩굴 잎과 꽃 — 테를 따라 고르게.
+  const along = (t: number) => {
+    const straight = top / (top + Math.PI * R / 2); // 한쪽 기둥이 차지하는 몫
+    if (t < straight) return { x: -R, y: -t / straight * top };
+    if (t > 2 - straight) return { x: R, y: -(2 - t) / straight * top };
+    const a = Math.PI + (t - straight) / (2 - 2 * straight) * Math.PI;
+    return { x: Math.cos(a) * R, y: -top + Math.sin(a) * R };
+  };
+  for (let i = 0; i < 14; i++) {
+    const p = along(0.08 + i * 0.13);
+    front.fillStyle(i % 2 ? 0x6fa865 : 0xa6d08c).fillEllipse(p.x + (i % 3 - 1) * 4, p.y + 3, 9, 5);
+  }
+  [0.25, 0.62, 0.86, 1.0, 1.14, 1.38, 1.75].forEach((t, i) => {
+    const p = along(t), petal = [0xf6b3bf, 0xfff8e4, 0xf7d391][i % 3];
+    front.fillStyle(petal);
+    for (let k = 0; k < 5; k++) front.fillCircle(p.x + Math.cos(k * Math.PI * 0.4) * 3.2, p.y + Math.sin(k * Math.PI * 0.4) * 3.2, 2.7);
+    front.fillStyle(0xe6a85e).fillCircle(p.x, p.y, 2.2);
+  });
+  const root = scene.add.container(x, base, [back, swirl, front]).setDepth(base);
+  if (reduced) return root;
+  root.setScale(0.2).setAlpha(0);
+  scene.tweens.add({ targets: root, scale: 1, alpha: 1, duration: 520, ease: 'Back.easeOut' });
+  scene.tweens.add({ targets: swirl, angle: 360, duration: 5200, repeat: -1 });
+  scene.tweens.add({ targets: back, alpha: 0.82, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  // 빛 알갱이가 안에서 피어오른다.
+  scene.time.addEvent({
+    delay: 260, loop: true, callback: () => {
+      if (!root.active) return;
+      const dot = scene.add.circle((Math.random() - 0.5) * half * 1.4, -6, 1.6 + Math.random() * 1.4, Math.random() < 0.5 ? 0xffffff : 0xfff0b8, 0.9);
+      root.addAt(dot, 2);
+      scene.tweens.add({ targets: dot, y: -height * (0.55 + Math.random() * 0.4), alpha: 0, duration: 1300, ease: 'Sine.easeOut', onComplete: () => dot.destroy() });
+    },
+  });
+  return root;
+}
+
 // ───────────────────────── 마을(기획 4차) ─────────────────────────
 // Claude 의 임시 그림 — 같은 화풍(둥근 도형·파스텔·납작한 그림자). 장소마다 알아보게 다듬는 건 GPT 몫.
 // 배치(어디에 무엇이)는 village.ts 가 정한다 — 여기서 자리를 옮기면 부딪힘과 어긋난다.

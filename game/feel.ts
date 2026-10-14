@@ -61,4 +61,7 @@ export const FEEL = {
   gatherMs: 900,
   cheerGapMs: 70,
   revealDelayMs: 900,
+  portalDelayMs: 1100, // 끝 카드가 내려앉은 뒤 빛 아치가 피어나기까지
+  portalGapPx: 64, // 빛 아치 발밑과 나 사이(몇 걸음 걸어 올라가게)
+  warpMs: 700, // 아치에 빨려 들어가는 시간
 } as const;

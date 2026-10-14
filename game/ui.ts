@@ -208,6 +208,15 @@ export function createUI(root: HTMLElement, actions: {
       const box = shell.getBoundingClientRect();
       return sheet.hidden ? box.height : sheet.getBoundingClientRect().top - box.top;
     },
+    /** 아래 판이나 화면을 덮는 판이 열려 있나 — 그동안은 걷지 않는다. */
+    busy() { return !sheet.hidden || !panel.hidden; },
+    /** 끝 화면에서 카드와 아래 단추 사이에 남은 풀밭(게임 화면 위에서부터 CSS px). */
+    endFree() {
+      const box = shell.getBoundingClientRect();
+      const card = end.querySelector('.g-end-card')?.getBoundingClientRect(), bar = end.querySelector<HTMLElement>('.g-end-actions');
+      const barBox = bar && !bar.hidden ? bar.getBoundingClientRect() : undefined;
+      return { top: card ? card.bottom - box.top : 0, bottom: barBox ? barBox.top - box.top : box.height };
+    },
     dresser(me: Me, on: { change(me: Me): void; done(me: Me): void }) {
       const current: Me = { name: me.name, pick: [...me.pick] as Pick };
       const name = el('input', 'g-input'); name.maxLength = 10; name.value = me.name; name.placeholder = '이름이나 별명 (안 써도 돼요)';
@@ -264,7 +273,7 @@ export function createUI(root: HTMLElement, actions: {
 
     /**
      * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들.
-     * 주민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차) — 끝 화면엔 「마을로 들어가기」 하나.
+     * 주민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차). 마을로는 언덕의 빛 아치를 걸어서 지난다(10-14).
      */
     end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; village(): void }) {
       const card = el('div', 'g-end-card');
@@ -288,7 +297,7 @@ export function createUI(root: HTMLElement, actions: {
       bar.append(
         row,
         ...(on.reply ? [button('g-ghost', on.reply.label, on.reply.run)] : []), // 나를 부른 친구에게 답장(기획 3차 ①)
-        button('g-ghost g-village', `${VILLAGE_NAME}로 들어가기 →`, on.village),
+        button('g-sr', `${VILLAGE_NAME}로 들어가기`, on.village), // 눈으로는 빛 아치를 걸어서 지난다 — 화면 읽기 도구·키보드만 쓰는 사람의 길
         links,
         give,
       );

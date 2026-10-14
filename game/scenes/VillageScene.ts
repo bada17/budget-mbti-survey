@@ -12,7 +12,7 @@ import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, type Point } from '../room';
 import { PLACES, SPAWN, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, type PlaceId } from '../village';
-import { Dude, lookFrom, toLook, drawVillage, noteTag, dust, tapRing, flee, meow, type VillageArt } from '../draw';
+import { Dude, lookFrom, toLook, drawVillage, noteTag, dust, tapRing, flee, meow, sparkle, type VillageArt } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -79,6 +79,11 @@ export class VillageScene extends Phaser.Scene {
     cam.startFollow(this.player.root, true, 0.14, 0.14);
     cam.centerOn(this.pos.x, this.pos.y - 40);
     if (!this.reduced) cam.fadeIn(260, 255, 250, 240);
+    if (this.runtime.start() === 'gate' && !this.reduced) { // 언덕의 빛 아치를 막 지나왔다 — 빛에서 톡 튀어나온다
+      this.player.root.setScale(0.25).setAlpha(0);
+      this.tweens.add({ targets: this.player.root, scale: 1, alpha: 1, duration: 420, delay: 160, ease: 'Back.easeOut' });
+      this.time.delayedCall(160, () => sparkle(this, this.pos.x, this.pos.y - 28, false));
+    }
     this.runtime.ready();
   }
 

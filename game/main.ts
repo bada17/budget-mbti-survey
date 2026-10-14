@@ -98,7 +98,11 @@ const ui = createUI(root, {
   goDoor: () => scene?.goDoor(),
 });
 ui.setSound(isMuted());
-const controls = new Controls(ui.surface, () => (where === 'village' ? !panelOpen : !state.paused && ['walking', 'question', 'reply'].includes(state.phase)));
+const controls = new Controls(ui.surface, () => {
+  if (where === 'village') return !panelOpen;
+  if (state.phase === 'arrived') return Boolean(scene?.hillOpen()) && !ui.busy(); // 언덕 — 빛 아치가 핀 뒤, 판이 덮지 않았을 때
+  return !state.paused && ['walking', 'question', 'reply'].includes(state.phase);
+});
 const stopEffects = attachEffects(bus);
 
 function notes() {
@@ -314,12 +318,11 @@ const likeNote = async (id: string) => { const sid = villageMe()?.sessionId; ret
 const reportNote = async (id: string) => { const sid = villageMe()?.sessionId; return Boolean(sid && (await net.report(sid, id))); };
 const notesCard = noteCard(shell, { like: likeNote, report: reportNote });
 
-/** 끝 화면 「마을로 들어가기」 — 언덕이 어두워지고, 마을 남쪽 문에서 나타난다. */
+/** 언덕의 빛 아치를 지났다(화면 읽기 도구는 숨은 단추로) — 언덕이 하얗게 바래고, 마을 남쪽 문에서 나타난다. */
 function toVillage() {
   if (where === 'village' || !game) return;
   clearInterval(poll);
   villageStart = 'gate';
-  ui.toast('마을로 내려가요');
   scene?.leave(() => { game!.scene.stop('journey'); game!.scene.start('village'); });
 }
 
@@ -445,7 +448,7 @@ async function boot() {
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
       view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); },
-      pick: () => me.pick, name: () => me.name, returning, arrived: showEnd,
+      pick: () => me.pick, name: () => me.name, returning, arrived: showEnd, enter: toVillage,
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);
