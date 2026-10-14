@@ -51,7 +51,6 @@ export function openBus(shell: HTMLElement, neighbor: Neighbor | undefined, walk
   const { panel } = placePanel(shell, 'bus', onClose);
   panel.append(
     el('p', 't-lead', '「동네 한 바퀴」 열다섯 동네를 다시 걸어요. 지난번과 다르게 골라도 괜찮아요.'),
-    ...(neighbor ? [el('p', 't-lead', `내 이웃 ${josa(`「${neighbor.name}」`, '이', '가')} 같이 걸어요.`)] : []),
     btn('g-primary', '한 바퀴 걷기', walk),
   );
 }

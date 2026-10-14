@@ -36,7 +36,7 @@ const invite = decodeInvite(params.get('with')); // 나를 부른 친구 — 끝
 const letterSeason = seasonById(params.get('letter'));
 const letterNeighbor = readNeighborParam(params.get('nb'));
 if (letterSeason && letterNeighbor && !loadNeighbor()) saveNeighbor({ ...letterNeighbor, at: Date.now() });
-const returning = loadNeighbor(); // 지난번 내 이웃 — 이번엔 처음부터 같이 걷는다
+const returning = loadNeighbor(); // 지난번 내 이웃 — 편지에 쓴다. 걷기 판엔 데려가지 않는다(사용자 10-14 「처음 시작할 때 애가 한 명 이미 따라다니네」 → 빼기, 마을에선 따라다닌다)
 const eventCode = params.get('stamp');
 const gotEvent = (() => { const id = eventStamp(eventCode); return id && addStamp(id) ? EVENTS[eventCode!] : undefined; })(); // 현장 도장(?stamp=)
 let home = loadHome(); // 내 방명록 집 — 끝까지 걸으면 서버에서 받아 둔다
@@ -114,7 +114,6 @@ function notes() {
   const lines: string[] = [];
   if (invite) lines.push(`${invite.name}님이 이 동네로 불렀어요. 끝에 언덕에서 만나요.`);
   if (invite?.home && online) lines.push(`끝까지 걸으면 ${invite.name}님 동네 방명록에 내 이름·모습·유형이 남아요.`);
-  if (returning) lines.push(`지난번 내 이웃 ${josa(`「${returning.name}」`, '이', '가')} 이번에도 같이 걸어요.`);
   if (tableCode) lines.push(`테이블 ${tableCode} 에 앉았어요. 끝에 다 같이 모여요.`);
   const season = seasonAt(Date.now());
   if (season) lines.push(`지금은 ${season.name} — 이번 철에 걸으면 주민증에 철 도장이 찍혀요.`);
@@ -275,7 +274,7 @@ function neighborSheet(who: Pick<Neighbor, 'questionId' | 'key' | 'seed'>, keepN
       const name = typed || keepName || '이웃';
       saveNeighbor({ questionId: who.questionId, key: who.key, seed: who.seed, name, at: Date.now() });
       addStamp('neighbor');
-      ui.toast(`${josa(`「${name}」`, '이', '가')} 내 이웃이 됐어요. 다음에 오면 같이 걷고, 예산철엔 편지를 보내요.`);
+      ui.toast(`${josa(`「${name}」`, '이', '가')} 내 이웃이 됐어요. 마을에서 같이 다니고, 예산철엔 편지를 보내요.`);
     },
     contact: contactReady ? async form => {
       const checked = checkContact(form, Date.now());
@@ -527,7 +526,7 @@ async function boot() {
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
       view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); },
-      pick: () => me.pick, name: () => me.name, returning, arrived: showEnd, enter: toVillage,
+      pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage,
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);

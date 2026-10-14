@@ -87,9 +87,12 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-door svg{width:24px;height:24px;fill:none;stroke:#fffdf3;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 @keyframes door-bob{50%{transform:translate(-50%,calc(-50% - 6px))}}
 .g-hint{position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);margin:0;padding:8px 16px 7px;border-radius:999px;background:#fffaf0f0;color:#6c5240;font-family:var(--body);font-weight:600;font-size:14px;white-space:nowrap;box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #cdb79570;pointer-events:none;animation:ask-in .3s both}
-.g-hint-hand{left:calc(50% + 74px);bottom:calc(max(18px,env(safe-area-inset-bottom)) + 30px);width:58px;height:58px;padding:0;display:grid;place-items:center;border-radius:50%}
-.g-hint-hand svg{width:30px;height:30px;fill:#fffaf0;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;animation:press 1.3s ease-in-out infinite}
-@keyframes press{0%,100%{transform:translateY(0)}40%{transform:translateY(4px) scale(.94)}}
+.g-hint-hand{left:calc(50% + 74px);bottom:calc(max(18px,env(safe-area-inset-bottom)) + 30px);width:64px;height:64px;padding:0;display:grid;place-items:center;border-radius:50%}
+.g-hint-hand svg{width:30px;height:30px;fill:#fffaf0;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;animation:push 1.6s ease-in-out infinite}
+@keyframes push{0%,15%{transform:translateY(8px)}55%,75%{transform:translateY(-10px)}100%{transform:translateY(8px)}}
+/* 떠다니는 조이스틱(input.ts) — 엄지를 댄 자리의 바탕, 미는 쪽 손잡이 */
+.g-stick{position:absolute;z-index:3;width:92px;height:92px;margin:-46px 0 0 -46px;border-radius:50%;background:#7c624d1f;box-shadow:inset 0 0 0 2.5px #7c624d55;pointer-events:none}
+.g-stick i{position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px 0 0 -21px;border-radius:50%;background:#fffaf0e6;box-shadow:0 3px 0 #d6bf98,inset 0 0 0 2px var(--line)}
 .g-made{position:absolute;transform:translate(-50%,-100%);padding:5px 11px 4px;border-radius:9px;background:#fbe9c4;color:#76522c;font-family:var(--display);font-size:13px;white-space:nowrap;box-shadow:inset 0 0 0 2px #dcb878,0 3px 0 #c8a265;animation:bubble-pop .3s cubic-bezier(.3,1.5,.5,1) both}
 .g-made::after{content:"";position:absolute;left:50%;top:100%;width:5px;height:10px;margin-left:-2.5px;background:#a77d51;border-radius:0 0 2px 2px}
 .g-tag{position:absolute;transform:translate(-50%,-100%);padding:3px 10px 2px;border-radius:999px;background:var(--tab);color:#6a4716;font-family:var(--display);font-size:12px;white-space:nowrap;box-shadow:0 2px 0 var(--tab-dark)}

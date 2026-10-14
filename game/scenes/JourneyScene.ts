@@ -46,8 +46,6 @@ export type Runtime = {
   pick(): Pick;
   /** 내 이름(안 썼으면 빈 칸) — 언덕에서 내 머리 위 이름표. */
   name(): string;
-  /** 지난번에 고른 내 이웃 — 이번 판은 처음부터 같이 걷는다. */
-  returning?: Neighbor;
   /** 언덕에서 다 같이 폴짝 뛴 뒤. 끝 화면은 main 이 띄운다. */
   arrived(): void;
   /** 언덕의 빛 아치를 지났다 — main 이 마을을 연다. */
@@ -103,11 +101,6 @@ export class JourneyScene extends Phaser.Scene {
     this.pos = { ...this.room.spawn };
     this.player = new Dude(this, toLook(this.runtime.pick()), this.pos.x, this.pos.y).place(this.pos);
     this.trail = [{ x: this.pos.x, y: this.pos.y + 80 }, { ...this.pos }];
-    const back = this.runtime.returning;
-    if (back) {
-      const dude = new Dude(this, lookFrom(back.seed), this.pos.x, this.pos.y + 34, FEEL.followerScale).place({ x: this.pos.x, y: this.pos.y + 34 });
-      this.followers.push({ dude, questionId: back.questionId, key: back.key, seed: back.seed });
-    }
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.tapHill(p.worldX, p.worldY));
     const stop = this.runtime.subscribe(event => this.onEvent(event));
     this.events.once('shutdown', stop);
@@ -211,7 +204,7 @@ export class JourneyScene extends Phaser.Scene {
     const anchors = Object.fromEntries(SIDES.map(side => [side, { x: this.room.residents[side].x, y: this.room.residents[side].y - 56 }])) as Record<DisplaySide, Point>;
     const ms = this.runtime.ui.ask(question, this.runtime.state().sessionId, anchors, i => sfx.bubble(i));
     this.time.delayedCall(ms, () => { if (this.mode === 'play' && !this.chosen) this.runtime.visible(question.id); });
-    if (this.hintStep === 0) this.runtime.ui.walkHint(touchScreen ? '화면을 꾹 누르면 그쪽으로 걸어가요' : '방향키나 마우스로 걸어가요');
+    if (this.hintStep === 0) this.runtime.ui.walkHint(touchScreen ? '엄지를 대고 밀면 그쪽으로 걸어가요' : '방향키나 마우스로 끌어서 걸어가요');
   }
 
   // ── 매 프레임 ──
@@ -224,6 +217,7 @@ export class JourneyScene extends Phaser.Scene {
     else if (this.hillRoom && !this.warping) this.walk(dt, this.hillRoom, [], true);
     const moving = this.autoMoving || distance(before, this.pos) > 0.05;
     if (moving) this.player.look(this.pos.x - before.x, this.pos.y - before.y);
+    if (moving && this.hintStep === 0 && this.mode === 'play') { this.hintStep = 1; this.runtime.ui.hint(); } // 걷기 시작하면 손 안내는 치운다
     if (moving && this.hillRoom && this.guestTags !== this.tagsShown) { this.tagsShown = this.guestTags; this.runtime.ui.tags(this.guestTags); } // 걷기 시작하면 「나」 이름표는 떼어 둔다(글이라 따라오지 못한다)
     if (!this.warping) this.player.place(this.pos).walk(dt, moving, this.reduced); // 빨려 들어가는 동안은 트윈이 옮긴다
     if (moving && !this.reduced && this.mode !== 'bus' && (this.dustClock += dt) > FEEL.dustEveryMs) { this.dustClock = 0; dust(this, this.pos.x - 6, this.pos.y); }
