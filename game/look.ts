@@ -43,3 +43,13 @@ export function lookFrom(seed: string): Look {
   const at = <T>(list: readonly T[], from = 0) => list[from + Math.floor(r() * (list.length - from))];
   return { coat: at(COATS, 1), skin: at(SKINS), hair: at(HAIRS), style: Math.floor(r() * 4), tall: 0.9 + r() * 0.2 };
 }
+
+/**
+ * 주민 이름 — 말 상자의 이름표(10-14 사용자 「동물의 숲처럼」). 같은 주민은 늘 같은 이름. 순우리말로, 성별을 가리지 않는 것만.
+ * 끝에 덧붙이는 건 괜찮고, 순서를 바꾸면 주민 이름이 바뀐다.
+ */
+export const NAMES = [
+  '하늘', '바다', '솔', '봄', '별', '다온', '하람', '이든', '나래', '가람', '누리', '단비', '미르', '보람', '새롬', '슬기', '아라', '여름', '온유', '윤슬',
+  '은솔', '초롱', '한결', '해솔', '라온', '시내', '도담', '마루', '빛나', '그루', '다솜', '가온', '늘봄', '새벽', '찬솔', '푸름', '한별', '이슬', '노을', '구름',
+];
+export const nameFrom = (seed: string) => NAMES[Math.floor(rng(`${seed}#name`)() * NAMES.length)];

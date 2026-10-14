@@ -17,7 +17,7 @@ import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, type Town, type Neighbor
 import { toLook, lookFrom, type Look, type Pick } from './look';
 import { board } from './stamps';
 import { letterFor, type Season } from './seasons';
-import { DONATE_URL, backCloses } from './ui';
+import { DONATE_URL, backCloses, ICONS } from './ui';
 import { PRIVACY_URL } from './contact';
 import { PROVIDER_NAME, type Provider } from './login';
 import type { RegionView, Visit } from './api';
@@ -95,7 +95,9 @@ export function panelShell(shell: HTMLElement, onClose: () => void, backText = '
   const finish = () => { if (closed) return; closed = true; panel.remove(); onClose(); };
   const leave = backCloses(finish); // 폰 「뒤로」 = 이 판 닫기
   const close = () => { leave(); finish(); };
-  const back = btn('t-back', backText, close);
+  // 닫기는 오른쪽 위 ✕ 하나(사용자 10-14 「← 마을로」 같은 글은 빼기). 어디로 가는지는 화면 읽기 도구에만.
+  const back = btn('t-back', '', close);
+  back.innerHTML = ICONS.close; back.setAttribute('aria-label', backText.replace(/^←\s*/, ''));
   panel.append(back);
   shell.append(panel);
   back.focus({ preventScroll: true });
@@ -133,7 +135,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     el('dt', '', '내 이웃'), el('dd', '', data.neighbor?.name || '아직'), el('dt', '', '우리 지역'), el('dd', '', data.region || '아직'));
   const body = el('div', 't-card-body'); body.append(photo, facts);
   const grid = el('div', 't-stamps');
-  const tip = el('p', 't-tip', '도장을 누르면 받는 법이 보여요');
+  const tip = el('p', 't-tip');
   for (const s of stamps) {
     const mark = btn(`t-stamp${s.on ? ' on' : ''}`, s.name, () => {
       tip.textContent = s.on ? `${s.name} — 받았어요` : `${s.name} — ${s.how}`;

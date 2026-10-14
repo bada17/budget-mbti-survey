@@ -1,25 +1,51 @@
-/* 내 동네 · 답장 · 이웃의 편지 (town.ts). 색은 ui.css 의 :root 값을 쓴다. 꾸미기는 GPT 몫 — 클래스 이름만 지킨다. */
-.t-panel{position:absolute;inset:0;z-index:4;overflow-y:auto;padding:calc(max(12px,env(safe-area-inset-top)) + 4px) 16px max(24px,env(safe-area-inset-bottom));background:var(--paper);animation:ask-in .25s both;user-select:text;-webkit-user-select:text}
-.t-panel h2{margin:6px 0 4px;font-size:22px;letter-spacing:-.6px;word-break:keep-all}
-.t-back{padding:6px 0;font-size:13px;color:var(--soft)}
-.t-kicker{margin:10px 0 0;font-size:12px;font-weight:800;color:var(--accent-dark)}
-.t-lead,.t-small{margin:0 0 10px;font-size:13px;line-height:1.55;color:var(--soft);word-break:keep-all}
-.t-section{margin-top:26px;padding-top:4px;border-top:1px dashed var(--line)}
-.t-area{margin:12px 0 0}.t-area h3{margin:0 0 6px;font-size:13px;color:var(--accent-dark)}
-.t-lots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.t-lot{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px;border-radius:14px;background:var(--card);box-shadow:0 2px 0 #0000000d;min-width:0}
-.t-house{position:relative;display:block;max-width:100%;padding:6px 8px 5px;border-radius:9px 9px 4px 4px;background:#ffe3d6;font-size:12.5px;font-weight:750;line-height:1.3;word-break:keep-all}
-.t-house::before{content:"";position:absolute;left:50%;top:-6px;width:0;height:0;border:7px solid transparent;border-bottom-color:#ffe3d6;border-top:0;transform:translateX(-50%)}
-.t-friend{background:#dcebf5}.t-friend::before{border-bottom-color:#dcebf5}.t-friend em{display:block;font-style:normal;font-weight:500;font-size:10.5px;color:var(--soft)}
-.t-place{font-size:11px;color:var(--soft)}
-.t-with{font-size:10.5px;color:#3c6e8f}
+/* 건물 안 판 — 주민센터(town.ts)·마을 건물(places.ts). 색·글꼴은 ui.css 의 :root 값. 닫기는 오른쪽 위 ✕ 하나. */
+.t-panel{position:absolute;inset:0;z-index:4;overflow-y:auto;padding:calc(max(10px,env(safe-area-inset-top)) + 4px) 16px max(26px,env(safe-area-inset-bottom));background:var(--paper);animation:ask-in .25s both;user-select:text;-webkit-user-select:text}
+.t-panel h2{margin:4px 52px 10px 2px;font-size:28px;line-height:1.25;letter-spacing:-.3px;color:#5b402e}
+.t-back{position:sticky;top:0;z-index:3;display:grid;place-items:center;width:42px;height:42px;margin:0 0 -42px auto;border-radius:50%;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 3px 0 var(--edge)}
+.t-back svg{width:20px;height:20px;fill:none;stroke:#7a5e49;stroke-width:2.6;stroke-linecap:round}
+.t-back:active{transform:translateY(2px);box-shadow:inset 0 0 0 2px var(--line),0 1px 0 var(--edge)}
+.t-kicker{margin:14px 0 4px;font-family:var(--display);font-size:16px;color:var(--accent-dark)}
+.t-lead{margin:0 0 12px;font-size:15px;line-height:1.7;color:#5f4c3e}
+.t-small{margin:0 0 10px;font-size:13px;line-height:1.6;color:var(--soft)}
+.t-section{margin-top:26px;padding-top:6px;border-top:2px dashed var(--line)}
+.t-source{margin:10px 2px 0;font-size:12px;color:var(--soft)}
+.t-source summary{display:inline-block;padding:2px 10px;border-radius:999px;background:#f3e8d2;cursor:pointer;list-style:none}
+.t-source summary::-webkit-details-marker{display:none}.t-source summary::before{content:"ⓘ ";}
+.t-source p{margin:6px 2px 0;line-height:1.6}
 
-/* 옆에 세워 보기 · 지역 고르기 */
-.t-regions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 6px}
-.t-chip{display:inline-flex;align-items:center;gap:4px;min-height:34px;padding:3px 10px;border-radius:999px;background:var(--card);box-shadow:0 0 0 1.5px var(--line);font-size:13px;font-weight:700;color:var(--ink)}
-.t-chip.on{box-shadow:0 0 0 2px var(--accent);color:var(--accent-dark)}
+/* 말 상자 — 문 앞 주민의 한마디(ui.css 의 .g-talk 와 같은 꼴, 왼쪽에 얼굴) */
+.v-npc{position:relative;display:flex;align-items:center;gap:12px;margin:14px 0 16px;padding:20px 16px 14px;border-radius:28px 34px 30px 26px/30px 26px 32px 28px;background:#fffaee;box-shadow:inset 0 0 0 2.5px #efdfbf,0 4px 0 #d6bf98;cursor:pointer}
+.v-npc .g-name{left:64px}
+.v-npc .t-ava{transform:scale(1.35);margin:0 4px 0 6px}
+.v-said{margin:0;min-height:1.5em;font-family:var(--display);font-size:17px;line-height:1.5;color:#55402f}
+
+/* 바깥으로 가는 단추·목록 */
+a.v-go{margin:16px 0 4px;text-decoration:none}
+a.g-link{text-align:center}
+.v-qa{margin:0 0 12px;padding:14px 16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line)}
+.v-q,.v-a{margin:0;line-height:1.6}
+.v-q{font-family:var(--display);font-size:17px;color:#5b402e}.v-q::before{content:"Q ";color:var(--accent)}
+.v-a{margin-top:6px;font-size:14px;color:#6a5646}.v-a::before{content:"A ";font-family:var(--display);color:var(--leaf-dark)}
+.v-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}
+a.v-item{display:grid;gap:4px;padding:12px 14px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #e2cfab;color:#5b402e;font-family:var(--display);font-size:16px;line-height:1.4;text-decoration:none;transition:transform .08s}
+a.v-item:active{transform:translateY(2px)}
+a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
+
+/* 지역 고르기 칩 */
+.t-regions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 8px}
+.t-chip{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:3px 13px 2px;border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line);font-family:var(--display);font-size:15px;color:#6c5240}
+.t-chip.on{background:#fff0e4;box-shadow:inset 0 0 0 2.5px var(--accent);color:var(--accent-dark)}
 .t-chip:disabled{opacity:.5}
 .t-chip .t-ava{transform:scale(.7);margin:-6px -4px}
+
+/* 나라살림 창고 — 한 해 살림 카드 */
+.t-bigcard{margin:12px 0;padding:16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 4px 0 #e2cfab}
+.t-bigcard>.t-small{margin:0}
+.t-big{margin:2px 0 4px;font-family:var(--display);font-size:38px;letter-spacing:-.5px;color:#5b402e}
+.t-share{display:flex;margin:12px 0 10px;border-radius:12px;overflow:hidden;font-family:var(--display);font-size:13px}
+.t-share span{padding:7px 10px 6px;white-space:nowrap}
+.t-share span:first-child{flex:0 0 var(--a);background:#f4dcc4;color:#8a4f35}
+.t-share span:last-child{flex:1;background:#efe6d4;color:var(--soft);text-align:right}
 
 /* 작은 사람(avatar) — 머리·몸 동그라미 셋. data-style 은 머리 모양(9 모자 · 0~3) */
 .t-ava{position:relative;isolation:isolate;display:inline-block;flex:none;width:26px;height:34px;vertical-align:middle}
@@ -31,90 +57,70 @@
 .t-ava[data-style="1"] .t-ava-hair{top:1px;height:11px;border-radius:50% 50% 3px 3px}
 .t-ava[data-style="2"] .t-ava-hair{height:18px;border-radius:9px 9px 6px 6px;z-index:-1}
 
-/* 방명록 */
-.t-guests{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.t-guest{display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;border-radius:14px;background:var(--card);box-shadow:0 2px 0 #0000000d;text-align:left;font-size:14px;color:var(--ink)}
-.t-guest .t-small{margin:0 0 0 auto;font-size:12px}
+/* 열다섯 자리(답장) */
+.t-area{margin:12px 0 0}.t-area h3{margin:0 0 6px;font-size:15px;color:var(--accent-dark)}
+.t-lots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.t-lot{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:8px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line);min-width:0}
+.t-house{position:relative;display:block;max-width:100%;padding:6px 8px 5px;border-radius:9px 9px 4px 4px;background:#fbe2d2;font-family:var(--display);font-size:13px;line-height:1.3}
+.t-house::before{content:"";position:absolute;left:50%;top:-6px;width:0;height:0;border:7px solid transparent;border-bottom-color:#fbe2d2;border-top:0;transform:translateX(-50%)}
+.t-friend{background:#dcebf0}.t-friend::before{border-bottom-color:#dcebf0}.t-friend em{display:block;font-style:normal;font-family:var(--body);font-size:11px;color:var(--soft)}
+.t-place{font-size:12px;color:var(--soft)}
+.t-with{font-size:12px;color:#3f6f86}
 
-/* 우리 지역 동네 */
-.t-crowd{display:flex;flex-wrap:wrap;gap:2px 0;margin:0 0 10px;padding:10px;border-radius:16px;background:#e9f1e4}
+/* 방명록·우리 지역 */
+.t-guests{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.t-guest{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line);text-align:left;font-family:var(--display);font-size:15px;color:var(--ink)}
+.t-guest .t-small{margin:0 0 0 auto;font-family:var(--body);font-size:12px}
+.t-crowd{display:flex;flex-wrap:wrap;gap:2px 0;margin:0 0 10px;padding:10px;border-radius:18px;background:#e8f0df}
 
 /* 이웃의 편지 */
-.t-season{margin:0 0 8px;padding:8px 10px;border-radius:12px;background:#fff1d6;font-size:13px;font-weight:700;color:#8a5a22}
-.t-letter{position:relative;margin:6px 0 12px;padding:14px 14px 12px 52px;border-radius:14px;background:#fffdf8;box-shadow:0 0 0 1.5px var(--line),0 6px 16px #2d2a3210;font-size:14px;line-height:1.65;word-break:keep-all}
+.t-season{margin:0 0 8px;padding:8px 12px;border-radius:14px;background:#fdecc9;font-family:var(--display);font-size:15px;color:#86581f}
+.t-letter{position:relative;margin:6px 0 12px;padding:16px 16px 14px 56px;border-radius:20px;background:#fffdf6;box-shadow:inset 0 0 0 2px var(--line),0 6px 16px #6b4a2a14;font-size:15px;line-height:1.75}
 .t-letter p{margin:0 0 4px}
-.t-letter>.t-ava{position:absolute;left:14px;top:14px}
+.t-letter>.t-ava{position:absolute;left:16px;top:16px}
 .t-letter-peek{opacity:.9}
-.t-pair{display:flex;gap:18px;margin:8px 0 6px}.t-who{display:inline-flex;flex-direction:column;align-items:center;gap:10px;font-size:12px;color:var(--soft)}.t-who .t-ava{transform:scale(1.4);margin-top:8px}
+.t-pair{display:flex;gap:18px;margin:8px 0 6px}.t-who{display:inline-flex;flex-direction:column;align-items:center;gap:10px;font-size:13px;color:var(--soft)}.t-who .t-ava{transform:scale(1.4);margin-top:8px}
 
-/* 주민증 */
-.t-card{margin:6px 0 8px;border-radius:18px;background:#fffdf8;box-shadow:0 0 0 2px var(--line),0 8px 20px #2d2a3214;overflow:hidden}
-.t-card-top{padding:9px 14px;background:var(--accent);color:#fff;font-size:14px;font-weight:800;letter-spacing:-.3px}
+/* 주민증·도장판 */
+.t-tabs{position:sticky;top:-4px;z-index:2;display:flex;gap:2px;margin:0 50px 14px 0;padding:4px;border-radius:999px;background:#f1e5cd}
+.t-tab{flex:1;min-height:36px;padding:0 2px;border-radius:999px;font-family:var(--display);font-size:14px;color:#8a6f58;white-space:nowrap}
+.t-tab.on{background:#fffaf0;color:#5b402e;box-shadow:0 2px 0 #cdb795}
+.t-card{margin:6px 0 8px;border-radius:24px;background:#fffdf6;box-shadow:inset 0 0 0 2px var(--line),0 5px 0 #e2cfab;overflow:hidden}
+.t-card-top{padding:10px 16px 9px;background:var(--accent);color:#fffaf0;font-family:var(--display);font-size:17px}
 .t-card-body{display:flex;gap:14px;padding:14px 14px 6px}
-.t-photo{flex:none;width:92px;height:112px;border-radius:10px;background:#e9f1e4;overflow:hidden;display:grid;place-items:center}.t-photo img{width:100%;height:100%;object-fit:cover}.t-photo .t-ava{transform:scale(2.2)}
-.t-facts{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 10px;align-content:start;font-size:13px}.t-facts dt{color:var(--soft)}.t-facts dd{margin:0;font-weight:700;word-break:keep-all}
+.t-photo{flex:none;width:92px;height:112px;border-radius:16px;background:#e8f0df;overflow:hidden;display:grid;place-items:center}.t-photo img{width:100%;height:100%;object-fit:cover}.t-photo .t-ava{transform:scale(2.2)}
+.t-facts{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-content:start;font-size:14px}.t-facts dt{color:var(--soft)}.t-facts dd{margin:0;font-family:var(--display);font-size:16px;color:#5b402e}
 .t-stamps{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:10px 12px 0}
-.t-stamp{position:relative;display:grid;place-items:center;aspect-ratio:1;border-radius:50%;border:2px dashed var(--line);font-size:10px;font-weight:700;line-height:1.2;text-align:center;color:#c5b9a6;word-break:keep-all;padding:4px}
-.t-stamp.on{border:2.5px solid var(--accent);color:var(--accent);transform:rotate(-8deg);background:#fff4ef}
-.t-stamp sup{position:absolute;right:-2px;top:-4px;font-size:10px;color:var(--accent-dark)}
-.t-issued{margin:8px 14px 12px;font-size:11px;color:var(--soft);text-align:right}
-.t-stamp.sel{box-shadow:0 0 0 2px #ffffff,0 0 0 4px var(--accent)}
-.t-tip{min-height:1.6em;margin:2px 4px 12px;font-size:13px;color:var(--soft);text-align:center;word-break:keep-all}
-
-/* 주민센터 판 위 갈래(탭) — 주민증 · 방명록 · 우리 지역 · 이웃 편지 */
-.t-tabs{position:sticky;top:-4px;z-index:1;display:flex;gap:3px;margin:6px 0 14px;padding:4px;border-radius:999px;background:#f0e5d0;box-shadow:0 0 0 1px #e2d2b6}
-.t-tab{flex:1;min-height:34px;padding:0 4px;border-radius:999px;font-size:13px;font-weight:750;color:#8a6f58;white-space:nowrap}
-.t-tab.on{background:#fffaf0;color:#765943;box-shadow:0 2px 0 #a58d6926}
+.t-stamp{position:relative;display:grid;place-items:center;aspect-ratio:1;padding:4px;border-radius:50%;border:2px dashed #e3d3b3;font-family:var(--display);font-size:11px;line-height:1.2;text-align:center;color:#c9b99f}
+.t-stamp.on{border:2.5px solid var(--accent);color:var(--accent);background:#fff2ea;transform:rotate(-8deg)}
+.t-stamp.sel{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)}
+.t-stamp sup{position:absolute;right:-2px;top:-4px;font-size:11px;color:var(--accent-dark)}
+.t-issued{margin:8px 14px 12px;font-size:12px;color:var(--soft);text-align:right}
+.t-tip{min-height:1.6em;margin:4px 4px 12px;font-size:14px;color:#6a5646;text-align:center}
 .t-join{color:var(--accent-dark)}
 
-/* 나라살림 창고(places.ts openFinance) — 한 해 살림 카드 */
-.t-bigcard{margin:10px 0 12px;padding:14px;border-radius:18px;background:#fffdf8;box-shadow:0 0 0 1.5px var(--line),0 6px 16px #2d2a3210}
-.t-bigcard>.t-small{margin:0}
-.t-big{margin:2px 0 4px;font-size:30px;font-weight:850;letter-spacing:-1px;color:#795344}
-.t-share{display:flex;margin-top:10px;border-radius:10px;overflow:hidden;font-size:12px;font-weight:700}
-.t-share span{padding:7px 9px;white-space:nowrap}
-.t-share span:first-child{flex:0 0 var(--a);background:#f6d9c6;color:#8a4f35}
-.t-share span:last-child{flex:1;background:#eee6d6;color:var(--soft);text-align:right}
-.t-source{margin-top:4px;font-size:11px}
-
-/* 로그인 자리(주민증 탭 아래 · 시작 화면 「전에 해 봤어요」). 카카오 단추는 카카오 색(#FEE500) 그대로. */
-.t-login{margin:18px 0 8px;padding:14px;border-radius:16px;background:#f7f1e5}
-.t-login-title{margin:0 0 2px;font-size:15px;font-weight:800;color:#765943}
-.t-login-btn{display:block;width:100%;min-height:46px;margin:8px 0 0;border-radius:12px;font-size:15px;font-weight:750}
+/* 로그인 자리 — 카카오 단추는 카카오 색(#FEE500) 그대로 */
+.t-login{margin:18px 0 8px;padding:16px;border-radius:20px;background:#f7efdf}
+.t-login-title{margin:0 0 2px;font-family:var(--display);font-size:17px;color:#5b402e}
+.t-login-btn{display:block;width:100%;min-height:48px;margin:8px 0 0;border-radius:999px;font-family:var(--display);font-size:16px}
 .t-kakao{background:#FEE500;color:#191919}
 .t-google{background:#fff;color:#3c4043;box-shadow:inset 0 0 0 1px #dadce0}
-.t-login-note{margin:10px 0 0;font-size:11.5px}.t-login-note a{color:var(--accent-dark)}
-.t-login-on{margin:0 0 6px;font-size:13px;line-height:1.55;color:#765943;word-break:keep-all}
+.t-login-note{margin:10px 0 0;font-size:12px}.t-login-note a{color:var(--accent-dark)}
+.t-login-on{margin:0 0 6px;font-size:14px;line-height:1.6;color:#5f4c3e}
 .t-login-links{display:flex;gap:16px}
 
-/* 마을 건물 판(places.ts, 기획 4차) — Claude 가 잡아 둔 자리. 꾸미기는 GPT, 클래스 이름은 지킨다. */
-.v-npc{display:flex;align-items:center;gap:10px;margin:4px 0 12px;padding:10px 12px;border-radius:16px;background:#f7f1e5}
-.v-npc p{margin:0;font-size:14px;font-weight:700;line-height:1.45;color:#765943;word-break:keep-all}
-.v-npc .t-ava{transform:scale(1.15)}
-a.v-go{display:flex;align-items:center;justify-content:center;margin:14px 0 4px;text-decoration:none}
-a.g-link{text-align:center}
-.v-qa{margin:6px 0 14px;padding:12px 14px;border-radius:16px;background:#fffdf8;box-shadow:0 0 0 1.5px var(--line)}
-.v-q,.v-a{margin:0;font-size:14px;line-height:1.55;word-break:keep-all}
-.v-q{font-weight:800}.v-q::before{content:"Q ";color:var(--accent)}
-.v-a{margin-top:6px;color:var(--soft)}.v-a::before{content:"A ";font-weight:800;color:#5f8aa6}
-.v-list{list-style:none;margin:6px 0 10px;padding:0;display:grid;gap:6px}
-a.v-item{display:grid;gap:3px;padding:10px 12px;border-radius:14px;background:#fffdf8;box-shadow:0 2px 0 #0000000d;color:var(--ink);font-size:14px;font-weight:750;line-height:1.4;text-decoration:none;word-break:keep-all}
-a.v-item small{font-size:11.5px;font-weight:500;color:var(--soft)}
-.v-sum{font-size:12.5px;font-weight:500;color:var(--soft)}
-
-/* 쪽지 — 쪽지판 목록과 광장 카드가 같이 쓴다 */
+/* 쪽지 — 쪽지판 목록과 광장 카드 */
 .v-write{margin:4px 0 16px}
-.v-write .g-primary{min-height:46px;font-size:15px}
+.v-write .g-primary{min-height:48px;font-size:17px}
 .v-notes{display:grid;gap:8px}
-.v-note{padding:10px 12px;border-radius:16px;background:#fffdf8;box-shadow:0 0 0 1.5px #f0e5d0,0 2px 0 #0000000a}
-.v-who{display:flex;align-items:center;gap:6px;font-size:13px}
-.v-who small{color:var(--soft);font-size:11.5px}
-.v-mine{margin-left:auto;font-style:normal;font-size:11px;font-weight:800;color:var(--accent-dark)}
-.v-text{margin:6px 0 8px;font-size:15px;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
+.v-note{padding:12px 14px;border-radius:20px;background:#fffdf6;box-shadow:inset 0 0 0 2px #f0e3c8}
+.v-who{display:flex;align-items:center;gap:6px;font-family:var(--display);font-size:15px;color:#5b402e}
+.v-who small{font-family:var(--body);font-size:12px;color:var(--soft)}
+.v-mine{margin-left:auto;font-style:normal;font-family:var(--display);font-size:12px;color:var(--accent-dark)}
+.v-text{margin:6px 0 8px;font-size:16px;line-height:1.55;overflow-wrap:anywhere}
 .v-acts{display:flex;gap:8px}
-.v-like,.v-report{min-height:32px;padding:0 12px;border-radius:999px;font-size:12.5px;font-weight:750}
-.v-like{background:#fff1ec;color:var(--accent-dark)}.v-like:disabled{opacity:1;background:#ffe1d6}
-.v-report{margin-left:auto;background:transparent;color:var(--soft);text-decoration:underline}.v-report:disabled{text-decoration:none;opacity:.7}
-.v-card{position:absolute;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));z-index:3;padding:10px;border-radius:20px;background:#fff9eeeb;border:1px solid #e1ccac;box-shadow:0 6px 20px #2d2a3226;animation:ask-in .2s both;user-select:text;-webkit-user-select:text}
-.v-card-title{margin:0 0 6px 4px;font-size:11px;font-weight:800;color:#9c6954}
-.v-card .v-note{box-shadow:none;background:transparent;padding:2px 4px}
+.v-like,.v-report{min-height:34px;padding:0 14px;border-radius:999px;font-family:var(--display);font-size:14px}
+.v-like{background:#fff0e8;color:var(--accent-dark);box-shadow:inset 0 0 0 2px #f6d6c7}.v-like:disabled{opacity:1;background:#ffe2d6}
+.v-report{margin-left:auto;background:transparent;color:var(--soft);font-family:var(--body);font-size:12px;text-decoration:underline}.v-report:disabled{text-decoration:none;opacity:.7}
+.v-card{position:absolute;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));z-index:3;padding:10px;border-radius:26px;background:#fffaeef5;box-shadow:inset 0 0 0 2px var(--line),0 4px 0 #d6bf98,0 10px 24px #6b4a2a26;animation:ask-in .2s both;user-select:text;-webkit-user-select:text}
+.v-card .v-note{box-shadow:none;background:transparent;padding:4px 6px}

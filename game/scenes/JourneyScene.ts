@@ -211,7 +211,7 @@ export class JourneyScene extends Phaser.Scene {
     const anchors = Object.fromEntries(SIDES.map(side => [side, { x: this.room.residents[side].x, y: this.room.residents[side].y - 56 }])) as Record<DisplaySide, Point>;
     const ms = this.runtime.ui.ask(question, this.runtime.state().sessionId, anchors, i => sfx.bubble(i));
     this.time.delayedCall(ms, () => { if (this.mode === 'play' && !this.chosen) this.runtime.visible(question.id); });
-    if (this.hintStep === 0) this.runtime.ui.hint(touchScreen ? '화면을 꾹 누르면 그쪽으로 걸어가요' : '방향키나 마우스로 걸어가요');
+    if (this.hintStep === 0) this.runtime.ui.walkHint(touchScreen ? '화면을 꾹 누르면 그쪽으로 걸어가요' : '방향키나 마우스로 걸어가요');
   }
 
   // ── 매 프레임 ──
@@ -393,7 +393,7 @@ export class JourneyScene extends Phaser.Scene {
       this.art.openDoor(this.reduced);
       sfx.door();
       this.showDoor();
-      if (this.hintStep === 1) { this.hintStep = 2; this.runtime.ui.hint('문이 열렸어요! 위로 걸어가요'); }
+      if (this.hintStep === 1) this.hintStep = 2; // 문 위 화살표가 알려 준다
     });
   }
 

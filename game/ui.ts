@@ -1,13 +1,15 @@
 /*
   화면 위에 얹는 HTML — 글은 캔버스에 그리지 않는다(읽기 쉽고, 화면 읽기 도구가 읽고, 글자가 또렷하다).
   게임 진행은 여기서 정하지 않는다. 단추를 누르면 받은 콜백을 부르기만 한다.
-  모양은 대충 잡아 둔 자리다 — 꾸미기는 GPT 몫(README 「게임 뼈대」).
+  말 상자(이름표 + 한 자씩 + 웅얼 소리)는 동물의 숲에서 빌린 방식이다(사용자 10-14) — 이름·그림·소리는 베끼지 않고 우리 것으로.
+  모양은 ui.css — 둥근 글꼴 「주아」(제목·말)와 「고운돋움」(긴 글)을 이 사이트에서 직접 내보낸다(외부 글꼴 서버에 방문 기록이 안 가게).
 */
 import { AXES, ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode } from './content';
 import type { AxisScores } from './score';
 import { currentQuestion, type JourneyState } from './flow';
 import { displayOptions, orderedQuestions, type DisplaySide } from './response';
-import { COATS, HAIRS, SKINS, STYLE_NAMES, PICK_SIZES, randomPick, type Pick } from './look';
+import { COATS, HAIRS, SKINS, STYLE_NAMES, PICK_SIZES, randomPick, nameFrom, type Pick } from './look';
+import { sfx } from './sfx';
 import { cleanName, josa, type Me } from './profile';
 import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
 import type { Stats } from './api';
@@ -24,6 +26,37 @@ const button = (className: string, text: string, onClick: () => void) => {
   const b = el('button', className, text); b.type = 'button'; b.onclick = onClick; return b;
 };
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
+const icon = (node: HTMLElement, svg: string, label: string) => { node.innerHTML = svg; node.setAttribute('aria-label', label); return node; };
+export const ICONS = {
+  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
+  up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6.5 11.5L12 6l5.5 5.5"/></svg>',
+  people: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2z"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.2 13.9c2.6-.4 4.7 1.2 5.3 4.6h-4.4"/></svg>',
+  hand: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M13 5.5a2.2 2.2 0 0 1 4.4 0v8.2l5.1 1.1a3 3 0 0 1 2.3 3.4l-1.2 6.6A3.5 3.5 0 0 1 20.2 28h-5.6a3.5 3.5 0 0 1-2.8-1.4l-4.6-6.1a2.1 2.1 0 0 1 3.1-2.8l2.7 2.4z"/></svg>',
+};
+
+/**
+ * 말 상자 — 글자가 한 자씩 웅얼 소리와 함께 나오고, 끝나면 ▼. 누르면(finish) 바로 다 나온다. 움직임 줄이기를 켠 사람에겐 한 번에.
+ * 같은 칸에 다시 부르면 앞의 것은 그냥 멈춘다(done 을 부르지 않는다).
+ */
+const typers = new WeakMap<HTMLElement, { cancel(): void; finish(): void }>();
+export function typeOut(node: HTMLElement, text: string, done = () => {}, pitch = 0) {
+  typers.get(node)?.cancel();
+  const shown = document.createTextNode(''), next = el('span', 'g-next', '▼');
+  next.setAttribute('aria-hidden', 'true');
+  node.replaceChildren(shown);
+  let i = 0, timer = 0, over = false;
+  const finish = () => { if (over) return; over = true; clearTimeout(timer); typers.delete(node); shown.data = text; node.append(next); done(); };
+  const tick = () => {
+    const ch = text[i++] ?? '';
+    shown.data = text.slice(0, i);
+    sfx.babble(ch, pitch);
+    if (i >= text.length) finish(); else timer = window.setTimeout(tick, /[,.…!?]/.test(ch) ? 170 : 36);
+  };
+  typers.set(node, { cancel: () => { over = true; clearTimeout(timer); typers.delete(node); }, finish });
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) finish(); else timer = window.setTimeout(tick, 140);
+  return finish;
+}
+export const finishTyping = (node: HTMLElement) => typers.get(node)?.finish();
 const SIDES: DisplaySide[] = ['left', 'right'];
 /**
  * 폰의 「뒤로」 가 화면을 덮은 판만 닫게(기획 4차 — 판을 닫으려고 뒤로를 누르면 게임 밖으로 나가 버렸다).
@@ -65,15 +98,18 @@ export function createUI(root: HTMLElement, actions: {
   sound.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="w" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/><path class="x" d="M16 9l6 6M22 9l-6 6"/></svg>';
   hud.append(where, progress, sound);
   const ask = el('section', 'g-ask'); ask.hidden = true;
-  const place = el('span', 'g-place'), prompt = el('h2', 'g-prompt');
-  ask.append(place, prompt);
+  const prompt = el('h2', 'g-prompt');
+  ask.append(prompt);
   const door = button('g-door', '', actions.goDoor); door.hidden = true;
   const hint = el('p', 'g-hint'); hint.hidden = true;
   const replies = el('section', 'g-replies'); replies.setAttribute('aria-label', '대답 고르기');
-  const quote = el('p', 'g-quote'), replyList = el('div', 'g-reply-list');
-  replies.append(el('p', 'g-reply-title', '뭐라고 말해 줄까요?'), quote, replyList);
+  // 말 상자 — 이름표 + 주민의 말(한 자씩). 다 나오면 위에 내 대답이 뜬다.
+  const talk = el('div', 'g-talk'), speaker = el('span', 'g-name'), quote = el('p', 'g-quote'), replyList = el('div', 'g-reply-list');
+  talk.append(speaker, quote);
+  talk.onclick = () => finishTyping(quote);
+  replies.append(replyList, talk);
   const intro = el('section', 'g-intro');
-  intro.innerHTML = `<div class="g-intro-card"><span class="g-kicker">함께하는 시민행동 · 예산 성향 게임</span>
+  intro.innerHTML = `<div class="g-intro-card"><span class="g-kicker">함께하는 시민행동 · 예산 성향 게임 · 3분</span>
     <h1>동네 한 바퀴</h1>
     <p>주민 열다섯 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
     <ul class="g-notes"></ul>
@@ -81,7 +117,6 @@ export function createUI(root: HTMLElement, actions: {
     <button class="g-link g-table-open" type="button" hidden>테이블에서 같이 하기</button>
     <button class="g-link g-home-open" type="button" hidden>걷지 않고 마을로 가기</button>
     <button class="g-link g-login-open" type="button" hidden>전에 해 봤어요 — 내 주민증 불러오기</button>
-    <p class="g-small">화면을 꾹 누르면 그쪽으로 걸어가요 · 2~3분</p>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
   const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·테이블·이웃이 번갈아 쓰는 아래 판
   const panel = el('section', 'g-panel'); panel.hidden = true; // 화면을 덮는 판(다른 사람들 마음)
@@ -136,13 +171,16 @@ export function createUI(root: HTMLElement, actions: {
         const key = `${question.id}:${state.candidate}`;
         if (key !== replyKey) {
           replyKey = key;
-          quote.textContent = `「${displayOptions(state.sessionId, question).find(o => o.side === state.candidate)!.text}」`;
+          const wish = displayOptions(state.sessionId, question).find(o => o.side === state.candidate)!.text;
+          speaker.textContent = nameFrom(`${question.id}:${state.candidate}`);
+          replies.classList.remove('typed');
+          typeOut(quote, wish, () => replies.classList.add('typed'), state.candidate === 'left' ? -40 : 40);
           replyList.replaceChildren(...REPLIES.map((reply, level) => {
             const b = button('g-reply', '', () => actions.reply(question.id, level));
             b.append(el('span', 'g-dots', '●'.repeat(level + 1) + '○'.repeat(2 - level)), el('span', '', reply.line));
             return b;
           }));
-          live.textContent = `${quote.textContent} 쪽 주민 앞이에요. 대답을 골라 주세요.`;
+          live.textContent = `${speaker.textContent}: ${wish}. 대답을 골라 주세요.`;
         }
       } else replyKey = '';
     },
@@ -150,7 +188,7 @@ export function createUI(root: HTMLElement, actions: {
     /** 방에 들어서면 질문과 두 주민의 말풍선을 띄운다. 다 뜰 때까지 걸리는 ms 를 돌려준다. */
     ask(question: Question, sessionId: string, anchors: Record<DisplaySide, Point>, onBubble: (i: number) => void) {
       askId++;
-      place.textContent = question.place; prompt.textContent = question.prompt;
+      prompt.textContent = question.prompt;
       ask.hidden = false; ask.classList.remove('pop'); void ask.offsetWidth; ask.classList.add('pop');
       bubbles.replaceChildren(); bubbleEls = {};
       displayOptions(sessionId, question).forEach((option, i) => {
@@ -194,11 +232,14 @@ export function createUI(root: HTMLElement, actions: {
         marks.append(tag);
       }
     },
+    /** 열린 문 위 화살표 — 누르면 문으로 걸어간다. 글은 화면 읽기 도구에만. */
     door(label?: string, at?: Point) {
       door.hidden = !label;
-      if (label && at) { door.textContent = `${label} ↑`; door.style.left = `${at.x}px`; door.style.top = `${at.y}px`; }
+      if (label && at) { icon(door, ICONS.up, label); door.style.left = `${at.x}px`; door.style.top = `${at.y}px`; }
     },
-    hint(text = '') { hint.hidden = !text; hint.textContent = text; },
+    hint(text = '') { hint.hidden = !text; hint.className = 'g-hint'; hint.textContent = text; },
+    /** 첫 방 — 글 대신 꾹 누르는 손(사용자 10-14 「필요 없는 글은 빼」). */
+    walkHint(label: string) { hint.hidden = false; hint.className = 'g-hint g-hint-hand'; icon(hint, ICONS.hand, label); live.textContent = label; },
     toast(text: string) { toast.textContent = text; toast.hidden = false; later(2200, () => { toast.hidden = true; }); },
     setSound(muted: boolean) { sound.classList.toggle('muted', muted); sound.setAttribute('aria-label', muted ? '소리 켜기' : '소리 끄기'); },
 
@@ -266,7 +307,7 @@ export function createUI(root: HTMLElement, actions: {
     busCaption(areaName?: string, others: string[] = [], skip?: () => void) {
       caption.hidden = !areaName;
       if (!areaName) return;
-      caption.replaceChildren(el('span', 'g-kicker', '버스 타고 다음 동네로'), el('h2', '', areaName), ...others.map(text => el('p', 'g-small', text)), el('p', 'g-small', '눌러서 넘기기'));
+      caption.replaceChildren(el('h2', '', areaName), ...others.map(text => el('p', 'g-small', text)));
       caption.onclick = () => skip?.();
       live.textContent = `다음 동네, ${areaName}`;
     },
@@ -287,8 +328,8 @@ export function createUI(root: HTMLElement, actions: {
         row.append(el('span', `g-ax-l${right ? '' : ' on'}`, axis.left), track, el('span', `g-ax-r${right ? ' on' : ''}`, axis.right), el('span', 'g-sr', ` — ${right ? axis.right : axis.left} 쪽`));
         axes.append(row);
       }
-      card.append(el('span', 'g-kicker', `${DESTINATION.name}에 닿았어요`), el('p', 'g-you', '당신은'), el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes);
-      const give = el('a', 'g-link g-give', '이 게임을 만든 함께하는 시민행동 후원하기 →');
+      card.append(el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes);
+      const give = el('a', 'g-link g-give', '함께하는 시민행동 후원하기');
       give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
       const row = el('div', 'g-end-row'), links = el('div', 'g-end-links');
@@ -396,10 +437,14 @@ export function createUI(root: HTMLElement, actions: {
       if (!hud.querySelector('.g-map')) hud.insertBefore(button('g-map', '지도', on.map), sound);
       live.textContent = `${VILLAGE_NAME}에 들어왔어요. 지도 단추로 건물을 고를 수 있어요.`;
     },
-    /** 위 띠 이름 아래 한 줄 — 「오늘 ○명이 들렀어요」. 서버가 없으면 비운다. */
-    villageToday(text = '') {
+    /** 위 띠 이름 옆 — 사람 그림 + 오늘 들른 수. 서버가 없으면 비운다. */
+    villageToday(count?: number) {
       where.querySelector('.g-today')?.remove();
-      if (text) where.append(el('small', 'g-today', text));
+      if (count === undefined) return;
+      const today = icon(el('small', 'g-today'), ICONS.people, `오늘 ${count}명이 들렀어요`);
+      today.setAttribute('role', 'img');
+      today.append(String(count));
+      where.append(today);
     },
     /** 지도 — 건물 목록. */
     placeList(list: { name: string; line: string; run(): void }[]) {

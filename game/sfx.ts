@@ -42,6 +42,12 @@ export const sfx = {
   /** 빛 아치 — 생길 때는 짧게 반짝, 들어갈 때는 위로 쓸려 올라가는 소리. */
   portal: () => [784, 988, 1175].forEach((f, i) => tone(f, 0.22, { delay: i * 0.06, gain: 0.04 })),
   warp: () => { tone(330, 0.55, { slide: 900, gain: 0.05 }); [1047, 1319, 1568].forEach((f, i) => tone(f, 0.25, { delay: 0.25 + i * 0.07, gain: 0.035 })); },
+  /** 말 상자 웅얼거림 — 글자마다 짧은 톡. 높이는 글자로 정해서 같은 말은 늘 같은 가락(누구 목소리를 흉내 내지 않은 합성음). */
+  babble: (ch: string, pitch = 0) => {
+    if (!/[가-힣a-z0-9]/i.test(ch)) return;
+    const code = ch.charCodeAt(0);
+    tone(430 + pitch + (code % 9) * 38, 0.055, { type: 'triangle', gain: 0.032, slide: (code % 3 - 1) * 60 });
+  },
   fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.5 : 0.16, { delay: i * 0.13, gain: 0.065 })),
 };
 

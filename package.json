@@ -19,6 +19,8 @@
     "build:gas": "vite build --config vite.gas.config.ts"
   },
   "dependencies": {
+    "@fontsource/gowun-dodum": "5.3.0",
+    "@fontsource/jua": "5.3.0",
     "drizzle-orm": "0.45.2",
     "html-to-image": "1.11.13",
     "phaser": "4.2.1",

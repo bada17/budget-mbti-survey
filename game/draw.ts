@@ -816,10 +816,10 @@ export function drawPortal(scene: Scene, x: number, base: number, reduced: boole
 // Claude 의 임시 그림 — 같은 화풍(둥근 도형·파스텔·납작한 그림자). 장소마다 알아보게 다듬는 건 GPT 몫.
 // 배치(어디에 무엇이)는 village.ts 가 정한다 — 여기서 자리를 옮기면 부딪힘과 어긋난다.
 
-const FONT = '"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif';
+const FONT = '"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif'; // 화면 글과 같은 둥근 글꼴(main 이 장면 전에 불러 둔다)
 /** 글씨 — 카메라가 기기 화소만큼 키우므로 글자 그림도 그만큼 촘촘하게 만든다. */
 function label(scene: Scene, x: number, y: number, text: string, size: number, dpr: number, color = '#51423e') {
-  return scene.add.text(x, y, text, { fontFamily: FONT, fontSize: `${size}px`, fontStyle: 'bold', color, resolution: dpr }).setOrigin(0.5);
+  return scene.add.text(x, y, text, { fontFamily: FONT, fontSize: `${size}px`, color, resolution: dpr }).setOrigin(0.5);
 }
 
 const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {

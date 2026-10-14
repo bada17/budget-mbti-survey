@@ -1,3 +1,7 @@
+import '@fontsource/jua/korean-400.css';
+import '@fontsource/jua/latin-400.css';
+import '@fontsource/gowun-dodum/korean-400.css';
+import '@fontsource/gowun-dodum/latin-400.css';
 import './ui.css';
 import { createJourney, transition, currentQuestion, type Command } from './flow';
 import { buildGameResponse, orderedQuestions, displayOptions, type GameResponse } from './response';
@@ -350,7 +354,7 @@ function showVillage(view: VillageView) {
   // 내 쪽지는 광장에 세우지 않는다 — 내 모습을 한 주민이 하나 더 서성이면 내가 둘로 보인다(쪽지판 목록엔 있다).
   const mine = new Set(loadMarks().mine);
   village?.setCrowd({ ...view, notes: view.notes.filter(n => !mine.has(n.id)) });
-  ui.villageToday(`오늘 ${view.today}명이 들렀어요`);
+  ui.villageToday(view.today);
 }
 
 /** 지도 — 건물 목록. 고르면 그 문 앞으로 옮겨 가서 연다. */
@@ -421,7 +425,7 @@ function showEnd() {
   ui.end({ code: state.result, scores: scoreAnswers(orderedQuestions, state.answers), lines: endLines() }, {
     neighbor: () => {
       ui.endActions(false);
-      ui.hint('언덕에서 한 명을 눌러 내 이웃으로 삼으세요');
+      ui.hint('이웃으로 삼을 주민을 눌러요');
       scene?.pickNeighbor(follower => { ui.hint(); neighborSheet(follower); });
     },
     others: online ? async () => ui.others((await net.stats()) ?? stats, mine()) : undefined,
@@ -444,6 +448,8 @@ function measure() {
 async function boot() {
   try {
     measure();
+    // 마을 간판은 캔버스에 구워 두므로 둥근 글꼴이 먼저 와 있어야 한다(늦으면 기본 글꼴로 굳는다). 1.5초까지만 기다린다.
+    await Promise.race([Promise.all(['16px Jua', '16px "Gowun Dodum"'].map(f => document.fonts?.load(f, '마을'))), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
     const [{ default: Phaser }, { JourneyScene }, { VillageScene }] = await Promise.all([import('phaser'), import('./scenes/JourneyScene'), import('./scenes/VillageScene')]);
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),

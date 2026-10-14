@@ -7,9 +7,9 @@
   모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
 import { panelShell, avatar, el, btn } from './town';
-import { DONATE_URL } from './ui';
+import { DONATE_URL, typeOut } from './ui';
 import { PLACES, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, checkNote, type PlaceId } from './village';
-import { toLook, lookFrom } from './look';
+import { toLook, lookFrom, nameFrom } from './look';
 import { josa, REGIONS, type Neighbor, type Region } from './profile';
 import type { PublicNote, VillageView } from './api';
 
@@ -31,15 +31,19 @@ async function fetchText(url: string, ms = 8000) {
 }
 const fetchJson = async <T>(url: string) => { const text = await fetchText(url); try { return text ? JSON.parse(text) as T : undefined; } catch { return undefined; } };
 
-/** 건물마다 같은 머리 — 이름, 문 앞 주민(마을 장면의 그 주민과 같은 생김새)의 한마디. */
+/** 건물마다 같은 머리 — 이름, 문 앞 주민(마을 장면의 그 주민과 같은 생김새)이 말 상자로 한마디(이름표 + 한 자씩). */
 function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void) {
   const place = PLACES.find(p => p.id === id)!;
-  const { panel, close } = panelShell(shell, onClose, '← 마을로');
-  const npc = el('div', 'v-npc');
-  npc.append(avatar(lookFrom(`npc:${id}`)), el('p', '', place.line));
+  const { panel, close } = panelShell(shell, onClose, '마을로');
+  const npc = el('div', 'v-npc'), said = el('p', 'v-said');
+  npc.append(avatar(lookFrom(`npc:${id}`)), el('span', 'g-name', nameFrom(`npc:${id}`)), said);
+  npc.onclick = () => typeOut(said, place.line); // 다시 누르면 한 번 더 말한다
   panel.append(el('h2', '', place.name), npc);
+  typeOut(said, place.line);
   return { panel, close };
 }
+/** 출처·기준 — 접어 둔다(사용자 10-14). */
+const source = (text: string) => { const d = el('details', 't-source'); d.append(el('summary', '', '출처'), el('p', '', text)); return d; };
 
 // ───────────────────────── 버스 정류장 — 한 바퀴 다시 ─────────────────────────
 export function openBus(shell: HTMLElement, neighbor: Neighbor | undefined, walk: () => void, onClose: () => void) {
@@ -68,7 +72,7 @@ export function openCounsel(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'counsel', onClose);
   const status = el('p', 't-small', '상담소 소식을 불러오는 중…'); status.setAttribute('role', 'status');
   const body = el('div');
-  panel.append(body, status, link('상담소 들어가기 →', out(PB_URL)));
+  panel.append(body, status, link('상담소 들어가기', out(PB_URL)));
   void fetchText(PB_URL).then(html => {
     const found = html ? readCounsel(html) : undefined;
     if (!found || (!found.qa && !found.posts.length)) { status.textContent = '지금은 소식을 불러오지 못했어요. 상담소에서 바로 볼 수 있어요.'; return; }
@@ -76,7 +80,7 @@ export function openCounsel(shell: HTMLElement, onClose: () => void) {
     if (found.qa) {
       const qa = el('div', 'v-qa');
       qa.append(el('p', 'v-q', found.qa.q), el('p', 'v-a', found.qa.a));
-      body.append(el('p', 't-kicker', '상담소에 자주 오는 질문'), qa);
+      body.append(qa);
     }
     if (found.posts.length) {
       const list = el('ul', 'v-list');
@@ -85,7 +89,7 @@ export function openCounsel(shell: HTMLElement, onClose: () => void) {
         a.append(el('small', '', `${post.by} · ${post.date}`));
         item.append(a); list.append(item);
       }
-      body.append(el('p', 't-kicker', '전문위원의 글'), list);
+      body.append(list);
     }
   });
 }
@@ -98,7 +102,7 @@ export function openDok(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'dok', onClose);
   const status = el('p', 't-small', '독상 소식을 불러오는 중…'); status.setAttribute('role', 'status');
   const body = el('div');
-  panel.append(body, status, link('밑 빠진 독상 보러 가기 →', out(DOK_URL)));
+  panel.append(body, status, link('밑 빠진 독상 보러 가기', out(DOK_URL)));
   void Promise.all([
     fetchJson<{ campaigns?: Campaign[] }>(`${DOK_URL}data/campaigns.json`),
     fetchJson<{ awards?: Award[] }>(`${DOK_URL}data/awards.json`),
@@ -119,7 +123,7 @@ export function openDok(shell: HTMLElement, onClose: () => void) {
         if (c.period) a.append(el('small', '', c.period));
         const li = el('li'); li.append(a); items.append(li);
       }
-      body.append(el('p', 't-kicker', '지금 들여다보는 예산'), items);
+      body.append(items);
     }
   });
 }
@@ -141,7 +145,7 @@ export function openFinance(shell: HTMLElement, region: Region | undefined, onCl
   const { panel } = placePanel(shell, 'finance', onClose);
   const status = el('p', 't-small', '불러오는 중…');
   const sidos = el('div', 't-regions'), towns = el('div', 't-regions'), card = el('div');
-  panel.append(el('p', 't-lead', '시·도를 고르고, 사는 곳을 골라 보세요.'), sidos, towns, card, status);
+  panel.append(sidos, towns, card, status);
   void import('./data/local-finance.json').then(({ default: data }) => {
     status.remove();
     const all = data.places as FinancePlace[];
@@ -157,8 +161,8 @@ export function openFinance(shell: HTMLElement, region: Region | undefined, onCl
         share,
         el('p', 't-small', `스스로 거두는 돈(지방세·세외수입)이 살림의 ${place.i}%`),
       );
-      card.replaceChildren(box, link('지방재정 감시 사이트에서 더 보기 →', out(FINANCE_URL, place.c)),
-        el('p', 't-small t-source', '출처: 지방재정365(2026년 당초 예산). 한 사람 몫과 스스로 거두는 돈은 일반회계 기준이에요.'));
+      card.replaceChildren(box, link('지방재정 감시 사이트에서 더 보기', out(FINANCE_URL, place.c)),
+        source('지방재정365(2026년 당초 예산). 한 사람 몫과 스스로 거두는 돈은 일반회계 기준이에요.'));
       // 칩 목록이 길어 카드가 화면 밖에 생긴다 — 판만 내린다(scrollIntoView 는 게임 화면까지 밀어 숨겨 둔 판이 삐져나왔다).
       panel.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
     };
@@ -177,8 +181,8 @@ export function openHouse(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'house', onClose);
   panel.append(
     el('p', 't-lead', '함께하는 시민행동은 「동네 한 바퀴」와 이 마을을 만든 시민단체예요. 예산 감시, 밑 빠진 독상, 시민참여 상담소를 꾸려 가요.'),
-    link('회원 되기 — 정기후원 →', `${DONATE_URL}&utm_content=village-house`),
-    link('홈페이지 가 보기 →', out(HOME_URL), 'g-link'),
+    link('회원 되기 — 정기후원', `${DONATE_URL}&utm_content=village-house`),
+    link('홈페이지 가 보기', out(HOME_URL), 'g-link'),
   );
 }
 
@@ -271,7 +275,8 @@ export function openBoard(shell: HTMLElement, opts: BoardOpts, onClose: () => vo
   const input = el('input', 'g-input'); input.maxLength = NOTE_MAX; input.placeholder = `지나가는 주민에게 한 줄 (${NOTE_MAX}자까지)`; input.enterKeyHint = 'send';
   const send = el('button', 'g-primary', '붙이기'); send.type = 'submit';
   const result = el('p', 't-small'); result.setAttribute('role', 'status');
-  form.append(input, el('p', 't-small', `${opts.myName ? josa(`「${opts.myName}」`, '으로', '로') : '이름 없이'} 붙어요 · 답글은 없고 「나도」만 있어요 · 링크·연락처는 못 남겨요`), send, result);
+  form.append(input, send, result);
+  input.title = `${opts.myName ? josa(`「${opts.myName}」`, '으로', '로') : '이름 없이'} 붙어요. 링크·연락처는 못 남겨요.`;
   form.onsubmit = async event => {
     event.preventDefault();
     const checked = checkNote(input.value);
@@ -299,7 +304,7 @@ export function noteCard(shell: HTMLElement, on: NoteActions) {
     show(note: PublicNote) {
       if (showing === note.id) return;
       showing = note.id;
-      card.replaceChildren(el('p', 'v-card-title', '지나가던 주민의 쪽지'), noteView(note, on));
+      card.replaceChildren(noteView(note, on));
       card.hidden = false;
     },
     hide() { showing = undefined; card.hidden = true; },
