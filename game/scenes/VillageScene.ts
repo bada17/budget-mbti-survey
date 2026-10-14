@@ -39,6 +39,8 @@ export type VillageRuntime = {
   drops(trees: number): Map<number, Drop>;
   /** 주웠다 — main 이 주머니에 넣는다. */
   picked(tree: number, kind: Drop): void;
+  /** 오늘의 부탁에 쓰는 일 — 'cat'(고양이에게 인사) · 'shake'(나무 흔들기). */
+  event(name: string): void;
 };
 
 /** 서성이는 주민 — 최근에 들른 사람의 모습. 쪽지를 붙였으면 쪽지를 든다. */
@@ -287,12 +289,29 @@ export class VillageScene extends Phaser.Scene {
     for (const bird of this.art.pigeons) if (!bird.fled && distance(this.pos, bird.at) < FEEL.pigeonFleeRadius) { flee(this, bird, this.pos); sfx.flutter(); }
     for (const kitty of this.art.cats) {
       const d = distance(this.pos, kitty.at);
-      if (!kitty.near && d < FEEL.catRadius) { kitty.near = true; meow(this, kitty, this.reduced); sfx.meow(); }
+      if (!kitty.near && d < FEEL.catRadius) { kitty.near = true; meow(this, kitty, this.reduced); sfx.meow(); this.runtime.event('cat'); }
       else if (kitty.near && d > FEEL.catRadius + 30) kitty.near = false;
     }
   }
 
   relayout() { if (this.player) this.cameras.main.setZoom(this.runtime.view().dpr); }
+
+  private marks = new Map<PlaceId, Phaser.GameObjects.Container>();
+  /** 오늘의 부탁이 있는 건물 — 문 앞 주민 머리 위 「!」(쪽지판은 판 위). 다 들어주면 없어진다. */
+  setQuestMarks(places: PlaceId[]) {
+    for (const [id, mark] of this.marks) if (!places.includes(id)) { mark.destroy(); this.marks.delete(id); }
+    for (const id of places) {
+      if (this.marks.has(id)) continue;
+      const place = PLACES.find(p => p.id === id)!;
+      const at = id === 'board' ? { x: place.door.x, y: place.box.y - 40 } : { x: place.door.x + 38, y: place.door.y - 70 };
+      const bubble = this.add.container(at.x, at.y, [
+        this.add.circle(0, 0, 13, 0xf5c55c).setStrokeStyle(2, 0xcf9b37),
+        this.add.text(0, 1, '!', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: this.runtime.view().dpr }).setOrigin(0.5),
+      ]).setDepth(at.y + 200);
+      if (!this.reduced) this.tweens.add({ targets: bubble, y: at.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.marks.set(id, bubble);
+    }
+  }
 
   /** 모두가 넣은 동전 수 — 공사터 간판과 다 지은 것(다리·정자)을 다시 그린다. */
   setWorks(total: number) { this.art?.setWorks(worksAt(total)); }
@@ -329,6 +348,7 @@ export class VillageScene extends Phaser.Scene {
       this.shaken.set(i, now);
       if (!this.reduced) { const x0 = t.img.x; this.tweens.add({ targets: t.img, x: x0 + 2.5, duration: 55, yoyo: true, repeat: 3, onComplete: () => t.img.setX(x0) }); }
       sfx.rustle();
+      this.runtime.event('shake');
       const kind = this.drops.get(i);
       if (!kind) return;
       this.drops.delete(i);

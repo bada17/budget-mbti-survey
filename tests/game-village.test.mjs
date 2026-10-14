@@ -326,3 +326,18 @@ test('방마다 다른 길: 개울은 돌을 밟아 건널 수 있고, 돌 밖�
   }
   assert.equal(Object.keys(TWISTS).length, 6);
 });
+
+test('오늘의 부탁: 날마다 서로 다른 건물 셋, 같은 날엔 같고, 부탁하는 건물이 마을에 있다', async () => {
+  const { questsOn, QUESTS, QUEST_PER_DAY } = await import('../game/quests.ts');
+  const ids = new Set(PLACES.map(p => p.id));
+  for (const q of QUESTS) assert.ok(ids.has(q.place), q.id);
+  const seen = new Set();
+  for (let day = 20000; day < 20030; day++) {
+    const today = questsOn(day);
+    assert.equal(today.length, QUEST_PER_DAY);
+    assert.equal(new Set(today.map(q => q.place)).size, QUEST_PER_DAY, '건물마다 하나');
+    assert.deepEqual(questsOn(day), today);
+    today.forEach(q => seen.add(q.id));
+  }
+  assert.ok(seen.size >= QUESTS.length - 2, '한 달이면 거의 모든 부탁이 한 번씩');
+});

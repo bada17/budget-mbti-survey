@@ -522,9 +522,9 @@ export function createUI(root: HTMLElement, actions: {
       later(ms, () => { box.classList.add('bye'); later(250, () => box.remove()); });
     },
     /** 지도 — 건물 목록. */
-    placeList(list: { name: string; line: string; run(): void }[]) {
+    placeList(list: { name: string; line: string; run(): void }[], title = '어디로 갈까요?') {
       openSheet(
-        el('p', 'g-kicker', '어디로 갈까요?'),
+        el('p', 'g-kicker', title),
         ...list.map(({ name, line, run }) => { const b = button('g-place-row', '', () => { closeSheet(); run(); }); b.append(el('b', '', name), el('small', '', line)); return b; }),
         button('g-link', '닫기', closeSheet),
       );

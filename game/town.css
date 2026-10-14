@@ -16,6 +16,8 @@
 /* 말 상자 — 문 앞 주민의 한마디(ui.css 의 .g-talk 와 같은 꼴, 왼쪽에 얼굴) */
 .v-npc{position:relative;display:flex;align-items:center;gap:12px;margin:14px 0 16px;padding:20px 16px 14px;border-radius:28px 34px 30px 26px/30px 26px 32px 28px;background:#fffaee;box-shadow:inset 0 0 0 2.5px #efdfbf,0 4px 0 #d6bf98;cursor:pointer}
 .v-npc .g-name{left:64px}
+.v-ask{box-shadow:inset 0 0 0 2.5px var(--tab),0 4px 0 var(--tab-dark)}
+.v-ask::after{content:"!";position:absolute;right:16px;top:-14px;width:28px;height:28px;border-radius:50%;background:var(--tab);color:#6a4716;font-family:var(--display);font-size:18px;line-height:30px;text-align:center;box-shadow:0 2px 0 var(--tab-dark)}
 .v-npc .t-ava{transform:scale(1.35);margin:0 4px 0 6px}
 .v-said{margin:0;min-height:1.5em;font-family:var(--body);font-weight:600;font-size:17px;line-height:1.5;color:#55402f}
 
