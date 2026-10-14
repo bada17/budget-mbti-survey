@@ -8,9 +8,10 @@
   · 이름 「언덕 너머 마을」·건물 이름·주민 한마디는 Claude 가 붙인 임시(사용자 「임시 이름으로 해」).
 */
 import type { Point } from './room';
+import { rng } from './look';
 
 export type Box = { x: number; y: number; w: number; h: number };
-export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax';
+export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works';
 /** 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다). */
 export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point };
 
@@ -30,6 +31,8 @@ export const PLACES: Place[] = [
   { id: 'finance', name: '나라살림 창고', line: '우리 지역의 한 해 살림을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 } },
   { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
   { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 } },
+  // 마을 공사터 — 나무에서 주운 동전을 넣으면 모두의 동전이 모여 다리·정자가 선다(사용자 10-14 동물의 숲 ⓑ). 판은 places.ts openWorks.
+  { id: 'works', name: '마을 공사터', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 } },
   { id: 'bus', name: '버스 정류장', line: '열다섯 동네 주민들이 또 기다려요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
 ];
 
@@ -192,4 +195,42 @@ export const NOTE_WHY = {
 export function kstDayStart(now: number) {
   const day = 24 * 60 * 60 * 1000, kst = 9 * 60 * 60 * 1000;
   return Math.floor((now + kst) / day) * day - kst;
+}
+
+// ───────────────────────── 마을 공사·나무 흔들기(사용자 10-14 동물의 숲 ⓑⓕ) ─────────────────────────
+/**
+ * 공사 차례 — 모두가 넣은 동전이 앞 공사부터 채운다. 다 차면 그 공사가 마을에 선다(다리는 연못 위, 정자는 공사터 자리).
+ * 목표 동전 수는 [정할 것] — 다녀가는 사람 수를 보고 고친다(한 판이 하루에 COIN_DAY_MAX 개까지).
+ */
+export const WORKS = [
+  { id: 'bridge', name: '연못 다리', goal: 100 },
+  { id: 'pavilion', name: '쉼터 정자', goal: 300 },
+] as const;
+export type WorkId = (typeof WORKS)[number]['id'];
+export type WorksState = { done: WorkId[]; now?: { id: WorkId; name: string; have: number; goal: number } };
+export function worksAt(total: number): WorksState {
+  let left = Math.max(0, Math.floor(Number(total) || 0));
+  const done: WorkId[] = [];
+  for (const work of WORKS) {
+    if (left < work.goal) return { done, now: { id: work.id, name: work.name, have: left, goal: work.goal } };
+    done.push(work.id); left -= work.goal;
+  }
+  return { done };
+}
+
+/** 한 판이 하루에 넣을 수 있는 동전 — 나무에서 하루에 떨어지는 동전 수와 같다(서버도 이 수로 막는다). */
+export const COIN_DAY_MAX = 5;
+export type Drop = 'coin' | 'fruit';
+/** 한국 날짜 번호(하루에 하나씩 늘어난다). */
+export const kstDay = (now: number) => Math.round(kstDayStart(now) / (24 * 60 * 60 * 1000));
+/**
+ * 오늘 떨어지는 것 — 나무 번호 → 동전·열매. 날마다 바뀌고, 같은 날엔 누구에게나 같다. 동전은 COIN_DAY_MAX 그루, 열매는 다섯 그루에 한 그루쯤.
+ * 주운 것은 이 기기에만 적는다(places.ts loadPocket) — 그래서 하루에 주울 수 있는 동전도 COIN_DAY_MAX 개.
+ */
+export function dropsOn(day: number, trees: number) {
+  const r = rng(`drop:${day}`), drops = new Map<number, Drop>();
+  if (trees <= 0) return drops;
+  for (let tries = 0; drops.size < Math.min(COIN_DAY_MAX, trees) && tries < 200; tries++) drops.set(Math.floor(r() * trees), 'coin');
+  for (let i = 0; i < trees; i++) if (!drops.has(i) && r() < 0.2) drops.set(i, 'fruit');
+  return drops;
 }

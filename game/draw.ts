@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { FEEL } from './feel';
 import { ROUTE } from './content';
 import type { Point, Room } from './room';
-import { PLACES, PLAZA, FOUNTAIN, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId } from './village';
+import { PLACES, PLAZA, FOUNTAIN, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId, type WorksState } from './village';
 
 type Scene = Phaser.Scene;
 type Container = Phaser.GameObjects.Container;
@@ -321,13 +321,84 @@ export function meow(scene: Scene, kitty: Cat, reduced: boolean) {
   if (!reduced) scene.tweens.add({ targets: kitty.root, y: kitty.at.y - 7, duration: 130, ease: 'Quad.easeOut', yoyo: true });
 }
 
-function tree(scene: Scene, x: number, y: number, color: number) {
+function tree(scene: Scene, x: number, y: number, color: number, snow = false) {
   return scene.add.container(x, y, [
     scene.add.ellipse(0, 0, 30, 9, 0x2d3a2e, 0.14),
     scene.add.rectangle(0, -8, 7, 16, 0x9a7356).setRounded(3),
     scene.add.circle(0, -30, 18, color), scene.add.circle(-9, -22, 11, color), scene.add.circle(9, -23, 12, color),
     scene.add.circle(-5, -36, 6, 0xffffff, 0.18),
+    ...(snow ? [scene.add.ellipse(0, -43, 26, 10, 0xfbfdff), scene.add.ellipse(-10, -31, 12, 6, 0xfbfdff), scene.add.ellipse(10, -32, 13, 6, 0xfbfdff)] : []),
   ]).setDepth(y);
+}
+
+/** 철 — 실제 달로(사용자 10-14 동물의 숲 ⓒ). 개발판은 ?season= 으로 바꿔 본다. */
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+export const seasonOf = (month: number): Season => (month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'autumn' : 'winter');
+const SEASON_LOOK: Record<Season, { trees: number[]; grass: number }> = {
+  spring: { trees: [0x8cc07a, 0xf2b8c6, 0x9cba8a, 0xf7cfd8], grass: 0xd6e6b6 },
+  summer: { trees: [0x8cc07a, 0x6fae6a, 0x9cba8a, 0x5fa585], grass: 0xd3e3b4 },
+  autumn: { trees: [0xe9a04f, 0xd9744a, 0xe8c25a, 0x9cba8a], grass: 0xdcdcaa },
+  winter: { trees: [0x8faf9a, 0x7fa08c, 0xa9bcae, 0x6f9a86], grass: 0xe6ece2 },
+};
+/** 하루 빛 — 실제 시각으로 마을에 곱하는 색(흰색이면 그대로). 밤엔 가로등이 켜진다(VillageScene). */
+export function skyAt(hour: number) {
+  if (hour >= 21 || hour < 5) return { tint: 0x9ca4d4, night: true };
+  if (hour < 7) return { tint: 0xf3d6cf, night: false };
+  if (hour >= 18) return { tint: 0xc9b3c9, night: true };
+  if (hour >= 16) return { tint: 0xfbe3c4, night: false };
+  return { tint: 0xffffff, night: false };
+}
+
+/**
+ * 마을 공사(사용자 10-14 동물의 숲 ⓑ) — 공사터 자리의 울타리·간판(지금 공사와 모인 동전), 다 지은 것(연못 다리·쉼터 정자).
+ * 동전이 모이는 대로 바뀌어서 굽지 않고 따로 세운다. set 을 부르면 다시 그린다.
+ */
+function worksArt(scene: Scene, dpr: number) {
+  const site = PLACES.find(p => p.id === 'works')!.box;
+  const root = scene.add.container(site.x, site.y).setDepth(site.y + site.h);
+  const bridge = scene.add.container(POND.x + POND.w / 2, POND.y + POND.h / 2 + 4).setDepth(POND.y + POND.h / 2 + 12).setVisible(false);
+  { // 연못 다리 — 나무 판자 아치, 양 끝 기둥
+    const g = scene.add.graphics(), half = POND.w / 2 + 14;
+    g.fillStyle(0x756956, 0.18).fillEllipse(0, 14, half * 2, 12);
+    g.fillStyle(0xb07a52).fillRoundedRect(-half, -6, half * 2, 16, 8);
+    for (let x = -half + 6; x < half - 4; x += 12) g.fillStyle(0xc99464).fillRoundedRect(x, -4, 9, 12, 2);
+    g.lineStyle(3, 0x8a5e40).beginPath().arc(0, 40, half + 4, Math.PI * 1.18, Math.PI * 1.82, false).strokePath();
+    for (const x of [-half, half]) g.fillStyle(0x8a5e40).fillRoundedRect(x - 3, -22, 6, 26, 2);
+    bridge.add(g);
+  }
+  return {
+    objs: [root, bridge],
+    set(state: WorksState) {
+      root.removeAll(true);
+      bridge.setVisible(state.done.includes('bridge'));
+      const g = scene.add.graphics(), { w, h } = site;
+      if (state.done.includes('pavilion')) { // 쉼터 정자 — 기와 지붕, 기둥 넷, 가운데 평상
+        g.fillStyle(0x756956, 0.16).fillEllipse(w / 2, h + 2, w + 10, 16);
+        g.fillStyle(0xd8c6a2).fillRoundedRect(14, h - 24, w - 28, 22, 6);
+        for (const x of [22, w - 28, 48, w - 54]) g.fillStyle(0x9a6a48).fillRoundedRect(x, h - 70, 6, 50, 2);
+        g.fillStyle(0x6f8a7e).fillTriangle(-6, h - 66, w / 2, h - 110, w + 6, h - 66).fillRoundedRect(-10, h - 72, w + 20, 12, 6);
+        g.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 70, w, 4, 2);
+        g.fillStyle(0xb07a52).fillRoundedRect(w / 2 - 22, h - 34, 44, 8, 3);
+        root.add([g, label(scene, w / 2, h - 86, '쉼터 정자', 12, dpr, '#ffffff')]);
+        return;
+      }
+      // 공사 중 — 바닥, 울타리, 벽돌 더미, 간판(이름과 모인 만큼)
+      g.fillStyle(0xe2d6b8).fillRoundedRect(0, 0, w, h, 12);
+      for (let x = 0; x <= w; x += 20) g.fillStyle(0xe7a24f).fillRoundedRect(x - 3, h - 22, 6, 24, 2);
+      g.fillStyle(0xf2c661).fillRect(0, h - 16, w, 5).fillStyle(0x51423e).fillRect(8, h - 16, 10, 5).fillRect(38, h - 16, 10, 5).fillRect(68, h - 16, 10, 5).fillRect(98, h - 16, 10, 5).fillRect(128, h - 16, 10, 5);
+      for (const [bx, by] of [[22, 30], [34, 30], [28, 22]]) g.fillStyle(0xd9785f).fillRoundedRect(bx, by, 11, 7, 2);
+      g.fillStyle(0x6d5444).fillRect(w / 2 - 2, 20, 4, 34).fillStyle(0xfffaf0).fillRoundedRect(w / 2 - 66, -32, 132, 56, 8);
+      g.lineStyle(1.5, 0xd9c3a1).strokeRoundedRect(w / 2 - 66, -32, 132, 56, 8);
+      const now = state.now;
+      const items: Phaser.GameObjects.GameObject[] = [g];
+      if (now) {
+        const k = Math.min(1, now.have / now.goal);
+        g.fillStyle(0xefe2c9).fillRoundedRect(w / 2 - 52, -4, 104, 8, 4).fillStyle(0xf2c661).fillRoundedRect(w / 2 - 52, -4, Math.max(8, 104 * k), 8, 4);
+        items.push(label(scene, w / 2, -18, `공사 중 · ${now.name}`, 12, dpr), label(scene, w / 2, 13, `동전 ${now.have} / ${now.goal}`, 10, dpr, '#8a7563'));
+      } else items.push(label(scene, w / 2, -4, '다음 공사 준비 중', 12, dpr));
+      root.add(items);
+    },
+  };
 }
 
 function pigeon(scene: Scene, x: number, y: number): Pigeon {
@@ -830,6 +901,7 @@ const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {
   dok: { wall: 0xe6dad4, roof: 0x8f5f6a },
   bus: { wall: 0xd2e9d9, roof: 0x4f8f7a },
   tax: { wall: 0xf3e2b8, roof: 0xc9973f },
+  works: { wall: 0xe8d6b5, roof: 0xb07a52 }, // 공사터는 house 로 안 그린다(worksArt) — 자리만
   board: { wall: 0xd8b48c, roof: 0x9a7356 },
 };
 
@@ -897,6 +969,20 @@ function house(scene: Scene, place: Place, dpr: number) {
   return scene.add.container(x, y, items).setDepth(y + h);
 }
 
+/** 나무에서 떨어진 것 — 동전(가운데 구멍 대신 반짝)·열매(철 열매 하나로: 빨간 사과꼴). */
+export function dropArt(scene: Scene, kind: 'coin' | 'fruit') {
+  const g = scene.add.graphics();
+  g.fillStyle(0x756956, 0.18).fillEllipse(0, 4, 14, 4);
+  if (kind === 'coin') {
+    g.fillStyle(0xd9a53c).fillCircle(0, -4, 7).fillStyle(0xf2c661).fillCircle(0, -4, 5.5);
+    g.lineStyle(1.2, 0xd9a53c).strokeCircle(0, -4, 3.2).fillStyle(0xffffff, 0.7).fillCircle(-2.5, -6.5, 1.4);
+  } else {
+    g.fillStyle(0xd9574a).fillCircle(-2, -4, 5.5).fillCircle(2, -4, 5.5).fillStyle(0xffffff, 0.35).fillCircle(-3, -6.5, 1.6);
+    g.fillStyle(0x7a5a3e).fillRect(-0.6, -12, 1.4, 4).fillStyle(0x79a96a).fillEllipse(3, -11, 6, 3);
+  }
+  return scene.add.container(0, 0, [g]);
+}
+
 /** 쪽지 든 주민 머리 위 쪽지 — 작은 종이에 점 셋, 둥실. 장면이 주민 머리 위(오른쪽)로 따라 옮긴다. */
 export function noteTag(scene: Scene, reduced: boolean) {
   const g = scene.add.graphics();
@@ -949,7 +1035,15 @@ function noteBoard(scene: Scene, place: Place, dpr: number) {
  * 움직이는 것(분수 물방울·독에서 새는 물·고양이·비둘기)은 굽지 않는다. 새 물건은 bake 로 굽고 keep 에 자리 상자와 함께 넣는다.
  * cull(화면) — 화면(+여유) 밖의 것은 그리지 않는다.
  */
-export type VillageArt = { pigeons: Pigeon[]; cats: Cat[]; cull: (view: { x: number; y: number; width: number; height: number }) => void; destroy: () => void };
+export type VillageArt = {
+  pigeons: Pigeon[]; cats: Cat[];
+  /** 나무 — 흔들 수 있게(그림 한 장씩). at 은 밑동. */
+  trees: { at: Point; img: Phaser.GameObjects.Image }[];
+  /** 가로등 불 자리 — 밤에 장면이 빛을 켠다. */
+  lamps: Point[];
+  setWorks: (state: WorksState) => void;
+  cull: (view: { x: number; y: number; width: number; height: number }) => void; destroy: () => void;
+};
 type Bounds = { x0: number; y0: number; x1: number; y1: number };
 type Bakeable = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform;
 
@@ -972,7 +1066,8 @@ function bake(scene: Scene, key: string, make: () => Bakeable, b: Bounds, res: n
 }
 
 /** 마을 한 장 — 바닥(풀·길·광장·연못)과 건물·나무·장난감. 사람(Dude)은 장면이 세운다. */
-export function drawVillage(scene: Scene, dpr: number): VillageArt {
+export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf(new Date().getMonth() + 1)): VillageArt {
+  const look = SEASON_LOOK[season];
   const r = rng('village');
   const W = VILLAGE_W, H = VILLAGE_H;
   // 지난번에 구운 그림이 남아 있으면(장면을 다시 열면) 지우고 다시 굽는다.
@@ -991,7 +1086,7 @@ export function drawVillage(scene: Scene, dpr: number): VillageArt {
     g.fillGradientStyle(0xf6c9a8, 0xf6c9a8, 0xfbe4c6, 0xfbe4c6).fillRect(0, 0, W, 90);
     g.fillStyle(0xb8cf9b).fillEllipse(W * 0.2, 96, W * 0.7, 70).fillEllipse(W * 0.78, 92, W * 0.8, 60);
   });
-  bands.forEach((g, i) => { const top = Math.max(100, i * BAND); g.fillStyle(0xd3e3b4).fillRect(0, top, W, Math.min(H, (i + 1) * BAND) - top); });
+  bands.forEach((g, i) => { const top = Math.max(100, i * BAND); g.fillStyle(look.grass).fillRect(0, top, W, Math.min(H, (i + 1) * BAND) - top); });
   for (let i = 0; i < 70; i++) {
     const x = r() * W, y = 110 + r() * (H - 110), w = 30 + r() * 60, h = 8 + r() * 10;
     paint(y - h, y + h, g => g.fillStyle(0xffffff, 0.16).fillEllipse(x, y, w, h));
@@ -1043,6 +1138,7 @@ export function drawVillage(scene: Scene, dpr: number): VillageArt {
   const live: Phaser.GameObjects.GameObject[] = [...spray];
   for (const place of PLACES) {
     const { x, y, w, h } = place.box, b = { x0: x - 24, x1: x + w + 36, y0: y - 92, y1: y + h + 12 };
+    if (place.id === 'works') continue; // 공사터는 동전이 모이는 대로 바뀐다 — 아래 worksArt
     const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
     keep(bake(scene, `village-${place.id}`, make, b, sharp).setDepth(y + h), b);
     if (place.id === 'dok') {
@@ -1060,14 +1156,15 @@ export function drawVillage(scene: Scene, dpr: number): VillageArt {
   // 나무 — 색 넷을 한 번씩 굽고 그림을 여러 번 쓴다. 길·건물·광장을 비워 가장자리와 빈 풀밭에.
   const near = (at: Point, b: { x: number; y: number; w: number; h: number }, m: number) => at.x > b.x - m && at.x < b.x + b.w + m && at.y > b.y - m && at.y < b.y + b.h + m + 40;
   const TREE = { x0: -30, x1: 30, y0: -60, y1: 8 };
+  const trees: VillageArt['trees'] = [];
   for (let ty = 150; ty < H - 10; ty += 64) for (let tx = 24; tx < W; tx += 64) {
     const at = { x: tx + (r() - 0.5) * 30, y: ty + (r() - 0.5) * 24 };
     if (r() < 0.45) continue;
     if (ROADS.some(b => near(at, b, 18)) || PLACES.some(p => near(at, p.box, 34)) || near(at, POND, 20)) continue;
     if (((at.x - PLAZA.x) / (PLAZA.r * 1.25)) ** 2 + ((at.y - PLAZA.y) / (PLAZA.r * 1.05)) ** 2 < 1) continue;
-    const color = [0x8cc07a, 0x6fae6a, 0x9cba8a, 0x5fa585][Math.floor(r() * 4)];
+    const color = look.trees[Math.floor(r() * 4)];
     const b = { x0: at.x + TREE.x0, x1: at.x + TREE.x1, y0: at.y + TREE.y0, y1: at.y + TREE.y1 };
-    keep(bake(scene, `village-tree-${color}`, () => tree(scene, 0, 0, color), TREE, sharp, { x: b.x0, y: b.y0 }).setDepth(at.y), b);
+    trees.push({ at, img: keep(bake(scene, `village-tree-${color}`, () => tree(scene, 0, 0, color, season === 'winter'), TREE, sharp, { x: b.x0, y: b.y0 }).setDepth(at.y), b) });
   }
   // 광장 벤치·가로등 — 하나씩 굽고 여러 번
   const BENCH = { x0: -24, x1: 24, y0: -22, y1: 4 }, LAMP = { x0: -12, x1: 12, y0: -66, y1: 4 };
@@ -1077,22 +1174,26 @@ export function drawVillage(scene: Scene, dpr: number): VillageArt {
       scene.add.rectangle(-15, -2, 4, 10, 0x6d5444), scene.add.rectangle(15, -2, 4, 10, 0x6d5444),
     ]), BENCH, sharp, { x: bx + BENCH.x0, y: by + BENCH.y0 }).setDepth(by), { x0: bx - 24, x1: bx + 24, y0: by - 22, y1: by + 4 });
   }
-  for (const [lx, ly] of [[PLAZA.x - 150, PLAZA.y - 40], [PLAZA.x + 150, PLAZA.y - 40], [PLAZA.x - 60, PLAZA.y + 130], [PLAZA.x + 60, PLAZA.y + 130]]) {
+  const LAMPS = [[PLAZA.x - 150, PLAZA.y - 40], [PLAZA.x + 150, PLAZA.y - 40], [PLAZA.x - 60, PLAZA.y + 130], [PLAZA.x + 60, PLAZA.y + 130]];
+  for (const [lx, ly] of LAMPS) {
     keep(bake(scene, 'village-lamp', () => scene.add.container(0, 0, [scene.add.ellipse(0, 0, 14, 5, 0x2d3a2e, 0.15), scene.add.rectangle(0, -26, 4, 52, 0x6d6a73).setRounded(2), scene.add.circle(0, -54, 7, 0xfff3c4), scene.add.circle(0, -54, 11, 0xfff3c4, 0.25)]),
       LAMP, sharp, { x: lx + LAMP.x0, y: ly + LAMP.y0 }).setDepth(ly), { x0: lx - 12, x1: lx + 12, y0: ly - 66, y1: ly + 4 });
   }
   const cats = [cat(scene, PLAZA.x - 92, PLAZA.y + 72, 0xf0a04b), cat(scene, 300, 372, 0x8f8f96)];
   for (const kitty of cats) kitty.root.setDepth(kitty.at.y);
   const pigeons = [[PLAZA.x + 40, PLAZA.y + 90], [PLAZA.x + 70, PLAZA.y + 100], [PLAZA.x - 50, PLAZA.y - 66], [560, 1200]].map(([px, py]) => pigeon(scene, px, py));
+  const works = worksArt(scene, dpr);
   const MARGIN = 90; // 화면 밖 이만큼까지는 그려 둔다(걸어가며 들어올 때 갑자기 나타나지 않게)
   return {
-    pigeons, cats,
+    pigeons, cats, trees,
+    lamps: LAMPS.map(([x, y]) => ({ x, y: y - 54 })),
+    setWorks: works.set,
     cull(view) {
       const x0 = view.x - MARGIN, x1 = view.x + view.width + MARGIN, y0 = view.y - MARGIN, y1 = view.y + view.height + MARGIN;
       for (const { obj, b } of culled) obj.setVisible(b.x1 > x0 && b.x0 < x1 && b.y1 > y0 && b.y0 < y1);
     },
     destroy() {
-      [...culled.map(c => c.obj), ...live, ...cats.map(c => c.root), ...pigeons.filter(p => !p.fled).map(p => p.root)].forEach(t => t.destroy());
+      [...culled.map(c => c.obj), ...live, ...works.objs, ...cats.map(c => c.root), ...pigeons.filter(p => !p.fled).map(p => p.root)].forEach(t => t.destroy());
     },
   };
 }

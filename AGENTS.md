@@ -37,4 +37,4 @@ Claude Code 는 `CLAUDE.md`, Codex 는 `AGENTS.md` 를 폴더를 열 때 자동�
 - **살아 있는 폴더** — `C:\Users\dbqke\budget-mbti-survey` — 이 폴더가 최신이다.
 - **브랜치** — `codex/split-survey-scaffold`. 깃허브 기본 브랜치는 `main` — 합치기 전까지 상대가 못 본다.
 - ⚠️ `OneDrive\문서\ㄴㅇㄴ\budget-mbti-survey` 는 remote 도 커밋도 없는 빈 껍데기다. 거기서 고치지 말 것.
-- **게임판 역할** — 기획 Claude·사용자 → 뼈대 Claude → 디테일 GPT(그림·소품·소리·문구). 주문서는 `README.md` 「게임판 기획」, GPT 가 고쳐도 되는 파일은 그 안 「게임 뼈대」 표. **`[정할 것]` 은 짐작하지 말고 묻는다.**
+- **게임판 역할** — 기획 Claude·사용자 → 만들기 Claude(화면·글자·마을·기능) · **GPT 는 캐릭터 디자인만**(2026-10-14 사용자). 주문서는 `README.md` 「게임판 기획」, GPT 몫은 그 안 「GPT 에게 — 캐릭터만」. **`[정할 것]` 은 짐작하지 말고 묻는다.**

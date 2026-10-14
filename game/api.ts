@@ -22,10 +22,14 @@ import { orderedQuestions } from './response';
 import { cleanName, cleanTableCode, cleanNeighbor, cleanSave, isRegion, townFrom, TABLE_CHARS, type Neighbor, type Region, type Save } from './profile';
 import { validPayload, type ContactPayload } from './contact';
 import { isPick, DEFAULT_PICK, type Pick } from './look';
-import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW } from './village';
+import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW, COIN_DAY_MAX } from './village';
 
 export type Member = { id: string; name: string; pick: Pick; stage: number; type?: TypeCode; at: number };
-export type Finished = { answers: Record<string, number>; type: TypeCode; at: number; region?: Region; pick?: Pick; /** 마을에 마지막으로 들른 시각 */ seenAt?: number };
+export type Finished = {
+  answers: Record<string, number>; type: TypeCode; at: number; region?: Region; pick?: Pick; /** 마을에 마지막으로 들른 시각 */ seenAt?: number;
+  /** 마을 공사터에 넣은 동전 — 모두의 합이 공사를 채운다. coinDay 는 마지막으로 넣은 날(한국 날짜 시작 시각), coinsDay 는 그날 넣은 수. */
+  coins?: number; coinDay?: number; coinsDay?: number;
+};
 /** 쪽지 한 장. likes·reports 는 누른 판(세션)들 — 한 판에 한 번. hidden 은 시트의 「숨김」 칸(사람이 적는다)에서만 온다. */
 export type Note = { id: string; at: number; name: string; text: string; pick: Pick; sessionId: string; likes: string[]; reports: string[]; hidden?: boolean };
 /** 방명록 한 줄 — 내 링크로 들어와 끝까지 걸은 사람. 동네·유형은 그 사람이 끝낸 답에서 서버가 만든다. */
@@ -113,7 +117,9 @@ export function villageView(store: Store, now: number, exclude?: string) {
   const today = seen.filter(([, f]) => f.seenAt! >= kstDayStart(now)).length;
   const crowd = seen.filter(([id]) => id !== exclude).slice(0, CROWD_SHOW).map(([, f]) => f.pick ?? DEFAULT_PICK) as Pick[];
   const notes = [...store.notes.values()].filter(shown).sort((x, y) => y.at - x.at).slice(0, NOTES_SHOW).map(publicNote);
-  return { today, crowd, notes };
+  let coins = 0;
+  for (const f of store.finished.values()) coins += f.coins ?? 0;
+  return { today, crowd, notes, coins };
 }
 const shown = (note: Note) => !note.hidden && note.reports.length < REPORT_HIDE;
 const publicNote = ({ id, at, name, text, pick, likes }: Note) => ({ id, at, name, text, pick, likes: likes.length });
@@ -225,6 +231,16 @@ export function handle(store: Store, method: string, path: string, body: unknown
       if (!isPick(input.pick)) return { status: 400, body: { error: 'bad-pick' } };
       store.finished.set(sessionId, { ...done, pick: input.pick, seenAt: now });
       return { status: 200, body: villageView(store, now, sessionId) };
+    }
+    if (path === '/village/coins') {
+      // 공사터에 동전 넣기 — 하루에 COIN_DAY_MAX 개까지(나무에서 하루에 떨어지는 수). 넘치면 넣을 수 있는 만큼만.
+      const n = input.n;
+      if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > COIN_DAY_MAX) return { status: 400, body: { error: 'bad-coins' } };
+      const day = kstDayStart(now), already = done.coinDay === day ? done.coinsDay ?? 0 : 0;
+      const take = Math.min(n as number, COIN_DAY_MAX - already);
+      if (take <= 0) return { status: 429, body: { error: 'coin-day' } };
+      store.finished.set(sessionId, { ...done, coins: (done.coins ?? 0) + take, coinDay: day, coinsDay: already + take });
+      return { status: 200, body: { took: take, view: villageView(store, now, sessionId) } };
     }
     if (path === '/village/notes') {
       const checked = checkNote(input.text);

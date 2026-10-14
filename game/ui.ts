@@ -30,6 +30,8 @@ const icon = (node: HTMLElement, svg: string, label: string) => { node.innerHTML
 export const ICONS = {
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
   up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6.5 11.5L12 6l5.5 5.5"/></svg>',
+  coin: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2" class="i"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.8" width="12" height="18.4" rx="3.2"/><rect x="8.2" y="5.6" width="7.6" height="10.6" rx="1.2" class="i"/><circle cx="12" cy="18.6" r="1" class="i"/></svg>',
   people: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2z"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.2 13.9c2.6-.4 4.7 1.2 5.3 4.6h-4.4"/></svg>',
   hand: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M13 5.5a2.2 2.2 0 0 1 4.4 0v8.2l5.1 1.1a3 3 0 0 1 2.3 3.4l-1.2 6.6A3.5 3.5 0 0 1 20.2 28h-5.6a3.5 3.5 0 0 1-2.8-1.4l-4.6-6.1a2.1 2.1 0 0 1 3.1-2.8l2.7 2.4z"/></svg>',
 };
@@ -429,13 +431,13 @@ export function createUI(root: HTMLElement, actions: {
      * 마을(기획 4차) — 위 띠를 마을 것으로(이름·오늘 몇 명·지도 단추), 걷기 판의 글은 다 치운다.
      * 지도 단추 = 건물 목록. 누르면 그 문 앞으로 간다 — 손이 불편하거나 화면 읽기 도구로도 모든 건물에 들어갈 수 있게.
      */
-    village(on: { map(): void }) {
+    village(on: { phone(): void }) {
       shell.dataset.phase = 'village';
       for (const node of [end, ask, door, hint, intro, caption, panel]) node.hidden = true;
       closeSheet(); bubbles.replaceChildren(); marks.replaceChildren(); replies.classList.remove('open');
       area.textContent = VILLAGE_NAME;
-      if (!hud.querySelector('.g-map')) hud.insertBefore(button('g-map', '지도', on.map), sound);
-      live.textContent = `${VILLAGE_NAME}에 들어왔어요. 지도 단추로 건물을 고를 수 있어요.`;
+      if (!hud.querySelector('.g-map')) hud.insertBefore(icon(button('g-map', '', on.phone), ICONS.phone, '주민 폰 — 지도와 건물'), sound);
+      live.textContent = `${VILLAGE_NAME}에 들어왔어요. 주민 폰 단추로 건물을 고를 수 있어요.`;
     },
     /** 위 띠 이름 옆 — 사람 그림 + 오늘 들른 수. 서버가 없으면 비운다. */
     villageToday(count?: number) {
@@ -445,6 +447,26 @@ export function createUI(root: HTMLElement, actions: {
       today.setAttribute('role', 'img');
       today.append(String(count));
       where.append(today);
+    },
+    /** 위 띠 — 주머니 동전(0이면 숨김). 늘면 톡 튄다. */
+    villagePocket(coins: number) {
+      let chip = where.querySelector<HTMLElement>('.g-pocket');
+      if (!coins) { chip?.remove(); return; }
+      if (!chip) { chip = icon(el('small', 'g-today g-pocket'), ICONS.coin, ''); chip.setAttribute('role', 'img'); chip.append(el('span')); where.append(chip); }
+      chip.setAttribute('aria-label', `주머니 동전 ${coins}개`);
+      chip.lastElementChild!.textContent = String(coins);
+      chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
+    },
+    /**
+     * 주민 폰(동물의 숲 ⓖ) — 위엔 날짜·시각·철, 아래엔 앱. 앱을 누르면 판을 닫고 run.
+     */
+    phone(head: string, apps: { icon: string; name: string; run(): void }[]) {
+      const screen = el('div', 'g-phone');
+      const top = el('p', 'g-phone-top', head);
+      const grid = el('div', 'g-apps');
+      grid.append(...apps.map(app => { const b = button('g-app', '', () => { closeSheet(); app.run(); }); b.append(el('span', 'g-app-icon', app.icon), el('span', '', app.name)); return b; }));
+      screen.append(top, grid);
+      openSheet(screen, button('g-link', '닫기', closeSheet));
     },
     /** 지도 — 건물 목록. */
     placeList(list: { name: string; line: string; run(): void }[]) {

@@ -55,6 +55,7 @@ export const net = {
   note: (sessionId: string, name: string, pick: Pick, text: string) => call<{ note: PublicNote; view: VillageView }>('POST', '/village/notes', { sessionId, name, pick, text }),
   like: (sessionId: string, id: string) => call<{ likes: number }>('POST', `/village/notes/${id}/like`, { sessionId }),
   report: (sessionId: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/report`, { sessionId }),
+  coins: (sessionId: string, n: number) => call<{ took: number; view: VillageView }>('POST', '/village/coins', { sessionId, n }),
   // 로그인(10-14) — 확인은 서버가 카카오·구글에 묻는다. 그다음은 열쇠로.
   login: (proof: { provider: string; redirectUri: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save }>('POST', '/login', proof),
   me: (key: string) => call<{ save: Save }>('POST', '/me', { key }),

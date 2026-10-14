@@ -230,3 +230,28 @@ test('마을 금고: 세금 도감은 금고 넷 안에서만, 동네 금고 자
   assert.deepEqual(splitTax('도세·취득세', '수원시'), { name: '취득세', own: false });
   assert.equal(splitTax('시세·특별시재산세', '마포구').name, '재산세(서울시가 모아 구에 나눔)');
 });
+
+test('마을 공사·나무: 동전이 앞 공사부터 채우고, 하루 떨어지는 동전은 정해진 수, 서버는 하루 한도까지만 받는다', async () => {
+  const { worksAt, dropsOn, COIN_DAY_MAX, WORKS } = await import('../game/village.ts');
+  assert.deepEqual(worksAt(0), { done: [], now: { id: 'bridge', name: '연못 다리', have: 0, goal: WORKS[0].goal } });
+  assert.deepEqual(worksAt(WORKS[0].goal + 7).done, ['bridge']);
+  assert.equal(worksAt(WORKS[0].goal + 7).now.have, 7);
+  assert.deepEqual(worksAt(1e9), { done: ['bridge', 'pavilion'] });
+  const a = dropsOn(20000, 80), b = dropsOn(20000, 80), c = dropsOn(20001, 80);
+  assert.deepEqual([...a], [...b], '같은 날엔 누구에게나 같다');
+  assert.notDeepEqual([...a], [...c], '날마다 바뀐다');
+  assert.equal([...a.values()].filter(k => k === 'coin').length, COIN_DAY_MAX);
+  assert.equal(dropsOn(1, 0).size, 0);
+  // 서버 — 끝낸 판만, 하루 COIN_DAY_MAX 까지, 합이 마을 모습에 실린다
+  const store = createStore(), t0 = Date.UTC(2026, 9, 14, 3);
+  const answers = Object.fromEntries(orderedQuestions.map(q => [q.id, 3]));
+  assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 1 }, t0).status, 400, '안 끝낸 판');
+  handle(store, 'POST', '/finish', { sessionId: 'session-coin-1', contentVersion: CONTENT_VERSION, answers }, t0);
+  assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 0 }, t0).status, 400);
+  const first = handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 3 }, t0);
+  assert.equal(first.body.took, 3);
+  assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 5 }, t0 + 1000).body.took, COIN_DAY_MAX - 3, '남은 만큼만');
+  assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 1 }, t0 + 2000).status, 429);
+  assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 2 }, t0 + 24 * 3600e3).body.took, 2, '다음 날 다시');
+  assert.equal(handle(store, 'GET', '/village', undefined, t0 + 24 * 3600e3).body.coins, COIN_DAY_MAX + 2);
+});

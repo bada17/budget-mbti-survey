@@ -6,13 +6,15 @@
   · 혼자가 아니다(사용자 6번) — 최근에 들른 주민들(이름 없이 모습만)이 광장과 길을 서성이고, 쪽지를 붙인 사람은 머리 위에 쪽지를 든다.
     곁에 서면 그 쪽지가 아래 카드로 뜬다(runtime.near). 지나가면 손을 흔든다.
   · 내 이웃(언덕에서 이름 지어 준 주민)이 있으면 내 뒤를 따라온다.
+  · 동물의 숲에서 빌린 것(사용자 10-14) — 실제 시각·철로 빛과 나무 색이 바뀌고 밤엔 가로등이 켜진다(ⓒ). 나무 밑동에 부딪히면 흔들리고,
+    그날 정해진 나무에선 동전·열매가 떨어진다 — 걸어가 주우면 주머니에(ⓕ). 동전은 공사터에 넣어 모두의 공사를 채운다(ⓑ, places.ts openWorks).
   배치·부딪힘은 village.ts, 그림은 draw.ts 의 drawVillage. 여기서는 위치·연출만.
 */
 import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, type Point } from '../room';
-import { PLACES, SPAWN, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, type PlaceId } from '../village';
-import { Dude, lookFrom, toLook, drawVillage, noteTag, dust, tapRing, flee, meow, sparkle, type VillageArt } from '../draw';
+import { PLACES, SPAWN, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, worksAt, type PlaceId, type Drop } from '../village';
+import { Dude, lookFrom, toLook, drawVillage, noteTag, dust, tapRing, flee, meow, sparkle, dropArt, skyAt, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -31,6 +33,12 @@ export type VillageRuntime = {
   /** 쪽지 든 주민 곁 — 그 쪽지(카드를 띄운다), 멀어지면 undefined. */
   near(note: PublicNote | undefined): void;
   ready(): void;
+  /** 지금 철·시각(개발판은 ?season=·?hour= 로 바꿔 본다). */
+  clock(): { season: Season; hour: number };
+  /** 오늘 아직 안 주운 것 — 나무 번호 → 동전·열매(village.ts dropsOn 에서 이 기기가 주운 것을 뺀 것). */
+  drops(trees: number): Map<number, Drop>;
+  /** 주웠다 — main 이 주머니에 넣는다. */
+  picked(tree: number, kind: Drop): void;
 };
 
 /** 서성이는 주민 — 최근에 들른 사람의 모습. 쪽지를 붙였으면 쪽지를 든다. */
@@ -56,6 +64,10 @@ export class VillageScene extends Phaser.Scene {
   private inside?: PlaceId;
   private reading?: Folk;
   private paused = false;
+  private drops = new Map<number, Drop>();
+  private shaken = new Map<number, number>();
+  /** 땅에 떨어진 것 — 걸어가 닿으면 줍는다. */
+  private items: { kind: Drop; tree: number; at: Point; obj: Phaser.GameObjects.Container }[] = [];
   private dustClock = 0;
   private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -65,7 +77,10 @@ export class VillageScene extends Phaser.Scene {
     const { dpr } = this.runtime.view();
     const cam = this.cameras.main;
     cam.setZoom(dpr).setBounds(0, 0, VILLAGE_W, VILLAGE_H);
-    this.art = drawVillage(this, dpr);
+    const clock = this.runtime.clock();
+    this.art = drawVillage(this, dpr, clock.season);
+    this.drops = this.runtime.drops(this.art.trees.length);
+    this.daylight(clock.hour, clock.season);
     this.pos = { ...SPAWN[this.runtime.start()] };
     this.player = new Dude(this, toLook(this.runtime.pick()), this.pos.x, this.pos.y).place(this.pos);
     this.trail = [{ x: this.pos.x, y: this.pos.y + 60 }, { ...this.pos }];
@@ -165,6 +180,7 @@ export class VillageScene extends Phaser.Scene {
     this.wander(dt);
     for (const { dude, at } of this.keepers) { dude.look(this.pos.x - at.x, this.pos.y - at.y); dude.walk(dt, false, this.reduced); }
     this.toys();
+    if (!this.paused) { this.shakeTrees(); this.pickUp(); }
     this.cull(); // 화면 밖은 안 그린다 — 느린 폰에서 끊기지 않게
     if (this.paused) return;
     this.doors();
@@ -277,4 +293,61 @@ export class VillageScene extends Phaser.Scene {
   }
 
   relayout() { if (this.player) this.cameras.main.setZoom(this.runtime.view().dpr); }
+
+  /** 모두가 넣은 동전 수 — 공사터 간판과 다 지은 것(다리·정자)을 다시 그린다. */
+  setWorks(total: number) { this.art?.setWorks(worksAt(total)); }
+
+  /** 실제 시각의 빛 — 마을 전체에 색을 곱하고, 밤이면 가로등 불을 켠다. 철마다 잎·꽃잎·눈이 조금씩 내린다. */
+  private daylight(hour: number, season: Season) {
+    const sky = skyAt(hour);
+    if (sky.tint !== 0xffffff) this.add.rectangle(0, 0, VILLAGE_W, VILLAGE_H, sky.tint).setOrigin(0).setDepth(60000).setBlendMode(Phaser.BlendModes.MULTIPLY);
+    if (sky.night) for (const lamp of this.art.lamps) {
+      // 불빛 — 겹 동그라미로 가운데만 밝게(한 겹이면 허연 원으로 보였다), 땅에도 둥근 빛
+      const glow = this.add.container(lamp.x, lamp.y, [
+        this.add.circle(0, 0, 26, 0xffb85c, 0.07), this.add.circle(0, 0, 14, 0xffc86b, 0.13), this.add.circle(0, 0, 6, 0xfff1c4, 0.5),
+        this.add.ellipse(0, 54, 60, 14, 0xffb85c, 0.07),
+      ].map(c => c.setBlendMode(Phaser.BlendModes.ADD))).setDepth(60001); // 더하기 빛은 낱낱에(컨테이너엔 안 먹는다)
+      if (!this.reduced) this.tweens.add({ targets: glow, alpha: 0.75, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+    if (this.reduced || season === 'summer') return;
+    const look = { spring: [0xf7cfd8, 0xffffff], autumn: [0xe9a04f, 0xd9744a, 0xe8c25a], winter: [0xffffff, 0xf0f6ff] }[season];
+    this.time.addEvent({
+      delay: 520, loop: true, callback: () => {
+        const view = this.cameras.main.worldView, x = view.x + Math.random() * view.width, y = view.y - 10;
+        const bit = season === 'winter' ? this.add.circle(x, y, 1.6 + Math.random() * 1.4, look[0], 0.9) : this.add.ellipse(x, y, 6, 3.5, look[Math.floor(Math.random() * look.length)], 0.9);
+        bit.setDepth(59000);
+        this.tweens.add({ targets: bit, y: y + view.height + 20, x: x + (Math.random() - 0.5) * 80, angle: 360, duration: 5000 + Math.random() * 2500, onComplete: () => bit.destroy() });
+      },
+    });
+  }
+
+  /** 나무 밑동에 부딪히면 흔들린다. 오늘 정해진 나무면 동전·열매가 떨어진다(한 번만). */
+  private shakeTrees() {
+    const now = this.time.now;
+    this.art.trees.forEach((t, i) => {
+      if (distance(this.pos, t.at) > 17 || now - (this.shaken.get(i) ?? -1e9) < 1500) return;
+      this.shaken.set(i, now);
+      if (!this.reduced) { const x0 = t.img.x; this.tweens.add({ targets: t.img, x: x0 + 2.5, duration: 55, yoyo: true, repeat: 3, onComplete: () => t.img.setX(x0) }); }
+      sfx.rustle();
+      const kind = this.drops.get(i);
+      if (!kind) return;
+      this.drops.delete(i);
+      const land = { x: t.at.x + (this.pos.x < t.at.x ? 18 : -18), y: t.at.y + 12 };
+      const obj = dropArt(this, kind).setPosition(land.x, t.at.y - 36).setDepth(land.y);
+      this.tweens.add({ targets: obj, y: land.y, duration: this.reduced ? 1 : 460, ease: 'Bounce.easeOut' });
+      this.items.push({ kind, tree: i, at: land, obj });
+    });
+  }
+
+  /** 떨어진 것에 닿으면 줍는다 — 위로 톡 올라가며 사라지고 주머니로. */
+  private pickUp() {
+    this.items = this.items.filter(item => {
+      if (distance(this.pos, item.at) > 16) return true;
+      if (item.kind === 'coin') sfx.coin(); else sfx.fruit();
+      this.tweens.add({ targets: item.obj, y: item.at.y - 34, alpha: 0, scale: 1.4, duration: this.reduced ? 1 : 360, ease: 'Cubic.easeOut', onComplete: () => item.obj.destroy() });
+      sparkle(this, item.at.x, item.at.y - 10, this.reduced);
+      this.runtime.picked(item.tree, item.kind);
+      return false;
+    });
+  }
 }

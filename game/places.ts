@@ -8,7 +8,7 @@
 */
 import { panelShell, avatar, el, btn } from './town';
 import { DONATE_URL, typeOut } from './ui';
-import { PLACES, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, checkNote, type PlaceId } from './village';
+import { PLACES, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, COIN_DAY_MAX, WORKS, checkNote, worksAt, type PlaceId } from './village';
 import { SCENES, FLOWS, VAULTS, kindOf, splitTax, type Vault } from './taxes';
 import { toLook, lookFrom, nameFrom } from './look';
 import { josa, REGIONS, type Neighbor, type Region } from './profile';
@@ -439,4 +439,69 @@ export function noteCard(shell: HTMLElement, on: NoteActions) {
     },
     hide() { showing = undefined; card.hidden = true; },
   };
+}
+
+// ───────────────────────── 주머니·마을 공사터(동물의 숲 ⓑⓕ) ─────────────────────────
+/**
+ * 주머니 — 이 기기에만. taken = 오늘 주운 나무(날이 바뀌면 비운다), given = 공사터에 넣은 동전(서버 없는 시험판은 이 수로 공사를 채운다).
+ */
+export type Pocket = { day: number; taken: number[]; coins: number; fruits: number; given: number };
+const POCKET_KEY = 'budget-game-pocket';
+export function loadPocket(day: number): Pocket {
+  try {
+    const raw = JSON.parse(localStorage.getItem(POCKET_KEY) ?? 'null');
+    const num = (v: unknown) => (Number.isInteger(v) && (v as number) >= 0 ? (v as number) : 0);
+    const sameDay = raw?.day === day;
+    return { day, taken: sameDay && Array.isArray(raw.taken) ? raw.taken.filter(Number.isInteger).slice(0, 200) : [], coins: num(raw?.coins), fruits: num(raw?.fruits), given: num(raw?.given) };
+  } catch { return { day, taken: [], coins: 0, fruits: 0, given: 0 }; }
+}
+export const savePocket = (pocket: Pocket) => { try { localStorage.setItem(POCKET_KEY, JSON.stringify(pocket)); } catch { /* 막힌 창 */ } };
+
+export type WorksOpts = {
+  /** 모두가 넣은 동전(서버 없으면 내가 넣은 것만). */
+  total: number;
+  pocket: Pocket;
+  online: boolean;
+  /** 넣기 — 서버가 받은 수와 새 합계. 못 넣었으면 undefined(하루 한도 등). */
+  give(n: number): Promise<{ took: number; total: number } | undefined>;
+  toTax(): void;
+};
+
+/** 마을 공사터 — 지금 공사·모인 동전·다 지은 것, 내 주머니 동전 넣기, 그리고 진짜 마을의 세금과 잇는 한마디. */
+export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => void) {
+  const { panel, close } = placePanel(shell, 'works', onClose);
+  const card = el('div', 't-bigcard'), status = el('p', 't-small'); status.setAttribute('role', 'status');
+  const give = btn('g-primary', '', async () => {
+    const n = Math.min(opts.pocket.coins, COIN_DAY_MAX);
+    if (!n) return;
+    give.disabled = true; status.textContent = '넣는 중…';
+    const done = await opts.give(n);
+    if (!done) { status.textContent = `동전은 하루에 ${COIN_DAY_MAX}개까지 넣을 수 있어요. 내일 또 와요.`; draw(); return; }
+    opts.total = done.total;
+    status.textContent = `동전 ${done.took}개를 넣었어요.`;
+    draw();
+  });
+  const draw = () => {
+    const state = worksAt(opts.total);
+    const parts: Node[] = [];
+    if (state.now) {
+      const k = Math.min(100, Math.round((state.now.have / state.now.goal) * 100));
+      const bar = el('div', 'x-stack'), fill = el('i'), rest = el('i');
+      fill.style.cssText = `flex:${k} 0 0;background:#f2c661`; rest.style.cssText = `flex:${100 - k} 0 0;background:#efe2c9`;
+      bar.append(fill, rest); bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', `${k}% 모임`);
+      parts.push(el('p', 't-small', '공사 중'), el('p', 't-big', state.now.name), bar, el('p', 't-small', `동전 ${state.now.have} / ${state.now.goal}${opts.online ? ' · 다녀간 사람 모두가 모은 것' : ' · 시험판이라 내가 넣은 것만'}`));
+    } else parts.push(el('p', 't-big', '공사 다 끝!'), el('p', 't-small', '다음 공사를 준비하고 있어요.'));
+    if (state.done.length) {
+      const built = el('p', 'x-flow');
+      built.append(el('span', 't-small', '다 지은 것 '), ...state.done.map(id => el('span', 'x-built', WORKS.find(w => w.id === id)!.name)));
+      parts.push(built);
+    }
+    card.replaceChildren(...parts);
+    give.textContent = opts.pocket.coins ? `내 동전 ${opts.pocket.coins}개 넣기` : '주머니에 동전이 없어요';
+    give.disabled = !opts.pocket.coins || !state.now;
+  };
+  const real = el('div', 'v-qa');
+  real.append(el('p', 'v-q', '진짜 마을도 이렇게 지어요'), el('p', 'v-a', '주민이 낸 세금이 금고에 모여 길·다리·쉼터가 돼요. 어떤 세금이 어느 금고로 가는지 마을 금고에서 볼 수 있어요.'));
+  panel.append(card, give, status, el('p', 't-small x-hint', '나무 밑동에 부딪혀 보세요. 날마다 몇 그루에서 동전이 떨어져요.'), real, btn('g-ghost', '마을 금고에 가 보기', () => { close(); opts.toTax(); }));
+  draw();
 }

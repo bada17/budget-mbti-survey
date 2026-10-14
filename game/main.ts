@@ -17,8 +17,9 @@ import {
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
 import { openTown, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
-import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, noteCard, loadMarks, rememberMine } from './places';
-import { PLACES, type PlaceId } from './village';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, noteCard, loadMarks, rememberMine, loadPocket, savePocket } from './places';
+import { PLACES, dropsOn, kstDay, type PlaceId, type Drop } from './village';
+import { seasonOf, type Season } from './draw';
 import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
@@ -333,7 +334,9 @@ function toVillage() {
 /** 마을 장면이 섰다 — 위 띠를 마을 것으로, 서버에 「들렀다」 알리고 다녀간 사람들을 세운다. */
 function enteredVillage() {
   where = 'village';
-  ui.village({ map: openMap });
+  ui.village({ phone: openPhone });
+  ui.villagePocket(loadPocket(kstDay(Date.now())).coins);
+  if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
     if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 주민센터 주민증에 찍혀 있어요.`);
     if (loggedIn) openPlace('hub');
@@ -354,7 +357,48 @@ function showVillage(view: VillageView) {
   // 내 쪽지는 광장에 세우지 않는다 — 내 모습을 한 주민이 하나 더 서성이면 내가 둘로 보인다(쪽지판 목록엔 있다).
   const mine = new Set(loadMarks().mine);
   village?.setCrowd({ ...view, notes: view.notes.filter(n => !mine.has(n.id)) });
+  village?.setWorks(view.coins ?? 0);
   ui.villageToday(view.today);
+}
+
+// ── 동물의 숲에서 빌린 것(10-14) — 실제 시각·철, 나무에서 줍기, 주민 폰 ──
+const SEASON_NAME: Record<Season, string> = { spring: '봄', summer: '여름', autumn: '가을', winter: '겨울' };
+/** 지금 철·시각. 개발판은 ?season=winter&hour=22 처럼 바꿔 본다(공개판엔 없다). */
+function clock() {
+  const now = new Date();
+  const dev = import.meta.env.DEV ? params : undefined;
+  const season = (['spring', 'summer', 'autumn', 'winter'] as const).find(s => s === dev?.get('season')) ?? seasonOf(now.getMonth() + 1);
+  const hour = dev?.has('hour') ? Number(dev.get('hour')) % 24 : now.getHours();
+  return { season, hour, now };
+}
+/** 오늘 떨어지는 것에서 이 기기가 이미 주운 나무를 뺀다. */
+function todaysDrops(trees: number) {
+  const pocket = loadPocket(kstDay(Date.now())), drops = dropsOn(kstDay(Date.now()), trees);
+  for (const tree of pocket.taken) drops.delete(tree);
+  return drops;
+}
+function picked(tree: number, kind: Drop) {
+  const pocket = loadPocket(kstDay(Date.now()));
+  if (pocket.taken.includes(tree)) return;
+  pocket.taken.push(tree);
+  if (kind === 'coin') pocket.coins++; else pocket.fruits++;
+  savePocket(pocket);
+  ui.villagePocket(pocket.coins);
+}
+/** 주민 폰 — 날짜·시각·철과 앱 여섯. 건물 앱은 그 문 앞으로 옮겨 가서 연다(지도와 같은 길). */
+function openPhone() {
+  if (panelOpen) return;
+  const { season, now } = clock(), pocket = loadPocket(kstDay(Date.now()));
+  const head = `${now.getMonth() + 1}월 ${now.getDate()}일 ${now.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} · ${SEASON_NAME[season]} · 동전 ${pocket.coins} · 열매 ${pocket.fruits}`;
+  const go = (id: PlaceId) => () => village?.jump(id, () => openPlace(id));
+  ui.phone(head, [
+    { icon: '🗺️', name: '지도', run: openMap },
+    { icon: '🪪', name: '주민증', run: go('hub') },
+    { icon: '💰', name: '세금 도감', run: go('tax') },
+    { icon: '🏗️', name: '마을 공사', run: go('works') },
+    { icon: '📌', name: '쪽지판', run: go('board') },
+    { icon: '🚌', name: '한 바퀴 더', run: go('bus') },
+  ]);
 }
 
 /** 지도 — 건물 목록. 고르면 그 문 앞으로 옮겨 가서 연다. */
@@ -374,6 +418,26 @@ function openPlace(id: PlaceId) {
   else if (id === 'dok') openDok(shell, done);
   else if (id === 'finance') openFinance(shell, loadRegion(), done);
   else if (id === 'tax') openTax(shell, loadRegion(), done);
+  else if (id === 'works') {
+    const sid = who?.sessionId, pocket = loadPocket(kstDay(Date.now()));
+    openWorks(shell, {
+      total: online ? villageView?.coins ?? 0 : pocket.given, pocket, online,
+      give: async n => {
+        const fresh = loadPocket(kstDay(Date.now()));
+        let took = n, total: number;
+        if (online) {
+          const done = sid ? await net.coins(sid, n) : undefined;
+          if (!done) return undefined;
+          took = done.took; total = done.view.coins; showVillage(done.view);
+        } else total = fresh.given + n;
+        fresh.coins -= took; fresh.given += took; savePocket(fresh);
+        pocket.coins = fresh.coins; ui.villagePocket(fresh.coins);
+        if (!online) village?.setWorks(fresh.given);
+        return { took, total };
+      },
+      toTax: () => village?.jump('tax', () => openPlace('tax')),
+    }, done);
+  }
   else if (id === 'house') openHouse(shell, done);
   else openBoard(shell, {
     view: villageView, online, myName: me.name, like: likeNote, report: reportNote,
@@ -465,6 +529,7 @@ async function boot() {
     const villageScene = new VillageScene({
       view: () => view, controls, pick: () => me.pick, neighbor: loadNeighbor, start: () => villageStart,
       enter: openPlace, near: note => (note ? notesCard.show(note) : notesCard.hide()), ready: enteredVillage,
+      clock, drops: todaysDrops, picked,
     });
     village = villageScene;
     if (import.meta.env.DEV) Object.assign(window, { __village: villageScene }); // 개발판 봇이 마을 안 자리를 읽는다(공개판엔 없다)

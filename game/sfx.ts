@@ -48,6 +48,10 @@ export const sfx = {
     const code = ch.charCodeAt(0);
     tone(430 + pitch + (code % 9) * 38, 0.055, { type: 'triangle', gain: 0.032, slide: (code % 3 - 1) * 60 });
   },
+  /** 나무 흔들기·줍기(동물의 숲 ⓕ) — 잎 사락, 동전 딸랑, 열매 톡. */
+  rustle: () => { for (let i = 0; i < 4; i++) tone(900 + (i % 2) * 180, 0.05, { type: 'triangle', gain: 0.012, delay: i * 0.035, slide: -300 }); },
+  coin: () => { tone(1319, 0.09, { gain: 0.05 }); tone(1760, 0.22, { gain: 0.045, delay: 0.07 }); },
+  fruit: () => tone(520, 0.12, { slide: 180, gain: 0.05 }),
   fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.5 : 0.16, { delay: i * 0.13, gain: 0.065 })),
 };
 
