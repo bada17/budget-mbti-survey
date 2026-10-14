@@ -25,7 +25,7 @@ const button = (className: string, text: string, onClick: () => void) => {
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 const SIDES: DisplaySide[] = ['left', 'right'];
 /** 도너스 정기후원. utm 은 도너스 약정에 남아 「게임에서 온 후원」을 가를 수 있다. */
-const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
+export const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
 
 export function createUI(root: HTMLElement, actions: {
   start(): void; retry(): void; sound(): void; openTable(): void;
@@ -61,6 +61,7 @@ export function createUI(root: HTMLElement, actions: {
     <ul class="g-notes"></ul>
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
     <button class="g-link g-table-open" type="button" hidden>테이블에서 같이 하기</button>
+    <button class="g-link g-home-open" type="button" hidden>지난번 내 동네 · 주민증</button>
     <p class="g-small">화면을 꾹 누르면 그쪽으로 걸어가요 · 2~3분</p>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
   const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·테이블·이웃이 번갈아 쓰는 아래 판
@@ -91,6 +92,8 @@ export function createUI(root: HTMLElement, actions: {
     hideIntro() { intro.classList.add('gone'); later(400, () => { intro.hidden = true; }); },
     /** 게임 서버가 있을 때만 「테이블에서 같이 하기」 를 보인다. */
     online(on: boolean) { intro.querySelector<HTMLElement>('.g-table-open')!.hidden = !on; },
+    /** 다시 온 사람 — 걷지 않고 지난번 내 동네·방명록·주민증을 본다(기획 3차). */
+    homeOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-home-open')!; b.hidden = false; b.onclick = run; },
     /** 시작 화면 아래 한 줄씩 — 초대한 친구, 지난번 이웃, 테이블. */
     notes(lines: string[]) { intro.querySelector('.g-notes')!.replaceChildren(...lines.map(line => el('li', '', line))); },
 
@@ -237,8 +240,11 @@ export function createUI(root: HTMLElement, actions: {
       live.textContent = `다음 동네, ${areaName}`;
     },
 
-    /** 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들. */
-    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; again(): void }) {
+    /**
+     * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들.
+     * 주민증·우리 동네 예산은 단추가 아니라 공터의 두 주민이 맡는다(npcs). 아래 판은 공터가 넓게 보이게 작게(사용자 10-14).
+     */
+    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; again(): void }) {
       const card = el('div', 'g-end-card');
       // 세 축 — 왜 이 유형인지. 점은 -100~+100 을 막대 위 자리로, 가운데 금이 갈림길.
       const axes = el('ul', 'g-axes');
@@ -254,11 +260,13 @@ export function createUI(root: HTMLElement, actions: {
       const give = el('a', 'g-link g-give', '이 게임을 만든 함께하는 시민행동 후원하기 →');
       give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
+      const row = el('div', 'g-end-row'), links = el('div', 'g-end-links');
+      row.append(button('g-primary', '친구에게 보내기', on.share), button('g-ghost', '내 이웃 정하기', on.neighbor));
+      links.append(...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : []), button('g-link', '한 번 더 걷기', on.again));
       bar.append(
-        button('g-primary', '내 이웃 정하기', on.neighbor),
-        ...(on.others ? [button('g-ghost', '다른 사람들은?', on.others)] : []),
-        button('g-ghost', '친구에게 보내기', on.share),
-        button('g-link', '한 번 더 걷기', on.again),
+        row,
+        ...(on.reply ? [button('g-ghost', on.reply.label, on.reply.run)] : []), // 나를 부른 친구에게 답장(기획 3차 ①)
+        links,
         give,
       );
       end.replaceChildren(card, bar);
@@ -273,11 +281,25 @@ export function createUI(root: HTMLElement, actions: {
     async picture(scene: string) {
       const { toBlob } = await import('html-to-image');
       await document.fonts?.ready;
-      const skip = new Set<Node | null>([stage, hud, sheet, panel, toast, hint, end.querySelector('.g-end-actions')]);
+      const skip = new Set<Node | null>([stage, bubbles, hud, sheet, panel, toast, hint, end.querySelector('.g-end-actions')]);
       shell.classList.add('shooting'); // 움직임을 멈춰야 복사본이 첫 장면(투명)으로 찍히지 않는다
       try {
         return await toBlob(shell, { pixelRatio: 2, filter: node => !skip.has(node), style: { backgroundImage: `url(${scene})`, backgroundSize: '100% 100%' } });
       } finally { shell.classList.remove('shooting'); }
+    },
+    /** 공터 두 주민의 말풍선 — 누르면 그 주민에게 걸어간다. */
+    npcs(list: { text: string; x: number; y: number; run(): void }[]) {
+      bubbles.replaceChildren(...list.map(({ text, x, y, run }) => {
+        const b = button('g-bubble g-npc', text, run);
+        b.style.left = `${x}px`; b.style.top = `${y}px`;
+        b.setAttribute('aria-label', `${text} — 누르면 이 주민에게 걸어가요.`);
+        return b;
+      }));
+    },
+    /** 끝 화면 아래 판의 윗선(CSS px) — 공터에서 이 위까지만 걷는다. */
+    endTop() {
+      const box = shell.getBoundingClientRect(), bar = end.querySelector('.g-end-actions');
+      return bar ? bar.getBoundingClientRect().top - box.top : box.height;
     },
     endActions(show: boolean) { const bar = end.querySelector<HTMLElement>('.g-end-actions'); if (bar) bar.hidden = !show; },
     /** 끝 화면 카드 아래 줄 — 초대한 친구와 테이블 사람들(새로 온 사람이 있으면 다시 부른다). */

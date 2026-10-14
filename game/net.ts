@@ -1,21 +1,37 @@
 /*
   게임 서버 부르기. 서버가 없거나 늦으면 조용히 undefined — 그때는 혼자 걷는 판으로 그대로 돈다.
   규칙은 api.ts 에 있다.
+
+  두 가지 서버 —
+  · 개발 서버(npm run dev:game): ./api/game/… 그대로. 테이블까지 다 된다.
+  · 구글 시트(앱스 스크립트 웹 앱): 빌드할 때 VITE_GAME_API 에 웹 앱 주소(…/exec)를 주면 그리로 간다(README 「구글 시트 서버」).
+    앱스 스크립트는 주소 뒤 길을 못 받아서 ?p=/stats 처럼 넘기고, 응답 코드도 못 정해서 { status, body } 로 싸서 온다.
+    POST 는 text/plain 으로 보낸다 — application/json 이면 브라우저가 먼저 OPTIONS 를 묻는데 앱스 스크립트는 그걸 못 받는다.
+    테이블은 붙이지 않는다(TABLES) — 4초마다 묻는 게 앱스 스크립트 한도에 걸린다.
 */
 import { CONTENT_VERSION } from './content';
-import type { Stats, TableView } from './api';
+import type { Stats, TableView, RegionView, Visit } from './api';
+import type { ContactPayload } from './contact';
+import type { Neighbor, Region } from './profile';
 import type { Pick } from './look';
+
+const GAS: string | undefined = import.meta.env?.VITE_GAME_API || undefined;
+/** 테이블(같이 걷기)이 되는 서버인가. */
+export const TABLES = !GAS;
 
 async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T | undefined> {
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), 4000);
+  const timer = setTimeout(() => abort.abort(), GAS ? 12000 : 4000); // 앱스 스크립트는 처음 깨어날 때 몇 초 걸린다
   try {
-    const response = await fetch(`./api/game${path}`, {
+    const response = await fetch(GAS ? `${GAS}?p=${encodeURIComponent(path)}` : `./api/game${path}`, {
       method, signal: abort.signal,
-      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+      headers: body === undefined ? undefined : { 'content-type': GAS ? 'text/plain;charset=utf-8' : 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    return response.ok ? await response.json() as T : undefined;
+    if (!response.ok) return undefined;
+    if (!GAS) return await response.json() as T;
+    const wrapped = await response.json() as { status: number; body: T };
+    return wrapped.status < 400 ? wrapped.body : undefined;
   } catch { return undefined; } finally { clearTimeout(timer); }
 }
 
@@ -26,4 +42,11 @@ export const net = {
   table: (code: string) => call<TableView>('GET', `/tables/${code}`),
   join: (code: string, member: { id: string; name: string; pick: Pick }) => call<TableView>('POST', `/tables/${code}/members`, member),
   progress: (code: string, id: string, patch: { stage?: number; type?: string }) => call<TableView>('POST', `/tables/${code}/members/${id}`, patch),
+  // 다시 올 이유(10-14)
+  newHome: () => call<{ id: string; key: string }>('POST', '/homes', {}),
+  visit: (home: string, visitor: { sessionId: string; name: string; pick: Pick }) => call<{ ok: true }>('POST', `/homes/${home}/visits`, visitor),
+  book: (home: string, key: string) => call<{ visits: Omit<Visit, 'sessionId'>[] }>('POST', `/homes/${home}/book`, { key }),
+  region: (sessionId: string, region: Region, pick: Pick) => call<RegionView>('POST', '/region', { sessionId, region, pick }),
+  regionView: (region: Region) => call<RegionView>('GET', `/regions/${encodeURIComponent(region)}`),
+  contact: (payload: ContactPayload, extra: { neighbor?: Neighbor; type?: string }) => call<{ ok: true }>('POST', '/contact', { payload, ...extra }),
 };

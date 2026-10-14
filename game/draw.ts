@@ -655,27 +655,48 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
 /** 강 건너 언덕 — 도착하는 곳. 언덕 꼭대기 자리를 돌려준다. */
 export function drawHill(scene: Scene, w: number, h: number, offsetY: number) {
   const g = scene.add.graphics();
-  g.fillGradientStyle(0xe7acb3, 0xe7acb3, 0xffd6b4, 0xffd6b4).fillRect(0, 0, w, h * 0.46);
-  g.fillStyle(0xffe7b1).fillCircle(w * 0.76, h * 0.37, 30);
-  g.fillStyle(0xfff0cf, 0.4).fillEllipse(w * 0.76, h * 0.405, 85, 8);
-  for (const [x, y, k] of [[w * 0.16, h * 0.34, 1], [w * 0.56, h * 0.29, 0.7]]) {
+  g.fillGradientStyle(0xe7acb3, 0xe7acb3, 0xffd6b4, 0xffd6b4).fillRect(0, 0, w, h * 0.32);
+  g.fillStyle(0xffe7b1).fillCircle(w * 0.76, h * 0.23, 30);
+  g.fillStyle(0xfff0cf, 0.4).fillEllipse(w * 0.76, h * 0.265, 85, 8);
+  for (const [x, y, k] of [[w * 0.16, h * 0.2, 1], [w * 0.56, h * 0.15, 0.7]]) {
     g.fillStyle(0xfff4df, 0.75).fillEllipse(x, y, 64 * k, 13 * k).fillCircle(x - 10 * k, y - 7 * k, 12 * k).fillCircle(x + 10 * k, y - 5 * k, 9 * k);
   }
-  g.fillStyle(0xb8bea0).fillEllipse(w * 0.1, h * 0.46, w, h * 0.13).fillEllipse(w * 0.88, h * 0.455, w * 0.85, h * 0.1);
-  g.fillStyle(0xa4c8c6).fillRect(0, h * 0.44, w, h * 0.12);
-  g.fillStyle(0xffe5b9, 0.65).fillRoundedRect(w * 0.76 - 20, h * 0.46, 40, 4, 2).fillRoundedRect(w * 0.76 - 29, h * 0.48, 58, 3, 1.5);
-  for (let i = 0; i < 9; i++) g.fillStyle(0xf3f0d6, 0.5).fillRoundedRect((i * 47) % w, h * 0.465 + (i % 3) * 12, 13 + (i % 2) * 7, 2, 1);
-  g.fillStyle(0xe0e3ba).fillRect(0, h * 0.56, w, h * 0.44);
-  g.fillStyle(0xb8ce97).fillEllipse(w / 2, h * 0.86, w * 1.5, h * 0.66);
-  g.fillStyle(0xcdddab).fillEllipse(w / 2, h * 0.8, w * 0.98, h * 0.39);
-  g.fillStyle(0xe4e8bd).fillEllipse(w / 2, h * 0.7, w * 0.62, h * 0.16);
-  for (let i = 0; i < 30; i++) {
-    const fx = (i * 73) % w, fy = h * 0.66 + ((i * 37) % Math.round(h * 0.3));
-    if (Math.abs(fx - w / 2) < w * 0.33 && fy < h * 0.78) continue;
+  g.fillStyle(0xb8bea0).fillEllipse(w * 0.1, h * 0.32, w, h * 0.13).fillEllipse(w * 0.88, h * 0.315, w * 0.85, h * 0.1);
+  g.fillStyle(0xa4c8c6).fillRect(0, h * 0.3, w, h * 0.12);
+  g.fillStyle(0xffe5b9, 0.65).fillRoundedRect(w * 0.76 - 20, h * 0.32, 40, 4, 2).fillRoundedRect(w * 0.76 - 29, h * 0.34, 58, 3, 1.5);
+  for (let i = 0; i < 9; i++) g.fillStyle(0xf3f0d6, 0.5).fillRoundedRect((i * 47) % w, h * 0.325 + (i % 3) * 12, 13 + (i % 2) * 7, 2, 1);
+  // 넓은 공터 — 강을 위로 올려 풀밭을 넓혔다. 가운데 다져진 빈 땅. 양옆에 도장 주민·예산 주민이 선다(사용자 10-14 「마지막은 넓은 공터, NPC 처럼」).
+  g.fillStyle(0xcdddab).fillRect(0, h * 0.42, w, h * 0.58);
+  g.fillStyle(0xbdd19c).fillRect(0, h * 0.42, w, 5);
+  g.fillStyle(0xe2dcb4).fillEllipse(w / 2, h * 0.68, w * 1.16, h * 0.46);
+  g.fillStyle(0xece6c4).fillEllipse(w / 2, h * 0.67, w * 0.96, h * 0.38);
+  for (let i = 0; i < 14; i++) g.fillStyle(0xd8d1a6, 0.7).fillEllipse((i * 89 + 23) % w, h * 0.5 + ((i * 53) % Math.round(h * 0.36)), 7 + (i % 3) * 3, 3);
+  for (let i = 0; i < 26; i++) {
+    const fx = (i * 73) % w, fy = h * 0.44 + ((i * 37) % Math.round(h * 0.54));
+    if (((fx - w / 2) / (w * 0.6)) ** 2 + ((fy - h * 0.68) / (h * 0.24)) ** 2 < 1) continue; // 공터 안은 비운다
     g.fillStyle([0xfff8e4, 0xf7d391, 0xeeb1b8][i % 3]);
     for (let p = 0; p < 5; p++) g.fillCircle(fx + Math.cos(p * Math.PI * 0.4) * 2.4, fy + Math.sin(p * Math.PI * 0.4) * 2.4, 2);
     g.fillStyle(0xe6b368).fillCircle(fx, fy, 1.7);
   }
+  const npc = { stamp: { x: Math.round(w * 0.2), y: Math.round(h * 0.56) }, budget: { x: Math.round(w * 0.8), y: Math.round(h * 0.56) } };
+  // 도장 책상 — 주민 바깥쪽 옆. 천 덮은 책상 위에 인주와 빨간 도장.
+  const s = npc.stamp, dx = s.x - 30;
+  g.fillStyle(0x756956, 0.16).fillEllipse(dx, s.y + 1, 34, 7);
+  g.fillStyle(0x9a7356).fillRoundedRect(dx - 13, s.y - 14, 4, 14, 2).fillRoundedRect(dx + 9, s.y - 14, 4, 14, 2);
+  g.fillStyle(0xf6d9c6).fillRoundedRect(dx - 17, s.y - 22, 34, 11, 4);
+  g.fillStyle(0xeec3ad).fillRoundedRect(dx - 17, s.y - 14, 34, 3, 1.5);
+  g.fillStyle(0x7d4a52).fillRoundedRect(dx - 13, s.y - 27, 11, 6, 2);
+  g.fillStyle(0xd8584b).fillRoundedRect(dx + 3, s.y - 27, 10, 5, 2).fillRoundedRect(dx + 6, s.y - 34, 4, 8, 2).fillCircle(dx + 8, s.y - 36, 4);
+  g.fillStyle(0xffffff, 0.35).fillCircle(dx + 6.5, s.y - 37.5, 1.4);
+  // 예산 게시판 — 이젤 위 판에 작은 막대 셋과 동전. 내용은 아직 없다(자리만).
+  const b = npc.budget, bx = b.x + 32;
+  g.fillStyle(0x756956, 0.16).fillEllipse(bx, b.y + 1, 30, 7);
+  g.lineStyle(3, 0x9a7356).lineBetween(bx - 10, b.y, bx - 4, b.y - 40).lineBetween(bx + 10, b.y, bx + 4, b.y - 40);
+  g.fillStyle(0xfffaf0).fillRoundedRect(bx - 17, b.y - 50, 34, 28, 5);
+  g.lineStyle(2, 0xd9c3a1).strokeRoundedRect(bx - 17, b.y - 50, 34, 28, 5);
+  for (const [i, hh, c] of [[0, 9, 0xf6b9a8], [1, 15, 0xa9cfe0], [2, 12, 0xb9d79d]] as const) g.fillStyle(c).fillRoundedRect(bx - 11 + i * 8, b.y - 26 - hh, 6, hh, 2);
+  g.fillStyle(0xf2c661).fillCircle(bx + 12, b.y - 45, 5);
+  g.fillStyle(0xffffff, 0.5).fillCircle(bx + 10.5, b.y - 46.5, 1.6);
   const box = scene.add.container(0, offsetY, [g]).setDepth(-100000);
-  return { box, top: { x: w / 2, y: h * 0.66 } };
+  return { box, top: { x: w / 2, y: Math.round(h * 0.68) }, npc };
 }

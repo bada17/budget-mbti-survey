@@ -1,7 +1,7 @@
 // 같이 노는 규칙 — 친구 초대 코드, 연락처 확인, 서버 규칙(다른 사람들 마음·테이블). 화면 없이 돈다.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { encodeInvite, decodeInvite, cleanName, cleanTableCode, josa } from '../game/profile.ts';
+import { encodeInvite, decodeInvite, cleanName, cleanTableCode, josa, townFrom, isTown, TOWN_IDS } from '../game/profile.ts';
 import { checkContact } from '../game/contact.ts';
 import { createStore, handle, TABLE_TTL_MS, TABLE_MAX } from '../game/api.ts';
 import { orderedQuestions } from '../game/response.ts';
@@ -75,4 +75,21 @@ test('테이블: 만들고 들어가고 진행을 알리고, 꽉 차거나 오�
   assert.equal(join('member-9999').status, 409);
   assert.equal(handle(store, 'GET', `/tables/${code}`, null, TABLE_TTL_MS + 1).status, 404);
   assert.equal(handle(store, 'GET', '/tables/abcd', null, 0).status, 404);
+});
+
+test('내 동네: 답에서 열다섯 자로, 친구 링크에 실려 오가고, 이상한 동네는 동네만 버린다', () => {
+  const answers = Object.fromEntries(TOWN_IDS.map((id, i) => [id, i % 2 ? 5 : 2]));
+  const town = townFrom(answers);
+  assert.equal(town, TOWN_IDS.map((_, i) => (i % 2 ? 'b' : 'a')).join(''));
+  assert.equal(townFrom({ ...answers, [TOWN_IDS[3]]: undefined }), undefined, '다 답하지 않으면 동네 없음');
+  // 친구 링크 — 이름이 가장 길어도 코드 길이 한도(200자) 안
+  const invite = { name: '가나다라마바사아자차', pick: [2, 1, 3, 0], type: '101', town };
+  const code = encodeInvite(invite);
+  assert.ok(code.length <= 200, `코드 ${code.length}자`);
+  assert.deepEqual(decodeInvite(code), invite);
+  // 옛 링크(동네 없음)도, 동네만 이상한 링크도 받는다 — 동네만 빼고
+  const odd = btoa(JSON.stringify({ v: 1, n: 'a', p: [0, 0, 0, 0], t: '101', w: 'abc' })).replace(/=+$/, '');
+  assert.deepEqual(decodeInvite(odd), { name: 'a', pick: [0, 0, 0, 0], type: '101' });
+  assert.equal(isTown('a'.repeat(15)), true);
+  assert.equal(isTown('a'.repeat(14) + 'c'), false);
 });
