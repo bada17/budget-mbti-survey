@@ -187,7 +187,7 @@ export function openFinance(shell: HTMLElement, region: Region | undefined, onCl
   }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
 }
 
-// ───────────────────────── 마을 금고 — 세금 도감 · 우리 동네 금고 ─────────────────────────
+// ───────────────────────── 세금 보는 곳 — 세금 도감 · 우리 동네 금고 ─────────────────────────
 const vaultChip = (vault: Vault, extra = '', name = VAULTS[vault].name) => {
   const chip = el('span', 'x-vault', `${name} 금고${extra}`);
   chip.style.setProperty('--c', VAULTS[vault].color);
@@ -205,7 +205,7 @@ function stack(parts: { share: number; color: string; label: string }[]) {
 }
 
 /**
- * 마을 금고(사용자 10-14) — 갈래 둘. ① 세금 도감: 생활 장면을 누르면 붙는 세금과 들어가는 금고, 아래엔 나라·시·도 금고에서 다시 내려오는 길.
+ * 세금 보는 곳(사용자 10-14) — 갈래 둘. ① 세금 도감: 생활 장면을 누르면 붙는 세금과 들어가는 금고, 아래엔 나라·시·도 금고에서 다시 내려오는 길.
  * ② 우리 동네 금고: 곳을 고르면 그 금고가 무엇으로 채워지는지(2026 예산)와, 그 동네에서 걷힌 지방세가 어느 금고로 갔는지(2024).
  * 금액은 묻지 않는다. 자료(140KB)는 ② 를 처음 열 때 불러온다.
  */
@@ -500,7 +500,7 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
     give.disabled = !opts.pocket.coins || !state.now;
   };
   const real = el('div', 'v-qa');
-  real.append(el('p', 'v-q', '진짜 마을도 이렇게 지어요'), el('p', 'v-a', '주민이 낸 세금이 금고에 모여 길·다리·쉼터가 돼요. 어떤 세금이 어느 금고로 가는지 마을 금고에서 볼 수 있어요.'));
-  panel.append(card, give, status, el('p', 't-small x-hint', '나무 밑동에 부딪혀 보세요. 날마다 몇 그루에서 동전이 떨어져요.'), real, btn('g-ghost', '마을 금고에 가 보기', () => { close(); opts.toTax(); }));
+  real.append(el('p', 'v-q', '진짜 마을도 이렇게 지어요'), el('p', 'v-a', '주민이 낸 세금이 금고에 모여 길·다리·쉼터가 돼요. 어떤 세금이 어느 금고로 가는지 「세금 보는 곳」 에서 볼 수 있어요.'));
+  panel.append(card, give, status, el('p', 't-small x-hint', '나무 밑동에 부딪혀 보세요. 날마다 몇 그루에서 동전이 떨어져요.'), real, btn('g-ghost', '세금 보는 곳에 가 보기', () => { close(); opts.toTax(); }));
   draw();
 }

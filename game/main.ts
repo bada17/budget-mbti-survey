@@ -1,5 +1,4 @@
-import '@fontsource/jua/korean-400.css';
-import '@fontsource/jua/latin-400.css';
+import '@fontsource/jua/400.css'; // 조각 판 — 「korean-400」 은 한글 통째 한 파일(360KB)이라 첫 화면이 무거웠다
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './ui.css';
 import { createJourney, transition, currentQuestion, type Command } from './flow';
