@@ -15,6 +15,7 @@ type Container = Phaser.GameObjects.Container;
 import { rng, lookFrom as seedLook, type Look } from './look';
 import { sfx } from './sfx';
 import type { Outcome } from './outcomes';
+import { streamOf, keyOf, catOf, goalOf, type TwistKind } from './twists';
 export { lookFrom, toLook, type Look } from './look';
 
 type DudeLeg = Phaser.GameObjects.Rectangle | Container;
@@ -286,7 +287,7 @@ export type Cat = { root: Container; at: Point; near: boolean };
 export type RoomArt = { box: Container; openDoor: (reduced: boolean) => void; pigeons: Pigeon[]; ball?: Ball; cat?: Cat; destroy: () => void };
 
 /** 축구공 — 흰 바탕에 검은 점 여섯. 굴러가는 게 보이게 무늬가 돈다(spin). */
-function ball(scene: Scene, x: number, y: number): Ball {
+export function ball(scene: Scene, x: number, y: number): Ball {
   const s = scene.add;
   const dots = [0, 72, 144, 216, 288].map(a => s.circle(Math.cos(a * Math.PI / 180) * 6.4, Math.sin(a * Math.PI / 180) * 6.4, 1.8, 0x2d2a32));
   const spin = s.container(0, -9, [s.circle(0, 0, 9, 0xfffdf2).setStrokeStyle(1, 0x807e8c), s.circle(0, 0, 3, 0x596579), ...dots, s.ellipse(-3, -4, 4, 2, 0xffffff, 0.7)]);
@@ -295,7 +296,7 @@ function ball(scene: Scene, x: number, y: number): Ball {
 }
 
 /** 고양이 — 앉아서 꼬리를 살랑. 털색은 방마다 다르다. */
-function cat(scene: Scene, x: number, y: number, fur: number): Cat {
+export function cat(scene: Scene, x: number, y: number, fur: number): Cat {
   const s = scene.add;
   const tail = s.rectangle(10, -3, 5, 16, fur).setRounded(2.5).setOrigin(0.5, 1).setAngle(20);
   const face = s.graphics();
@@ -1324,4 +1325,58 @@ export function playOutcome(scene: Scene, o: Outcome, at: { spot: Point; room: R
     }
   }
   return left;
+}
+
+// ───────────────────────── 방마다 다른 길(twists.ts) ─────────────────────────
+export type TwistArt = {
+  objs: Phaser.GameObjects.GameObject[];
+  /** 열쇠(주우면 치운다) */ key?: Phaser.GameObjects.Text;
+  /** 졸린 고양이(깨면 옆으로 비켜 걷는다) */ cat?: Cat; zz?: Phaser.GameObjects.Text;
+};
+/** 놀이 그림 — 개울(물·물결·징검돌), 덤불 옆 열쇠(가끔 반짝), 문 앞 졸린 고양이(Zz), 구석 골대. 깊이는 바닥 위·사람 아래. */
+export function drawTwist(scene: Scene, kind: TwistKind, room: Room, dpr: number, reduced: boolean): TwistArt {
+  const objs: Phaser.GameObjects.GameObject[] = [];
+  const text = (x: number, y: number, t: string, size: number) => scene.add.text(x, y, t, { fontSize: `${size}px`, resolution: dpr, padding: { x: 4, y: 4 } }).setOrigin(0.5, 1);
+  if (kind === 'stream') {
+    const s = streamOf(room), g = scene.add.graphics().setDepth(s.y0 - 200);
+    g.fillStyle(0x8fc6d8).fillRoundedRect(-10, s.y0, room.w + 20, s.y1 - s.y0, 18);
+    g.fillStyle(0xb5dceb).fillRoundedRect(-10, s.y0 + 6, room.w + 20, s.y1 - s.y0 - 12, 14);
+    g.fillStyle(0xe8dcbc).fillRect(-10, s.y0 - 3, room.w + 20, 4).fillRect(-10, s.y1 - 1, room.w + 20, 4);
+    for (let x = 14; x < room.w; x += 46) g.lineStyle(2, 0xffffff, 0.55).lineBetween(x, s.y0 + 18 + (x % 3) * 6, x + 14, s.y0 + 18 + (x % 3) * 6);
+    for (const t of s.stones) g.fillStyle(0x756956, 0.18).fillEllipse(t.x, t.y + 4, s.r * 1.9, 12).fillStyle(0xcfc6b4).fillEllipse(t.x, t.y, s.r * 1.85, s.r * 1.25).fillStyle(0xe4ddcf).fillEllipse(t.x - 3, t.y - 3, s.r * 1.2, s.r * 0.6);
+    objs.push(g);
+    if (!reduced) { // 물결이 흐른다
+      const ripple = scene.add.graphics().setDepth(s.y0 - 199);
+      ripple.lineStyle(2, 0xffffff, 0.4);
+      for (let x = -20; x < room.w + 40; x += 60) ripple.lineBetween(x, s.y1 - 14, x + 18, s.y1 - 14);
+      scene.tweens.add({ targets: ripple, x: 60, duration: 2400, repeat: -1 });
+      objs.push(ripple);
+    }
+    return { objs };
+  }
+  if (kind === 'key') {
+    const at = keyOf(room);
+    const bush = text(at.x - 12, at.y + 6, '🌿', 30).setDepth(at.y + 2);
+    const key = text(at.x + 8, at.y + 2, '🗝️', 22).setDepth(at.y + 1);
+    objs.push(bush, key);
+    if (!reduced) scene.time.addEvent({ delay: 1600, loop: true, callback: () => { if (key.active && key.visible) sparkle(scene, key.x, key.y - 12, false); } });
+    return { objs, key };
+  }
+  if (kind === 'cat') {
+    const at = catOf(room), kitty = cat(scene, at.x, at.y, 0xc9a27e);
+    kitty.root.setDepth(at.y).setScale(1.25);
+    const zz = text(at.x + 16, at.y - 26, 'Zz', 15).setColor('#7a6655').setDepth(at.y + 1);
+    if (!reduced) scene.tweens.add({ targets: zz, y: zz.y - 6, alpha: 0.4, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    objs.push(kitty.root, zz);
+    return { objs, cat: kitty, zz };
+  }
+  // goal — 구석 골대(그물 무늬)
+  const g = goalOf(room), net = scene.add.graphics().setDepth(g.y);
+  net.fillStyle(0x756956, 0.14).fillEllipse(g.x + g.w / 2, g.y + g.h, g.w + 14, 10);
+  net.lineStyle(1, 0xffffff, 0.75);
+  for (let x = g.x + 6; x < g.x + g.w; x += 8) net.lineBetween(x, g.y + 4, x, g.y + g.h);
+  for (let y = g.y + 8; y < g.y + g.h; y += 8) net.lineBetween(g.x, y, g.x + g.w, y);
+  net.lineStyle(4, 0xfffaf0).strokeRoundedRect(g.x, g.y, g.w, g.h, { tl: 6, tr: 6, bl: 0, br: 0 });
+  objs.push(net, text(g.x + g.w / 2, g.y - 2, '🥅', 18).setDepth(g.y).setAlpha(0));
+  return { objs };
 }

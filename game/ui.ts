@@ -514,11 +514,11 @@ export function createUI(root: HTMLElement, actions: {
     say(who: string, text: string, ms = 1900) {
       shell.querySelector('.g-notice')?.remove();
       const box = el('section', 'g-notice g-say'), talk = el('div', 'g-talk'), said = el('p', 'g-quote');
-      talk.append(el('span', 'g-name', who), said);
+      talk.append(...(who ? [el('span', 'g-name', who)] : []), said);
       box.append(talk);
       shell.append(box);
       typeOut(said, text);
-      live.textContent = `${who}: ${text}`;
+      live.textContent = who ? `${who}: ${text}` : text;
       later(ms, () => { box.classList.add('bye'); later(250, () => box.remove()); });
     },
     /** 지도 — 건물 목록. */

@@ -18,7 +18,8 @@ import { FEEL } from '../feel';
 import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, rollBall, type Point, type Room } from '../room';
 import { OUTCOMES, THANKS } from '../outcomes';
 import { nameFrom } from '../look';
-import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
+import { TWISTS, streamOf, keepDry, keyOf, catOf, goalOf, scored, locks, CAT_WAKE, type TwistKind } from '../twists';
+import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, ball as makeBall, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
 import type { Pick } from '../look';
 import type { Neighbor } from '../profile';
 import { sfx } from '../sfx';
@@ -184,12 +185,76 @@ export class JourneyScene extends Phaser.Scene {
 
   private dropRoom() {
     this.art.destroy();
+    this.dropTwist();
     this.dropResidents();
     this.outcome.forEach(o => o.destroy());
     this.outcome = [];
   }
   /** 고른 대답으로 방에 생긴 것(outcomes.ts) — 방을 떠나면 지운다. */
   private outcome: Phaser.GameObjects.GameObject[] = [];
+  /** 이 방의 놀이(twists.ts) — 열쇠 주웠나·골 넣었나·고양이 깼나. 방을 떠나면 지운다. */
+  private twist?: { room: number; kind: TwistKind; art: TwistArt; done: boolean; told: boolean; lock?: Phaser.GameObjects.Text };
+
+  /** 방에 놀이가 있으면 그린다(질문이 뜰 때, 한 방에 한 번). 골 방엔 공이 꼭 있게. */
+  private ensureTwist() {
+    const kind = TWISTS[this.roomIndex];
+    if (!kind || this.twist?.room === this.roomIndex) return;
+    const art = drawTwist(this, kind, this.room, this.runtime.view().dpr, this.reduced);
+    if (kind === 'goal' && !this.art.ball) {
+      const b = makeBall(this, this.room.w / 2 - 40, this.room.residents.left.y + 110);
+      this.art.ball = b; art.objs.push(b.root);
+    }
+    this.twist = { room: this.roomIndex, kind, art, done: false, told: false };
+  }
+  /** 톡으로 가는 길이 개울을 건너면 — 지금 밟고 선 돌 다음 돌을 겨냥한다(마지막 돌 뒤엔 원래 자리). */
+  private aimAround(target: Point): Point {
+    if (this.twist?.kind !== 'stream') return target;
+    const s = streamOf(this.room);
+    const up = target.y < s.y0 && this.pos.y > s.y0, down = target.y > s.y1 && this.pos.y < s.y1;
+    if (!up && !down) return target;
+    const order = up ? s.stones : [...s.stones].reverse();
+    // 밟고 선 돌 = 반지름 안에서 가장 가까운 돌(「가장 먼 돌」 로 재면 경계에서 앞뒤 돌을 번갈아 겨냥해 멈췄다)
+    let on = -1, best = s.r;
+    order.forEach((stone, i) => { const d = distance(this.pos, stone); if (d < best) { best = d; on = i; } });
+    // 마지막 돌에선 먼저 곧장 물 밖으로 한 걸음 — 비스듬히 나가면 돌 가장자리 물에 걸렸다
+    const last = order[order.length - 1], exit = { x: last.x, y: up ? s.y0 - 10 : s.y1 + 10 };
+    return [...order, exit][on + 1];
+  }
+  private dropTwist() { this.twist?.art.objs.forEach(o => o.destroy()); this.twist = undefined; }
+
+  /** 놀이를 풀었다 — 열쇠·골이면 (대답했을 때) 문이 열린다. */
+  private solveTwist() {
+    const t = this.twist;
+    if (!t || t.done) return;
+    t.done = true;
+    if (t.lock) this.tweens.add({ targets: t.lock, y: t.lock.y - 20, alpha: 0, duration: this.reduced ? 1 : 400, onComplete: () => t.lock?.setVisible(false) });
+    if (this.chosen && !this.doorOpen) this.time.delayedCall(this.reduced ? 0 : 350, () => this.openDoorNow());
+  }
+
+  /** 매 프레임 — 열쇠 줍기, 골 판정, 고양이 깨우기. */
+  private playTwist() {
+    const t = this.twist;
+    if (!t || t.done || this.mode !== 'play') return;
+    if (t.kind === 'key' && t.art.key && distance(this.pos, keyOf(this.room)) < 22) {
+      const key = t.art.key;
+      sfx.coin(); sparkle(this, key.x, key.y - 10, this.reduced);
+      this.tweens.add({ targets: key, x: this.pos.x, y: this.pos.y - 60, scale: 0.7, duration: this.reduced ? 1 : 380, ease: 'Cubic.easeOut', onComplete: () => key.setVisible(false) });
+      this.runtime.ui.say('', '열쇠를 찾았어요!', 1300);
+      this.solveTwist();
+    } else if (t.kind === 'goal' && this.art.ball && scored(this.art.ball.at, goalOf(this.room))) {
+      sfx.focus(); confetti(this, this.room.w, this.room.wallY, this.reduced);
+      this.followers.forEach(({ dude }, i) => this.time.delayedCall(i * 40, () => dude.hop(12, 1, this.reduced)));
+      this.runtime.ui.say('', '골인!', 1200);
+      this.solveTwist();
+    } else if (t.kind === 'cat' && t.art.cat && distance(this.pos, catOf(this.room)) < CAT_WAKE) {
+      const kitty = t.art.cat;
+      meow(this, kitty, this.reduced); sfx.meow();
+      t.art.zz?.setVisible(false);
+      const to = { x: kitty.at.x + (this.pos.x < kitty.at.x ? 70 : -70), y: kitty.at.y + 26 };
+      this.tweens.add({ targets: kitty.root, x: to.x, y: to.y, duration: this.reduced ? 1 : 700, delay: this.reduced ? 0 : 450, ease: 'Sine.easeInOut', onComplete: () => { kitty.at = to; kitty.root.setDepth(to.y); } });
+      this.solveTwist();
+    }
+  }
   private dropResidents() {
     for (const side of SIDES) this.residents[side]?.destroy();
     this.residents = {};
@@ -208,6 +273,7 @@ export class JourneyScene extends Phaser.Scene {
   }
 
   private showAsk() {
+    this.ensureTwist();
     const question = orderedQuestions[this.roomIndex];
     const anchors = Object.fromEntries(SIDES.map(side => [side, { x: this.room.residents[side].x, y: this.room.residents[side].y - 56 }])) as Record<DisplaySide, Point>;
     const ms = this.runtime.ui.ask(question, this.runtime.state().sessionId, anchors, i => sfx.bubble(i));
@@ -255,6 +321,7 @@ export class JourneyScene extends Phaser.Scene {
       if (!kitty.near && d < FEEL.catRadius) { kitty.near = true; meow(this, kitty, this.reduced); sfx.meow(); }
       else if (kitty.near && d > FEEL.catRadius + 30) kitty.near = false; // 멀어졌다 다시 오면 또 야옹
     }
+    this.playTwist();
     if (this.doorOpen && passedDoor(this.pos, this.room)) this.leaveRoom();
   }
 
@@ -295,13 +362,17 @@ export class JourneyScene extends Phaser.Scene {
     let speedCap = Infinity;
     if (dir.x || dir.y) controls.target = undefined;
     else if (controls.target) {
-      const d = distance(controls.target, this.pos);
-      if (d < 3) { if (!controls.holding) controls.target = undefined; dir = { x: 0, y: 0 }; }
-      else { dir = { x: (controls.target.x - this.pos.x) / d, y: (controls.target.y - this.pos.y) / d }; speedCap = d * 1000 / dt; }
+      const aim = room === this.room ? this.aimAround(controls.target) : controls.target; // 개울 건너편이면 징검돌을 차례로
+      const d = distance(aim, this.pos);
+      if (d < 3 && aim === controls.target) { if (!controls.holding) controls.target = undefined; dir = { x: 0, y: 0 }; }
+      else if (d >= 0.5) { dir = { x: (aim.x - this.pos.x) / d, y: (aim.y - this.pos.y) / d }; speedCap = d * 1000 / dt; }
     }
     if (!dir.x && !dir.y) { this.speed = 0; return; }
     this.speed = Math.min(FEEL.walkSpeed, this.speed + FEEL.walkSpeed * dt / FEEL.accelMs);
-    const next = step(this.pos, dir, Math.min(this.speed, speedCap), dt, room, doorOpen, solid);
+    const t = room === this.room ? this.twist : undefined;
+    const blockers = t?.kind === 'cat' && !t.done ? [...solid, catOf(room)] : solid;
+    let next = step(this.pos, dir, Math.min(this.speed, speedCap), dt, room, doorOpen, blockers);
+    if (t?.kind === 'stream') next = keepDry(this.pos, next, streamOf(room));
     if (distance(next, this.pos) < 0.05 && controls.target && !controls.holding) controls.target = undefined;
     this.pos = next;
   }
@@ -399,12 +470,23 @@ export class JourneyScene extends Phaser.Scene {
     });
     this.time.delayedCall(260, () => {
       if (this.mode !== 'play') return;
-      this.doorOpen = true;
-      this.art.openDoor(this.reduced);
-      sfx.door();
-      this.showDoor();
-      if (this.hintStep === 1) this.hintStep = 2; // 문 위 화살표가 알려 준다
+      const t = this.twist;
+      if (t && locks(t.kind) && !t.done) { // 잠긴 문 — 놀이를 풀면 열린다(solveTwist). 문 위에 자물쇠
+        if (!t.lock) { t.lock = this.add.text(this.room.door.x, this.room.wallY - 18, '🔒', { fontSize: '26px', resolution: this.runtime.view().dpr, padding: { x: 4, y: 4 } }).setOrigin(0.5, 1).setDepth(9000); t.art.objs.push(t.lock); if (!this.reduced) this.tweens.add({ targets: t.lock, angle: { from: -8, to: 8 }, duration: 120, yoyo: true, repeat: 3 }); }
+        if (!t.told) { t.told = true; this.time.delayedCall(this.reduced ? 0 : 1700, () => this.runtime.ui.say(nameFrom(seed), t.kind === 'key' ? '앗, 문이 잠겼네요. 열쇠가 근처에 있을 텐데…' : '공을 구석 골대에 넣으면 문이 열려요!', 2600)); }
+        return;
+      }
+      this.openDoorNow();
     });
+  }
+
+  private openDoorNow() {
+    if (this.mode !== 'play' || this.doorOpen) return;
+    this.doorOpen = true;
+    this.art.openDoor(this.reduced);
+    sfx.door();
+    this.showDoor();
+    if (this.hintStep === 1) this.hintStep = 2; // 문 위 화살표가 알려 준다
   }
 
   private showDoor() {
@@ -543,6 +625,22 @@ export class JourneyScene extends Phaser.Scene {
     this.roomIndex = orderedQuestions.length - 1;
     this.mode = 'moving';
     this.toHill();
+  }
+
+  /** 개발판 지름길 ?room= — 고른 주민들을 줄 세우고 그 방에서 바로 시작(main.ts skipToRoom). */
+  skipToRoom(index: number, picked: { questionId: string; side: DisplaySide; key: 'a' | 'b' }[]) {
+    this.dropRoom();
+    this.setRoom(this.buildRoom(index, 0));
+    this.pos = { ...this.room.spawn };
+    this.trail = [{ x: this.pos.x, y: this.pos.y + 80 }, { ...this.pos }];
+    for (const { questionId, side, key } of picked) {
+      const at = { x: this.pos.x, y: this.pos.y + 34 };
+      this.followers.push({ dude: new Dude(this, lookFrom(`${questionId}:${side}`), at.x, at.y, FEEL.followerScale).place(at), questionId, key, seed: `${questionId}:${side}` });
+    }
+    this.light.setFillStyle(DAYLIGHT[Math.floor(index / 3)][2]);
+    this.player.place(this.pos);
+    this.mode = 'play';
+    this.showAsk();
   }
 
   private toHill() {

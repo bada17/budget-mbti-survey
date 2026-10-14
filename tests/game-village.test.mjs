@@ -299,3 +299,30 @@ test('버스 예산 퀴즈: 정답이 보기에 꼭 있고, 판마다 버스 넷
     assert.equal(seen.size, 4);
   }
 });
+
+test('방마다 다른 길: 개울은 돌을 밟아 건널 수 있고, 돌 밖은 젖는다 · 골·열쇠 자리는 방 안', async () => {
+  const { streamOf, wet, keepDry, keyOf, goalOf, catOf, scored, TWISTS } = await import('../game/twists.ts');
+  const { layoutRoom, step } = await import('../game/room.ts');
+  for (const [w, h] of [[360, 640], [360, 560], [412, 915]]) {
+    const room = layoutRoom(w, h), s = streamOf(room);
+    assert.ok(s.y0 > room.residents.left.y && s.y1 < room.spawn.y, `${w}×${h} 개울이 주민과 들어온 자리 사이`);
+    // 돌이 서로 겹쳐 아래 끝에서 위 끝까지 이어진다
+    for (let i = 1; i < s.stones.length; i++) assert.ok(Math.hypot(s.stones[i].x - s.stones[i - 1].x, s.stones[i].y - s.stones[i - 1].y) < s.r * 2 - 4);
+    assert.ok(s.stones[0].y + s.r > s.y1 && s.stones[s.stones.length - 1].y - s.r < s.y0);
+    assert.ok(wet({ x: 20, y: (s.y0 + s.y1) / 2 }, s), '돌 밖 물은 젖는다');
+    // 걸어서 건너 보기 — 돌을 차례로 겨냥해 걷는다(조이스틱으로 하는 것처럼)
+    let p = { ...room.spawn };
+    for (const target of [...s.stones, { x: room.w / 2, y: room.residents.left.y + 40 }]) {
+      for (let t = 0; t < 200 && Math.hypot(target.x - p.x, target.y - p.y) > 3; t++) {
+        const d = Math.hypot(target.x - p.x, target.y - p.y), dir = { x: (target.x - p.x) / d, y: (target.y - p.y) / d };
+        p = keepDry(p, step(p, dir, 150, 16, room, false), s);
+        assert.ok(!wet(p, s));
+      }
+    }
+    assert.ok(p.y < s.y0, `${w}×${h} 개울 건넘`);
+    for (const at of [keyOf(room), catOf(room)]) assert.ok(at.x > 0 && at.x < w && at.y > room.wallY && at.y <= room.floor);
+    const g = goalOf(room);
+    assert.ok(scored({ x: g.x + g.w / 2, y: g.y + g.h / 2 }, g) && !scored({ x: g.x - 5, y: g.y }, g));
+  }
+  assert.equal(Object.keys(TWISTS).length, 6);
+});

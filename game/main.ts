@@ -463,14 +463,16 @@ function openPlace(id: PlaceId) {
  * 개발판 전용 지름길 `?end` — 열다섯 방을 건너뛰고 언덕(끝 화면)부터, `?village` — 마을부터(사용자 10-14 「처음부터 말고 마지막만」).
  * 답은 아무렇게나 골라 flow.ts 규칙 그대로 끝까지 돌리고, 장면에는 따라온 주민만 세워 언덕으로 보낸다. 공개판(빌드)에는 없다.
  */
-function autoAnswer() {
+function autoAnswer(upTo = orderedQuestions.length) {
   let at = Math.max(Date.now(), state.lastAt);
   const arrived: GameEvent[] = [];
   const go = (command: UntimedCommand) => { const next = transition(state, { ...command, at: at++ } as Command); state = next.state; arrived.push(...next.events.filter(e => e.type === 'journey.arrived')); };
   const picked: { questionId: string; side: 'left' | 'right'; key: 'a' | 'b' }[] = [];
   go({ type: 'start' });
   ROUTE.forEach((stage, stageIndex) => {
+    if (picked.length >= upTo) return;
     for (const id of stage.ids) {
+      if (picked.length >= upTo) return;
       const side = Math.random() < 0.5 ? 'left' : 'right';
       const question = orderedQuestions.find(q => q.id === id)!;
       picked.push({ questionId: id, side, key: displayOptions(state.sessionId, question).find(o => o.side === side)!.key });
@@ -480,6 +482,20 @@ function autoAnswer() {
   });
   response = buildGameResponse(state);
   return { picked, arrived };
+}
+/** 개발판 전용 `?room=번호`(0부터) — 앞 방들은 아무렇게나 답한 셈 치고 그 방부터(놀이 방을 바로 보려고, 10-14). 공개판엔 없다. */
+function skipToRoom(n: number) {
+  ui.hideIntro();
+  const room = Math.max(0, Math.min(orderedQuestions.length - 1, Math.floor(n)));
+  const { picked } = autoAnswer(room - room % 3); // 동네 첫 방까지는 정식으로(버스 넘기는 차례가 맞게)
+  for (let i = room - room % 3; i < room; i++) { // 같은 동네 앞 방들
+    const q = orderedQuestions[i], side = Math.random() < 0.5 ? 'left' : 'right';
+    picked.push({ questionId: q.id, side, key: displayOptions(state.sessionId, q).find(o => o.side === side)!.key });
+    let at = Math.max(Date.now(), state.lastAt);
+    for (const command of [{ type: 'visible', questionId: q.id }, { type: 'approach', questionId: q.id, side }, { type: 'answer', questionId: q.id, level: 1 }] as UntimedCommand[]) state = transition(state, { ...command, at: at++ } as Command).state;
+  }
+  ui.render(state);
+  scene?.skipToRoom(room, picked);
 }
 function skipToEnd() {
   ui.hideIntro();
@@ -526,7 +542,7 @@ async function boot() {
     const [{ default: Phaser }, { JourneyScene }, { VillageScene }] = await Promise.all([import('phaser'), import('./scenes/JourneyScene'), import('./scenes/VillageScene')]);
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
-      view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); },
+      view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); else if (import.meta.env.DEV && params.has('room')) skipToRoom(Number(params.get('room'))); },
       pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage,
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
@@ -549,7 +565,7 @@ async function boot() {
       clock, drops: todaysDrops, picked,
     });
     village = villageScene;
-    if (import.meta.env.DEV) Object.assign(window, { __village: villageScene }); // 개발판 봇이 마을 안 자리를 읽는다(공개판엔 없다)
+    if (import.meta.env.DEV) Object.assign(window, { __village: villageScene, __journey: journey }); // 개발판 봇이 장면 안 자리를 읽는다(공개판엔 없다)
     // 폰 화면이 흐려지지 않게 캔버스는 기기 화소로 만들고, 화면에는 CSS 크기로 줄여 보인다.
     const phaser = new Phaser.Game({
       type: Phaser.AUTO, parent: ui.surface, backgroundColor: '#fffaf0',
