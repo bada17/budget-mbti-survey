@@ -85,3 +85,13 @@
 .t-deals small{grid-row:2;font-size:11px;color:var(--soft)}
 .t-deals b{grid-row:1 / span 2;grid-column:2;align-self:center;color:#795344}
 .t-source{margin-top:4px;font-size:11px}
+
+/* 로그인 자리(주민증 탭 아래 · 시작 화면 「전에 해 봤어요」). 카카오 단추는 카카오 색(#FEE500) 그대로. */
+.t-login{margin:18px 0 8px;padding:14px;border-radius:16px;background:#f7f1e5}
+.t-login-title{margin:0 0 2px;font-size:15px;font-weight:800;color:#765943}
+.t-login-btn{display:block;width:100%;min-height:46px;margin:8px 0 0;border-radius:12px;font-size:15px;font-weight:750}
+.t-kakao{background:#FEE500;color:#191919}
+.t-google{background:#fff;color:#3c4043;box-shadow:inset 0 0 0 1px #dadce0}
+.t-login-note{margin:10px 0 0;font-size:11.5px}.t-login-note a{color:var(--accent-dark)}
+.t-login-on{margin:0 0 6px;font-size:13px;line-height:1.55;color:#765943;word-break:keep-all}
+.t-login-links{display:flex;gap:16px}

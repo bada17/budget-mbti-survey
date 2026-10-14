@@ -62,6 +62,7 @@ export function createUI(root: HTMLElement, actions: {
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
     <button class="g-link g-table-open" type="button" hidden>테이블에서 같이 하기</button>
     <button class="g-link g-home-open" type="button" hidden>지난번 내 동네 · 주민증</button>
+    <button class="g-link g-login-open" type="button" hidden>전에 해 봤어요 — 내 주민증 불러오기</button>
     <p class="g-small">화면을 꾹 누르면 그쪽으로 걸어가요 · 2~3분</p>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
   const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·테이블·이웃이 번갈아 쓰는 아래 판
@@ -94,6 +95,8 @@ export function createUI(root: HTMLElement, actions: {
     online(on: boolean) { intro.querySelector<HTMLElement>('.g-table-open')!.hidden = !on; },
     /** 다시 온 사람 — 걷지 않고 지난번 내 동네·방명록·주민증을 본다(기획 3차). */
     homeOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-home-open')!; b.hidden = false; b.onclick = run; },
+    /** 로그인 안 한 사람 — 다른 기기에서 지켜 둔 주민증 불러오기(login.ts). */
+    loginOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-login-open')!; b.hidden = false; b.onclick = run; },
     /** 시작 화면 아래 한 줄씩 — 초대한 친구, 지난번 이웃, 테이블. */
     notes(lines: string[]) { intro.querySelector('.g-notes')!.replaceChildren(...lines.map(line => el('li', '', line))); },
 

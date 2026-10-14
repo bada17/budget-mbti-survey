@@ -8,11 +8,15 @@
   응답·방명록·지역에는 개인정보가 없다(무작위 세션 id, 사람이 적은 별명, 모습 번호, 시·도). 연락처만 개인정보다 — 그래서
   연락처는 읽는 길이 없다(받아 쌓기만, 읽는 건 시트를 여는 사람).
   쓰는 곳은 모두 Map.set / 배열 push 로만 바꾼다 — 시트 저장소가 바뀐 줄만 골라 쓰기 때문이다(server/gas.ts).
+
+  로그인(10-14) — 「주민」 기록. 카카오·구글이 「이 사람 맞다」고 확인하는 일은 서버 입구가 한다(그쪽에 물어야 해서 —
+  server/gas.ts 의 verify, 개발 서버는 가짜). 여기는 그 뒤 — 확인된 계정(account, 회원번호를 해시로 바꾼 값)에 열쇠를 주고,
+  열쇠로 기록 묶음(Save, profile.ts)을 읽고 쓰고 지운다. 회원번호 그 자체는 어디에도 남기지 않는다.
 */
 import { ROUTE, CONTENT_VERSION, TYPES, type TypeCode } from './content';
 import { scoreAnswers, typeCode } from './score';
 import { orderedQuestions } from './response';
-import { cleanName, cleanTableCode, cleanNeighbor, isRegion, townFrom, TABLE_CHARS, type Neighbor, type Region } from './profile';
+import { cleanName, cleanTableCode, cleanNeighbor, cleanSave, isRegion, townFrom, TABLE_CHARS, type Neighbor, type Region, type Save } from './profile';
 import { validPayload, type ContactPayload } from './contact';
 import { isPick, type Pick } from './look';
 
@@ -31,7 +35,10 @@ export type Store = {
   books: Map<string, Visit[]>;
   /** 받아 쌓기만 한다. 시트 저장소는 새로 들어온 것만 덧붙인다. */
   contacts: Contact[];
+  /** 로그인한 주민 — 계정(해시) → 열쇠·기록 묶음. */
+  residents: Map<string, Resident>;
 };
+export type Resident = { key: string; save: Save; at: number };
 export type ApiResult = { status: number; body: unknown };
 
 export const TABLE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -44,7 +51,23 @@ const ID = /^[A-Za-z0-9-]{8,64}$/;
 const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
 const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
-export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [] });
+export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], residents: new Map() });
+const ACCOUNT = /^(kakao|google):[0-9a-f]{64}$/;
+const LOGIN_KEY = /^[A-Za-z0-9]{32}$/;
+
+/**
+ * 확인된 계정에 열쇠를 준다 — 처음이면 새로 만들고, 다시 오면 같은 열쇠(기기마다 같은 기록을 본다).
+ * random 은 서버 입구가 넣는다 — 시트는 Utilities.getUuid, 개발 서버는 crypto(이 열쇠로 기록을 읽으니 Math.random 은 안 쓴다).
+ */
+export function login(store: Store, account: string, now: number, random: () => number) {
+  if (!ACCOUNT.test(account)) return { status: 400, body: { error: 'bad-account' } };
+  const known = store.residents.get(account);
+  const resident = known?.key ? known : { key: randomText(32, KEY_CHARS, random), save: {}, at: now }; // 지운 계정(열쇠 빈칸)은 새로
+  store.residents.set(account, { ...resident, at: now });
+  return { status: 200, body: { key: resident.key, save: resident.save } };
+}
+// ponytail: 열쇠로 찾을 때 주민 전부를 훑는다 — 수천 명을 넘으면 열쇠 → 계정 표를 따로 둔다.
+const byKey = (store: Store, key: unknown) => (typeof key === 'string' && LOGIN_KEY.test(key) ? [...store.residents].find(([, r]) => r.key === key) : undefined);
 
 /** 문항마다 a·b 쪽을 고른 사람 수, 유형별 사람 수. 답 1~3 은 a, 4~6 은 b. */
 export function stats(store: Store) {
@@ -165,6 +188,22 @@ export function handle(store: Store, method: string, path: string, body: unknown
   if (method === 'GET' && parts[0] === 'regions' && parts.length === 2) {
     const region = decode(parts[1]);
     return isRegion(region) ? { status: 200, body: regionView(store, region) } : { status: 404, body: { error: 'no-region' } };
+  }
+
+  // ── 로그인한 주민 — 열쇠로 기록 묶음 읽기·쓰기·지우기(로그인 자체는 login(), 서버 입구가 부른다) ──
+  if (method === 'POST' && parts[0] === 'me' && parts.length <= 2) {
+    const found = byKey(store, input.key);
+    if (!found) return { status: 403, body: { error: 'bad-key' } };
+    const [account, resident] = found;
+    if (parts.length === 1) return { status: 200, body: { save: resident.save } };
+    if (parts[1] === 'save') {
+      const save = cleanSave(input.save);
+      if (!save) return { status: 400, body: { error: 'bad-save' } };
+      store.residents.set(account, { ...resident, save, at: now });
+      return { status: 200, body: { ok: true } };
+    }
+    // 지우기 — 열쇠·기록을 비운다(delete 가 아니라 set: 시트는 바뀐 줄만 다시 쓴다). 남는 건 해시 한 칸뿐.
+    if (parts[1] === 'forget') { store.residents.set(account, { key: '', save: {}, at: now }); return { status: 200, body: { ok: true } }; }
   }
 
   // ── 연락처(이웃 소식) — 받아 쌓기만 ──

@@ -12,7 +12,7 @@
 import { CONTENT_VERSION } from './content';
 import type { Stats, TableView, RegionView, Visit } from './api';
 import type { ContactPayload } from './contact';
-import type { Neighbor, Region } from './profile';
+import type { Neighbor, Region, Save } from './profile';
 import type { Pick } from './look';
 
 const GAS: string | undefined = import.meta.env?.VITE_GAME_API || undefined;
@@ -49,4 +49,9 @@ export const net = {
   region: (sessionId: string, region: Region, pick: Pick) => call<RegionView>('POST', '/region', { sessionId, region, pick }),
   regionView: (region: Region) => call<RegionView>('GET', `/regions/${encodeURIComponent(region)}`),
   contact: (payload: ContactPayload, extra: { neighbor?: Neighbor; type?: string }) => call<{ ok: true }>('POST', '/contact', { payload, ...extra }),
+  // 로그인(10-14) — 확인은 서버가 카카오·구글에 묻는다. 그다음은 열쇠로.
+  login: (proof: { provider: string; redirectUri: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save }>('POST', '/login', proof),
+  me: (key: string) => call<{ save: Save }>('POST', '/me', { key }),
+  saveMe: (key: string, save: Save) => call<{ ok: true }>('POST', '/me/save', { key, save }),
+  forget: (key: string) => call<{ ok: true }>('POST', '/me/forget', { key }),
 };

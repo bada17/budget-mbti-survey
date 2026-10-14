@@ -11,7 +11,7 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return reply_({ status: 503, body: { error: 'busy' } });
   try {
-    return reply_(GameServer.serve('POST', e, book_()));
+    return reply_(GameServer.serve('POST', e, book_(), Date.now(), deps_()));
   } finally {
     lock.releaseLock();
   }
@@ -23,7 +23,29 @@ function doPost(e) {
  */
 function setup() {
   GameServer.serve('GET', { parameter: { p: '/stats' } }, book_());
+  // 로그인 계정 해시에 치는 소금 — 한 번 만들면 바꾸지 않는다(바꾸면 모두 처음 온 사람이 된다).
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('ACCOUNT_SALT')) props.setProperty('ACCOUNT_SALT', Utilities.getUuid() + Utilities.getUuid());
+  UrlFetchApp.fetch('https://kauth.kakao.com', { muteHttpExceptions: true }); // 바깥 주소 부르기 권한도 이때 함께 허용받는다
   return book_().getName();
+}
+
+/** 로그인 확인에 쓰는 바깥 것들(server/gas.ts 의 Deps). */
+function deps_() {
+  var props = PropertiesService.getScriptProperties();
+  return {
+    fetch: function (url, options) {
+      var o = options || {};
+      var r = UrlFetchApp.fetch(url, { method: o.method || 'get', payload: o.payload, headers: o.headers, muteHttpExceptions: true });
+      return { status: r.getResponseCode(), text: r.getContentText() };
+    },
+    prop: function (name) { return props.getProperty(name); },
+    sha256: function (text) {
+      return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8)
+        .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+    },
+    random: function () { return parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) / Math.pow(16, 12); },
+  };
 }
 
 function book_() {

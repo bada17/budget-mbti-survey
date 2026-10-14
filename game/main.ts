@@ -12,7 +12,8 @@ import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
-import { openTown, openBudget, openReply, openLetter, type Person } from './town';
+import { openTown, openBudget, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
+import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact } from './contact';
@@ -109,7 +110,19 @@ void net.stats().then(found => {
 const shell = root.querySelector<HTMLElement>('.g')!;
 // 다시 온 사람 — 걷지 않고 지난번 내 동네·방명록·주민증(기획 3차: 「보러 오는」 길). 유형이 남은 판(10-14 뒤)만.
 const lastPlay = loadLast();
-if (lastPlay?.type) ui.homeOpen(() => openHub({ name: me.name, pick: me.pick, type: lastPlay.type!, town: lastPlay.town }, lastPlay.sessionId ?? '', {}, '← 처음 화면으로'));
+const openLast = () => openHub({ name: me.name, pick: me.pick, type: lastPlay!.type!, town: lastPlay!.town }, lastPlay!.sessionId ?? '', {}, '← 처음 화면으로');
+if (lastPlay?.type) ui.homeOpen(openLast);
+
+// 로그인(login.ts) — 키를 넣기 전 공개판엔 단추가 없다. 카카오·구글에서 돌아왔으면 확인하고 다시 연다.
+const loginOpts: LoginOpts = { providers: providers(), current: loginNow, start: startLogin, logout, forget };
+keepSynced();
+void finishLogin().then(result => {
+  if (result === 'failed') ui.toast('로그인하지 못했어요. 조금 뒤에 다시 해 주세요');
+  if (result === 'cancelled') ui.toast('로그인을 그만뒀어요');
+});
+const loggedIn = justLoggedIn();
+if (loggedIn) { ui.toast(`${PROVIDER_NAME[loggedIn]}로 주민증을 지켰어요`); if (lastPlay?.type) openLast(); }
+else if (loginOpts.providers.length && !loginNow()) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}));
 if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
 else if (letterSeason) openLetter(shell, letterSeason, returning, me.name, () => {});
 
@@ -276,6 +289,7 @@ function openHub(person: Person, sessionId: string, extra: { photo?: string } = 
       return view;
     } : undefined,
     subscribe: contactReady ? () => { const n = loadNeighbor(); if (n) { ui.endActions(false); neighborSheet(n, n.name); } } : undefined,
+    login: loginOpts,
   }, () => {}, backText);
 }
 

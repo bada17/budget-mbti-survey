@@ -19,6 +19,8 @@ import { board } from './stamps';
 import { letterFor, type Season } from './seasons';
 import { DONATE_URL } from './ui';
 import { MANGWON, won } from './local-sample';
+import { PRIVACY_URL } from './contact';
+import { PROVIDER_NAME, type Provider } from './login';
 import type { RegionView, Visit } from './api';
 
 export type Person = { name: string; pick: Pick; type: TypeCode; town: Town };
@@ -34,7 +36,10 @@ export type HubData = {
   buildRegion?: (region: Region) => Promise<RegionView | undefined>;
   /** 이웃 편지 받기(= 소식 받기 판 열기). 연락처 칸이 켜진 판에서만. */
   subscribe?: () => void;
+  /** 로그인(login.ts) — 단추가 없는 판(키를 넣기 전)엔 안 보인다. */
+  login?: LoginOpts;
 };
+export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; start(provider: Provider): void; logout(): void; forget(): Promise<boolean> };
 
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
@@ -142,6 +147,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const mine = el('div'); mine.append(card, tip, save, join, status);
+  if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, '지키기'));
   tab('주민증', mine);
 
   // ── 방명록 ──
@@ -191,6 +197,48 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     setTimeout(() => URL.revokeObjectURL(url), 1000); // 아이폰은 바로 지우면 저장을 놓친다(예산게임에서 겪음)
     status.textContent = '주민증 그림을 저장했어요.';
   };
+}
+
+/**
+ * 로그인 자리 — 안 했으면 「카카오로 지키기」 단추와 받는 것 안내, 했으면 「지키는 중」 과 끊기·지우기.
+ * 안내는 실제로 받는 것 그대로(login.ts·server/gas.ts): 회원번호 하나(해시로 바꿔 둠) + 이 기기의 게임 기록.
+ */
+function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기') {
+  const box = el('section', 't-login');
+  const status = el('p', 't-small'); status.setAttribute('role', 'status');
+  const draw = () => {
+    const now = opts.current();
+    box.replaceChildren();
+    if (now) {
+      const links = el('div', 't-login-links');
+      links.append(
+        btn('g-link', '이 기기에서 로그아웃', () => { opts.logout(); draw(); }),
+        btn('g-link', '서버 기록 지우기', async () => {
+          if (!confirm('서버에 둔 주민증 기록을 지울까요? 이 기기의 기록은 그대로 남아요.')) return;
+          const ok = await opts.forget();
+          draw(); status.textContent = ok ? '서버 기록을 지웠어요.' : '지금은 지울 수 없어요. 조금 뒤에 다시 해 주세요.';
+        }),
+      );
+      box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 지키는 중이에요. 다른 폰·브라우저에서 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 이 주민증이 이어져요.`), links, status);
+      return;
+    }
+    box.append(el('p', 't-login-title', verb === '지키기' ? '주민증 지키기' : '전에 해 봤다면'),
+      el('p', 't-small', verb === '지키기' ? '로그인해 두면 다른 폰·브라우저에서도 이 주민증과 도장이 이어져요. 안 해도 괜찮아요.' : '전에 로그인해 둔 주민증과 도장을 불러와요.'));
+    for (const provider of opts.providers) box.append(btn(`t-login-btn t-${provider}`, `${PROVIDER_NAME[provider]}로 ${verb}`, () => opts.start(provider)));
+    const note = el('p', 't-small t-login-note',
+      `받는 건 ${opts.providers.map(p => PROVIDER_NAME[p]).join('·')} 회원번호 하나예요. 서버에는 알아볼 수 없게 바꿔서, 게임 기록(별명·모습·유형·도장·내 이웃·지역)과 함께 둬요. 이메일·이름·사진은 받지 않아요. `);
+    const policy = el('a', '', '개인정보처리방침'); policy.href = PRIVACY_URL; policy.target = '_blank'; policy.rel = 'noopener';
+    note.append(policy);
+    box.append(note, status);
+  };
+  draw();
+  return box;
+}
+
+/** 시작 화면 「전에 해 봤어요」 — 다른 기기에서 지켜 둔 주민증 불러오기. */
+export function openLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => void) {
+  const { panel } = panelShell(shell, onClose, '← 처음 화면으로');
+  panel.append(el('h2', '', '내 주민증 불러오기'), loginBox(opts, '불러오기'));
 }
 
 /** 우리 지역 동네 — 시·도를 고르면 한 채 짓고, 같은 지역 사람들이 지은 동네를 본다. */
