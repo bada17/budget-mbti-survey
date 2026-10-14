@@ -17,6 +17,15 @@ function doPost(e) {
   }
 }
 
+/**
+ * 처음 한 번 — 앱스 스크립트 편집기에서 이 함수를 골라 「실행」 하면 시트 권한을 허용하는 창이 뜬다.
+ * 주인이 한 번 허용해야 웹 앱이 열린다(안 하면 누구에게나 「액세스 거부됨」 403). 탭도 미리 만든다.
+ */
+function setup() {
+  GameServer.serve('GET', { parameter: { p: '/stats' } }, book_());
+  return book_().getName();
+}
+
 function book_() {
   var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
   return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
