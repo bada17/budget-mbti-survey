@@ -53,6 +53,8 @@ export type Runtime = {
   /** 언덕의 빛 아치를 지났다 — main 이 마을을 연다. */
   enter(): void;
   busCaption(stage: number, skip: () => void): void;
+  /** 버스가 서면 예산 퀴즈(quiz.ts) — 답하거나 넘기면 done. 퀴즈를 안 내면 false(그냥 잠깐 섰다 간다). */
+  busQuiz(stage: number, done: () => void): boolean;
 };
 
 type Mode = 'intro' | 'dress' | 'enter' | 'play' | 'moving' | 'bus' | 'hill';
@@ -512,14 +514,19 @@ export class JourneyScene extends Phaser.Scene {
       this.fade(false, () => {});
       sfx.whoosh();
       this.runtime.busCaption(stage, finish);
-      this.tweens.chain({
-        targets: bus,
-        tweens: [
-          { x: w / 2, duration: this.reduced ? 1 : 800, ease: 'Cubic.easeOut' },
-          { x: w / 2, duration: this.reduced ? 1 : 700 },
-          { x: w + 160, duration: this.reduced ? 1 : 650, ease: 'Cubic.easeIn' },
-        ],
-        onComplete: finish,
+      // 들어와 서고 → 퀴즈에 답하면(넘기면) 떠난다. 서 있는 동안은 통통.
+      const leave = () => {
+        if (finished) return;
+        this.tweens.killTweensOf(bus);
+        this.tweens.add({ targets: bus, x: w + 160, duration: this.reduced ? 1 : 650, ease: 'Cubic.easeIn', onComplete: finish });
+      };
+      this.tweens.add({
+        targets: bus, x: w / 2, duration: this.reduced ? 1 : 800, ease: 'Cubic.easeOut',
+        onComplete: () => {
+          if (finished) return;
+          if (!this.runtime.busQuiz(stage, leave)) { this.time.delayedCall(this.reduced ? 0 : 700, leave); return; }
+          if (!this.reduced) this.tweens.add({ targets: bus, y: bus.y - 2, duration: 260, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        },
       });
     });
   }

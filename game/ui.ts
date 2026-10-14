@@ -305,9 +305,34 @@ export function createUI(root: HTMLElement, actions: {
       );
     },
 
+    /**
+     * 버스 예산 퀴즈 — 버스 글 칸을 문제 카드로 바꾼다(위엔 다음 동네 이름). 고르면 맞았는지·까닭을 보여 주고 잠시 뒤 done(맞았나).
+     * 「넘기기」 는 바로 done(undefined).
+     */
+    busQuiz(areaName: string, quiz: { q: string; answer: string; why: string }, choices: string[], done: (correct?: boolean) => void) {
+      let over = false;
+      const finish = (correct?: boolean) => { if (over) return; over = true; done(correct); };
+      const why = el('p', 'g-quiz-why'); why.setAttribute('role', 'status');
+      const list = el('div', 'g-quiz-choices');
+      list.append(...choices.map(choice => button('g-quiz-choice', choice, () => {
+        if (list.classList.contains('done')) return;
+        list.classList.add('done');
+        const correct = choice === quiz.answer;
+        list.querySelectorAll<HTMLButtonElement>('button').forEach(b => { b.disabled = true; b.classList.toggle('right', b.textContent === quiz.answer); b.classList.toggle('wrong', b.textContent === choice && !correct); });
+        why.textContent = correct ? `정답! 동전 하나 받았어요. ${quiz.why}` : `정답은 「${quiz.answer}」. ${quiz.why}`;
+        sfx[correct ? 'coin' : 'bubble'](0);
+        later(correct ? 2600 : 3200, () => finish(correct));
+      })));
+      caption.onclick = null;
+      caption.classList.add('g-quiz');
+      caption.replaceChildren(el('span', 'g-quiz-area', areaName), el('p', 'g-quiz-q', quiz.q), list, why, button('g-link g-quiz-skip', '넘기기', () => finish()));
+      caption.hidden = false;
+      live.textContent = `${areaName}로 가는 버스 퀴즈. ${quiz.q}`;
+    },
     /** 버스 장면 글 — 다음 동네 이름과 테이블 사람들이 어디쯤인지. 누르면 넘긴다. area 없이 부르면 치운다. */
     busCaption(areaName?: string, others: string[] = [], skip?: () => void) {
       caption.hidden = !areaName;
+      caption.classList.remove('g-quiz');
       if (!areaName) return;
       caption.replaceChildren(el('h2', '', areaName), ...others.map(text => el('p', 'g-small', text)));
       caption.onclick = () => skip?.();

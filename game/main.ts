@@ -23,6 +23,7 @@ import { providers, start as startLogin, finish as finishLogin, justLoggedIn, ke
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact } from './contact';
+import { quizFor } from './quiz';
 import { net, TABLES } from './net';
 import type { Stats, TableView, VillageView } from './api';
 import type { JourneyScene, SceneCommand, Guest } from './scenes/JourneyScene';
@@ -530,6 +531,15 @@ async function boot() {
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);
+      },
+      // 버스 예산 퀴즈(10-14 ⓑ) — 맞히면 동전 하나(마을 공사터에 넣는 그 동전). stage 는 버스가 가는 다음 동네 번호(busCaption 과 같다).
+      busQuiz: (stage, done) => {
+        const { quiz, choices } = quizFor(state.sessionId, stage);
+        ui.busQuiz(ROUTE[stage].area, quiz, choices, correct => {
+          if (correct) { const pocket = loadPocket(kstDay(Date.now())); pocket.coins++; savePocket(pocket); }
+          done();
+        });
+        return true;
       },
     });
     scene = journey;

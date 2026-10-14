@@ -131,6 +131,19 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-caption::before{left:11px}.g-caption::after{right:11px}
 .g-caption h2{margin:0;font-size:30px;letter-spacing:-.5px;color:#5b402e}
 .g-caption .g-small{margin-top:4px}
+/* 버스 예산 퀴즈 — 글 칸이 문제 카드가 된다(quiz.ts) */
+.g-caption.g-quiz{cursor:default;padding:12px 14px 8px;left:14px;right:14px;top:calc(max(10px,env(safe-area-inset-top)) + 50px)}
+.g-quiz::before,.g-quiz::after{display:none}
+.g-quiz-area{display:inline-block;padding:3px 12px 2px;border-radius:999px;background:var(--tab);color:#6a4716;font-family:var(--display);font-size:13px;box-shadow:0 2px 0 var(--tab-dark)}
+.g-quiz-q{margin:6px 2px 8px;font-weight:750;font-size:16px;line-height:1.45;color:#4f3a2b;text-wrap:balance}
+.g-quiz-choices{display:grid;gap:5px}
+.g-quiz-choice{min-height:40px;padding:7px 12px;border-radius:999px;background:#fffdf6;box-shadow:inset 0 0 0 2px var(--line),0 3px 0 var(--edge);font-weight:650;font-size:15px;color:#55402f;transition:transform .08s}
+.g-quiz-choice:active{transform:translateY(2px)}
+.g-quiz-choice.right{background:#e3f0d6;box-shadow:inset 0 0 0 2.5px var(--leaf),0 3px 0 var(--leaf-dark);color:#3f5f35}
+.g-quiz-choice.wrong{background:#fbe3dc;box-shadow:inset 0 0 0 2.5px var(--accent),0 3px 0 var(--accent-dark)}
+.g-quiz-choice:disabled{cursor:default}
+.g-quiz-why{min-height:0;margin:8px 4px 2px;font-size:13.5px;line-height:1.55;color:#5f4c3e}.g-quiz-why:empty{display:none}
+.g-quiz-skip{margin:2px auto 0;font-size:12px}
 
 /* ── 언덕 끝 ── */
 .g-end{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:calc(max(10px,env(safe-area-inset-top)) + 48px) 12px max(10px,env(safe-area-inset-bottom));pointer-events:none}

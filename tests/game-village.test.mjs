@@ -284,3 +284,18 @@ test('고르면 방이 바뀐다: 열다섯 문항 모두 두 대답에 일이 �
   }
   assert.equal(THANKS.length, 3);
 });
+
+test('버스 예산 퀴즈: 정답이 보기에 꼭 있고, 판마다 버스 넷이 서로 다른 문제', async () => {
+  const { QUIZ, quizFor } = await import('../game/quiz.ts');
+  for (const q of QUIZ) assert.equal(new Set([q.answer, ...q.wrong]).size, 3, q.q);
+  for (const sid of ['session-a', 'session-b']) {
+    const seen = new Set();
+    for (const stage of [1, 2, 3, 4]) {
+      const { quiz, choices } = quizFor(sid, stage);
+      assert.ok(choices.includes(quiz.answer) && choices.length === 3);
+      assert.deepEqual(quizFor(sid, stage).choices, choices, '같은 판엔 늘 같게');
+      seen.add(quiz.q);
+    }
+    assert.equal(seen.size, 4);
+  }
+});
