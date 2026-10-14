@@ -10,7 +10,7 @@
 import type { Point } from './room';
 
 export type Box = { x: number; y: number; w: number; h: number };
-export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house';
+export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax';
 /** 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다). */
 export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point };
 
@@ -23,6 +23,8 @@ export const FOUNTAIN: Box = { x: 486, y: 770, w: 68, h: 52 };
 
 export const PLACES: Place[] = [
   { id: 'hub', name: '주민센터', line: '주민증과 도장, 방명록은 여기서 봐요.', box: { x: 420, y: 230, w: 200, h: 100 }, door: { x: 520, y: 352 } },
+  // 마을 금고 — 비워 둔 「빈 터」 에 세웠다(사용자 10-14 「내 동네가 어떻게 돈을 걷고, 나는 어떻게 세금을 내는지 알 수 있는 곳」). 판은 places.ts openTax.
+  { id: 'tax', name: '마을 금고', line: '우리가 낸 세금이 어디로 가는지 보여 줄게요.', box: { x: 790, y: 232, w: 160, h: 96 }, door: { x: 870, y: 350 } },
   { id: 'house', name: '시민행동 집', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 } },
   { id: 'counsel', name: '시민참여 상담소', line: '참여예산이 궁금하면 여기 물어보세요.', box: { x: 84, y: 500, w: 190, h: 96 }, door: { x: 179, y: 618 } },
   { id: 'finance', name: '나라살림 창고', line: '우리 지역의 한 해 살림을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 } },
@@ -31,14 +33,12 @@ export const PLACES: Place[] = [
   { id: 'bus', name: '버스 정류장', line: '열다섯 동네 주민들이 또 기다려요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
 ];
 
-/** 빈 터 — 새 가게가 들어올 자리(울타리만). 「다른 요소도 넣을 수 있게」 를 눈으로 보이게. */
-export const LOT: Box = { x: 790, y: 232, w: 160, h: 96 };
 export const POND: Box = { x: 740, y: 1210, w: 170, h: 100 };
 /** 길 — 그림과 서성이는 주민의 갈 곳에 쓴다. 걷기는 길 밖(풀밭)도 된다. */
 export const ROADS: Box[] = [
   { x: 470, y: 330, w: 100, h: 1170 }, // 남북 큰길 — 언덕에서 내려와 주민센터까지
   { x: 0, y: 760, w: VILLAGE_W, h: 80 }, // 동서 큰길 — 광장을 지난다
-  { x: 120, y: 340, w: 800, h: 50 }, // 윗길 — 시민행동 집·주민센터·빈 터
+  { x: 120, y: 340, w: 800, h: 50 }, // 윗길 — 시민행동 집·주민센터·마을 금고
   { x: 144, y: 596, w: 70, h: 170 }, { x: 826, y: 596, w: 70, h: 170 }, // 상담소·창고로(문이 큰길 쪽)
   { x: 290, y: 836, w: 60, h: 300 }, { x: 110, y: 1086, w: 240, h: 50 }, // 독상으로 — 건물 옆을 돌아 앞으로
   { x: 690, y: 836, w: 60, h: 250 }, { x: 690, y: 1052, w: 250, h: 50 }, // 정류장으로
@@ -47,7 +47,7 @@ export const ROADS: Box[] = [
 export const SPAWN = { gate: { x: 520, y: 1372 }, plaza: { x: 520, y: 900 } }; // 문 안쪽 — 문 간판이 얼굴을 가리지 않게
 export const GATE_Y = 1462;
 
-const SOLID: Box[] = [...PLACES.map(p => p.box), LOT, POND, FOUNTAIN];
+const SOLID: Box[] = [...PLACES.map(p => p.box), POND, FOUNTAIN];
 const EDGE = 16, TOP = 120; // 맨 위 띠는 하늘·지붕 자리
 const BODY_X = 10, BODY_UP = 4, BODY_DOWN = 8; // 발 둘레 — 앞벽 바로 밑에 설 수 있고, 옆으로는 몸 반쯤 떨어진다
 

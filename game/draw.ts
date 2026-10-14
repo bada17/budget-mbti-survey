@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { FEEL } from './feel';
 import { ROUTE } from './content';
 import type { Point, Room } from './room';
-import { PLACES, PLAZA, FOUNTAIN, LOT, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId } from './village';
+import { PLACES, PLAZA, FOUNTAIN, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId } from './village';
 
 type Scene = Phaser.Scene;
 type Container = Phaser.GameObjects.Container;
@@ -829,6 +829,7 @@ const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {
   finance: { wall: 0xadcbdb, roof: 0x5f8aa6 },
   dok: { wall: 0xe6dad4, roof: 0x8f5f6a },
   bus: { wall: 0xd2e9d9, roof: 0x4f8f7a },
+  tax: { wall: 0xf3e2b8, roof: 0xc9973f },
   board: { wall: 0xd8b48c, roof: 0x9a7356 },
 };
 
@@ -880,6 +881,10 @@ function house(scene: Scene, place: Place, dpr: number) {
   } else if (place.id === 'finance') { // 막대 셋과 동전
     for (const [i, bh, c] of [[0, 14, 0xf6b9a8], [1, 24, 0xfffaf0], [2, 18, 0xb9d79d]] as const) mark.fillStyle(c).fillRoundedRect(w / 2 - 24 + i * 14, -30 - bh, 10, bh, 3);
     mark.fillStyle(0xf2c661).fillCircle(w / 2 + 30, -42, 9).fillStyle(0xffffff, 0.5).fillCircle(w / 2 + 27, -45, 2.5);
+  } else if (place.id === 'tax') { // 금고 — 둥근 다이얼, 옆에 동전 셋
+    mark.fillStyle(0x6f8a7e).fillRoundedRect(w / 2 - 18, -66, 36, 32, 7).fillStyle(0x8fa99c).fillRoundedRect(w / 2 - 15, -63, 30, 26, 5);
+    mark.fillStyle(0xfffaf0).fillCircle(w / 2 - 3, -50, 7).fillStyle(0x6f8a7e).fillCircle(w / 2 - 3, -50, 2.5).fillStyle(0xf2c661).fillRoundedRect(w / 2 + 7, -56, 4, 12, 2);
+    for (const [i, cx] of [[0, w / 2 + 30], [1, w / 2 + 30], [2, w / 2 + 30]] as const) mark.fillStyle(i % 2 ? 0xe2ae45 : 0xf2c661).fillEllipse(cx, -38 - i * 5, 16, 6);
   } else if (place.id === 'dok') { // 밑 빠진 독 — 금 간 항아리에서 물이 샌다
     const jx = 22, jy = h - 2;
     mark.fillStyle(0x756956, 0.18).fillEllipse(jx, jy + 2, 34, 8);
@@ -1034,7 +1039,7 @@ export function drawVillage(scene: Scene, dpr: number): VillageArt {
   }, fb, sharp).setDepth(FOUNTAIN.y + FOUNTAIN.h), fb);
   const spray = [-1, 1, 0].map(k => scene.add.circle(cx + k * 6, cy - 40, 2.6, 0xd9f1fa).setDepth(FOUNTAIN.y + FOUNTAIN.h + 1));
   spray.forEach((drop, i) => scene.tweens.add({ targets: drop, x: cx + (i - 1) * 22, y: cy, alpha: 0.2, duration: 800, delay: i * 260, repeat: -1, ease: 'Quad.easeIn' }));
-  // 건물 · 빈 터 · 남쪽 문
+  // 건물 · 남쪽 문
   const live: Phaser.GameObjects.GameObject[] = [...spray];
   for (const place of PLACES) {
     const { x, y, w, h } = place.box, b = { x0: x - 24, x1: x + w + 36, y0: y - 92, y1: y + h + 12 };
@@ -1046,15 +1051,6 @@ export function drawVillage(scene: Scene, dpr: number): VillageArt {
       live.push(drop);
     }
   }
-  const lb = { x0: LOT.x - 8, x1: LOT.x + LOT.w + 8, y0: LOT.y - 30, y1: LOT.y + LOT.h + 8 };
-  keep(bake(scene, 'village-lot', () => {
-    const lot = scene.add.graphics();
-    lot.fillStyle(0xe2d6b8).fillRoundedRect(0, -10, LOT.w, LOT.h + 10, 10);
-    for (let px = 0; px <= LOT.w; px += 20) lot.fillStyle(0xc9a27e).fillRoundedRect(px - 3, LOT.h - 22, 6, 24, 2).fillRoundedRect(px - 3, -24, 6, 24, 2);
-    lot.fillStyle(0xd8b48c).fillRect(0, LOT.h - 16, LOT.w, 4).fillRect(0, -18, LOT.w, 4);
-    lot.fillStyle(0x6d5444).fillRect(LOT.w / 2 - 2, 20, 4, 40).fillStyle(0xfffaf0).fillRoundedRect(LOT.w / 2 - 62, 6, 124, 24, 6);
-    return scene.add.container(LOT.x, LOT.y, [lot, label(scene, LOT.w / 2, 18, '빈 터 · 새 가게 자리', 11, dpr)]);
-  }, lb, sharp).setDepth(LOT.y + LOT.h), lb);
   const gb = { x0: 440, x1: 600, y0: GATE_Y - 70, y1: GATE_Y + 34 };
   keep(bake(scene, 'village-gate', () => {
     const gate = scene.add.graphics();
@@ -1067,7 +1063,7 @@ export function drawVillage(scene: Scene, dpr: number): VillageArt {
   for (let ty = 150; ty < H - 10; ty += 64) for (let tx = 24; tx < W; tx += 64) {
     const at = { x: tx + (r() - 0.5) * 30, y: ty + (r() - 0.5) * 24 };
     if (r() < 0.45) continue;
-    if (ROADS.some(b => near(at, b, 18)) || PLACES.some(p => near(at, p.box, 34)) || near(at, LOT, 30) || near(at, POND, 20)) continue;
+    if (ROADS.some(b => near(at, b, 18)) || PLACES.some(p => near(at, p.box, 34)) || near(at, POND, 20)) continue;
     if (((at.x - PLAZA.x) / (PLAZA.r * 1.25)) ** 2 + ((at.y - PLAZA.y) / (PLAZA.r * 1.05)) ** 2 < 1) continue;
     const color = [0x8cc07a, 0x6fae6a, 0x9cba8a, 0x5fa585][Math.floor(r() * 4)];
     const b = { x0: at.x + TREE.x0, x1: at.x + TREE.x1, y0: at.y + TREE.y0, y1: at.y + TREE.y1 };

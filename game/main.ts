@@ -17,7 +17,7 @@ import {
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
 import { openTown, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
-import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, noteCard, loadMarks, rememberMine } from './places';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, noteCard, loadMarks, rememberMine } from './places';
 import { PLACES, type PlaceId } from './village';
 import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
@@ -373,6 +373,7 @@ function openPlace(id: PlaceId) {
   else if (id === 'counsel') openCounsel(shell, done);
   else if (id === 'dok') openDok(shell, done);
   else if (id === 'finance') openFinance(shell, loadRegion(), done);
+  else if (id === 'tax') openTax(shell, loadRegion(), done);
   else if (id === 'house') openHouse(shell, done);
   else openBoard(shell, {
     view: villageView, online, myName: me.name, like: likeNote, report: reportNote,

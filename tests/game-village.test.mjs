@@ -203,3 +203,30 @@ test('지방재정 자료(구운 것): 243곳, 시·도 열일곱, 숫자 넷이
   }
   assert.equal(data.places.find(p => p.n === '마포구').b, 992_099_535_000, '망원동 시험 자료와 같은 숫자');
 });
+
+test('마을 금고: 세금 도감은 금고 넷 안에서만, 동네 금고 자료는 창고의 모든 곳에 있고 몫이 100% 안팎', async () => {
+  const { SCENES, FLOWS, VAULTS, KIND, splitTax } = await import('../game/taxes.ts');
+  for (const scene of SCENES) for (const tax of scene.taxes) {
+    assert.ok(tax.to.length, `${scene.title} ${tax.name}`);
+    for (const to of tax.to) assert.ok(VAULTS[to.vault], `${tax.name} → ${to.vault}`);
+  }
+  for (const flow of FLOWS) for (const v of [flow.from, ...flow.to]) assert.ok(VAULTS[v]);
+  assert.ok(PLACES.some(p => p.id === 'tax'), '빈 터에 마을 금고');
+  const finance = JSON.parse(readFileSync(new URL('../game/data/local-finance.json', import.meta.url), 'utf8'));
+  const revenue = JSON.parse(readFileSync(new URL('../game/data/local-revenue.json', import.meta.url), 'utf8'));
+  assert.equal(revenue.fy, finance.year, '창고와 같은 해 예산');
+  for (const p of finance.places) {
+    const r = revenue.places[p.c];
+    assert.ok(r, p.n);
+    const share = r.f.reduce((a, [, , s]) => a + s, 0);
+    assert.ok(Math.abs(share - 100) < 1.5, `${p.n} 금고 몫 ${share}`);
+    for (const [name] of r.f) assert.ok(KIND[name], `모르는 금고 칸 ${name}`);
+    if (r.t) for (const [, eok] of r.t) assert.ok(eok >= 0, p.n);
+  }
+  // 우리 몫 가르기 — 자치구는 구세, 도 안의 시는 시세가 우리 것
+  assert.deepEqual(splitTax('구세·재산세', '마포구'), { name: '재산세', own: true });
+  assert.deepEqual(splitTax('시세·취득세', '마포구'), { name: '취득세', own: false });
+  assert.deepEqual(splitTax('시세·지방소득세', '수원시'), { name: '지방소득세', own: true });
+  assert.deepEqual(splitTax('도세·취득세', '수원시'), { name: '취득세', own: false });
+  assert.equal(splitTax('시세·특별시재산세', '마포구').name, '재산세(서울시가 모아 구에 나눔)');
+});

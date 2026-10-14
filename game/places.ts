@@ -9,6 +9,7 @@
 import { panelShell, avatar, el, btn } from './town';
 import { DONATE_URL, typeOut } from './ui';
 import { PLACES, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, checkNote, type PlaceId } from './village';
+import { SCENES, FLOWS, VAULTS, kindOf, splitTax, type Vault } from './taxes';
 import { toLook, lookFrom, nameFrom } from './look';
 import { josa, REGIONS, type Neighbor, type Region } from './profile';
 import type { PublicNote, VillageView } from './api';
@@ -141,16 +142,33 @@ export function won(n: number) {
  * 시·도를 고르고 그 안의 시·군·구를 고르면 한 해 살림 카드. 판정·순위는 내지 않는다(지자체에 딱지를 안 붙이기로 함, README 「기획 2차」).
  * 자료는 누를 때 따로 불러온다(25KB) — 마을을 처음 열 때 무겁지 않게.
  */
+/** 시·도 → 시·군·구 고르기(창고·금고가 같이 쓴다). 시·도를 바꾸면 onSido, 곳을 고르면 onPick. */
+function regionPicker(all: FinancePlace[], region: Region | undefined, onPick: (place: FinancePlace) => void, onSido: () => void) {
+  const sidos = el('div', 't-regions'), towns = el('div', 't-regions');
+  const showSido = (sido: Region) => {
+    sidos.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === sido));
+    towns.replaceChildren(...all.filter(p => p.s === sido).map(p => {
+      const b = btn('t-chip', p.n, () => { towns.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); onPick(p); });
+      b.dataset.c = p.c; return b;
+    }));
+    onSido();
+  };
+  sidos.append(...REGIONS.map(sido => btn('t-chip', sido, () => showSido(sido))));
+  if (region) showSido(region);
+  return [sidos, towns];
+}
+/** 「서울 마포구」 / 「서울」 — 카드 머리에. */
+const placeTitle = (place: FinancePlace) => (place.n.endsWith('(시·도)') ? place.s : `${place.s} ${place.n}`);
+
 export function openFinance(shell: HTMLElement, region: Region | undefined, onClose: () => void) {
   const { panel } = placePanel(shell, 'finance', onClose);
   const status = el('p', 't-small', '불러오는 중…');
-  const sidos = el('div', 't-regions'), towns = el('div', 't-regions'), card = el('div');
-  panel.append(sidos, towns, card, status);
+  const card = el('div');
+  panel.append(card, status);
   void import('./data/local-finance.json').then(({ default: data }) => {
     status.remove();
     const all = data.places as FinancePlace[];
     const showTown = (place: FinancePlace) => {
-      towns.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c === place.c));
       const share = el('div', 't-share'); share.style.setProperty('--a', `${place.w}%`);
       share.append(el('span', '', `사회복지 ${place.w}%`), el('span', '', '그 밖'));
       const box = el('div', 't-bigcard');
@@ -166,13 +184,125 @@ export function openFinance(shell: HTMLElement, region: Region | undefined, onCl
       // 칩 목록이 길어 카드가 화면 밖에 생긴다 — 판만 내린다(scrollIntoView 는 게임 화면까지 밀어 숨겨 둔 판이 삐져나왔다).
       panel.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
     };
-    const showSido = (sido: Region) => {
-      sidos.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === sido));
-      towns.replaceChildren(...all.filter(p => p.s === sido).map(p => { const b = btn('t-chip', p.n, () => showTown(p)); b.dataset.c = p.c; return b; }));
-      card.replaceChildren();
+    card.before(...regionPicker(all, region, showTown, () => card.replaceChildren()));
+  }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
+}
+
+// ───────────────────────── 마을 금고 — 세금 도감 · 우리 동네 금고 ─────────────────────────
+const vaultChip = (vault: Vault, extra = '', name = VAULTS[vault].name) => {
+  const chip = el('span', 'x-vault', `${name} 금고${extra}`);
+  chip.style.setProperty('--c', VAULTS[vault].color);
+  return chip;
+};
+/** 몫만큼 칸을 나란히 — 칸마다 색. */
+function stack(parts: { share: number; color: string; label: string }[]) {
+  const bar = el('div', 'x-stack');
+  for (const part of parts) {
+    const seg = el('i'); seg.style.flex = `${Math.max(part.share, 0.4)} 0 0`; seg.style.background = part.color; seg.title = `${part.label} ${part.share}%`;
+    bar.append(seg);
+  }
+  bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', parts.map(p => `${p.label} ${p.share}%`).join(', '));
+  return bar;
+}
+
+/**
+ * 마을 금고(사용자 10-14) — 갈래 둘. ① 세금 도감: 생활 장면을 누르면 붙는 세금과 들어가는 금고, 아래엔 나라·시·도 금고에서 다시 내려오는 길.
+ * ② 우리 동네 금고: 곳을 고르면 그 금고가 무엇으로 채워지는지(2026 예산)와, 그 동네에서 걷힌 지방세가 어느 금고로 갔는지(2024).
+ * 금액은 묻지 않는다. 자료(140KB)는 ② 를 처음 열 때 불러온다.
+ */
+export function openTax(shell: HTMLElement, region: Region | undefined, onClose: () => void) {
+  const { panel } = placePanel(shell, 'tax', onClose);
+  const tabs = el('div', 't-tabs'); tabs.setAttribute('role', 'tablist');
+  const book = el('div', 't-pane'), vault = el('div', 't-pane');
+  let loaded = false;
+  const show = (i: number) => {
+    [book, vault].forEach((pane, j) => { pane.hidden = i !== j; tabs.children[j].classList.toggle('on', i === j); tabs.children[j].setAttribute('aria-selected', String(i === j)); });
+    if (i === 1 && !loaded) { loaded = true; fillVault(vault, region); }
+  };
+  ['세금 도감', '우리 동네 금고'].forEach((label, i) => { const b = btn('t-tab', label, () => show(i)); b.setAttribute('role', 'tab'); tabs.append(b); });
+  panel.append(tabs, book, vault);
+
+  // ① 세금 도감 — 장면 타일(넷씩 두 줄), 고른 장면의 세금, 다시 내려오는 길
+  const grid = el('div', 'x-scenes'), detail = el('div', 'x-detail');
+  const pick = (i: number) => {
+    grid.querySelectorAll('button').forEach((b, j) => { b.classList.toggle('on', i === j); b.setAttribute('aria-pressed', String(i === j)); });
+    const scene = SCENES[i];
+    detail.replaceChildren(el('h3', '', `${scene.icon} ${scene.title}`), ...scene.taxes.map(tax => {
+      const row = el('div', 'x-tax');
+      const to = el('div', 'x-to');
+      for (const { vault: v, share, note } of tax.to) {
+        const line = el('p', 'x-flow');
+        line.append(el('span', 'x-arrow', '→'), vaultChip(v, share ? ` ${share}` : ''), ...(note ? [el('small', '', note)] : []));
+        to.append(line);
+      }
+      row.append(el('b', '', tax.name), el('p', 'x-line', tax.line), to);
+      return row;
+    }));
+  };
+  grid.append(...SCENES.map((scene, i) => { const b = btn('x-scene', '', () => pick(i)); b.append(el('span', 'x-icon', scene.icon), el('span', '', scene.title)); return b; }));
+  const flows = el('ul', 'x-flows');
+  for (const flow of FLOWS) {
+    const li = el('li'), head = el('p', 'x-flow');
+    head.append(vaultChip(flow.from), el('span', 'x-arrow', '→'), ...flow.to.map(v => vaultChip(v)));
+    li.append(el('b', '', flow.name), head, el('p', 'x-line', flow.line));
+    flows.append(li);
+  }
+  book.append(grid, detail, el('h3', 'x-h', '나라·시·도 금고에서 다시 내려와요'), flows,
+    source('지방세기본법 제8·9·11조의2, 지방세법(부가가치세의 25.3%·담배소비세 1,007원 등), 지방교부세법 제4조, 지방교육재정교부금법 제3조. 특별·광역시와 도는 시·군·구 몫이 달라요 — 세종·제주는 한 금고로 모여요.'));
+  pick(0);
+  show(0);
+}
+
+type RevenuePlace = { f: [string, number, number][]; t?: [string, number, number][] };
+/** 억 원 → 「1,844억 원」·「1.2조 원」 */
+const eokWon = (eok: number) => (eok >= 10000 ? `${(Math.round(eok / 1000) / 10).toLocaleString('ko-KR')}조 원` : `${Math.round(eok).toLocaleString('ko-KR')}억 원`);
+
+function fillVault(pane: HTMLElement, region: Region | undefined) {
+  const status = el('p', 't-small', '불러오는 중…'), card = el('div');
+  pane.append(card, status);
+  void Promise.all([import('./data/local-finance.json'), import('./data/local-revenue.json')]).then(([{ default: finance }, { default: revenue }]) => {
+    status.remove();
+    const all = finance.places as FinancePlace[], data = revenue.places as unknown as Record<string, RevenuePlace>; // JSON 이라 튜플 모양을 못 읽는다
+    const showPlace = (place: FinancePlace) => {
+      const rev = data[place.c];
+      if (!rev) { card.replaceChildren(el('p', 't-small', '이 곳 자료는 아직 없어요.')); return; }
+      const total = rev.f.reduce((a, [, eok]) => a + eok, 0);
+      const fund = el('div', 't-bigcard');
+      const list = el('ul', 'x-kinds');
+      for (const [name, eok, share] of rev.f) {
+        const kind = kindOf(name), li = el('li'), dot = el('i');
+        dot.style.background = kind.color;
+        li.append(dot, el('b', '', kind.label), el('span', 'x-num', `${eokWon(eok)} · ${share}%`), ...(kind.from ? [el('small', '', kind.from)] : []));
+        list.append(li);
+      }
+      fund.append(el('p', 't-small', `${placeTitle(place)} 금고, ${revenue.fy}년에 채울 돈`), el('p', 't-big', eokWon(total)),
+        stack(rev.f.map(([name, , share]) => ({ share, color: kindOf(name).color, label: kindOf(name).label }))), list);
+      const parts: Node[] = [fund];
+      if (rev.t) {
+        const rows = rev.t.map(([row, eok, share]) => ({ ...splitTax(row, place.n), eok, share }));
+        const own = rows.filter(r => r.own), up = rows.filter(r => !r.own);
+        const sum = (list: typeof rows) => list.reduce((a, r) => a + r.eok, 0);
+        const ownShare = Math.round(own.reduce((a, r) => a + r.share, 0));
+        const upper: Vault = 'sido', mine: Vault = 'sigungu';
+        const taxes = el('div', 't-bigcard');
+        const items = el('ul', 'x-kinds');
+        for (const r of rows) {
+          const li = el('li'), dot = el('i');
+          dot.style.background = VAULTS[r.own ? mine : upper].color;
+          li.append(dot, el('b', '', r.name), el('span', 'x-num', `${eokWon(r.eok)} · ${r.share}%`));
+          items.append(li);
+        }
+        taxes.append(el('p', 't-small', `${revenue.ty}년 ${place.n}에서 걷힌 지방세`), el('p', 't-big', eokWon(sum(rows))),
+          stack([{ share: ownShare, color: VAULTS[mine].color, label: `${place.n} 금고` }, { share: 100 - ownShare, color: VAULTS[upper].color, label: `${place.s} 금고` }]),
+          (() => { const legend = el('p', 'x-flow'); legend.append(vaultChip(mine, ` ${ownShare}%`, place.n), vaultChip(upper, ` ${100 - ownShare}%`, place.s)); return legend; })(),
+          items,
+          el('p', 't-small', `${place.s} 금고로 간 것도 조정교부금·보조금이 되어 일부가 다시 ${place.n}에 내려와요.`));
+        parts.push(taxes);
+      } else if (!place.n.endsWith('(시·도)')) parts.push(el('p', 't-small', '이 곳은 세목별로 걷힌 자료가 없어요.'));
+      card.replaceChildren(...parts, source(revenue._출처));
+      pane.closest('.t-panel')?.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
     };
-    sidos.append(...REGIONS.map(sido => btn('t-chip', sido, () => showSido(sido))));
-    if (region) showSido(region);
+    card.before(...regionPicker(all, region, showPlace, () => card.replaceChildren()));
   }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
 }
 
