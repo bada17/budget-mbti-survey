@@ -8,7 +8,8 @@ import { Controls } from './input';
 import { createUI } from './ui';
 import { attachEffects } from './effects';
 import { unlockAudio, isMuted, setMuted } from './sfx';
-import { loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, type Me } from './profile';
+import { loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, loadTown, saveTown, type Me, type Town } from './profile';
+import { openTown } from './town';
 import { checkContact, sendContact } from './contact';
 import { net } from './net';
 import type { Stats, TableView } from './api';
@@ -30,6 +31,9 @@ let pendingReveal: string | undefined;
 let frame = 0;
 let poll: ReturnType<typeof setInterval> | undefined;
 let card: File | undefined; // 공유 그림 — 미리 만들어 둔다(아래 prepareCard)
+let photo: string | undefined; // 주민증 증명사진 — 내 모습 고르기 끝에 찍는다
+let news = false; // 이번 판에 소식 받기를 했나(주민증 도장)
+let town: Town | undefined, lastTown: Town | undefined; // 이번에 지은 동네 · 지난번 동네
 let cardFor: string | undefined;
 const bus = createEvents();
 const abort = new AbortController();
@@ -46,7 +50,7 @@ const ui = createUI(root, {
     ui.hideIntro();
     ui.dresser(me, {
       change: next => { me = next; scene?.setLook(next.pick); },
-      done: next => { me = next; saveMe(next); send({ type: 'start' }); void joinTable(); },
+      done: async next => { me = next; saveMe(next); photo = await scene?.portrait(); send({ type: 'start' }); void joinTable(); },
     });
     scene?.dress(); // 판을 먼저 열어야 판 위에 남은 자리를 잴 수 있다
   },
@@ -168,7 +172,9 @@ async function prepareCard() {
 
 function share() {
   if (!state.result) return;
-  const url = `${here()}?with=${encodeInvite({ name: me.name, pick: me.pick, type: state.result })}`;
+  // 링크에 내가 지은 동네(고른 열다섯 가지)가 담긴다 — 받은 친구의 동네에 함께 선다(사용자 10-14).
+  const url = `${here()}?with=${encodeInvite({ name: me.name, pick: me.pick, type: state.result, town })}`;
+  ui.toast('보내는 링크에 내가 지은 동네(고른 열다섯 가지)가 담겨요');
   const text = `동네 한 바퀴 — 나는 「${TYPES[state.result].name}」래요. 너도 걸어 봐!`;
   // 그림이 준비됐고 받는 쪽이 파일을 받으면 그림 + 글(링크 포함), 아니면 지금처럼 링크만.
   const files = card && navigator.canShare?.({ files: [card] }) ? [card] : undefined;
@@ -180,6 +186,8 @@ function share() {
 function showEnd() {
   if (!state.result) return;
   scene?.setGuests(guests());
+  lastTown = loadTown(); town = townFrom(state.answers);
+  if (town) saveTown(town);
   ui.end({ code: state.result, scores: scoreAnswers(orderedQuestions, state.answers), lines: endLines() }, {
     neighbor: () => {
       ui.endActions(false);
@@ -195,6 +203,7 @@ function showEnd() {
           contact: contactReady ? async form => {
             const checked = checkContact(form, Date.now());
             if (!checked.ok) return { ok: false, text: checked.error };
+            news = true;
             return { ok: true, text: (await sendContact(checked.payload)) === 'sent' ? '고마워요! 소식이 생기면 보내 드릴게요.' : '고마워요! 다만 시험판이라 아직 저장하지 않았어요.' };
           } : undefined,
           close: () => ui.endActions(true),
@@ -203,6 +212,13 @@ function showEnd() {
     },
     others: online ? async () => ui.others((await net.stats()) ?? stats, mine()) : undefined,
     share,
+    town: () => {
+      if (!town || !state.result) return;
+      openTown(root.querySelector<HTMLElement>('.g')!, {
+        name: me.name, type: state.result, town, last: lastTown, photo, news, neighbor: loadNeighbor()?.name,
+        friend: invite?.town ? { name: invite.name, town: invite.town } : undefined,
+      }, () => {});
+    },
     again: () => { location.href = here(); },
   });
   // 테이블 사람들이 하나둘 언덕에 닿으면 그때그때 세운다.

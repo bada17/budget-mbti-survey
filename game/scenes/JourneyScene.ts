@@ -121,7 +121,20 @@ export class JourneyScene extends Phaser.Scene {
     const { w } = this.runtime.view();
     const top = FEEL.dressTopPx, room = Math.max(40, this.runtime.ui.sheetTop() - top);
     const k = Math.min(FEEL.dressZoom, room / FEEL.dressBodyPx);
+    this.dressFrame = { cx: w / 2, cy: top + room / 2, k }; // 몸 가운데가 화면 이 자리(CSS px)에 온다
     return { z: k, x: this.pos.x - w / 2 / k, y: this.pos.y - 28 - (top + room / 2) / k };
+  }
+  private dressFrame?: { cx: number; cy: number; k: number };
+
+  /** 증명사진 — 내 모습 고르기에서 크게 보이는 나를 그대로 찍는다(주민증용). 그 화면이 아니면 없음. */
+  portrait() {
+    return new Promise<string | undefined>(resolve => {
+      const frame = this.dressFrame, { dpr } = this.runtime.view();
+      if (this.mode !== 'dress' || !frame) return resolve(undefined);
+      const half = 38 * frame.k * dpr; // 몸 가운데에서 모자 끝·발까지 28px + 여유
+      const x = frame.cx * dpr - half, y = frame.cy * dpr - half;
+      this.game.renderer.snapshotArea(Math.round(x), Math.round(y), Math.round(half * 2), Math.round(half * 2), shot => resolve((shot as HTMLImageElement).src));
+    });
   }
 
   setLook(pick: Pick) {

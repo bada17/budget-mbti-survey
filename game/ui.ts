@@ -25,7 +25,7 @@ const button = (className: string, text: string, onClick: () => void) => {
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 const SIDES: DisplaySide[] = ['left', 'right'];
 /** 도너스 정기후원. utm 은 도너스 약정에 남아 「게임에서 온 후원」을 가를 수 있다. */
-const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
+export const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
 
 export function createUI(root: HTMLElement, actions: {
   start(): void; retry(): void; sound(): void; openTable(): void;
@@ -238,7 +238,7 @@ export function createUI(root: HTMLElement, actions: {
     },
 
     /** 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들. */
-    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; again(): void }) {
+    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; town(): void; again(): void }) {
       const card = el('div', 'g-end-card');
       // 세 축 — 왜 이 유형인지. 점은 -100~+100 을 막대 위 자리로, 가운데 금이 갈림길.
       const axes = el('ul', 'g-axes');
@@ -258,6 +258,7 @@ export function createUI(root: HTMLElement, actions: {
         button('g-primary', '함께 온 주민 중 내 이웃 정하기', on.neighbor),
         ...(on.others ? [button('g-ghost', '다른 사람들은 어떻게 골랐을까?', on.others)] : []),
         button('g-ghost', '친구에게 보내기', on.share),
+        button('g-ghost', '내가 지은 동네 · 주민증', on.town),
         button('g-link', '한 번 더 걷기', on.again),
         give,
       );
