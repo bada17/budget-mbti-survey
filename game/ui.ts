@@ -96,8 +96,6 @@ export function createUI(root: HTMLElement, actions: {
 
     render(state: JourneyState) {
       shell.dataset.phase = state.phase;
-      // 시안은 첫 동네·내 모습·언덕에만. 나머지 화면은 검토 뒤 넓힌다.
-      shell.classList.toggle('g-preview', state.stageIndex === 0 || state.phase === 'arrived');
       const answered = Object.keys(state.answers).length;
       area.textContent = state.phase === 'arrived' ? DESTINATION.name : ROUTE[Math.min(state.stageIndex, 4)].area;
       pips.forEach((pip, i) => pip.classList.toggle('on', i < answered));

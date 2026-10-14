@@ -1,5 +1,5 @@
 /*
-  둥근 도형·파스텔·납작한 그림자. 첫 동네와 언덕의 귀여움 시안(README 디테일 차례).
+  둥근 도형·파스텔·납작한 그림자. 승인된 귀여움 시안을 열다섯 장소·버스로 확장(README 디테일 차례).
   그림을 바꿀 때는 이 파일만 바꾼다. 장면(JourneyScene)은 여기 있는 함수 이름과
   돌려주는 모양(Dude·RoomArt)만 쓴다.
 */
@@ -134,23 +134,40 @@ export function sparkle(scene: Scene, x: number, y: number, reduced: boolean) {
   }
 }
 
-/** 동네 사이 버스 — 길·하늘·버스(창에 내 얼굴). 버스 컨테이너를 돌려준다. 대충 모양만. */
+/** 동네 사이 버스 — 둥근 차체와 창마다 작은 여행자 얼굴. */
 export function drawBus(scene: Scene, w: number, h: number, stage: number, me: Look, riders: number) {
   const sky = DAYLIGHT[stage] ?? DAYLIGHT[0];
   const g = scene.add.graphics();
   g.fillGradientStyle(sky[0], sky[0], sky[1], sky[1]).fillRect(0, 0, w, h * 0.6);
-  g.fillStyle(0xa9d39a).fillEllipse(w * 0.25, h * 0.6, w * 0.9, 120).fillEllipse(w * 0.85, h * 0.6, w * 0.8, 90);
-  g.fillStyle(0xd6ecbf).fillRect(0, h * 0.6, w, h * 0.4);
-  g.fillStyle(0x9e9e9e).fillRect(0, h * 0.62, w, 64);
-  for (let x = 0; x < w; x += 44) g.fillStyle(0xffffff).fillRect(x, h * 0.62 + 30, 24, 4);
+  g.fillStyle(0xb2cda0).fillEllipse(w * 0.25, h * 0.6, w * 0.9, 120).fillEllipse(w * 0.85, h * 0.6, w * 0.8, 90);
+  g.fillStyle(0xe0e6c1).fillRect(0, h * 0.6, w, h * 0.4);
+  g.fillStyle(0xb2aaa0).fillRect(0, h * 0.62, w, 64);
+  g.fillStyle(0xfaf1d9).fillRect(0, h * 0.62, w, 3).fillRect(0, h * 0.62 + 61, w, 3);
+  for (let x = 0; x < w; x += 44) g.fillStyle(0xfff8e4).fillRoundedRect(x, h * 0.62 + 30, 24, 3, 1.5);
   const face = new Dude(scene, me, -46, 4, 0.5);
-  const heads = Array.from({ length: Math.min(3, riders) }, (_, i) => scene.add.circle(-6 + i * 26, -8, 7, [0xf0c39f, 0xd9a07a, 0xf8dcc2][i]));
+  const passengers = scene.add.graphics();
+  for (let i = 0; i < Math.min(3, riders); i++) {
+    const x = -16 + i * 30;
+    passengers.fillStyle([0xf0c39f, 0xd9a07a, 0xf8dcc2][i]).fillEllipse(x, -16, 14, 15);
+    passengers.fillStyle([0x655047, 0x463f43, 0x88705e][i]).fillRoundedRect(x - 7, -24, 14, 5, 2.5);
+    passengers.fillStyle(0x58463f).fillCircle(x - 2.5, -16, 0.8).fillCircle(x + 2.5, -16, 0.8);
+    passengers.fillStyle(0xe99e94, 0.8).fillEllipse(x - 5, -13, 3, 2).fillEllipse(x + 5, -13, 3, 2);
+  }
+  const trim = scene.add.graphics();
+  trim.fillStyle(0xe3ad67).fillRoundedRect(-80, -5, 160, 21, 7);
+  trim.fillStyle(0xffedbc).fillRoundedRect(-76, -4, 141, 4, 2);
+  trim.fillStyle(0xf6d296).fillRoundedRect(66, -32, 13, 44, 4);
+  trim.fillStyle(0xbdd5d0).fillRoundedRect(69, -28, 7, 21, 3);
+  trim.fillStyle(0xfffae7).fillRoundedRect(77, -4, 7, 8, 3);
+  trim.fillStyle(0xd48874).fillRoundedRect(-84, -3, 6, 7, 2);
+  trim.fillStyle(0x9d8979).fillRoundedRect(-88, 9, 12, 6, 3).fillRoundedRect(76, 9, 12, 6, 3);
   const bus = scene.add.container(-120, h * 0.62 + 18, [
-    scene.add.rectangle(0, -14, 168, 62, 0xffc94d).setRounded(14),
-    ...[-46, -16, 14, 44].map(x => scene.add.rectangle(x, -24, 24, 22, 0xd8f0fb).setRounded(4)),
-    face.root, ...heads,
-    scene.add.rectangle(72, -12, 12, 40, 0xf0b02f).setRounded(3),
-    ...[-50, 50].map(x => scene.add.circle(x, 18, 11, 0x3b3b44)),
+    scene.add.ellipse(0, 27, 180, 12, 0x63584e, 0.12),
+    scene.add.rectangle(0, -14, 168, 62, 0xf4ce82).setRounded(17),
+    scene.add.rectangle(-3, -41, 135, 5, 0xffe9b6).setRounded(2.5),
+    ...[-46, -16, 14, 44].map(x => scene.add.rectangle(x, -24, 26, 25, 0xd7e8df).setRounded(7).setStrokeStyle(2, 0xffefcf)),
+    face.root, passengers, trim,
+    ...[-50, 50].flatMap(x => [scene.add.circle(x, 18, 11, 0x665b58), scene.add.circle(x, 18, 5, 0xe7d7bd), scene.add.circle(x, 18, 2, 0xa49383)]),
   ]);
   const box = scene.add.container(0, 0, [g, bus]).setDepth(-50000);
   return { box, bus };
@@ -276,16 +293,23 @@ export function flee(scene: Scene, bird: Pigeon, from: Point) {
 }
 
 /**
- * 장소를 알아보게 하는 표시 하나둘. 대충 모양만 — 꾸미기는 GPT 몫.
+ * 기존 장소 표시를 둥근 건물 디테일·바닥 무늬로 다듬는다. 새 장난감은 추가하지 않는다.
  * 질문 칸이 화면 위쪽(작은 폰은 벽 윗부분까지)을 덮으므로 표시는 벽 아래쪽·문 둘레·마당에 둔다.
  */
 function placeMark(g: Phaser.GameObjects.Graphics, room: Room, place: string, wall: number) {
   const { w, h, wallY, door, residents } = room;
-  const meetY = residents.left.y, low = wallY - 62;
-  /** 창 하나를 지우고 그 자리 가운데 x 를 돌려준다. */
-  const slot = (wx: number) => { g.fillStyle(wall).fillRect(w * wx - 23, wallY - 96, 46, 56); return w * wx; };
-  const flag = (x: number) => { g.fillStyle(0x6d6d6d).fillRect(x - 1, wallY - 92, 3, 58); g.fillStyle(0xffffff).fillRect(x + 2, wallY - 92, 22, 14).lineStyle(1, 0x999999).strokeRect(x + 2, wallY - 92, 22, 14); };
-  const columns = () => { for (const dx of [-62, -50, 50, 62]) g.fillStyle(0xffffff, 0.75).fillRect(door.x + dx - 4, wallY - 100, 8, 100); };
+  const meetY = residents.left.y, low = wallY - 31;
+  // 공통 창 대신 장소별 외벽을 그릴 때, 문 바깥만 지운다.
+  const wings = (color = wall) => {
+    g.fillStyle(color).fillRect(0, wallY - 108, door.x - 48, 108).fillRect(door.x + 48, wallY - 108, w - door.x - 48, 108);
+  };
+  const window = (x: number, y: number, ww: number, hh: number, glass = 0xc4dcda) => {
+    g.fillStyle(0xfff8e7).fillRoundedRect(x - ww / 2 - 3, y - hh / 2 - 3, ww + 6, hh + 6, 8);
+    g.fillStyle(glass).fillRoundedRect(x - ww / 2, y - hh / 2, ww, hh, 6);
+    g.lineStyle(2, 0xfff8e7).lineBetween(x, y - hh / 2, x, y + hh / 2);
+    g.fillStyle(0xffffff, 0.42).fillRoundedRect(x - ww / 2 + 4, y - hh / 2 + 4, 6, Math.min(12, hh - 8), 3);
+  };
+  const flag = (x: number) => { g.fillStyle(0x9f9b8d).fillRoundedRect(x - 1, wallY - 70, 3, 55, 1.5); g.fillStyle(0xfffcf1).fillRoundedRect(x + 2, wallY - 70, 21, 13, 3); };
   switch (place) {
     case '광장': {
       // 분수는 마당 옆. 중앙 길과 주민 발밑에 물건을 놓지 않는다.
@@ -336,68 +360,191 @@ function placeMark(g: Phaser.GameObjects.Graphics, room: Room, place: string, wa
       flag(w * 0.86);
       break;
     }
-    case '주민센터 창구': case '군청':
-      columns(); flag(slot(0.73));
-      if (place === '주민센터 창구') { g.fillStyle(0xd9c3a5).fillRoundedRect(16, wallY - 40, w - 32, 22, 6); g.fillStyle(0x4a3a33).fillRect(door.x - door.half, wallY - 40, door.half * 2, 22); }
-      break;
     case '학교': {
-      const x = slot(0.27);
-      g.fillStyle(0xffffff).fillCircle(x, low, 18); g.lineStyle(3, 0x444444).strokeCircle(x, low, 18);
-      g.lineStyle(3, 0x444444).lineBetween(x, low, x, low - 12).lineBetween(x, low, x + 9, low);
-      flag(slot(0.73)); break;
+      wings(0xf1dba5);
+      for (const x of [w * 0.27, w * 0.72, w * 0.9]) {
+        window(x, wallY - 45, 29, 55, 0xbad4c8);
+        g.lineStyle(2, 0xfff8e7).lineBetween(x - 14, wallY - 41, x + 14, wallY - 41);
+      }
+      const x = w * 0.1, y = wallY - 28;
+      g.fillStyle(0x9cba98).fillCircle(x, y + 2, 23);
+      g.fillStyle(0xfff9e7).fillCircle(x, y, 20);
+      for (let i = 0; i < 12; i++) {
+        const a = i * Math.PI / 6;
+        g.fillStyle(0xbda783).fillCircle(x + Math.sin(a) * 16, y + Math.cos(a) * 16, i % 3 ? 1 : 1.7);
+      }
+      g.lineStyle(2.5, 0x7a6756).lineBetween(x, y, x, y - 10).lineBetween(x, y, x + 8, y + 3);
+      g.fillStyle(0xc18d70).fillCircle(x, y, 2.5);
+      flag(w * 0.79);
+      // 운동장 가장자리의 트랙 선: 길·대화 자리는 평평하게 둔다.
+      g.lineStyle(2, 0xffffff, 0.4).strokeRoundedRect(7, meetY + 65, 52, Math.max(30, h - meetY - 100), 25);
+      break;
     }
-    case '공원':
-      g.fillStyle(0x86bf73).fillRect(0, wallY - 120, w, 120);
-      g.fillStyle(0xe8dcc0).fillRoundedRect(door.x - door.half - 10, wallY - 96, door.half * 2 + 20, 18, 9);
-      g.fillStyle(0x9fd3e6).fillEllipse(w * 0.2, h - 120, 80, 34); break;
-    case '공연장':
-      for (let y = wallY - 92; y < wallY; y += 12) g.fillStyle(0xffd34d).fillCircle(door.x - door.half - 9, y, 3.5).fillCircle(door.x + door.half + 9, y, 3.5);
-      g.fillStyle(0xb2324a).fillRect(w * 0.27 - 22, wallY - 96, 44, 56).fillRect(w * 0.73 - 22, wallY - 96, 44, 56); break;
-    case '경로당': // 담장 기와
-      for (const [x0, x1] of [[0, door.x - door.half - 6], [door.x + door.half + 6, w]]) {
-        g.fillStyle(0x5d5f66).fillRect(x0, wallY - 40, x1 - x0, 12);
-        for (let x = x0 + 6; x < x1; x += 12) g.fillStyle(0x777a82).fillCircle(x, wallY - 40, 6);
+    case '공원': {
+      wings(0xb5cfa1);
+      for (const x of [0, w]) {
+        g.fillStyle(0x8db78c).fillEllipse(x, wallY - 27, 142, 75);
+        g.fillStyle(0xa2c699).fillEllipse(x + (x ? -33 : 33), wallY - 33, 78, 69);
+      }
+      g.fillStyle(0xe5d7b8).fillRoundedRect(door.x - 53, wallY - 86, 106, 13, 6);
+      for (const x of [door.x - 57, door.x + 50]) g.fillStyle(0xf1e5c9).fillRoundedRect(x, wallY - 82, 7, 84, 3);
+      const x = w * 0.19, y = h - 105;
+      g.fillStyle(0xbdcba0).fillEllipse(x + 2, y + 5, 97, 49);
+      g.fillStyle(0xe8dec0).fillEllipse(x, y, 94, 45);
+      g.fillStyle(0x9cced4).fillEllipse(x, y - 2, 82, 33);
+      g.lineStyle(1.5, 0xe9f8e9, 0.8).strokeEllipse(x, y - 2, 60, 20);
+      break;
+    }
+    case '공연장': {
+      wings(0xe7c3bd);
+      for (const x of [w * 0.18, w * 0.82]) {
+        g.fillStyle(0xa97680).fillRoundedRect(x - 43, wallY - 78, 86, 76, 12);
+        g.fillStyle(0x775d68).fillRoundedRect(x - 35, wallY - 66, 70, 60, 6);
+        g.fillStyle(0xc77d88).fillRoundedRect(x - 37, wallY - 75, 25, 62, 10).fillRoundedRect(x + 12, wallY - 75, 25, 62, 10);
+        g.fillStyle(0xe3a4a6).fillEllipse(x - 20, wallY - 71, 41, 20).fillEllipse(x + 20, wallY - 71, 41, 20);
+        g.lineStyle(2, 0xefd0b0).lineBetween(x - 35, wallY - 31, x - 18, wallY - 27).lineBetween(x + 18, wallY - 27, x + 35, wallY - 31);
+        g.fillStyle(0xe2bd8f).fillRoundedRect(x - 42, wallY - 6, 84, 9, 3);
+      }
+      for (let y = wallY - 77; y < wallY - 5; y += 16) g.fillStyle(0xffe9a8).fillCircle(door.x - 46, y, 3).fillCircle(door.x + 46, y, 3);
+      break;
+    }
+    case '경로당': {
+      wings(0xe6d4b8);
+      for (const x of [w * 0.18, w * 0.82]) {
+        g.fillStyle(0xba9976).fillRoundedRect(x - 41, wallY - 64, 82, 62, 4);
+        g.fillStyle(0xfff0d2).fillRect(x - 35, wallY - 56, 70, 48);
+        for (let dx = -23; dx <= 23; dx += 12) g.lineStyle(2, 0xc5aa86).lineBetween(x + dx, wallY - 56, x + dx, wallY - 8);
+        for (let dy = -44; dy <= -12; dy += 12) g.lineStyle(2, 0xc5aa86).lineBetween(x - 35, wallY + dy, x + 35, wallY + dy);
+        g.fillStyle(0x7e9092).fillRoundedRect(x - 48, wallY - 76, 96, 16, 7);
+        for (let dx = -41; dx < 45; dx += 12) {
+          g.fillStyle(0x98aaab).fillRoundedRect(x + dx, wallY - 79, 9, 16, 4);
+          g.fillStyle(0xc1cfbf, 0.6).fillCircle(x + dx + 4.5, wallY - 65, 3);
+        }
+        g.fillStyle(0xd0b18c).fillRoundedRect(x - 44, wallY - 1, 88, 14, 3);
+        for (let dx = -33; dx < 40; dx += 14) g.lineStyle(1, 0xb99b77).lineBetween(x + dx, wallY + 1, x + dx, wallY + 11);
       }
       break;
-    case '청년 자취방':
-      g.lineStyle(1, 0x777777).lineBetween(w * 0.62, wallY - 30, w * 0.95, wallY - 30);
-      [0xe58f8f, 0x6aa6d9, 0xf0d35e].forEach((c, i) => g.fillStyle(c).fillRect(w * 0.66 + i * 26, wallY - 30, 14, 16)); break;
-    case '보건소':
-      for (const x of [slot(0.27), slot(0.73)]) {
-        g.fillStyle(0xffffff).fillCircle(x, low, 20);
-        g.fillStyle(0x3fa36b).fillRect(x - 5, low - 14, 10, 28).fillRect(x - 14, low - 5, 28, 10);
+    }
+    case '청년 자취방': {
+      wings(0xe0c9c6);
+      window(w * 0.17, wallY - 42, 68, 58, 0xeedab3);
+      g.fillStyle(0xb89ea8).fillRoundedRect(w * 0.17 - 41, wallY - 12, 82, 9, 3);
+      const x = w * 0.81;
+      window(x, wallY - 66, 56, 30, 0xc7d5db);
+      g.lineStyle(1.5, 0x9c8790).lineBetween(x - 43, wallY - 37, x + 43, wallY - 37);
+      [0xd7989a, 0x9bb8c9, 0xe1c480].forEach((c, i) => {
+        const tx = x - 29 + i * 28;
+        g.fillStyle(c).fillRoundedRect(tx - 7, wallY - 35, 14, 24, 3);
+        g.fillStyle(c).fillTriangle(tx - 7, wallY - 35, tx - 13, wallY - 24, tx - 5, wallY - 23).fillTriangle(tx + 7, wallY - 35, tx + 13, wallY - 24, tx + 5, wallY - 23);
+        g.fillStyle(0xfff4de).fillEllipse(tx, wallY - 34, 6, 3);
+        g.fillStyle(0xc2a68b).fillRoundedRect(tx - 4, wallY - 39, 2, 7, 1).fillRoundedRect(tx + 3, wallY - 39, 2, 7, 1);
+      });
+      break;
+    }
+    case '주민센터 창구': {
+      wings(0xe8d9bd);
+      for (const x of [w * 0.18, w * 0.82]) {
+        window(x, wallY - 43, 79, 56, 0xb5d3cf);
+        g.fillStyle(0xfaf4df).fillRoundedRect(x - 13, wallY - 22, 26, 15, 7);
+        g.fillStyle(0xb89b79).fillRoundedRect(x - 44, wallY - 18, 88, 19, 4);
+        g.fillStyle(0xe0c49d).fillRoundedRect(x - 47, wallY - 24, 94, 9, 4);
+        g.fillStyle(0xf1dec0).fillRoundedRect(x - 24, wallY - 12, 48, 4, 2);
       }
       break;
-    case '소방서':
-      g.fillStyle(0xd9534f).fillRect(0, wallY - 120, w, 120);
-      for (const gx of [w * 0.06, w * 0.66]) for (let y = wallY - 86; y < wallY; y += 10) g.fillStyle(0xeeeeee).fillRect(gx, y, w * 0.28, 6);
+    }
+    case '보건소': {
+      wings(0xc6ddd5);
+      for (const x of [w * 0.18, w * 0.82]) {
+        window(x, wallY - 39, 78, 61, 0xb1d1d6);
+        g.fillStyle(0xfffcf1).fillCircle(x, low, 22);
+        g.fillStyle(0x7ca78d).fillRoundedRect(x - 5, low - 14, 10, 28, 2).fillRoundedRect(x - 14, low - 5, 28, 10, 2);
+      }
+      g.fillStyle(0xf1ebd5).fillRoundedRect(door.x - 49, wallY + 1, 98, 8, 3);
       break;
+    }
+    case '소방서': {
+      wings(0xd78e81);
+      for (const x of [w * 0.18, w * 0.82]) {
+        g.fillStyle(0xf8ddbc).fillRoundedRect(x - 47, wallY - 76, 94, 78, 12);
+        g.fillStyle(0xaabac0).fillRoundedRect(x - 40, wallY - 67, 80, 66, 8);
+        for (let y = wallY - 56; y < wallY - 3; y += 10) g.fillStyle(0xdce0d6).fillRoundedRect(x - 38, y, 76, 3, 1.5);
+        g.fillStyle(0xe6b775).fillRoundedRect(x - 46, wallY - 5, 92, 6, 2);
+        for (let dx = -40; dx < 40; dx += 16) g.lineStyle(3, 0x9c8671).lineBetween(x + dx, wallY - 4, x + dx + 4, wallY);
+      }
+      // 차고의 붉은 테두리와 셔터가 표식. 새 차량은 넣지 않는다.
+      break;
+    }
+    case '군청': {
+      wings(0xc5d4cf);
+      for (const x of [w * 0.16, w * 0.84]) {
+        window(x, wallY - 47, 43, 62, 0xa8c5c9);
+        for (const dx of [-36, 29]) {
+          g.fillStyle(0xf7eddb).fillRoundedRect(x + dx, wallY - 78, 8, 77, 3);
+          g.fillStyle(0xe7d6b6).fillRoundedRect(x + dx - 4, wallY - 8, 16, 9, 2);
+        }
+        g.fillStyle(0xfff4df).fillTriangle(x - 46, wallY - 76, x, wallY - 95, x + 46, wallY - 76);
+        g.fillStyle(0xe9dbc2).fillRoundedRect(x - 46, wallY - 77, 92, 7, 2);
+      }
+      for (let i = 0; i < 3; i++) g.fillStyle([0xe0d1b7, 0xece0c7, 0xf8ecd5][i]).fillRoundedRect(door.x - 62 + i * 5, wallY + 11 - i * 5, 124 - i * 10, 5, 2);
+      flag(w * 0.92);
+      break;
+    }
     case '버스 정류장': {
-      const sx = w * 0.78;
-      g.fillStyle(0x6d8fa8).fillRect(sx - 40, wallY + 4, 80, 8).fillRect(sx - 36, wallY + 12, 4, 40).fillRect(sx + 32, wallY + 12, 4, 40);
-      g.fillStyle(0xb07a52).fillRect(sx - 30, wallY + 36, 60, 6);
-      g.fillStyle(0x3b82c4).fillCircle(w * 0.2, wallY + 10, 12); g.fillStyle(0x777777).fillRect(w * 0.2 - 2, wallY + 20, 4, 40);
+      wings(0xcadbc1);
+      const x = w * 0.79, y = wallY - 47;
+      g.fillStyle(0xa3c1c4).fillRoundedRect(x - 44, y + 5, 88, 48, 5);
+      g.fillStyle(0xe1efdf, 0.8).fillRoundedRect(x - 39, y + 9, 78, 35, 4);
+      g.lineStyle(2, 0xb1ccc7).lineBetween(x, y + 10, x, y + 43);
+      g.fillStyle(0x799b9c).fillRoundedRect(x - 49, y - 5, 98, 13, 6);
+      g.fillStyle(0xb2c9b9).fillRoundedRect(x - 45, y - 7, 90, 5, 2);
+      for (const dx of [-43, 39]) g.fillStyle(0x789697).fillRoundedRect(x + dx, y + 6, 4, 51, 2);
+      g.fillStyle(0xc29977).fillRoundedRect(x - 34, y + 35, 68, 6, 3);
+      g.fillStyle(0x957e67).fillRect(x - 27, y + 41, 4, 12).fillRect(x + 23, y + 41, 4, 12);
+      const sx = w * 0.16, sy = wallY - 30;
+      g.fillStyle(0x8b9c96).fillRoundedRect(sx - 2, sy + 10, 4, 38, 2);
+      g.fillStyle(0x769fac).fillCircle(sx, sy, 21);
+      // 기존 정류장 표지 안의 버스 그림.
+      g.fillStyle(0xfff4d4).fillRoundedRect(sx - 10, sy - 11, 20, 20, 5);
+      g.fillStyle(0xa9cacc).fillRoundedRect(sx - 7, sy - 8, 14, 9, 3);
+      g.fillStyle(0xfff5dc).fillCircle(sx - 5, sy + 5, 2).fillCircle(sx + 5, sy + 5, 2);
+      g.fillStyle(0x5a7580).fillRoundedRect(sx - 8, sy + 9, 4, 4, 2).fillRoundedRect(sx + 4, sy + 9, 4, 4, 2);
       break;
     }
-    case '둑':
-      g.fillStyle(0x9ccf8a).fillRect(0, wallY - 120, w, 120);
-      g.fillStyle(0x8cc9e0).fillRect(0, wallY - 120, w, 70);
-      for (let x = 8; x < w; x += 46) g.lineStyle(2, 0xffffff, 0.6).lineBetween(x, wallY - 62, x + 18, wallY - 62);
-      for (let y = wallY - 76; y < wallY; y += 12) g.fillStyle(0xd8d2c0).fillRect(door.x - door.half, y, door.half * 2, 6);
-      break;
-    case '체육관': // 창 자리에 공 둘
-      for (const x of [slot(0.27), slot(0.73)]) {
-        g.fillStyle(0xf08a3c).fillCircle(x, low, 16);
-        g.lineStyle(2, 0x7a3b12).strokeCircle(x, low, 16).lineBetween(x - 16, low, x + 16, low).lineBetween(x, low - 16, x, low + 16);
+    case '둑': {
+      wings(0xa9cdd0);
+      for (const [x0, x1] of [[0, door.x - 48], [door.x + 48, w]]) {
+        for (let y = wallY - 72; y < wallY - 35; y += 15) {
+          for (let x = x0 + 9; x < x1 - 16; x += 36) g.fillStyle(0xeaf4dc, 0.65).fillRoundedRect(x, y, 17, 2, 1);
+        }
+        g.fillStyle(0xc5d4ae).fillRect(x0, wallY - 26, x1 - x0, 32);
+        for (let row = 0; row < 2; row++) {
+          for (let x = x0 + 2; x < x1 - 16; x += 24) g.fillStyle(row ? 0xc8c7b1 : 0xdde0c8).fillRoundedRect(x, wallY - 30 + row * 11, 21, 9, 4);
+        }
+        g.fillStyle(0xb2c99c).fillRoundedRect(x0, wallY - 37, x1 - x0, 7, 3);
       }
+      for (let y = wallY - 72; y < wallY; y += 14) g.fillStyle(0xe8dfc7).fillRoundedRect(door.x - door.half, y, door.half * 2, 5, 2);
       break;
+    }
+    case '체육관': {
+      wings(0xc8cfc4);
+      for (const x of [w * 0.18, w * 0.82]) {
+        window(x, wallY - 43, 80, 58, 0xacc6c9);
+        g.fillStyle(0xf3ca8e).fillCircle(x, low, 20);
+        g.lineStyle(1.7, 0xb28561).strokeCircle(x, low, 20).lineBetween(x - 20, low, x + 20, low).lineBetween(x, low - 20, x, low + 20);
+        g.strokeEllipse(x, low, 16, 39);
+      }
+      // 마당의 코트 선은 바닥 그림이라 서는 자리·동선을 가리지 않는다.
+      g.lineStyle(2, 0xfffaf0, 0.55).strokeRoundedRect(w * 0.14, meetY - 10, w * 0.72, 100, 16);
+      g.strokeCircle(w / 2, meetY + 40, 25).lineBetween(w * 0.14, meetY + 40, w * 0.86, meetY + 40);
+      break;
+    }
   }
 }
 
 export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, offsetY = 0, place = ''): RoomArt {
   const base = THEMES[stage] ?? THEMES[0];
-  const preview = stage === 0;
-  const t = preview ? { ...base, ground: 0xe4e5ca, path: 0xfff6df,
+  const first = stage === 0;
+  const t = first ? { ...base, ground: 0xe4e5ca, path: 0xfff6df,
     wall: place === '주민센터' ? 0xbfd5c6 : place === '큰길' ? 0xebc6af : 0xf2c9ba,
     roof: place === '주민센터' ? 0x80aa9d : 0xd8927d, tree: 0x95bb8b } : base;
   const r = rng(seed);
@@ -413,8 +560,8 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
     g.fillStyle(t.water).fillRect(0, wallY, 30, h - wallY);
     for (let y = wallY + 12; y < h; y += 26) g.lineStyle(2, 0xffffff, 0.45).lineBetween(6, y, 20, y);
   }
-  // 첫 동네 시안의 길: 옅은 이음새만 넣어 빈 동선을 지킨다.
-  if (preview) {
+  // 옅은 길 이음새만 넣어 빈 동선을 지킨다.
+  {
     for (let y = wallY + 26; y < h; y += 38) {
       g.lineStyle(1, 0xddcdae, 0.34).lineBetween(door.x - 39, y, door.x + 39, y);
       g.lineBetween(door.x + (Math.round(y / 38) % 2 ? -14 : 14), y, door.x + (Math.round(y / 38) % 2 ? -14 : 14), y + 35);
@@ -429,7 +576,7 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
     g.fillStyle(0xffffff, 0.5).fillRoundedRect(w * wx - 20, wallY - 92, 40, 46, 6);
     g.fillStyle(t.window).fillRoundedRect(w * wx - 17, wallY - 89, 34, 40, 5);
   }
-  if (preview) {
+  {
     // 벽 아랫부분에 작은 줄눈과 창틀. 장식은 사람·문 바깥에만.
     for (const x of [w * 0.1, w * 0.27, w * 0.73, w * 0.9]) {
       g.lineStyle(2, 0xfff7e8, 0.85).lineBetween(x, wallY - 86, x, wallY - 53);
@@ -445,7 +592,15 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
   g.fillStyle(t.roof).fillRoundedRect(door.x - door.half - 12, wallY - 92, door.half * 2 + 24, 14, 6);
   g.fillStyle(0x4a3a33).fillRect(door.x - door.half, wallY - 78, door.half * 2, 78);
   const light = scene.add.rectangle(door.x, wallY - 39, door.half * 2 - 6, 74, 0xfff3c4).setAlpha(0);
-  const panels = [-1, 1].map(side => scene.add.rectangle(door.x + side * door.half / 2, wallY - 39, door.half - 2, 76, preview ? 0xbf9878 : 0xa8754f).setStrokeStyle(2, preview ? 0xa57d60 : 0x7d5338));
+  const panels = [-1, 1].map(side => {
+    const x = door.x + side * door.half / 2;
+    if (place !== '공원' && place !== '둑') return scene.add.rectangle(x, wallY - 39, door.half - 2, 76, 0xbf9878).setStrokeStyle(2, 0xa57d60);
+    const gate = scene.add.graphics();
+    gate.fillStyle(0x90aa88).fillRoundedRect(-18, -38, 36, 76, 5);
+    for (const dx of [-10, 0, 10]) gate.fillStyle(0xe8e8ca).fillRoundedRect(dx - 2, -32, 4, 64, 2);
+    gate.fillStyle(0xb3c3a0).fillRoundedRect(-18, -21, 36, 6, 2).fillRoundedRect(-18, 23, 36, 6, 2);
+    return scene.add.container(x, wallY - 39, [gate]);
+  });
   const knobs = [-1, 1].map(side => scene.add.circle(door.x + side * 5, wallY - 38, 2.4, 0xf2d27a));
   items.push(light, ...panels, ...knobs);
   // 옆쪽 나무·벤치 (사람 서는 곳과 길은 비운다)
@@ -454,7 +609,10 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
     for (const x of sideXs) if (r() > 0.25) {
       const treeX = x + (r() - 0.5) * 8;
       // 큰길의 차도·보도에는 나무 그림이 걸치지 않게 한다. 난수 순서는 유지.
-      if (!(preview && place === '큰길' && y >= h - 184 && y - 48 <= h - 103)) items.push(tree(scene, treeX, y, t.tree));
+      const overRoad = place === '큰길' && y >= h - 184 && y - 48 <= h - 103;
+      const overPond = place === '공원' && treeX < w * 0.34 && y >= h - 132 && y - 48 <= h - 78;
+      const overFront = ['학교', '경로당', '군청', '버스 정류장', '둑'].includes(place) && y - 48 < wallY + 14;
+      if (!overRoad && !overPond && !overFront) items.push(tree(scene, treeX, y, t.tree));
     }
   }
   const benchX = r() > 0.5 ? w * 0.2 : w * 0.8, benchY = Math.min(h - 40, residents.left.y + 110);
