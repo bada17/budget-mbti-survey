@@ -51,7 +51,6 @@ export function townFrom(answers: Record<string, number>): Town | undefined {
   return TOWN_IDS.map(id => (answers[id] <= 3 ? 'a' : 'b')).join('');
 }
 /** 지난번 동네와 달라진 자리(문항 id). 지난번이 없으면 빈 목록. */
-export const changedLots = (now: Town, last?: Town) => (last ? TOWN_IDS.filter((_, i) => now[i] !== last[i]) : []);
 
 // ── 친구 초대 코드 (base64url JSON) ──
 const toBase64Url = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -135,7 +134,6 @@ export function loadLast(): Last | undefined {
   if (!isTown(raw?.town)) return undefined;
   return { town: raw.town, ...(isType(raw.type) ? { type: raw.type } : {}), ...(typeof raw.sessionId === 'string' && raw.sessionId.length <= 64 ? { sessionId: raw.sessionId } : {}) };
 }
-export const loadTown = () => loadLast()?.town;
 export const saveTown = (town: Town, extra: { type?: TypeCode; sessionId?: string } = {}) => write(TOWN_KEY, { town, ...extra, at: Date.now() });
 
 /** 방명록 집 — 번호(id)는 초대 링크에 실리고, 열쇠(key)는 이 기기에만 있어 방명록은 나만 읽는다. */

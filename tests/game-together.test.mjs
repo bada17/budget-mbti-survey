@@ -1,7 +1,7 @@
 // 같이 노는 규칙 — 친구 초대 코드, 연락처 확인, 서버 규칙(다른 사람들 마음·테이블). 화면 없이 돈다.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { encodeInvite, decodeInvite, cleanName, cleanTableCode, josa, townFrom, changedLots, isTown, TOWN_IDS } from '../game/profile.ts';
+import { encodeInvite, decodeInvite, cleanName, cleanTableCode, josa, townFrom, isTown, TOWN_IDS } from '../game/profile.ts';
 import { checkContact } from '../game/contact.ts';
 import { createStore, handle, TABLE_TTL_MS, TABLE_MAX } from '../game/api.ts';
 import { orderedQuestions } from '../game/response.ts';
@@ -82,10 +82,6 @@ test('내 동네: 답에서 열다섯 자로, 친구 링크에 실려 오가고,
   const town = townFrom(answers);
   assert.equal(town, TOWN_IDS.map((_, i) => (i % 2 ? 'b' : 'a')).join(''));
   assert.equal(townFrom({ ...answers, [TOWN_IDS[3]]: undefined }), undefined, '다 답하지 않으면 동네 없음');
-  // 지난번과 달라진 자리
-  const last = 'b' + town.slice(1);
-  assert.deepEqual(changedLots(town, last), [TOWN_IDS[0]]);
-  assert.deepEqual(changedLots(town, undefined), []);
   // 친구 링크 — 이름이 가장 길어도 코드 길이 한도(200자) 안
   const invite = { name: '가나다라마바사아자차', pick: [2, 1, 3, 0], type: '101', town };
   const code = encodeInvite(invite);

@@ -9,8 +9,8 @@ import { createUI } from './ui';
 import { attachEffects } from './effects';
 import { unlockAudio, isMuted, setMuted } from './sfx';
 import {
-  loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, loadTown, saveTown,
-  loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor, type Friend,
+  loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
+  loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
 import { openTown, openReply, openLetter, type Person } from './town';
 import { seasonAt, nextSeason, seasonById } from './seasons';
@@ -44,7 +44,7 @@ let frame = 0;
 let poll: ReturnType<typeof setInterval> | undefined;
 let card: File | undefined; // 공유 그림 — 미리 만들어 둔다(아래 prepareCard)
 let photo: string | undefined; // 주민증 증명사진 — 내 모습 고르기 끝에 찍는다
-let town: Town | undefined, lastTown: Town | undefined; // 이번에 지은 동네 · 지난번 동네
+let town: Town | undefined; // 이번에 지은 동네(링크·지난번 판에 싣는다)
 let cardFor: string | undefined;
 const bus = createEvents();
 const abort = new AbortController();
@@ -262,7 +262,7 @@ function neighborSheet(who: Pick<Neighbor, 'questionId' | 'key' | 'seed'>, keepN
  * 「내 동네」 판(town.ts) — 끝 화면에서, 그리고 다시 온 사람은 시작 화면에서 걷지 않고(지난번 판으로) 연다.
  * 서버가 있을 때만 방명록·우리 지역이 붙는다. sessionId 는 우리 지역에 「그 판」으로 한 채 짓는 데 쓴다.
  */
-function openHub(person: Person, sessionId: string, extra: { last?: Town; photo?: string; friend?: Friend } = {}, backText?: string) {
+function openHub(person: Person, sessionId: string, extra: { photo?: string } = {}, backText?: string) {
   const now = Date.now();
   openTown(shell, {
     me: person, ...extra, neighbor: loadNeighbor(),
@@ -283,7 +283,7 @@ function openHub(person: Person, sessionId: string, extra: { last?: Town; photo?
 function showEnd() {
   if (!state.result) return;
   scene?.setGuests(guests());
-  lastTown = loadTown(); town = townFrom(state.answers);
+  town = townFrom(state.answers);
   if (town) saveTown(town, { type: state.result, sessionId: state.sessionId });
   ui.end({ code: state.result, scores: scoreAnswers(orderedQuestions, state.answers), lines: endLines() }, {
     neighbor: () => {
@@ -294,7 +294,7 @@ function showEnd() {
     others: online ? async () => ui.others((await net.stats()) ?? stats, mine()) : undefined,
     share: () => share(),
     reply: invite ? { label: `${invite.name}님에게 답장`, run: () => share(true) } : undefined,
-    town: () => { if (town && state.result) openHub({ name: me.name, pick: me.pick, type: state.result, town }, state.sessionId, { last: lastTown, photo, friend: invite?.town ? invite : undefined }); },
+    town: () => { if (town && state.result) openHub({ name: me.name, pick: me.pick, type: state.result, town }, state.sessionId, { photo }); },
     again: () => { location.href = here(); },
   });
   // 테이블 사람들이 하나둘 언덕에 닿으면 그때그때 세운다.

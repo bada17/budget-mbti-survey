@@ -1,19 +1,18 @@
 /*
-  끝에서 여는 판 「내 동네」 — 기획 2차(내가 지은 동네·주민증)와 기획 3차(다시 올 이유, 10-14).
+  끝에서 여는 판 「내 동네」 — 기획 2차(주민증)와 기획 3차(다시 올 이유, 10-14).
   그리고 링크로 들어왔을 때 걷기 전에 뜨는 판 둘 — 답장(openReply)·이웃의 편지(openLetter).
 
-  · 내가 지은 동네 = 이번 판에 고른 열다섯 가지. 지난번과 달라진 곳엔 「바뀜」. 옆에 한 사람을 세워 볼 수 있다 —
-    나를 부른 친구, 또는 방명록 손님. 같으면 「○○님도」. **점수·일치율로 견주지 않는다**(궁합류는 사용자가 거절).
+  · 우리 동네 예산(지방재정 자료) — 판 맨 위에 **빈 자리만**(`t-local`). 사용자 10-14: 「자리만 보여줘, 내용은 채워 넣지 말고」.
+  · 「내가 지은 동네」(고른 열다섯 가지 판)는 10-14 걷었다 — 사용자 「어차피 안 봐」. 답장 판에만 두 사람 것을 나란히 남겼다.
   · 방명록 — 내가 보낸 링크로 들어와 끝까지 걸은 사람(서버가 있을 때만). 열쇠가 이 기기에만 있어 나만 본다.
   · 우리 지역 동네 — 시·도에 한 채 짓고 같은 지역 사람들이 어떻게 골랐는지 본다(다섯 명부터). **지역에 유형 딱지는 안 붙인다.**
   · 이웃의 편지 — 예산철(9·12월)에 내 이웃이 보내는 편지 미리 보기와 받기(소식 받기, seasons.ts).
   · 주민증 + 도장판 — 한 일에 찍히는 도장 열 칸(stamps.ts). 그림으로 저장·보내기.
-  · 우리 동네 예산(지방재정 자료) — **자리만**(`t-local`). 사용자 10-14: 「아직 만들지 마, 어떤 형태가 될지 몰라」.
   게임 화면(ui.ts)과 따로 둔 파일 — GPT 가 ui.ts 를 꾸미는 동안 겹치지 않게. 모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
 import './town.css';
 import { ROUTE, TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, type TypeCode } from './content';
-import { TOWN_IDS, REGIONS, changedLots, josa, loadStamps, addStamp, type Town, type Neighbor, type Region, type Friend } from './profile';
+import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, type Town, type Neighbor, type Region, type Friend } from './profile';
 import { toLook, lookFrom, type Look, type Pick } from './look';
 import { board } from './stamps';
 import { letterFor, type Season } from './seasons';
@@ -23,7 +22,7 @@ import type { RegionView, Visit } from './api';
 export type Person = { name: string; pick: Pick; type: TypeCode; town: Town };
 type Guest = Omit<Visit, 'sessionId'>;
 export type HubData = {
-  me: Person; last?: Town; friend?: Friend; neighbor?: Neighbor; photo?: string;
+  me: Person; neighbor?: Neighbor; photo?: string;
   /** 지금이 예산철이면 그 철, 그리고 다음 철(편지 미리 보기). */
   season?: Season; next: Season;
   /** 서버가 있을 때만 — 방명록 읽기(집이 있을 때), 우리 지역 보기·짓기. */
@@ -61,9 +60,8 @@ export function avatar(look: Look, label = '') {
   return a;
 }
 
-/** 열다섯 자리 — 내 집, 「바뀜」, 옆에 세운 사람의 집. */
-function lotsView(mine: Town, last?: Town, beside?: { name: string; town?: Town }) {
-  const changed = new Set(changedLots(mine, last));
+/** 열다섯 자리 — 내 집, 옆에 세운 사람의 집(답장에서만 쓴다). */
+function lotsView(mine: Town, beside?: { name: string; town?: Town }) {
   const wrap = el('div', 't-town');
   for (const stage of ROUTE) {
     const block = el('section', 't-area');
@@ -72,7 +70,6 @@ function lotsView(mine: Town, last?: Town, beside?: { name: string; town?: Town 
       const i = TOWN_IDS.indexOf(id), q = byId.get(id)!, key = mine[i] as 'a' | 'b';
       const lot = el('li', 't-lot');
       lot.append(el('span', 't-house', q[key].short), el('small', 't-place', q.place));
-      if (changed.has(id)) lot.append(el('b', 't-new', `바뀜 · 지난번 ${q[last![i] as 'a' | 'b'].short}`));
       if (beside?.town) {
         const theirs = beside.town[i] as 'a' | 'b';
         if (theirs === key) lot.append(el('span', 't-with', `${beside.name}님도`));
@@ -101,33 +98,10 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   const { panel, close } = panelShell(shell, onClose, backText);
   const { me } = data;
 
-  // ── 내가 지은 동네 + 옆에 세워 보기 ──
-  const title = el('h2', '', me.name ? `${me.name}님이 지은 동네` : '내가 지은 동네');
-  const lead = el('p', 't-lead', '이번에 고른 열다섯 가지로 지었어요.');
-  if (data.last) lead.textContent += changedLots(me.town, data.last).length ? ` 지난번과 달라진 곳이 ${changedLots(me.town, data.last).length}군데예요.` : ' 지난번과 똑같이 지었어요.';
-  const chips = el('div', 't-chips');
-  const townSlot = el('div');
-  const people: { name: string; town?: Town; look: Look }[] = [];
-  let chosen = -1;
-  function drawTown() {
-    townSlot.replaceChildren(lotsView(me.town, data.last, people[chosen]));
-    chips.replaceChildren();
-    if (!people.length) return;
-    chips.append(el('span', 't-small', '옆에 세워 보기'));
-    const choose = (i: number) => { chosen = i; drawTown(); };
-    const alone = btn(`t-chip${chosen < 0 ? ' on' : ''}`, '나만', () => choose(-1));
-    alone.setAttribute('aria-pressed', String(chosen < 0));
-    chips.append(alone);
-    people.forEach((p, i) => {
-      const chip = btn(`t-chip${chosen === i ? ' on' : ''}`, '', () => choose(i));
-      chip.setAttribute('aria-pressed', String(chosen === i));
-      chip.append(avatar(p.look), document.createTextNode(p.name));
-      chips.append(chip);
-    });
-  }
-  if (data.friend?.town) { people.push({ name: data.friend.name, town: data.friend.town, look: toLook(data.friend.pick) }); chosen = 0; lead.textContent += ` 나를 부른 ${data.friend.name}님이 지은 것도 함께 섰어요.`; }
-  drawTown();
-  panel.append(title, lead, chips, townSlot);
+  // ── 우리 동네 예산 — 자리만(사용자 10-14: 「자리만 보여줘, 내용은 채워 넣지 말고」). 형태가 정해지면 여기에 채운다. ──
+  const local = el('section', 't-section t-local');
+  local.append(el('h2', '', '우리 동네 예산'), el('div', 't-local-slot'));
+  panel.append(local);
 
   // ── 방명록 ──
   if (data.book) {
@@ -140,17 +114,12 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
       if (!guests) { status.textContent = '지금은 방명록을 불러올 수 없어요.'; return; }
       if (!guests.length) { status.textContent = '아직 없어요. 「친구에게 보내기」 로 링크를 보내면, 그 링크로 끝까지 걸은 친구가 여기에 남아요.'; return; }
       addStamp('guest');
-      status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요. 누르면 내 동네 옆에 세워 봐요.`;
+      status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요.`;
       for (const g of guests) {
-        const at = people.push({ name: g.name, town: g.town, look: toLook(g.pick) }) - 1;
-        const item = el('li');
-        // scrollIntoView 는 쓰지 않는다 — 넘침을 숨긴 게임 화면(.g)까지 밀어 숨겨 둔 판이 삐져나온다.
-        const row = btn('t-guest', '', () => { chosen = at; drawTown(); panel.scrollTo({ top: title.offsetTop - 8, behavior: 'smooth' }); });
-        row.append(avatar(toLook(g.pick)), el('b', '', g.name), el('span', 't-small', `「${TYPES[g.type].name}」 · ${new Date(g.at).getMonth() + 1}월 ${new Date(g.at).getDate()}일`));
-        item.append(row);
+        const item = el('li', 't-guest');
+        item.append(avatar(toLook(g.pick)), el('b', '', g.name), el('span', 't-small', `「${TYPES[g.type].name}」 · ${new Date(g.at).getMonth() + 1}월 ${new Date(g.at).getDate()}일`));
         list.append(item);
       }
-      drawTown();
     });
   }
 
@@ -184,15 +153,13 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   for (const s of stamps) howList.append(el('li', s.on ? 't-done' : '', `${s.name} — ${s.how}${s.on ? ' ✓' : ''}`));
   how.append(howList);
 
-  // 우리 동네 예산 — 자리만. 형태(무엇을·어떻게 보일지)가 정해지면 여기에 채운다. 그 전에는 화면에 내지 않는다.
-  const local = el('section', 't-local'); local.hidden = true;
 
   const save = btn('g-primary', '주민증 저장·보내기', () => {});
   const join = el('a', 'g-link t-join', '정주민 도장 받기 — 함께하는 시민행동 회원 되기 →');
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
   const note = el('p', 't-small', '그림에는 이름·모습·유형·내 이웃·우리 지역·도장이 들어가요.');
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
-  panel.append(el('h2', 't-card-title', '주민증'), card, how, local, save, join, note, status);
+  panel.append(el('h2', 't-card-title', '주민증'), card, how, save, join, note, status);
 
   // ── 그림 — 미리 찍어 둔다(누른 뒤에 찍으면 아이폰이 공유창을 막는다, main.ts 와 같은 까닭) ──
   let file: File | undefined;
@@ -305,7 +272,7 @@ export function openReply(shell: HTMLElement, me: Friend, friend: Friend, onWalk
     pair,
     el('p', 't-lead', `${friend.name}님은 「${TYPES[friend.type].name}」. ${me.town && friend.town ? `내가 지은 동네 옆에 ${friend.name}님이 지은 집을 세웠어요.` : ''}`),
   );
-  if (me.town) panel.append(lotsView(me.town, undefined, friend.town ? { name: friend.name, town: friend.town } : undefined));
+  if (me.town) panel.append(lotsView(me.town, friend.town ? { name: friend.name, town: friend.town } : undefined));
   panel.append(
     btn('g-primary', `${friend.name}님이랑 한 바퀴 더 걷기`, close),
     el('p', 't-small', '답장 링크에는 두 사람이 지은 동네가 담겨 있어요. 둘 사이에서만 나눠 주세요.'),

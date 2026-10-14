@@ -12,11 +12,10 @@
 .t-house::before{content:"";position:absolute;left:50%;top:-6px;width:0;height:0;border:7px solid transparent;border-bottom-color:#ffe3d6;border-top:0;transform:translateX(-50%)}
 .t-friend{background:#dcebf5}.t-friend::before{border-bottom-color:#dcebf5}.t-friend em{display:block;font-style:normal;font-weight:500;font-size:10.5px;color:var(--soft)}
 .t-place{font-size:11px;color:var(--soft)}
-.t-new{font-size:10.5px;font-weight:700;color:var(--accent-dark);line-height:1.35;word-break:keep-all}
 .t-with{font-size:10.5px;color:#3c6e8f}
 
 /* 옆에 세워 보기 · 지역 고르기 */
-.t-chips,.t-regions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 6px}.t-chips .t-small{margin:0 4px 0 0}
+.t-regions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 6px}
 .t-chip{display:inline-flex;align-items:center;gap:4px;min-height:34px;padding:3px 10px;border-radius:999px;background:var(--card);box-shadow:0 0 0 1.5px var(--line);font-size:13px;font-weight:700;color:var(--ink)}
 .t-chip.on{box-shadow:0 0 0 2px var(--accent);color:var(--accent-dark)}
 .t-chip:disabled{opacity:.5}
@@ -62,3 +61,4 @@
 .t-issued{margin:8px 14px 12px;font-size:11px;color:var(--soft);text-align:right}
 .t-how{margin:0 0 12px;font-size:13px;color:var(--soft)}.t-how ul{margin:6px 0 0;padding-left:18px;line-height:1.7}.t-how .t-done{color:var(--accent-dark)}
 .t-join{color:var(--accent-dark)}
+.t-local-slot{min-height:140px;border:2px dashed var(--line);border-radius:16px} /* 우리 동네 예산 — 빈 자리(내용은 아직) */
