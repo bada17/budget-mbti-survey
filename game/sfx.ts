@@ -58,3 +58,89 @@ export const sfx = {
 export function vibrate(ms: number) {
   try { navigator.vibrate?.(ms); } catch { /* 지원 안 하는 기기 */ }
 }
+
+// ───────────────────────── 마을 배경 가락(사용자 10-14 「그래도 한번 만들어서 넣어봐」) ─────────────────────────
+/*
+  오르골처럼 짧고 잔잔한 가락 — 파일 없이 코드로 만든다(용량 0). 마을에서만, 효과음보다 작게. 소리 단추로 같이 꺼진다.
+  여덟 마디가 되풀이된다: 화음 넷(낮은 음 한 번 + 오르골 분산화음) 위에 시드로 정한 가락(같은 마을은 늘 같은 노래).
+  밤엔 느리고 낮게, 다른 화음. 누구의 노래도 흉내 내지 않은 진행(흔한 Ⅰ–ⅵ–Ⅱ–Ⅴ 꼴).
+*/
+const midi = (n: number) => 440 * 2 ** ((n - 69) / 12);
+/** 한 마디 = 8분음표 여덟 칸. 음은 MIDI 번호. */
+type Note = { step: number; midi: number; len: number; kind: 'bass' | 'arp' | 'tune' };
+const DAY = { bpm: 84, chords: [[60, 64, 67, 71], [57, 60, 64, 67], [62, 65, 69, 72], [55, 59, 62, 65]] }; // Cmaj7 · Am7 · Dm7 · G7
+const NIGHT = { bpm: 68, chords: [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [48, 52, 55, 59]] }; // Fmaj7 · Em7 · Dm7 · Cmaj7
+const ARP = [0, 1, 2, 3, 2, 1, 2, 1];
+
+/** 여덟 마디 노래 — 시험되게 순수 함수로. step 은 8분음표 칸(0~63). */
+export function villageTune(night: boolean, seed = 'village-tune'): { bpm: number; steps: number; notes: Note[] } {
+  const { bpm, chords } = night ? NIGHT : DAY;
+  let h = 2166136261;
+  for (const c of seed + night) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  const r = () => { h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+  const notes: Note[] = [];
+  let last = chords[0][2] + 12;
+  for (let bar = 0; bar < 8; bar++) {
+    const chord = chords[bar % 4], at = bar * 8;
+    notes.push({ step: at, midi: chord[0] - 12, len: 3, kind: 'bass' });
+    if (bar % 2) notes.push({ step: at + 4, midi: chord[0] - 12 + 7, len: 2, kind: 'bass' });
+    ARP.forEach((k, i) => { if (i % 2 === 0 || r() < 0.5) notes.push({ step: at + i, midi: chord[k], len: 1.2, kind: 'arp' }); });
+    // 가락 — 마디마다 두세 음, 화음 음(한 옥타브 위) 중 앞 음에서 가까운 것으로 걷는다. 넷째·여덟째 마디 끝은 쉰다.
+    for (const slot of bar % 4 === 3 ? [0, 3] : [0, 3, 6]) {
+      if (slot && r() < 0.25) continue;
+      const pool = chord.map(n => n + 12).concat(chord[0] + 24);
+      pool.sort((a, b) => Math.abs(a - last) - Math.abs(b - last));
+      last = pool[Math.min(pool.length - 1, Math.floor(r() * 2.2))];
+      notes.push({ step: at + slot, midi: last, len: slot === 6 ? 2 : 3, kind: 'tune' });
+    }
+  }
+  return { bpm, steps: 64, notes };
+}
+
+let music: { stop(): void } | undefined;
+let musicBus: GainNode | undefined;
+const MUSIC_GAIN = { bass: 0.032, arp: 0.014, tune: 0.03 };
+
+/** 오르골 한 음 — 사인파 두 겹(제 음 + 네 배 음을 조금), 짧게 튕기고 길게 사라진다. */
+function pluck(c: AudioContext, out: AudioNode, freq: number, at: number, len: number, gain: number) {
+  const body = c.createOscillator(), shine = c.createOscillator(), g = c.createGain(), gs = c.createGain();
+  body.frequency.value = freq; shine.frequency.value = freq * 4;
+  g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(gain, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+  gs.gain.setValueAtTime(0.0001, at); gs.gain.exponentialRampToValueAtTime(gain * 0.18, at + 0.005); gs.gain.exponentialRampToValueAtTime(0.0001, at + 0.25);
+  body.connect(g).connect(out); shine.connect(gs).connect(out);
+  for (const o of [body, shine]) { o.start(at); o.stop(at + len + 0.05); o.onended = () => o.disconnect(); }
+}
+
+/**
+ * 마을 배경 가락 켜기 — 소리가 풀리기 전(첫 손길 전)이면 풀릴 때까지 기다렸다 시작한다. 탭을 숨기면 쉰다.
+ * 다시 부르면 앞의 것을 끄고 새로(낮·밤이 바뀌었을 때).
+ */
+export function playVillageMusic(night: boolean) {
+  music?.stop();
+  const tune = villageTune(night), eighth = 60 / tune.bpm / 2;
+  const byStep = new Map<number, Note[]>();
+  for (const n of tune.notes) byStep.set(n.step, [...(byStep.get(n.step) ?? []), n]);
+  let step = 0, nextAt = 0, started = false, lastTarget = 1;
+  const timer = setInterval(() => {
+    const c = ctx;
+    if (!c || c.state !== 'running' || document.hidden) { started = false; return; }
+    if (!musicBus || musicBus.context !== c) {
+      // 오르골 상자 울림 — 짧은 메아리 한 번, 높은 소리는 조금 깎는다
+      musicBus = c.createGain();
+      const tone = c.createBiquadFilter(), echo = c.createDelay(1), back = c.createGain();
+      tone.type = 'lowpass'; tone.frequency.value = 3200; echo.delayTime.value = 0.27; back.gain.value = 0.22;
+      musicBus.connect(tone).connect(c.destination); tone.connect(echo).connect(back).connect(echo); back.connect(c.destination);
+    }
+    const target = muted ? 0 : 1;
+    if (!started) { // 처음(또는 탭에서 돌아왔을 때) — 2초쯤에 걸쳐 살며시
+      started = true; nextAt = c.currentTime + 0.1; lastTarget = target;
+      musicBus.gain.cancelScheduledValues(c.currentTime); musicBus.gain.setValueAtTime(0, c.currentTime); musicBus.gain.setTargetAtTime(target, c.currentTime, 0.8);
+    } else if (target !== lastTarget) { lastTarget = target; musicBus.gain.setTargetAtTime(target, c.currentTime, 0.3); }
+    while (nextAt < c.currentTime + 0.3) {
+      if (!muted) for (const n of byStep.get(step) ?? []) pluck(c, musicBus, midi(n.midi), nextAt, n.len * eighth * 2.2, MUSIC_GAIN[n.kind]);
+      nextAt += eighth; step = (step + 1) % tune.steps;
+    }
+  }, 90);
+  music = { stop: () => { clearInterval(timer); if (musicBus && ctx) musicBus.gain.setTargetAtTime(0, ctx.currentTime, 0.2); } };
+}
+export const stopVillageMusic = () => { music?.stop(); music = undefined; };

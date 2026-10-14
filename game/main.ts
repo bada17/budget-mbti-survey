@@ -9,7 +9,7 @@ import { createEvents, type GameEvent } from './events';
 import { Controls } from './input';
 import { createUI } from './ui';
 import { attachEffects } from './effects';
-import { unlockAudio, isMuted, setMuted } from './sfx';
+import { unlockAudio, isMuted, setMuted, playVillageMusic } from './sfx';
 import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
@@ -18,7 +18,7 @@ import { openTown, openReply, openLetter, openLogin, type Person, type LoginOpts
 import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, noteCard, loadMarks, rememberMine, loadPocket, savePocket } from './places';
 import { PLACES, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
 import { nameFrom } from './look';
-import { seasonOf, type Season } from './draw';
+import { seasonOf, skyAt, type Season } from './draw';
 import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
@@ -333,6 +333,7 @@ function toVillage() {
 function enteredVillage() {
   where = 'village';
   ui.village({ phone: openPhone });
+  playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {

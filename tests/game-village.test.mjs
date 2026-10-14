@@ -255,3 +255,20 @@ test('마을 공사·나무: 동전이 앞 공사부터 채우고, 하루 떨어
   assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 2 }, t0 + 24 * 3600e3).body.took, 2, '다음 날 다시');
   assert.equal(handle(store, 'GET', '/village', undefined, t0 + 24 * 3600e3).body.coins, COIN_DAY_MAX + 2);
 });
+
+test('마을 배경 가락: 여덟 마디가 늘 같고, 낮·밤이 다르며, 음은 들리는 높이 안에', async () => {
+  const { villageTune } = await import('../game/sfx.ts');
+  const day = villageTune(false), again = villageTune(false), night = villageTune(true);
+  assert.deepEqual(day, again, '같은 마을은 늘 같은 노래');
+  assert.notDeepEqual(day.notes, night.notes);
+  assert.ok(night.bpm < day.bpm, '밤엔 느리게');
+  for (const tune of [day, night]) {
+    assert.equal(tune.steps, 64);
+    assert.ok(tune.notes.some(n => n.kind === 'tune') && tune.notes.some(n => n.kind === 'bass'));
+    for (const n of tune.notes) {
+      assert.ok(n.step >= 0 && n.step < 64);
+      const hz = 440 * 2 ** ((n.midi - 69) / 12);
+      assert.ok(hz > 60 && hz < 2100, `${n.kind} ${hz}`);
+    }
+  }
+});
