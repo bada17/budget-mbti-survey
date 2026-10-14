@@ -635,14 +635,24 @@ Claude 가 질문을 몰아 묻고(사용자 「질문 있으면 몰아서 줘�
   화면: [광장](game/review/village-plaza-360.jpg) · [쪽지 카드](game/review/village-note-card-360.jpg) · [지도](game/review/village-map-360.jpg) ·
   [상담소](game/review/village-counsel-360.jpg) · [독상](game/review/village-dok-360.jpg) · [나라살림 창고](game/review/village-finance-360.jpg) ·
   [쪽지판](game/review/village-board-360.jpg) · [주민센터](game/review/village-hub-360.jpg) · [언덕 끝 화면](game/review/village-hill-end-360.jpg) · [남쪽 문](game/review/village-gate-360.jpg).
-- **캐릭터 방향 시안 — 첫 방의 나만 적용.** 사용자가 [둥근 파스텔 주민 네 명](game/review/cute-character-direction.jpg)(줄무늬 옷·가디건·초록 점퍼·보라 조끼)을 마음에 들어 하며 나중에 쓰도록 기록해 달라고 했다. 생성 주문은 [여기](game/prompts/cute-character-direction.md). 기본 얼굴·몸 틀을 공유하고 머리·옷 모양을 조합하며 색은 팔레트로 바꾸는 방향이다. 작은 실제 게임 크기에서 읽힘을 먼저 확인한다. 주민 모습은 답의 a/b와 연결하지 않는다. 큰 시안 이미지를 런타임에 줄여 넣지 않고 `draw.ts`에서 게임 크기에 맞춰 그린다.
-  사용자 「일단 마을 말고 하나만」「첫 방에 구현, 내 커스터마이징도」에 따라 **첫 방(광장)의 내 캐릭터만** 줄무늬 상의·큰 둥근 얼굴·작은 운동화로 적용했다.
-  기존 선택기(머리 모양 다섯·머리색·옷색·피부색)와 저장은 그대로 연결된다. 머리·옷·피부는 답의 a/b와 엮지 않는다.
-  다음 방부터 기존 그림으로 돌아가고, 다른 주민·마을에는 적용하지 않는다. 첫 방의 그림 컨테이너가 살아 있는 동안만 시안을 보여 주어 장면 진행 코드를 바꾸지 않았다.
-  **검토 뒤 멈춤.** [모습 고르기](game/review/character-first-dress-360x640.png) · [첫 방](game/review/character-first-room-360x640.png) ·
-  [다른 조합](game/review/character-first-custom-360x640.png) · [작은 폰](game/review/character-first-dress-360x560.png) · [다음 방 기존 그림](game/review/character-second-room-360x640.png).
-  `npm test`(68개)·`npx tsc --noEmit`·`npm run build:game` 통과. 브라우저에서 머리 다섯·각 색 세 가지, 선택 저장, 360×640·360×560, 첫 방→큰길 전환을 확인했다.
-  Chrome CDP로 CPU 4배 느리게 하고 첫 방에서 좌우로 걷는 동안 Phaser `postrender` 완료를 4초 측정: 약 46.2fps(187장 / 4.044초), 35fps 기준 통과. 브라우저 오류 0. 공개판(gh-pages)은 올리지 않는다.
+- **캐릭터 검토 — 동글형 한 명의 얼굴·단발 비교.** 사용자가 [동글형 방향](game/review/character-direction-v2.png)을 골랐지만, 부품을 조합한 열두 명의 구현은 두상·헤어와 팔 움직임 때문에 거절했다. 큰 원화의 헤어를 타원 얼굴에 따로 늘려 얹으면 비율과 화풍이 달라진다. 이 방식을 기준으로 주민을 확장하지 않는다.
+  사용자 「얼굴과 헤어가 함께 완성된 원본을 기준으로 한 명부터」 → 「그래 해봐」에 따라 **얼굴·단발·귀·목을 한 장으로 그린 원본**을 비율·색 변경 없이 넣었다. 원본은 [head-bob-v3.png](game/review/characters/head-bob-v3.png), 기본 내장 `imagegen`으로 생성했다. 무료 외부 에셋이나 새 스킬을 설치한 결과는 아니다.
+  `npm run dev:game` → **`/review/characters/`**. 첫 방 배경에 왼쪽 수정안·오른쪽 기존안 두 명을 같은 옷으로 놓았다. 「크게 비교」로 함께 확대하고, 「실제 크기로」로 돌아온다. 주민 선택·걷기·옷 모양/색 바꾸기를 확인할 수 있다. 수정안의 얼굴·헤어·피부·안경은 이번 비교에서 고정이며 해당 선택기를 감췄다. 머리/옷/피부는 답의 a/b와 연결하지 않는다.
+  **기존 걷기 유지.** 팔 고정, 다리 교차·몸 바운스·숨쉬기는 `FEEL` 설정을 사용한다. 추가 팔 흔들기·좌우 뒤집기·깜빡임은 제거했다. 정적인 배경은 한 번 굽고, DPR 2까지 지원한다. 모션 줄이기 설정도 반영한다. 기존 열두 조합은 `?legacy`에서 비교용으로만 확인하며 새 디자인으로 채택한 것은 아니다.
+  별도 리뷰 화면과 자체 저장 키만 변경했다. `draw.ts`의 앞선 첫 방 실험과 본편 진행/선택기, `village.ts`·`VillageScene.ts`·`places.ts`·`main.ts`는 이번에 고치지 않았다. 한 명의 모습을 검토한 뒤 나머지를 정한다. gh-pages에는 배포하지 않는다.
+  **이번 커밋은 새 두상 원본·참조 그림·검토 캡처·기록만 보관한다.** 이전에 거절한 열두 명 부품 조합 코드·자산은 올리지 않는다. `/review/characters/` 비교 구현은 이 PC에서만 쓰는 로컬 검토 상태이며, 채택한 뒤 필요한 코드 범위를 정한다.
+  **검증:** `npx tsc --noEmit`·`npm run build:game`·캐릭터 모델 테스트 4개 통과. 브라우저에서 수정안 한 명/기존안 한 명, 원본 두상 비율·색 유지, 기존 걷기와 팔 고정, 옷 변경·기본 조합 복원, 모션 줄이기와 이전 열두 조합을 확인했다. 오류 0. Chrome CDP CPU 4배에서 `postrender` 241장 / 4.0097초 = 약 60.1fps, 35fps 기준 통과. 이 수치는 두 명의 비교 화면에 해당한다.
+  [실제 크기 360×640](game/review/character-head-v3-360x640.png) · [확대 비교](game/review/character-head-v3-compare-360x640.png) · [옷 바꾸기](game/review/character-head-v3-edit-360x640.png).
+
+  <details><summary>얼굴·단발 원본 생성 주문</summary>
+
+  참조: 위 「동글형 방향」의 윗줄 2번. 내장 imagegen 편집, 투명 배경.
+
+  ```text
+  EDIT/EXTRACTION TARGET: the attached approved character-design board. Create ONE isolated complete head-and-short-neck sprite from character number 2 in the TOP ROW labeled 동글형: the young Korean everyday-neighborhood woman with the neat warm dark-brown bob haircut, coral cardigan, and rounded cheeky face. Preserve her attractive facial identity and integrated face/hair proportions from the original art, especially rounded broad cheeks, a short softly curved chin, clear small black circular eyes, short gentle eyebrows, tiny nose, soft blush, and a small natural curved smile. The head, front bangs, back bob, ears, face and a short neck must all remain one already-composited drawing. The neat bob should have a soft rounded crown and smooth rounded side silhouette, with just a few clear curved hair divisions, naturally attached to the scalp, no flyaway threads. Hair frames the cheeks without covering the eyes or narrowing the face. Simplify to the existing game's rounded pastel shapes and flat shadows: clean solid color masses, subtle two-tone hair shadow, no strand texture, no grain, no sketchy lines, no realistic highlights. Make her Korean contemporary everyday styling, charming and well groomed. She faces directly forward with the head upright, no tilt. Deliver ONLY this one complete head with ears and short neck, no torso, shoulders, clothes, body, accessories, other characters, panels, captions, letters, frame or scenery. Keep enough forehead visible. The short neck bottom is the attachment point; full intact hair silhouette including all sides, nothing clipped. Center the whole intact head in the square canvas with consistent transparent padding around it. The image must have true alpha transparency. This is an actual tiny 2D game sprite, ultimately about 34 CSS pixels wide, so the face must read at that size and the hair outline must stay clean. Do not redesign into the rejected taller oval face or detailed strand-filled wig. Do not provide separate interchangeable parts or a grid.
+  ```
+
+  </details>
 - **2026-10-14 GPT 귀여움 꾸미기 — 전체 장소 확장 완료.** 첫 시안 커밋 `862aa51`을 본 사용자가 「낫배드인듯. 계속해」로 승인했다.
   귀여움의 기준은 기존 둥근 도형·파스텔·납작한 그림자. 시안의 주민 작은 손·볼·미소·옷깃, 기존 고양이·비둘기·공과 합성음을 유지하고
   나머지 열두 방·버스·이웃 판까지 같은 분위기로 넓혔다. 새 소품·외부 에셋·런타임 그림/소리 파일·의존성 추가 없음.
