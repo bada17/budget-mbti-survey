@@ -1,0 +1,9 @@
+# 귀여운 동네 주민 캐릭터 시안 — 2026-10-14
+
+검토용 그림: `../review/cute-character-direction.jpg`. 실제 게임 에셋이나 구현 확정안이 아니다.
+
+원본 생성 주문:
+
+> Create ONE compact character CONCEPT SHEET (not a game screenshot) with FOUR distinct full-body cute human character style directions in a clean 2x2 grid, each character standing front-facing and roughly equal size with generous space between. The supplied screenshot is a STYLE REFERENCE ONLY: match its simple rounded geometry, warm pastel palette, flat minimal shadows, tiny blush cheeks, small eyes, very cute proportions, and approachable 2D vector-like hand-drawn game illustration. No pixel art, no 3D, no realistic rendering, no detailed textures, no glossy shading, no imitation of ethnic facial stereotypes. Contemporary everyday South Korean neighborhood clothing through ordinary modern fashion: top-left young adult with short dark hair, relaxed striped shirt and sneakers; top-right adult with bob hair, light cardigan and wide trousers; bottom-left middle-aged adult with tidy side-part hair, casual zip jacket; bottom-right elderly adult with soft grey hair, comfortable pastel vest and pants. Every character has subtle individual face and silhouette while clearly belonging to ONE coherent game art family. Express warmth and irresistible cuteness, not glamour. Use a very pale cream plain background. No lettering, labels, borders, logos, animals, props, scenery, speech bubbles, or UI. This is just a quick visual mood comparison; do not include source screenshot.
+
+참고 화면: `../review/cute-room-04-360x640.png`. 채택 시 이 큰 그림을 그대로 축소하지 말고, 실제 게임 크기에서 얼굴·머리·옷이 읽히도록 새로 그린다.
