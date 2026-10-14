@@ -96,6 +96,8 @@ export function createUI(root: HTMLElement, actions: {
 
     render(state: JourneyState) {
       shell.dataset.phase = state.phase;
+      // 시안은 첫 동네·내 모습·언덕에만. 나머지 화면은 검토 뒤 넓힌다.
+      shell.classList.toggle('g-preview', state.stageIndex === 0 || state.phase === 'arrived');
       const answered = Object.keys(state.answers).length;
       area.textContent = state.phase === 'arrived' ? DESTINATION.name : ROUTE[Math.min(state.stageIndex, 4)].area;
       pips.forEach((pip, i) => pip.classList.toggle('on', i < answered));
@@ -203,9 +205,9 @@ export function createUI(root: HTMLElement, actions: {
         rows.append(line);
       });
       draw();
-      const random = button('g-link', '아무거나', () => { current.pick = randomPick(); changed(); });
+      const random = button('g-link', '어떤 모습이 나올까?', () => { current.pick = randomPick(); changed(); });
       const done = button('g-primary', '이 모습으로 걷기', () => { closeSheet(); on.done({ name: cleanName(name.value), pick: [...current.pick] as Pick }); });
-      openSheet(el('p', 'g-kicker', '내 모습 고르기'), name, rows, random, done);
+      openSheet(el('p', 'g-kicker', '오늘은 이 모습으로'), name, rows, random, done);
     },
 
     /** 테이블에서 같이 하기 — 새로 만들거나 코드로 들어간다. */
@@ -255,8 +257,8 @@ export function createUI(root: HTMLElement, actions: {
       give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
       bar.append(
-        button('g-primary', '함께 온 주민 중 내 이웃 정하기', on.neighbor),
-        ...(on.others ? [button('g-ghost', '다른 사람들은 어떻게 골랐을까?', on.others)] : []),
+        button('g-primary', '내 이웃 정하기', on.neighbor),
+        ...(on.others ? [button('g-ghost', '다른 사람들은?', on.others)] : []),
         button('g-ghost', '친구에게 보내기', on.share),
         button('g-link', '한 번 더 걷기', on.again),
         give,

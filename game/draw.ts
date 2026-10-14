@@ -1,5 +1,5 @@
 /*
-  임시 그림 — 모양만 잡아 둔 자리. 최종 그림체는 아직 안 정했다(README 정할 것 7).
+  둥근 도형·파스텔·납작한 그림자. 첫 동네와 언덕의 귀여움 시안(README 디테일 차례).
   그림을 바꿀 때는 이 파일만 바꾼다. 장면(JourneyScene)은 여기 있는 함수 이름과
   돌려주는 모양(Dude·RoomArt)만 쓴다.
 */
@@ -23,26 +23,42 @@ export class Dude {
   private hopping = false;
   private tall: number;
   private arm: { coat: number; skin: number };
+  private restingRightArm: (Phaser.GameObjects.Rectangle | Phaser.GameObjects.Arc)[];
   constructor(private scene: Scene, look: Look, x: number, y: number, scale = 1) {
     const s = scene.add;
     this.tall = look.tall;
     this.arm = { coat: look.coat, skin: look.skin };
-    const shadow = s.ellipse(0, 0, 26, 8, 0x2d3a2e, 0.16);
-    this.legs = [-5, 5].map(lx => s.rectangle(lx, -6, 6, 12, 0x3d4250).setRounded(3));
-    const torso = s.rectangle(0, -20, 24, 24, look.coat).setRounded(10);
-    const head = s.circle(0, -40, 12, look.skin);
+    // 머리 끝과 발 위치는 그대로. 작은 손·볼·옷깃으로 표정을 보탠다.
+    const shadow = s.ellipse(0, 0, 29, 7, 0x756956, 0.17);
+    this.legs = [-5, 5].map(lx => s.rectangle(lx, -5, 7, 11, 0x555363).setRounded(3.5));
+    const sleeves = [-12, 12].map(x => s.rectangle(x, -21, 8, 13, look.coat).setRounded(4).setAngle(x < 0 ? 12 : -12));
+    const hands = [-13, 13].map(x => s.circle(x, -14, 3.6, look.skin));
+    this.restingRightArm = [sleeves[1], hands[1]];
+    const torso = s.rectangle(0, -19, 25, 24, look.coat).setRounded(11);
+    const seams = s.graphics();
+    seams.fillStyle(0xffffff, 0.55).fillTriangle(-6, -31, 0, -26, 0, -30).fillTriangle(6, -31, 0, -26, 0, -30);
+    seams.fillStyle(0xffffff, 0.3).fillRoundedRect(3, -21, 6, 5, 2);
+    seams.fillStyle(0x684c42, 0.12).fillRoundedRect(-8, -10, 16, 2, 1);
+    const ears = [-13, 13].map(x => s.circle(x, -39, 3.4, look.skin));
+    const head = s.ellipse(0, -39, 29, 27, look.skin);
     const hair = s.graphics().fillStyle(look.hair);
-    if (look.style === 9) { // 나: 앞챙 모자
-      hair.fillStyle(look.coat).slice(0, -42, 12.5, Math.PI, 0, false).fillPath().fillRoundedRect(-2, -45, 17, 5, 2.5);
+    if (look.style === 9) {
+      hair.fillStyle(look.coat).slice(0, -43, 14, Math.PI, 0, false).fillPath().fillRoundedRect(-1, -46, 20, 6, 3);
+      hair.lineStyle(1, 0xffffff, 0.3).lineBetween(0, -54, 0, -48);
+      hair.fillStyle(0xffffff, 0.45).fillCircle(-7, -48, 2);
     } else {
-      hair.slice(0, -41, 12.5, Math.PI * 1.05, -Math.PI * 0.05, false).fillPath();
-      if (look.style === 1) hair.fillCircle(0, -55, 6);
-      if (look.style === 2) hair.fillRoundedRect(-13, -43, 6, 16, 3).fillRoundedRect(7, -43, 6, 16, 3);
-      if (look.style === 3) hair.fillRoundedRect(-9, -54, 18, 6, 3);
+      hair.slice(0, -41, 14.5, Math.PI * 1.03, -Math.PI * 0.03, false).fillPath();
+      hair.fillCircle(-9, -45, 4.5).fillCircle(-3, -47, 4.2).fillCircle(4, -46, 4.5);
+      if (look.style === 1) hair.fillCircle(1, -54, 6.5).fillStyle(0xffffff, 0.25).fillEllipse(-1, -56, 5, 2);
+      if (look.style === 2) hair.fillStyle(look.hair).fillRoundedRect(-15, -45, 7, 20, 3.5).fillRoundedRect(8, -45, 7, 20, 3.5);
+      if (look.style === 3) hair.fillStyle(look.coat).fillRoundedRect(-11, -53, 22, 4, 2);
+      hair.fillStyle(0xffffff, 0.12).fillEllipse(-5, -51, 10, 3);
     }
-    this.eyes = [-4.5, 4.5].map(ex => s.circle(ex, -39, 1.9, 0x2a2a33));
-    const cheeks = [-7, 7].map(cx => s.circle(cx, -34.5, 2.4, 0xff8f8f, 0.45));
-    this.body = s.container(0, 0, [...this.legs, torso, head, hair, ...this.eyes, ...cheeks]).setScale(1, look.tall);
+    this.eyes = [-4.5, 4.5].map(ex => s.circle(ex, -39, 1.8, 0x39313b));
+    const cheeks = [-9, 9].map(cx => s.ellipse(cx, -35, 6, 3.5, 0xed9294, 0.58));
+    const smile = s.graphics().lineStyle(1.1, 0x85554b, 0.8);
+    smile.beginPath().arc(0, -34.5, 2.1, 0.15, Math.PI - 0.15, false).strokePath();
+    this.body = s.container(0, 0, [...this.legs, ...sleeves, ...hands, torso, seams, ...ears, head, hair, ...this.eyes, ...cheeks, smile]).setScale(1, look.tall);
     this.root = s.container(x, y, [shadow, this.body]).setScale(scale);
   }
   get x() { return this.root.x; }
@@ -80,13 +96,17 @@ export class Dude {
       onComplete: () => { this.hopping = false; this.body.setY(0); },
     });
   }
-  /** 손 흔들기 — 평소엔 팔이 없고, 흔들 때만 어깨에서 팔이 올라온다. */
+  /** 손 흔들기 — 어깨에서 동그란 손을 들어 인사한다. */
   wave(times: number, reduced: boolean) {
     if (reduced || !times) return;
     const s = this.scene.add;
     const arm = s.container(11, -24, [s.rectangle(0, -7, 5, 14, this.arm.coat).setRounded(2.5), s.circle(0, -15, 3.6, this.arm.skin)]).setAngle(25);
+    this.restingRightArm.forEach(part => part.setVisible(false));
     this.body.add(arm);
-    this.scene.tweens.add({ targets: arm, angle: -10, duration: 160, ease: 'Sine.easeInOut', yoyo: true, repeat: times - 1, onComplete: () => arm.destroy() });
+    this.scene.tweens.add({ targets: arm, angle: -10, duration: 160, ease: 'Sine.easeInOut', yoyo: true, repeat: times - 1, onComplete: () => {
+      arm.destroy();
+      this.restingRightArm.forEach(part => part.setVisible(true));
+    } });
   }
   destroy() { this.root.destroy(); }
 }
@@ -185,7 +205,7 @@ export type RoomArt = { box: Container; openDoor: (reduced: boolean) => void; pi
 function ball(scene: Scene, x: number, y: number): Ball {
   const s = scene.add;
   const dots = [0, 72, 144, 216, 288].map(a => s.circle(Math.cos(a * Math.PI / 180) * 6.4, Math.sin(a * Math.PI / 180) * 6.4, 1.8, 0x2d2a32));
-  const spin = s.container(0, -9, [s.circle(0, 0, 9, 0xffffff).setStrokeStyle(1.3, 0x2d2a32), s.circle(0, 0, 3, 0x2d2a32), ...dots]);
+  const spin = s.container(0, -9, [s.circle(0, 0, 9, 0xfffdf2).setStrokeStyle(1, 0x807e8c), s.circle(0, 0, 3, 0x596579), ...dots, s.ellipse(-3, -4, 4, 2, 0xffffff, 0.7)]);
   const root = s.container(x, y, [s.ellipse(0, 0, 18, 5, 0x2d3a2e, 0.18), spin]);
   return { root, spin, at: { x, y }, v: { x: 0, y: 0 } };
 }
@@ -193,12 +213,21 @@ function ball(scene: Scene, x: number, y: number): Ball {
 /** 고양이 — 앉아서 꼬리를 살랑. 털색은 방마다 다르다. */
 function cat(scene: Scene, x: number, y: number, fur: number): Cat {
   const s = scene.add;
-  const tail = s.rectangle(9, -4, 3.5, 15, fur).setRounded(1.7).setOrigin(0.5, 1).setAngle(20);
+  const tail = s.rectangle(10, -3, 5, 16, fur).setRounded(2.5).setOrigin(0.5, 1).setAngle(20);
+  const face = s.graphics();
+  face.fillStyle(fur).fillTriangle(-13, -19, -12, -29, -5, -23).fillTriangle(3, -23, 10, -29, 11, -18);
+  face.fillStyle(0xe9a4a1).fillTriangle(-11, -22, -11, -26, -8, -23).fillTriangle(5, -23, 9, -26, 9, -22);
+  face.fillStyle(0x514651, 0.4).fillRoundedRect(-5, -25, 2, 4, 1).fillRoundedRect(-1, -25, 2, 4, 1);
+  face.lineStyle(1, 0x514651, 0.7).lineBetween(-12, -15, -8, -14).lineBetween(5, -14, 9, -15);
+  face.lineBetween(-2, -13, -4, -12).lineBetween(-2, -13, 0, -12);
   const root = s.container(x, y, [
-    s.ellipse(0, 0, 22, 6, 0x2d3a2e, 0.14), tail,
-    s.ellipse(1, -7, 17, 14, fur), s.circle(-4, -17, 6.5, fur),
-    s.triangle(-8.5, -19, 0, 0, 3, -6, 6, 0, fur), s.triangle(0.5, -19, 0, 0, 3, -6, 6, 0, fur),
-    s.circle(-6.5, -17.5, 1, 0x2a2a33), s.circle(-1.5, -17.5, 1, 0x2a2a33), s.circle(-4, -15, 0.9, 0xff8f8f),
+    s.ellipse(0, 1, 27, 7, 0x756956, 0.15), tail,
+    s.ellipse(1, -8, 22, 18, fur), s.ellipse(0, -7, 12, 12, 0xfff5e6, 0.7),
+    s.ellipse(-2, -18, 24, 20, fur), face,
+    s.ellipse(-7, -2, 7, 4, 0xfff5e6, 0.9), s.ellipse(5, -2, 7, 4, 0xfff5e6, 0.9),
+    s.circle(-6.5, -18, 1.2, 0x332e38), s.circle(2.5, -18, 1.2, 0x332e38),
+    s.ellipse(-10, -15, 4, 2.5, 0xef9d99, 0.7), s.ellipse(7, -15, 4, 2.5, 0xef9d99, 0.7),
+    s.triangle(-2, -14, 0, 0, 3, 0, 1.5, 2, 0xb96f76),
   ]);
   scene.tweens.add({ targets: tail, angle: -15, duration: 700, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: Math.random() * 700 });
   return { root, at: { x, y }, near: false };
@@ -220,8 +249,18 @@ function tree(scene: Scene, x: number, y: number, color: number) {
 }
 
 function pigeon(scene: Scene, x: number, y: number): Pigeon {
-  const head = scene.add.container(6, -9, [scene.add.circle(0, 0, 4, 0x8b93a3), scene.add.triangle(4, 1, 0, -1.5, 0, 1.5, 3.5, 0, 0xf2a65a), scene.add.circle(1.5, -1, 0.9, 0x222222)]);
-  const root = scene.add.container(x, y, [scene.add.ellipse(0, 1, 16, 5, 0x2d3a2e, 0.12), scene.add.ellipse(0, -5, 15, 10, 0xa3abb9), scene.add.ellipse(-4, -5, 8, 6, 0x8b93a3), head]).setDepth(y);
+  const s = scene.add;
+  const head = s.container(6, -11, [
+    s.circle(0, 0, 5.5, 0x929aad), s.ellipse(0, 3, 7, 3, 0xb7d1c5),
+    s.triangle(5, 1, 0, -1.5, 0, 1.5, 4, 0, 0xe5b171),
+    s.circle(1.8, -1, 1.1, 0x383746), s.ellipse(0, 1.7, 3, 1.5, 0xe8adad, 0.6),
+  ]);
+  const root = s.container(x, y, [
+    s.ellipse(0, 1, 21, 5, 0x756956, 0.13),
+    s.rectangle(-3, -0.5, 2, 4, 0xcf8b79), s.rectangle(3, -0.5, 2, 4, 0xcf8b79),
+    s.ellipse(0, -6, 19, 14, 0xb6bfce), s.ellipse(2, -4, 12, 7, 0xe7e5df),
+    s.ellipse(-4, -7, 10, 7, 0x929aad), s.ellipse(-5, -8, 5, 2, 0xd5dce5), head,
+  ]).setDepth(y);
   scene.tweens.add({ targets: head, y: -5, angle: 25, duration: 160, yoyo: true, repeat: -1, repeatDelay: 500 + Math.random() * 1400, delay: Math.random() * 900 });
   return { root, at: { x, y }, fled: false };
 }
@@ -248,14 +287,56 @@ function placeMark(g: Phaser.GameObjects.Graphics, room: Room, place: string, wa
   const flag = (x: number) => { g.fillStyle(0x6d6d6d).fillRect(x - 1, wallY - 92, 3, 58); g.fillStyle(0xffffff).fillRect(x + 2, wallY - 92, 22, 14).lineStyle(1, 0x999999).strokeRect(x + 2, wallY - 92, 22, 14); };
   const columns = () => { for (const dx of [-62, -50, 50, 62]) g.fillStyle(0xffffff, 0.75).fillRect(door.x + dx - 4, wallY - 100, 8, 100); };
   switch (place) {
-    case '광장':
-      g.fillStyle(0xcfd8dc).fillEllipse(w / 2, meetY + 46, 74, 26); g.fillStyle(0x9fd3e6).fillEllipse(w / 2, meetY + 44, 58, 16);
-      g.fillStyle(0x9fd3e6).fillCircle(w / 2, meetY + 30, 5); break;
-    case '큰길':
-      g.fillStyle(0xbdbdbd).fillRect(0, h - 170, w, 54);
-      for (let x = 10; x < w; x += 40) g.fillStyle(0xffffff).fillRect(x, h - 145, 22, 4);
-      for (let x = door.x - 40; x < door.x + 40; x += 14) g.fillStyle(0xffffff).fillRect(x, h - 168, 8, 50); break;
-    case '주민센터': case '주민센터 창구': case '군청':
+    case '광장': {
+      // 분수는 마당 옆. 중앙 길과 주민 발밑에 물건을 놓지 않는다.
+      const x = w * 0.17, y = meetY + 84;
+      g.fillStyle(0xbcae98, 0.2).fillEllipse(x + 3, y + 13, 84, 23);
+      g.fillStyle(0xcbbda6).fillEllipse(x, y + 5, 82, 29);
+      g.fillStyle(0xf6eee0).fillEllipse(x, y, 82, 28);
+      g.fillStyle(0x90c7d3).fillEllipse(x, y, 67, 19);
+      g.lineStyle(1.6, 0xe4f7f4, 0.85).strokeEllipse(x, y, 52, 11);
+      g.fillStyle(0xf4ebd9).fillRoundedRect(x - 5, y - 27, 10, 28, 4);
+      g.fillStyle(0xfaf4e6).fillEllipse(x, y - 24, 29, 9);
+      g.fillStyle(0x98cfdb).fillEllipse(x, y - 26, 24, 6);
+      g.lineStyle(2.5, 0xd2f0ed).lineBetween(x, y - 28, x, y - 41);
+      g.fillStyle(0xb6e5e8).fillEllipse(x, y - 43, 5, 7).fillEllipse(x - 10, y - 29, 3, 6).fillEllipse(x + 11, y - 27, 3, 6);
+      break;
+    }
+    case '큰길': {
+      const y = h - 170;
+      g.fillStyle(0xe4d8c1).fillRect(0, y - 13, w, 80);
+      g.fillStyle(0xfff7e8).fillRect(0, y - 10, w, 7).fillRect(0, y + 56, w, 7);
+      g.fillStyle(0xa6abb5).fillRect(0, y, w, 54);
+      for (let x = 12; x < w; x += 40) {
+        if (Math.abs(x - door.x) > 58) g.fillStyle(0xf7efdc).fillRoundedRect(x, y + 25, 21, 3, 1.5);
+      }
+      for (let x = door.x - 37; x < door.x + 40; x += 15) g.fillStyle(0xfffcf2).fillRoundedRect(x, y + 5, 9, 44, 2);
+      for (let x = 5; x < w; x += 26) {
+        if (Math.abs(x - door.x) > 49) g.lineStyle(1, 0xcbbda8).lineBetween(x, y - 12, x, y - 4).lineBetween(x, y + 57, x, y + 65);
+      }
+      break;
+    }
+    case '주민센터': {
+      // 낮은 창·둥근 기둥·넓은 현관. 문 가운데는 비워 둔다.
+      g.fillStyle(wall).fillRect(0, wallY - 100, door.x - 72, 100).fillRect(door.x + 72, wallY - 100, w - door.x - 72, 100);
+      for (const x of [door.x - 57, door.x + 57]) {
+        g.fillStyle(0xfaf4df).fillRoundedRect(x - 7, wallY - 94, 14, 90, 5);
+        g.fillStyle(0xe4d8bd).fillRoundedRect(x - 12, wallY - 10, 24, 9, 3);
+        g.fillStyle(0xfff8e8).fillRoundedRect(x - 11, wallY - 94, 22, 9, 3);
+      }
+      for (const x of [w * 0.16, w * 0.84]) {
+        g.fillStyle(0xfff9e9).fillRoundedRect(x - 30, wallY - 64, 60, 51, 12);
+        g.fillStyle(0xa8c9ca).fillRoundedRect(x - 25, wallY - 59, 50, 40, 9);
+        g.lineStyle(3, 0xfaf5e5).lineBetween(x, wallY - 57, x, wallY - 20).lineBetween(x - 24, wallY - 37, x + 24, wallY - 37);
+        g.fillStyle(0xffffff, 0.4).fillRoundedRect(x - 19, wallY - 54, 9, 11, 3);
+        g.fillStyle(0xd9b992).fillRoundedRect(x - 30, wallY - 17, 60, 6, 3);
+      }
+      g.fillStyle(0xeddbc2).fillRoundedRect(door.x - 61, wallY + 2, 122, 9, 4);
+      g.fillStyle(0xfcf3df).fillRoundedRect(door.x - 54, wallY - 1, 108, 7, 3);
+      flag(w * 0.86);
+      break;
+    }
+    case '주민센터 창구': case '군청':
       columns(); flag(slot(0.73));
       if (place === '주민센터 창구') { g.fillStyle(0xd9c3a5).fillRoundedRect(16, wallY - 40, w - 32, 22, 6); g.fillStyle(0x4a3a33).fillRect(door.x - door.half, wallY - 40, door.half * 2, 22); }
       break;
@@ -314,7 +395,11 @@ function placeMark(g: Phaser.GameObjects.Graphics, room: Room, place: string, wa
 }
 
 export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, offsetY = 0, place = ''): RoomArt {
-  const t = THEMES[stage] ?? THEMES[0];
+  const base = THEMES[stage] ?? THEMES[0];
+  const preview = stage === 0;
+  const t = preview ? { ...base, ground: 0xe4e5ca, path: 0xfff6df,
+    wall: place === '주민센터' ? 0xbfd5c6 : place === '큰길' ? 0xebc6af : 0xf2c9ba,
+    roof: place === '주민센터' ? 0x80aa9d : 0xd8927d, tree: 0x95bb8b } : base;
   const r = rng(seed);
   const { w, h, wallY, door, residents } = room;
   const g = scene.add.graphics();
@@ -328,6 +413,13 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
     g.fillStyle(t.water).fillRect(0, wallY, 30, h - wallY);
     for (let y = wallY + 12; y < h; y += 26) g.lineStyle(2, 0xffffff, 0.45).lineBetween(6, y, 20, y);
   }
+  // 첫 동네 시안의 길: 옅은 이음새만 넣어 빈 동선을 지킨다.
+  if (preview) {
+    for (let y = wallY + 26; y < h; y += 38) {
+      g.lineStyle(1, 0xddcdae, 0.34).lineBetween(door.x - 39, y, door.x + 39, y);
+      g.lineBetween(door.x + (Math.round(y / 38) % 2 ? -14 : 14), y, door.x + (Math.round(y / 38) % 2 ? -14 : 14), y + 35);
+    }
+  }
   // 위쪽 건물
   const sky = DAYLIGHT[stage] ?? DAYLIGHT[0];
   g.fillGradientStyle(sky[0], sky[0], sky[1], sky[1]).fillRect(0, -40, w, wallY - 120 + 40);
@@ -337,18 +429,33 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
     g.fillStyle(0xffffff, 0.5).fillRoundedRect(w * wx - 20, wallY - 92, 40, 46, 6);
     g.fillStyle(t.window).fillRoundedRect(w * wx - 17, wallY - 89, 34, 40, 5);
   }
+  if (preview) {
+    // 벽 아랫부분에 작은 줄눈과 창틀. 장식은 사람·문 바깥에만.
+    for (const x of [w * 0.1, w * 0.27, w * 0.73, w * 0.9]) {
+      g.lineStyle(2, 0xfff7e8, 0.85).lineBetween(x, wallY - 86, x, wallY - 53);
+      g.fillStyle(0xffffff, 0.4).fillRoundedRect(x - 12, wallY - 84, 7, 12, 3);
+      g.fillStyle(t.roof, 0.5).fillRoundedRect(x - 23, wallY - 48, 46, 5, 2.5);
+    }
+    for (let x = 8; x < w; x += 32) {
+      if (Math.abs(x - door.x) > 58) g.lineStyle(1, 0xffffff, 0.22).lineBetween(x, wallY - 19, x + 18, wallY - 19);
+    }
+  }
   placeMark(g, room, place, t.wall);
   g.fillStyle(0x000000, 0.08).fillRect(0, wallY - 6, w, 6);
   g.fillStyle(t.roof).fillRoundedRect(door.x - door.half - 12, wallY - 92, door.half * 2 + 24, 14, 6);
   g.fillStyle(0x4a3a33).fillRect(door.x - door.half, wallY - 78, door.half * 2, 78);
   const light = scene.add.rectangle(door.x, wallY - 39, door.half * 2 - 6, 74, 0xfff3c4).setAlpha(0);
-  const panels = [-1, 1].map(side => scene.add.rectangle(door.x + side * door.half / 2, wallY - 39, door.half - 2, 76, 0xa8754f).setStrokeStyle(2, 0x7d5338));
+  const panels = [-1, 1].map(side => scene.add.rectangle(door.x + side * door.half / 2, wallY - 39, door.half - 2, 76, preview ? 0xbf9878 : 0xa8754f).setStrokeStyle(2, preview ? 0xa57d60 : 0x7d5338));
   const knobs = [-1, 1].map(side => scene.add.circle(door.x + side * 5, wallY - 38, 2.4, 0xf2d27a));
   items.push(light, ...panels, ...knobs);
   // 옆쪽 나무·벤치 (사람 서는 곳과 길은 비운다)
   const sideXs = t.water ? [44, w - 22] : [22, w - 22];
   for (let y = wallY + 46; y < h - 20; y += 92 + r() * 40) {
-    for (const x of sideXs) if (r() > 0.25) items.push(tree(scene, x + (r() - 0.5) * 8, y, t.tree));
+    for (const x of sideXs) if (r() > 0.25) {
+      const treeX = x + (r() - 0.5) * 8;
+      // 큰길의 차도·보도에는 나무 그림이 걸치지 않게 한다. 난수 순서는 유지.
+      if (!(preview && place === '큰길' && y >= h - 184 && y - 48 <= h - 103)) items.push(tree(scene, treeX, y, t.tree));
+    }
   }
   const benchX = r() > 0.5 ? w * 0.2 : w * 0.8, benchY = Math.min(h - 40, residents.left.y + 110);
   items.push(scene.add.container(benchX, benchY, [
@@ -390,19 +497,26 @@ export function drawRoom(scene: Scene, room: Room, stage: number, seed: string, 
 /** 강 건너 언덕 — 도착하는 곳. 언덕 꼭대기 자리를 돌려준다. */
 export function drawHill(scene: Scene, w: number, h: number, offsetY: number) {
   const g = scene.add.graphics();
-  const sky = DAYLIGHT[5];
-  g.fillGradientStyle(sky[0], sky[0], sky[1], sky[1]).fillRect(0, 0, w, h * 0.43);
-  g.fillStyle(0xffe08a, 0.9).fillCircle(w * 0.72, h * 0.36, 28);
-  g.fillStyle(0xffffff, 0.55).fillEllipse(w * 0.25, h * 0.16, 70, 22).fillEllipse(w * 0.3, h * 0.14, 46, 22).fillEllipse(w * 0.78, h * 0.24, 60, 18);
-  g.fillStyle(0xa9d39a).fillEllipse(w * 0.2, h * 0.43, w * 0.9, 90).fillEllipse(w * 0.85, h * 0.43, w * 0.8, 70);
-  g.fillStyle(0x8cc9e0).fillRect(0, h * 0.42, w, h * 0.1);
-  for (let i = 0; i < 9; i++) g.lineStyle(2, 0xffffff, 0.5).lineBetween((i * 47) % w, h * 0.45 + (i % 3) * 9, (i * 47) % w + 16, h * 0.45 + (i % 3) * 9);
-  g.fillStyle(0xd6ecbf).fillRect(0, h * 0.52, w, h * 0.48);
-  g.fillStyle(0x9fd08a).fillEllipse(w / 2, h * 0.86, w * 1.5, h * 0.62);
-  g.fillStyle(0xb4dc9e).fillEllipse(w / 2, h * 0.8, w * 0.9, h * 0.34);
+  g.fillGradientStyle(0xe7acb3, 0xe7acb3, 0xffd6b4, 0xffd6b4).fillRect(0, 0, w, h * 0.46);
+  g.fillStyle(0xffe7b1).fillCircle(w * 0.76, h * 0.37, 30);
+  g.fillStyle(0xfff0cf, 0.4).fillEllipse(w * 0.76, h * 0.405, 85, 8);
+  for (const [x, y, k] of [[w * 0.16, h * 0.34, 1], [w * 0.56, h * 0.29, 0.7]]) {
+    g.fillStyle(0xfff4df, 0.75).fillEllipse(x, y, 64 * k, 13 * k).fillCircle(x - 10 * k, y - 7 * k, 12 * k).fillCircle(x + 10 * k, y - 5 * k, 9 * k);
+  }
+  g.fillStyle(0xb8bea0).fillEllipse(w * 0.1, h * 0.46, w, h * 0.13).fillEllipse(w * 0.88, h * 0.455, w * 0.85, h * 0.1);
+  g.fillStyle(0xa4c8c6).fillRect(0, h * 0.44, w, h * 0.12);
+  g.fillStyle(0xffe5b9, 0.65).fillRoundedRect(w * 0.76 - 20, h * 0.46, 40, 4, 2).fillRoundedRect(w * 0.76 - 29, h * 0.48, 58, 3, 1.5);
+  for (let i = 0; i < 9; i++) g.fillStyle(0xf3f0d6, 0.5).fillRoundedRect((i * 47) % w, h * 0.465 + (i % 3) * 12, 13 + (i % 2) * 7, 2, 1);
+  g.fillStyle(0xe0e3ba).fillRect(0, h * 0.56, w, h * 0.44);
+  g.fillStyle(0xb8ce97).fillEllipse(w / 2, h * 0.86, w * 1.5, h * 0.66);
+  g.fillStyle(0xcdddab).fillEllipse(w / 2, h * 0.8, w * 0.98, h * 0.39);
+  g.fillStyle(0xe4e8bd).fillEllipse(w / 2, h * 0.7, w * 0.62, h * 0.16);
   for (let i = 0; i < 30; i++) {
     const fx = (i * 73) % w, fy = h * 0.66 + ((i * 37) % Math.round(h * 0.3));
-    g.fillStyle([0xffffff, 0xffd166, 0xff8fab][i % 3]).fillCircle(fx, fy, 2.2);
+    if (Math.abs(fx - w / 2) < w * 0.33 && fy < h * 0.78) continue;
+    g.fillStyle([0xfff8e4, 0xf7d391, 0xeeb1b8][i % 3]);
+    for (let p = 0; p < 5; p++) g.fillCircle(fx + Math.cos(p * Math.PI * 0.4) * 2.4, fy + Math.sin(p * Math.PI * 0.4) * 2.4, 2);
+    g.fillStyle(0xe6b368).fillCircle(fx, fy, 1.7);
   }
   const box = scene.add.container(0, offsetY, [g]).setDepth(-100000);
   return { box, top: { x: w / 2, y: h * 0.66 } };

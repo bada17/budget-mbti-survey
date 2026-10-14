@@ -1,5 +1,5 @@
 /*
-  효과음 — 파일 없이 브라우저에서 바로 만든 임시 소리. 진짜 소리로 바꿀 때는 이 파일만 바꾼다.
+  효과음 — 파일 없이 합성하는 작고 둥근 소리. 이름과 호출 시점은 그대로 둔다.
   소리는 첫 터치(「출발」) 뒤에만 난다(브라우저 규칙).
 */
 let ctx: AudioContext | undefined;
@@ -26,19 +26,20 @@ function tone(freq: number, dur: number, { type = 'sine' as OscillatorType, gain
   amp.gain.exponentialRampToValueAtTime(gain, at + 0.012);
   amp.gain.exponentialRampToValueAtTime(0.0001, at + dur);
   osc.connect(amp).connect(ctx.destination);
+  osc.onended = () => { osc.disconnect(); amp.disconnect(); };
   osc.start(at); osc.stop(at + dur + 0.02);
 }
 
 export const sfx = {
-  bubble: (i = 0) => tone(520 + i * 140, 0.09, { type: 'triangle', slide: 260, gain: 0.07 }),
-  meet: () => tone(700, 0.1, { type: 'triangle', slide: 300, gain: 0.09 }),
-  answer: (level: number) => [523, 659, 784, 1047].slice(0, level + 2).forEach((f, i) => tone(f, 0.2, { type: 'triangle', delay: i * 0.07, gain: 0.09 })),
-  door: () => { tone(196, 0.14, { type: 'square', gain: 0.03 }); tone(294, 0.16, { type: 'square', gain: 0.03, delay: 0.09 }); },
+  bubble: (i = 0) => tone(580 + i * 70, 0.105, { slide: 130, gain: 0.055 }),
+  meet: () => { tone(660, 0.13, { gain: 0.065, slide: 100 }); tone(880, 0.16, { gain: 0.035, delay: 0.07 }); },
+  answer: (level: number) => [523, 659, 784, 1047].slice(0, level + 2).forEach((f, i) => tone(f, 0.2, { delay: i * 0.075, gain: 0.065 })),
+  door: () => { tone(294, 0.13, { type: 'triangle', gain: 0.035 }); tone(440, 0.19, { gain: 0.045, delay: 0.09 }); },
   whoosh: () => tone(420, 0.3, { slide: -260, gain: 0.05 }),
-  flutter: () => { for (let i = 0; i < 6; i++) tone(820 + (i % 2) * 260, 0.03, { type: 'square', gain: 0.018, delay: i * 0.035 }); },
-  kick: () => tone(150, 0.09, { type: 'triangle', slide: -70, gain: 0.14 }),
-  meow: () => { tone(720, 0.12, { slide: 260, gain: 0.06 }); tone(980, 0.24, { slide: -520, gain: 0.06, delay: 0.1 }); },
-  fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.5 : 0.16, { type: 'triangle', delay: i * 0.12, gain: 0.09 })),
+  flutter: () => { for (let i = 0; i < 6; i++) tone(600 + (i % 2) * 140, 0.045, { type: 'triangle', gain: 0.02, delay: i * 0.04 }); },
+  kick: () => tone(190, 0.12, { slide: -95, gain: 0.12 }),
+  meow: () => { tone(620, 0.14, { type: 'triangle', slide: 210, gain: 0.045 }); tone(830, 0.27, { slide: -400, gain: 0.055, delay: 0.11 }); },
+  fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.5 : 0.16, { delay: i * 0.13, gain: 0.065 })),
 };
 
 export function vibrate(ms: number) {
