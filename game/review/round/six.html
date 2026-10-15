@@ -9,10 +9,21 @@
     <div class="world-title"><b>통통한 동네 주민 여섯 명</b><p>주민을 누르면 골라요. 빈 바닥을 누르면 걸어요.<br>크게 보기를 누르면 고른 주민을 따라가요.</p></div>
     <div id="ready" role="status">주민들이 준비하고 있어요…</div>
     <div class="toolbar"><button id="walk" aria-pressed="true">산책 멈추기</button><button id="zoom" aria-pressed="false">크게 보기</button><button id="reset">처음 자리로</button></div>
-  </section><aside class="roster-panel" aria-label="주민과 머리색 고르기"><p class="roster-eyebrow">머리와 옷 모양을 함께 비교해요</p><h2 id="who">단발 · 가디건</h2><p id="description"></p>
-    <fieldset class="hair-picker" aria-describedby="hair-help"><legend>흰머리 표현</legend><p id="hair-help">나이와 관계없이 골라요. 주민마다 따로 바꿀 수 있어요.</p><div id="hair-tones" class="hair-tones"></div><p id="hair-status" role="status"></p></fieldset>
-    <div id="residents" class="resident-buttons"></div><a href="./">공개판과 한 명 비교 →</a></aside></div>
-  <p class="note">같은 둥근 몸과 얼굴 표현에 단발·웨이브·곱슬·올림머리·가르마·둥근 파마를 맞췄습니다.<br>흰머리 표현은 나이와 관계없이 고르고, 가디건·줄무늬·후드·앞치마·점퍼·조끼는 모양으로 구별합니다.<br><a href="./adults.html">중년까지 넓힌 열두 모습 보기 →</a></p>
+  </section><aside class="roster-panel" aria-label="주민과 외형 고르기"><p class="roster-eyebrow">머리와 옷 모양을 따로 골라요</p><h2 id="who">단발 · 가디건</h2><p id="description"></p>
+    <fieldset class="style-picker"><legend>머리·옷·장식 따로 고르기</legend><p>머리 장식은 하나씩, 안경은 함께 쓸 수 있어요. 다른 선택은 그대로 유지돼요.</p>
+      <label for="hair-style">머리 스타일</label><select id="hair-style"></select>
+      <label for="top-style">옷</label><select id="top-style"></select>
+      <label for="head-accessory">머리 장식</label><select id="head-accessory"></select>
+      <label for="glasses">안경</label><select id="glasses"><option value="none">없음</option><option value="round">둥근 안경</option></select>
+    </fieldset>
+    <fieldset class="hair-picker" aria-describedby="hair-help"><legend>머리색</legend><p id="hair-help">바탕색과 포인트 색, 색 넣는 방식을 각각 골라요.</p>
+      <p class="color-label" id="hair-colors-label">바탕색</p><div id="hair-colors" class="hair-colors" role="group" aria-labelledby="hair-colors-label"></div>
+      <label for="hair-pattern">색 넣는 방식</label><select id="hair-pattern"></select>
+      <div id="hair-accent-controls" hidden><p class="color-label" id="hair-accents-label">포인트 색</p><div id="hair-accents" class="hair-colors" role="group" aria-labelledby="hair-accents-label"></div></div>
+      <p id="hair-status" role="status"></p>
+    </fieldset>
+    <a href="./pets.html">고양이·강아지 크게 보기 →</a><div id="residents" class="resident-buttons"></div><a href="./">공개판과 한 명 비교 →</a></aside></div>
+  <p class="note">같은 둥근 몸과 얼굴 표현에 단발·웨이브·곱슬·올림머리·가르마·둥근 파마를 맞췄습니다.<br>머리색과 포인트 색은 머리 모양·옷과 따로 고르고, 가디건·줄무늬·후드·앞치마·점퍼·조끼는 모양으로 구별합니다.<br><a href="./adults.html">중년까지 넓힌 열두 모습 보기 →</a></p>
 </main>
 <script type="module" src="./roster.ts"></script>
 </body>

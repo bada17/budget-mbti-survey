@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { FEEL } from '../../feel';
 import type { Look } from '../../look';
 
-export type HairTone = 'natural'|'streak'|'mixed'|'temples'|'silver'|'white';
+export type HairPattern = 'solid'|'streak'|'mixed'|'temples';
 
 export type ResidentDesign = {
   hairStyle?: 'bob'|'wave'|'curls'|'bun'|'part'|'cloud'|'forehead'|'shoulder'|'crop'|'lowTie';
@@ -10,7 +10,10 @@ export type ResidentDesign = {
   pants?: number;
   shoes?: number;
   glasses?: boolean;
-  hairTone?: HairTone;
+  headAccessory?: 'none'|'headband'|'hairpin'|'ribbon';
+  hairColor?: number;
+  hairAccent?: number;
+  hairPattern?: HairPattern;
   brows?: boolean;
   beard?: boolean;
   smileLines?: boolean;
@@ -26,10 +29,10 @@ export class RoundResident {
   private idleClock = 0;
   constructor(scene: Phaser.Scene, look: Look, x: number, y: number, design: ResidentDesign = {}) {
     const s = scene.add;
-    const tone=design.hairTone??'natural';
-    let hair=tone==='silver'?0xb9beca:tone==='white'?0xeee9df:look.hair;
-    if(tone==='mixed')hair=Phaser.Display.Color.Interpolate.ColorWithColor(
-      Phaser.Display.Color.ValueToColor(hair),Phaser.Display.Color.ValueToColor(0xa5a6a8),100,38).color;
+    const pattern=design.hairPattern??'solid',accent=design.hairAccent??0xeee9df;
+    let hair=design.hairColor??look.hair;
+    if(pattern==='mixed')hair=Phaser.Display.Color.Interpolate.ColorWithColor(
+      Phaser.Display.Color.ValueToColor(hair),Phaser.Display.Color.ValueToColor(accent),100,38).color;
     const skin=look.skin,coat=look.coat;
     const hairStyle=design.hairStyle??'bob',top=design.top??'cardigan';
     const back = s.graphics().fillStyle(hair);
@@ -187,35 +190,53 @@ export class RoundResident {
     }
     const openHairline=hairStyle==='forehead'||hairStyle==='crop';
     const curly=hairStyle==='curls'||hairStyle==='cloud';
-    if(tone==='streak') {
+    if(pattern==='streak') {
       const sidePart=hairStyle==='part'||hairStyle==='shoulder'||hairStyle==='lowTie';
       const x=sidePart?5:0,y=curly?-64:hairStyle==='wave'?-61:-59;
       const endX=sidePart?-9:-6,endY=openHairline?-53:hairStyle==='bob'?-47:-49;
       const streak=new Phaser.Curves.Path(x-1.5,y).lineTo(x+1.8,y+.4)
         .cubicBezierTo(endX+1.4,endY,x+1,y+5,endX+3,endY-3)
         .lineTo(endX-1.3,endY-1).cubicBezierTo(x-1.5,y,endX,endY-5,x-2,y+4).closePath();
-      fringe.fillStyle(0xe5e1d8).fillPoints(streak.getPoints(16),true);
+      fringe.fillStyle(accent).fillPoints(streak.getPoints(16),true);
     }
-    if(tone==='mixed') {
+    if(pattern==='mixed') {
       // Small broken locks follow the crown; exposed foreheads keep a shorter texture.
       const y=openHairline?-56.5:curly?-61:-57;
-      fringe.lineStyle(1.15,0xc4c6c4,.75);
+      fringe.lineStyle(1.15,accent,.75);
       for(const [x,dy] of [[-11,2],[-6,0],[0,-1],[6,0],[11,2]]) {
         const length=openHairline?1.7:4.5;
         const lock=new Phaser.Curves.Path(x,y+dy).cubicBezierTo(x-2,y+dy+length,x-.2,y+dy+1,x-1,y+dy+length-1);
         fringe.strokePoints(lock.getPoints(8),false);
       }
       if(!openHairline)for(const x of [-8,1,9])fringe.lineBetween(x,-53,x-1.2,-50.5);
-      if(hairStyle==='bob'||hairStyle==='shoulder')back.lineStyle(1.3,0xdedbd3,.8).lineBetween(-16,-39,-15,-33).lineBetween(16,-37,15,-31);
-      if(hairStyle==='bun')back.lineStyle(1.4,0xdedbd3,.8).lineBetween(1,-67,-1,-63).lineBetween(6,-65,4,-61);
-      if(hairStyle==='lowTie')back.lineStyle(1.4,0xdedbd3,.8).lineBetween(13,-35,16,-31);
+      if(hairStyle==='bob'||hairStyle==='shoulder')back.lineStyle(1.3,accent,.8).lineBetween(-16,-39,-15,-33).lineBetween(16,-37,15,-31);
+      if(hairStyle==='bun')back.lineStyle(1.4,accent,.8).lineBetween(1,-67,-1,-63).lineBetween(6,-65,4,-61);
+      if(hairStyle==='lowTie')back.lineStyle(1.4,accent,.8).lineBetween(13,-35,16,-31);
     }
-    if(tone==='temples') {
+    if(pattern==='temples') {
       for(const sign of [-1,1]) {
         const temple=new Phaser.Curves.Path(sign*14.5,-48).lineTo(sign*12,-47)
           .cubicBezierTo(sign*13,-41,sign*12,-44,sign*12,-42).lineTo(sign*15,-43).closePath();
-        fringe.fillStyle(0xd9d6ce).fillPoints(temple.getPoints(10),true);
+        fringe.fillStyle(accent).fillPoints(temple.getPoints(10),true);
       }
+    }
+    const accessory=s.graphics(),decoration=design.headAccessory??'none';
+    const crown=hairStyle==='curls'||hairStyle==='cloud'?-64:hairStyle==='wave'?-63:hairStyle==='bun'?-62:-60;
+    if(decoration==='headband'){
+      const band=new Phaser.Curves.Path(-16,crown+13)
+        .cubicBezierTo(16,crown+13,-15,crown-3,15,crown-3).lineTo(13,crown+15)
+        .cubicBezierTo(-13,crown+15,13,crown+1,-13,crown+1).closePath();
+      accessory.fillStyle(0xce8c91).fillPoints(band.getPoints(18),true);
+    }
+    if(decoration==='hairpin'){
+      accessory.fillStyle(0xe2b561).fillRoundedRect(8,crown+10,9,3.5,1.75);
+      accessory.lineStyle(.7,0xfff2cb).lineBetween(10,crown+11.3,15,crown+11.3);
+    }
+    if(decoration==='ribbon'){
+      accessory.fillStyle(0xc98591).fillTriangle(-12,crown+3,-9,crown+4,-14,crown+9)
+        .fillTriangle(-9,crown+4,-7,crown+3,-5,crown+9);
+      accessory.fillStyle(0xe5a5ac).fillEllipse(-13,crown+2,8,7).fillEllipse(-6,crown+2,8,7);
+      accessory.fillStyle(0xc98591).fillRoundedRect(-11,crown,4,4,1.4);
     }
     this.eyes = [-4.8,4.8].map(ex => s.circle(ex,-41.5,1.75,0x39313b));
     const face = s.graphics();
@@ -230,7 +251,7 @@ export class RoundResident {
       face.fillStyle(look.hair,.65).fillPoints(beard.getPoints(12),true);
     }
     if(design.glasses)face.lineStyle(.85,0x8b796a).strokeCircle(-4.8,-41.5,3.5).strokeCircle(4.8,-41.5,3.5).lineBetween(-1.3,-41.5,1.3,-41.5);
-    this.body = s.container(0,0,[back,...this.legs,...sleeves,torso,cardigan,neck,...ears,head,fringe,...this.eyes,face]);
+    this.body = s.container(0,0,[back,...this.legs,...sleeves,torso,cardigan,neck,...ears,head,fringe,accessory,...this.eyes,face]);
     this.root = s.container(x,y,[s.ellipse(0,0,32,7,0x756956,.17),this.body]);
   }
   place(x:number,y:number) { this.root.setPosition(x,y).setDepth(y); }
