@@ -14,6 +14,11 @@ test('초대 코드: 한글 이름·모습·유형이 그대로 오가고, 이�
   for (const bad of [null, '', '!!!', 'x'.repeat(300), btoa('{"v":1,"n":"a","p":[9,9,9,9],"t":"101"}'), btoa('{"v":1,"n":"a","p":[0,0,0,0],"t":"999"}')]) {
     assert.equal(decodeInvite(bad), undefined, String(bad).slice(0, 20));
   }
+  // 10-15 열두 모습 + 흰머리(다섯째 칸) — 새 모습도 오가고, 흰머리 없는 옛 코드도 받는다.
+  const grey = { name: '하늘', pick: [11, 2, 4, 1, 5], type: '010' };
+  assert.deepEqual(decodeInvite(encodeInvite(grey)), grey);
+  assert.equal(decodeInvite(btoa('{"v":1,"n":"a","p":[0,0,0,0,6],"t":"101"}')), undefined, '흰머리 번호 밖');
+  assert.equal(decodeInvite(btoa('{"v":1,"n":"a","p":[12,0,0,0],"t":"101"}')), undefined, '모습 번호 밖');
   assert.equal(cleanName('  <b>민지</b> '), 'b민지/b');
   assert.equal(cleanName(42), '');
   assert.equal(josa('「도서관 이웃」', '이', '가'), '「도서관 이웃」이');

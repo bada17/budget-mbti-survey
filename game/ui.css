@@ -116,7 +116,8 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-sheet:has(.g-rows) .g-input{margin:6px 0;padding:9px 12px}
 .g-sheet:has(.g-rows)>.g-link{margin:4px auto 6px;padding:4px 10px;font-size:12px}
 .g-sheet:has(.g-rows)>.g-primary{min-height:48px}
-.g-rows{display:grid;gap:5px;margin:4px 0}.g-row{display:flex;flex-wrap:wrap;align-items:center;gap:5px}.g-row-label{width:100%;font-size:12px;color:var(--soft)}
+.g-rows{display:grid;gap:5px;margin:4px 0}.g-row{display:flex;flex-wrap:wrap;align-items:center;gap:5px}.g-row-label{font-size:12px;color:var(--soft);margin-bottom:-2px}
+.g-row-scroll{position:relative;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -4px;padding:2px 4px}.g-row-scroll::-webkit-scrollbar{display:none}.g-row-scroll .g-chip{flex:none;white-space:nowrap}
 .g-chip{padding:5px 10px 4px;border-radius:999px;background:#f1e5cd;font-family:var(--body);font-weight:600;font-size:13px;color:#6c5240}
 .g-chip.on{background:#7c624d;color:#fffaf0;box-shadow:0 2px 0 #5b4636}
 .g-swatch{position:relative;width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 1px #6b4a2a22,inset 0 2px 0 #fff5}

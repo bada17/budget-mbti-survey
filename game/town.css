@@ -55,9 +55,8 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-ava-body{left:4px;right:4px;bottom:0;height:13px;border-radius:9px 9px 5px 5px;background:var(--coat)}
 .t-ava-head{left:5px;top:6px;width:16px;height:16px;border-radius:50%;background:var(--skin)}
 .t-ava-hair{left:4px;top:4px;width:18px;height:9px;border-radius:9px 9px 3px 3px;background:var(--hair)}
-.t-ava[data-style="9"] .t-ava-hair{width:20px;border-radius:9px 9px 2px 2px}
-.t-ava[data-style="1"] .t-ava-hair{top:1px;height:11px;border-radius:50% 50% 3px 3px}
-.t-ava[data-style="2"] .t-ava-hair{height:18px;border-radius:9px 9px 6px 6px;z-index:-1}
+.t-ava[data-hair="bun"] .t-ava-hair{top:1px;height:11px;border-radius:50% 50% 3px 3px}
+.t-ava:is([data-hair="bob"],[data-hair="shoulder"],[data-hair="lowTie"]) .t-ava-hair{height:18px;border-radius:9px 9px 6px 6px;z-index:-1}
 
 /* 열다섯 자리(답장) */
 .t-area{margin:12px 0 0}.t-area h3{margin:0 0 6px;font-size:15px;color:var(--accent-dark)}

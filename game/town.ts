@@ -14,7 +14,7 @@
 import './town.css';
 import { ROUTE, TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, type TypeCode } from './content';
 import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, loadRegion, saveRegion, type Town, type Neighbor, type Region, type Friend } from './profile';
-import { toLook, lookFrom, type Look, type Pick } from './look';
+import { toLook, lookFrom, hairColor, type Look, type Pick } from './look';
 import { board } from './stamps';
 import { letterFor, type Season } from './seasons';
 import { DONATE_URL, backCloses, ICONS } from './ui';
@@ -59,9 +59,9 @@ const nim = (name: string) => (name ? `${name}님` : '이름 없는 주민');
 export function avatar(look: Look, label = '') {
   const a = el('span', 't-ava');
   a.style.setProperty('--skin', hex(look.skin));
-  a.style.setProperty('--hair', hex(look.style === 9 ? look.coat : look.hair));
+  a.style.setProperty('--hair', hex(hairColor(look)));
   a.style.setProperty('--coat', hex(look.coat));
-  a.dataset.style = String(look.style);
+  a.dataset.hair = look.form.hair;
   a.append(el('i', 't-ava-body'), el('i', 't-ava-head'), el('i', 't-ava-hair'));
   if (label) { a.setAttribute('role', 'img'); a.setAttribute('aria-label', label); } else a.setAttribute('aria-hidden', 'true');
   return a;

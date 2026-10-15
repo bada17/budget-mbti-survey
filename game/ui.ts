@@ -8,7 +8,7 @@ import { AXES, ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode 
 import type { AxisScores } from './score';
 import { currentQuestion, type JourneyState } from './flow';
 import { displayOptions, orderedQuestions, type DisplaySide } from './response';
-import { COATS, HAIRS, SKINS, STYLE_NAMES, PICK_SIZES, randomPick, nameFrom, type Pick } from './look';
+import { COATS, HAIRS, SKINS, FORMS, TONE_NAMES, randomPick, nameFrom, type Pick } from './look';
 import { sfx } from './sfx';
 import { cleanName, josa, type Me } from './profile';
 import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
@@ -265,24 +265,35 @@ export function createUI(root: HTMLElement, actions: {
       const name = el('input', 'g-input'); name.maxLength = 10; name.value = me.name; name.placeholder = '이름이나 별명 (안 써도 돼요)';
       name.oninput = () => { current.name = cleanName(name.value); };
       const rows = el('div', 'g-rows');
-      const labels = ['머리 모양', '머리 색', '옷 색', '피부'];
+      // 줄마다 [이름, 고른 번호의 자리(Pick), 글 단추면 이름들 · 색 단추면 색들]. 흰머리는 나이와 상관없이 누구나(10-15).
+      const lines: [string, number, string[] | number[]][] = [
+        ['모습', 0, FORMS.map(f => f.name)], ['머리 색', 1, HAIRS], ['흰머리', 4, TONE_NAMES], ['옷 색', 2, COATS], ['피부', 3, SKINS],
+      ];
       const changed = () => { draw(); on.change({ ...current, pick: [...current.pick] as Pick }); };
-      const swatch = (row: number, i: number) => {
-        const b = button(row === 0 ? 'g-chip' : 'g-swatch', row === 0 ? STYLE_NAMES[i] : '', () => { current.pick[row] = i; changed(); });
-        if (row) { b.style.background = hex([HAIRS, COATS, SKINS][row - 1][i]); b.setAttribute('aria-label', `${labels[row]} ${i + 1}`); }
-        b.dataset.row = String(row); b.dataset.i = String(i);
+      const swatch = (label: string, slot: number, value: string | number, i: number) => {
+        const b = button(typeof value === 'string' ? 'g-chip' : 'g-swatch', typeof value === 'string' ? value : '', () => { current.pick[slot] = i; changed(); });
+        if (typeof value === 'number') { b.style.background = hex(value); b.setAttribute('aria-label', `${label} ${i + 1}`); }
+        b.dataset.row = String(slot); b.dataset.i = String(i);
         return b;
       };
-      const draw = () => rows.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.classList.toggle('on', current.pick[+b.dataset.row!] === +b.dataset.i!));
-      labels.forEach((label, row) => {
-        const line = el('div', 'g-row');
-        line.append(el('span', 'g-row-label', label), ...Array.from({ length: PICK_SIZES[row] }, (_, i) => swatch(row, i)));
-        rows.append(line);
-      });
+      const draw = () => {
+        rows.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.classList.toggle('on', (current.pick[+b.dataset.row!] ?? 0) === +b.dataset.i!));
+        // 옆으로 미는 줄 — 고른 단추가 가려져 있으면 가운데로(처음 열 때·「어떤 모습이 나올까?」).
+        rows.querySelectorAll<HTMLElement>('.g-row-scroll').forEach(row => {
+          const on = row.querySelector<HTMLElement>('.on');
+          if (on && (on.offsetLeft < row.scrollLeft || on.offsetLeft + on.offsetWidth > row.scrollLeft + row.clientWidth)) row.scrollLeft = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
+        });
+      };
+      for (const [label, slot, values] of lines) {
+        const line = el('div', typeof values[0] === 'string' ? 'g-row g-row-scroll' : 'g-row');
+        line.append(...values.map((value, i) => swatch(label, slot, value, i)));
+        rows.append(el('span', 'g-row-label', label), line);
+      }
       draw();
       const random = button('g-link', '어떤 모습이 나올까?', () => { current.pick = randomPick(); changed(); });
       const done = button('g-primary', '이 모습으로 걷기', () => { closeSheet(); on.done({ name: cleanName(name.value), pick: [...current.pick] as Pick }); });
       openSheet(el('p', 'g-kicker', '오늘은 이 모습으로'), name, rows, random, done);
+      draw(); // 판이 열린 뒤에야 단추 자리를 잴 수 있다
     },
 
     /** 테이블에서 같이 하기 — 새로 만들거나 코드로 들어간다. */

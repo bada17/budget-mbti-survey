@@ -12,116 +12,177 @@ import { PLACES, PLAZA, FOUNTAIN, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VIL
 type Scene = Phaser.Scene;
 type Container = Phaser.GameObjects.Container;
 
-import { rng, lookFrom as seedLook, type Look } from './look';
+import { rng, lookFrom as seedLook, hairColor, type Look } from './look';
 import { sfx } from './sfx';
 import type { Outcome } from './outcomes';
 import { streamOf, keyOf, catOf, goalOf, type TwistKind } from './twists';
 export { lookFrom, toLook, type Look } from './look';
 
-type DudeLeg = Phaser.GameObjects.Rectangle | Container;
-type DudeParts = {
-  body: Container;
-  legs: DudeLeg[];
-  eyes: Phaser.GameObjects.Arc[];
-  rightArm: (Phaser.GameObjects.Rectangle | Phaser.GameObjects.Arc)[];
-};
-
-/** 주민 시안의 첫 줄무늬 옷. 머리·색은 기존 선택 값을 그대로 쓴다. */
-function characterPreview(scene: Scene, look: Look): DudeParts {
-  const s = scene.add;
-  const legs = [-5.5, 5.5].map(x => s.container(x, -6, [
-    s.rectangle(0, 0, 9, 13, 0x707c8b).setRounded(3),
-    s.ellipse(0, 6, 11, 5, 0xfff8e8), s.rectangle(0, 5, 5, 1, 0xc9bdad).setRounded(0.5),
+/**
+ * 사람 그림 — 성인 열두 모습(look.ts FORMS). GPT 검토판 game/review/round/avatar.ts(10-15 사용자 승인)의
+ * 둥근 몸·짧은 다리·머리·옷·흰머리를 그대로 옮겼다. 검토판은 머리 끝이 64px 이라 56/64 로 줄여
+ * 예전 사람 키에 맞춘다 — 말풍선·하트·이름표 자리가 그대로다.
+ */
+const FIGURE_SCALE = 56 / 64;
+function figure(scene: Scene, look: Look) {
+  const s = scene.add, f = look.form, style = f.hair, top = f.top, tone = look.tone;
+  const hair = hairColor(look), skin = look.skin, coat = look.coat;
+  const path = (x: number, y: number) => new Phaser.Curves.Path(x, y);
+  const back = s.graphics().fillStyle(hair);
+  if (style === 'bob') back.fillPoints(path(-17, -43).cubicBezierTo(0, -61, -18, -56, -10, -61).cubicBezierTo(18, -42, 13, -61, 18, -53).lineTo(18, -32)
+    .cubicBezierTo(8, -28, 18, -26, 12, -25).lineTo(-9, -28).cubicBezierTo(-18, -35, -16, -25, -19, -28).closePath().getPoints(18), true);
+  if (style === 'bun') back.fillCircle(2, -62, 7.5).fillEllipse(0, -49, 31, 23);
+  if (style === 'cloud') back.fillCircle(-13, -43, 6).fillCircle(13, -43, 6).fillCircle(-10, -35, 5).fillCircle(10, -35, 5);
+  if (style === 'shoulder') back.fillPoints(path(-17, -43).cubicBezierTo(0, -61, -18, -57, -10, -61).cubicBezierTo(18, -42, 13, -61, 18, -53).lineTo(19, -30)
+    .cubicBezierTo(10, -26, 21, -25, 14, -24).lineTo(-11, -26).cubicBezierTo(-19, -31, -17, -24, -21, -26).closePath().getPoints(18), true);
+  if (style === 'lowTie') back.fillEllipse(0, -49, 31, 24).fillEllipse(13, -31, 12, 11).fillCircle(16, -33, 4);
+  const legs = [-6, 6].map(x => s.container(x, -6, [
+    s.rectangle(0, 0, 10.5, 8, f.pants).setRounded(4),
+    s.ellipse(0, 5.5, 12, 5, f.shoes ?? 0xfff8e8),
+    s.rectangle(0, 6.6, 9, 1.2, 0xd3c2a9).setRounded(0.6),
   ]));
-  const sleeves = [-12.5, 12.5].map(x => s.rectangle(x, -20, 8, 15, look.coat).setRounded(4).setAngle(x < 0 ? 15 : -15));
-  const hands = [-14, 14].map(x => s.circle(x, -12.5, 3.8, look.skin));
-  const torso = s.rectangle(0, -20, 26, 24, look.coat).setRounded(9);
-  const shirt = s.graphics();
-  shirt.fillStyle(0xfffaed, 0.86);
-  for (const y of [-28, -22, -16]) shirt.fillRoundedRect(-11, y, 22, 3, 1.2);
-  for (const x of [-15.5, 10]) shirt.fillRoundedRect(x, -22, 5.5, 3, 1);
-  shirt.fillStyle(0xfffaed).fillRoundedRect(-8, -10, 16, 2, 1);
-  const neck = s.ellipse(0, -29, 9, 6, look.skin);
-  const backHair = s.graphics().fillStyle(look.hair);
-  if (look.style === 2) backHair.fillRoundedRect(-18, -47, 36, 25, 10);
-  const ears = [-16.5, 16.5].map(x => s.circle(x, -37, 3.7, look.skin));
-  const head = s.ellipse(0, -38, 35, 29, look.skin);
-  const hair = s.graphics().fillStyle(look.hair);
-  if (look.style === 9) {
-    hair.fillStyle(look.coat).slice(0, -42, 17, Math.PI, 0, false).fillPath().fillRoundedRect(-2, -46, 22, 6, 3);
-    hair.fillStyle(0xfffaed, 0.65).fillCircle(-8, -49, 2);
-  } else {
-    hair.slice(0, -42, 17.5, Math.PI, 0, false).fillPath();
-    hair.fillCircle(-12, -45, 5).fillCircle(-6, -48, 6).fillCircle(1, -47, 5).fillCircle(9, -46, 6);
-    hair.fillTriangle(-17, -43, -12, -43, -15, -35).fillTriangle(12, -43, 17, -43, 15, -35);
-    if (look.style === 1) hair.fillCircle(2, -54, 6);
-    if (look.style === 2) hair.fillRoundedRect(-18, -43, 5, 14, 2.5).fillRoundedRect(13, -43, 5, 14, 2.5);
-    if (look.style === 3) hair.fillStyle(look.coat).fillRoundedRect(-14, -53, 28, 3, 1.5);
+  const sleeveColor = top === 'apron' ? 0xfff8e8 : top === 'vest' ? 0xf1c7bd : coat;
+  const sleeves = [-1, 1].map(sign => s.container(sign * 12, -25, [
+    s.ellipse(sign * 2, 6.5, 10, 18, sleeveColor).setAngle(-sign * 23),
+    s.circle(sign * 5, 15, 3.5, skin),
+  ]));
+  const torso = s.ellipse(0, -18, 32, 26, top === 'apron' ? 0xfff8e8 : coat);
+  const wear = s.graphics();
+  if (top === 'cardigan') {
+    wear.fillStyle(0xfff8e8).fillPoints(path(-4, -30).cubicBezierTo(-4, -9, -5, -24, -4, -17).lineTo(4, -9).cubicBezierTo(4, -30, 4, -17, 5, -24).closePath().getPoints(12), true);
+    wear.fillStyle(0xb56e5e, 0.65);
+    for (const cy of [-24, -18, -12]) wear.fillCircle(7, cy, 1.25);
+    wear.fillStyle(0x755548, 0.09).fillEllipse(-7, -8, 11, 2).fillEllipse(9, -8, 9, 2);
   }
-  const eyes = [-4.5, 4.5].map(x => s.circle(x, -39, 1.65, 0x37333b));
-  const cheeks = [-10, 10].map(x => s.ellipse(x, -35.5, 6.5, 4.5, 0xf09b90, 0.58));
-  const smile = s.graphics().fillStyle(0xea997e, 0.6).fillCircle(0, -36.8, 1.1);
-  smile.lineStyle(1.2, 0x705044).beginPath().arc(0, -34, 2.3, 0.12, Math.PI - 0.12, false).strokePath();
-  const body = s.container(0, 0, [...legs, ...sleeves, ...hands, torso, shirt, neck, backHair, ...ears, head, hair, ...eyes, ...cheeks, smile]);
-  return { body, legs, eyes, rightArm: [sleeves[1], hands[1]] };
+  if (top === 'stripes') {
+    wear.fillStyle(0xfff8e8, 0.95);
+    for (const [y, width] of [[-26, 24], [-20, 31], [-14, 26]]) wear.fillRoundedRect(-width / 2, y, width, 3.3, 1.1);
+  }
+  if (top === 'hoodie') {
+    wear.fillStyle(0xfff8e8, 0.75).fillEllipse(0, -28, 17, 8);
+    wear.fillStyle(coat).fillEllipse(0, -27, 11, 5);
+    wear.lineStyle(1, 0xfff8e8, 0.8).lineBetween(-3, -25, -3, -20).lineBetween(3, -25, 3, -20);
+    wear.fillStyle(0xffffff, 0.18).fillRoundedRect(-8, -16, 16, 7, 3);
+    wear.lineStyle(0.8, 0xffffff, 0.4).lineBetween(-5, -15, -7, -12).lineBetween(5, -15, 7, -12);
+  }
+  if (top === 'apron') {
+    wear.fillStyle(coat).fillEllipse(0, -15, 27, 21).fillRoundedRect(-7, -28, 14, 17, 3);
+    wear.lineStyle(2, 0xf5e8d0).lineBetween(-6, -29, -10, -17).lineBetween(6, -29, 10, -17);
+    wear.fillStyle(0xffffff, 0.3).fillRoundedRect(-5, -17, 10, 6, 2);
+  }
+  if (top === 'jacket') {
+    wear.fillStyle(0xfff8e8, 0.85).fillTriangle(-8, -30, 0, -26, -4, -22).fillTriangle(8, -30, 0, -26, 4, -22);
+    wear.lineStyle(1.25, 0xfff8e8, 0.85).lineBetween(0, -27, 0, -7);
+    wear.lineStyle(1.1, 0x5d7f79, 0.45).lineBetween(-8, -18, -10, -12).lineBetween(8, -18, 10, -12);
+    wear.fillStyle(0xf8e8cb).fillCircle(0, -22, 1.3);
+  }
+  if (top === 'vest') {
+    wear.fillStyle(0xfff8e8).fillTriangle(-7, -30, 7, -30, 0, -21);
+    wear.fillStyle(0xf1c7bd).fillTriangle(-6, -30, 0, -26, -3, -24).fillTriangle(6, -30, 0, -26, 3, -24);
+    wear.fillStyle(0x8e697d, 0.7).fillCircle(0, -18, 1.5).fillCircle(0, -12, 1.5);
+  }
+  if (top === 'shirt') {
+    wear.fillStyle(0xfff8e8, 0.9).fillTriangle(-8, -30, 0, -25, -4, -21).fillTriangle(8, -30, 0, -25, 4, -21);
+    wear.lineStyle(0.8, 0x8a725d, 0.4).lineBetween(0, -25, 0, -7);
+    wear.fillStyle(0x8a725d, 0.65);
+    for (const cy of [-21, -16, -11]) wear.fillCircle(0, cy, 0.9);
+    wear.lineStyle(0.8, 0x8a725d, 0.35).strokeRoundedRect(5, -21, 6, 5, 1);
+  }
+  if (top === 'blazer') {
+    wear.fillStyle(0xfff8e8).fillTriangle(-4, -30, 4, -30, 0, -8);
+    wear.fillStyle(0xffffff, 0.25).fillTriangle(-10, -28, -4, -30, -2, -15).fillTriangle(10, -28, 4, -30, 2, -15);
+    wear.fillStyle(0x5b6574, 0.55).fillCircle(3, -18, 1.2).fillCircle(3, -12, 1.2);
+    wear.lineStyle(1, 0x5b6574, 0.35).lineBetween(-11, -13, -6, -13).lineBetween(6, -13, 11, -13);
+  }
+  if (top === 'knit') {
+    wear.lineStyle(2, 0xfff8e8, 0.75).beginPath().arc(0, -31, 6, 0, Math.PI).strokePath();
+    wear.lineStyle(1.2, 0xfff8e8, 0.4).lineBetween(-8, -8, 8, -8);
+  }
+  const neck = s.ellipse(0, -30, 8, 5, skin);
+  const ears = [-14, 14].map(x => s.circle(x, -40, 3.5, skin));
+  const head = s.ellipse(0, -42, 29, 26, skin);
+  const fringe = s.graphics().fillStyle(hair);
+  const fill = (p: Phaser.Curves.Path) => fringe.fillPoints(p.closePath().getPoints(18), true);
+  if (style === 'bob') fill(path(-17, -43).cubicBezierTo(0, -61, -17, -56, -10, -61).cubicBezierTo(17, -43, 12, -61, 17, -53).lineTo(14, -38)
+    .cubicBezierTo(8, -48, 13, -42, 10, -43).cubicBezierTo(2, -42, 8, -41, 5, -40)
+    .cubicBezierTo(-3, -50, 0, -43, -2, -47).cubicBezierTo(-12, -42, -5, -45, -9, -44).lineTo(-14, -38));
+  if (style === 'wave') fill(path(-16, -44).cubicBezierTo(-9, -57, -19, -51, -14, -57).cubicBezierTo(4, -61, -10, -62, -2, -64)
+    .cubicBezierTo(15, -54, 9, -65, 17, -59).cubicBezierTo(13, -41, 21, -49, 17, -42).lineTo(11, -47)
+    .cubicBezierTo(2, -48, 7, -51, 5, -52).cubicBezierTo(-8, -47, -1, -44, -6, -45).lineTo(-12, -41));
+  if (style === 'curls') {
+    for (const [cx, cy, r] of [[-14, -47, 5], [-14, -54, 5.5], [-8, -59, 6], [0, -60, 6], [8, -58, 6], [14, -53, 5.5], [14, -46, 4.5]]) fringe.fillCircle(cx, cy, r);
+    fringe.fillEllipse(0, -52, 28, 14).fillCircle(-5, -47.5, 3).fillCircle(5, -47.5, 3);
+  }
+  if (style === 'bun') fill(path(-15, -43).cubicBezierTo(0, -59, -16, -55, -8, -60).cubicBezierTo(15, -44, 12, -59, 17, -51).lineTo(12, -43)
+    .cubicBezierTo(-7, -48, 9, -50, 2, -54).lineTo(-13, -41));
+  if (style === 'part') fill(path(-16, -43).cubicBezierTo(4, -60, -16, -56, -8, -62).cubicBezierTo(15, -42, 17, -60, 18, -48).lineTo(12, -46)
+    .cubicBezierTo(8, -54, 10, -48, 8, -51).cubicBezierTo(-12, -44, 4, -48, -5, -45).lineTo(-14, -39));
+  if (style === 'cloud') {
+    for (const [cx, cy, r] of [[-14, -49, 6], [-10, -56, 6.5], [-3, -59, 6.5], [5, -58, 6.5], [12, -54, 6.5], [15, -47, 5.5]]) fringe.fillCircle(cx, cy, r);
+    fringe.fillEllipse(0, -52, 26, 14);
+  }
+  if (style === 'forehead') fill(path(-16, -42).cubicBezierTo(-12, -55, -18, -47, -17, -53).cubicBezierTo(11, -56, -7, -60, 5, -60)
+    .cubicBezierTo(16, -42, 17, -54, 18, -47).lineTo(12, -45).cubicBezierTo(-12, -45, 12, -57, -10, -57));
+  if (style === 'shoulder') fill(path(-17, -43).cubicBezierTo(5, -60, -18, -56, -8, -63).cubicBezierTo(17, -42, 16, -59, 19, -50).lineTo(13, -40)
+    .cubicBezierTo(8, -54, 13, -46, 11, -51).cubicBezierTo(-13, -43, 4, -49, -8, -46).lineTo(-15, -38));
+  if (style === 'crop') fill(path(-16, -43).cubicBezierTo(-10, -57, -17, -51, -15, -56).cubicBezierTo(10, -57, -5, -60, 5, -60)
+    .cubicBezierTo(16, -43, 16, -55, 18, -49).lineTo(12, -44).lineTo(10, -51).cubicBezierTo(-11, -51, 4, -53, -5, -53).lineTo(-13, -42));
+  if (style === 'lowTie') fill(path(-16, -44).cubicBezierTo(2, -60, -17, -55, -7, -62).cubicBezierTo(16, -43, 15, -59, 19, -50).lineTo(13, -39).lineTo(10, -49)
+    .cubicBezierTo(-12, -46, 4, -52, -4, -48).lineTo(-14, -39));
+  // 흰머리 — 부분은 헤어라인에 맞추고, 은발·백발은 hairColor 가 앞뒤 머리에 같이 입힌다.
+  const openHairline = style === 'forehead' || style === 'crop', curly = style === 'curls' || style === 'cloud';
+  if (tone === 'streak') {
+    const sidePart = style === 'part' || style === 'shoulder' || style === 'lowTie';
+    const x = sidePart ? 5 : 0, y = curly ? -64 : style === 'wave' ? -61 : -59;
+    const endX = sidePart ? -9 : -6, endY = openHairline ? -53 : style === 'bob' ? -47 : -49;
+    fringe.fillStyle(0xe5e1d8).fillPoints(path(x - 1.5, y).lineTo(x + 1.8, y + 0.4).cubicBezierTo(endX + 1.4, endY, x + 1, y + 5, endX + 3, endY - 3)
+      .lineTo(endX - 1.3, endY - 1).cubicBezierTo(x - 1.5, y, endX, endY - 5, x - 2, y + 4).closePath().getPoints(16), true);
+  }
+  if (tone === 'mixed') {
+    const y = openHairline ? -56.5 : curly ? -61 : -57, length = openHairline ? 1.7 : 4.5;
+    fringe.lineStyle(1.15, 0xc4c6c4, 0.75);
+    for (const [x, dy] of [[-11, 2], [-6, 0], [0, -1], [6, 0], [11, 2]])
+      fringe.strokePoints(path(x, y + dy).cubicBezierTo(x - 2, y + dy + length, x - 0.2, y + dy + 1, x - 1, y + dy + length - 1).getPoints(8), false);
+    if (!openHairline) for (const x of [-8, 1, 9]) fringe.lineBetween(x, -53, x - 1.2, -50.5);
+    if (style === 'bob' || style === 'shoulder') back.lineStyle(1.3, 0xdedbd3, 0.8).lineBetween(-16, -39, -15, -33).lineBetween(16, -37, 15, -31);
+    if (style === 'bun') back.lineStyle(1.4, 0xdedbd3, 0.8).lineBetween(1, -67, -1, -63).lineBetween(6, -65, 4, -61);
+    if (style === 'lowTie') back.lineStyle(1.4, 0xdedbd3, 0.8).lineBetween(13, -35, 16, -31);
+  }
+  if (tone === 'temples') for (const sign of [-1, 1])
+    fringe.fillStyle(0xd9d6ce).fillPoints(path(sign * 14.5, -48).lineTo(sign * 12, -47).cubicBezierTo(sign * 13, -41, sign * 12, -44, sign * 12, -42)
+      .lineTo(sign * 15, -43).closePath().getPoints(10), true);
+  const eyes = [-4.8, 4.8].map(x => s.circle(x, -41.5, 1.75, 0x39313b));
+  const face = s.graphics();
+  face.fillStyle(0xee9b90, 0.7).fillEllipse(-9.5, -37.4, 6, 4.5).fillEllipse(9.5, -37.4, 6, 4.5);
+  face.fillStyle(0xe7a384, 0.7).fillCircle(0, -38.8, 1);
+  face.lineStyle(1.1, 0x85554b).beginPath().arc(0, -36.2, 2.3, 0.15, Math.PI - 0.15).strokePath();
+  // 눈썹·수염은 바탕 머리 색 — 흰머리를 골라도 바뀌지 않는다.
+  if (f.brows) face.lineStyle(1.25, look.hair, 0.8).lineBetween(-8, -46, -3.5, -46.4).lineBetween(3.5, -46.4, 8, -46);
+  if (f.smileLines) face.lineStyle(0.65, 0x98745f, 0.48).lineBetween(-9, -34.8, -8.1, -33.3).lineBetween(8.1, -33.3, 9, -34.8);
+  if (f.beard) face.fillStyle(look.hair, 0.65).fillPoints(path(-9, -34.7).cubicBezierTo(9, -34.7, -5, -31, 5, -31)
+    .cubicBezierTo(0, -29.3, 7, -30.5, 3, -29).cubicBezierTo(-9, -34.7, -3, -29, -7, -30.5).closePath().getPoints(12), true);
+  if (f.glasses) face.lineStyle(0.85, 0x8b796a).strokeCircle(-4.8, -41.5, 3.5).strokeCircle(4.8, -41.5, 3.5).lineBetween(-1.3, -41.5, 1.3, -41.5);
+  const fig = s.container(0, 0, [back, ...legs, ...sleeves, torso, wear, neck, ...ears, head, fringe, ...eyes, face]).setScale(FIGURE_SCALE);
+  return { fig, legs, eyes, rightArm: sleeves[1], sleeveColor };
 }
 
 export class Dude {
   readonly root: Container;
   private body: Container;
-  private legs: DudeLeg[];
+  private fig: Container;
+  private legs: Container[];
   private eyes: Phaser.GameObjects.Arc[];
-  private normal?: DudeParts;
+  private rightArm: Container;
+  private arm: { color: number; skin: number };
   private walkClock = 0;
   private idleClock = Math.random() * 4000;
   private hopping = false;
-  private tall: number;
-  private arm: { coat: number; skin: number };
-  private restingRightArm: (Phaser.GameObjects.Rectangle | Phaser.GameObjects.Arc)[];
   constructor(private scene: Scene, look: Look, x: number, y: number, scale = 1) {
-    const s = scene.add;
-    this.tall = look.tall;
-    this.arm = { coat: look.coat, skin: look.skin };
-    // 머리 끝과 발 위치는 그대로. 작은 손·볼·옷깃으로 표정을 보탠다.
-    const shadow = s.ellipse(0, 0, 29, 7, 0x756956, 0.17);
-    this.legs = [-5, 5].map(lx => s.rectangle(lx, -5, 7, 11, 0x555363).setRounded(3.5));
-    const sleeves = [-12, 12].map(x => s.rectangle(x, -21, 8, 13, look.coat).setRounded(4).setAngle(x < 0 ? 12 : -12));
-    const hands = [-13, 13].map(x => s.circle(x, -14, 3.6, look.skin));
-    this.restingRightArm = [sleeves[1], hands[1]];
-    const torso = s.rectangle(0, -19, 25, 24, look.coat).setRounded(11);
-    const seams = s.graphics();
-    seams.fillStyle(0xffffff, 0.55).fillTriangle(-6, -31, 0, -26, 0, -30).fillTriangle(6, -31, 0, -26, 0, -30);
-    seams.fillStyle(0xffffff, 0.3).fillRoundedRect(3, -21, 6, 5, 2);
-    seams.fillStyle(0x684c42, 0.12).fillRoundedRect(-8, -10, 16, 2, 1);
-    const ears = [-13, 13].map(x => s.circle(x, -39, 3.4, look.skin));
-    const head = s.ellipse(0, -39, 29, 27, look.skin);
-    const hair = s.graphics().fillStyle(look.hair);
-    if (look.style === 9) {
-      hair.fillStyle(look.coat).slice(0, -43, 14, Math.PI, 0, false).fillPath().fillRoundedRect(-1, -46, 20, 6, 3);
-      hair.lineStyle(1, 0xffffff, 0.3).lineBetween(0, -54, 0, -48);
-      hair.fillStyle(0xffffff, 0.45).fillCircle(-7, -48, 2);
-    } else {
-      hair.slice(0, -41, 14.5, Math.PI * 1.03, -Math.PI * 0.03, false).fillPath();
-      hair.fillCircle(-9, -45, 4.5).fillCircle(-3, -47, 4.2).fillCircle(4, -46, 4.5);
-      if (look.style === 1) hair.fillCircle(1, -54, 6.5).fillStyle(0xffffff, 0.25).fillEllipse(-1, -56, 5, 2);
-      if (look.style === 2) hair.fillStyle(look.hair).fillRoundedRect(-15, -45, 7, 20, 3.5).fillRoundedRect(8, -45, 7, 20, 3.5);
-      if (look.style === 3) hair.fillStyle(look.coat).fillRoundedRect(-11, -53, 22, 4, 2);
-      hair.fillStyle(0xffffff, 0.12).fillEllipse(-5, -51, 10, 3);
-    }
-    this.eyes = [-4.5, 4.5].map(ex => s.circle(ex, -39, 1.8, 0x39313b));
-    const cheeks = [-9, 9].map(cx => s.ellipse(cx, -35, 6, 3.5, 0xed9294, 0.58));
-    const smile = s.graphics().lineStyle(1.1, 0x85554b, 0.8);
-    smile.beginPath().arc(0, -34.5, 2.1, 0.15, Math.PI - 0.15, false).strokePath();
-    this.body = s.container(0, 0, [...this.legs, ...sleeves, ...hands, torso, seams, ...ears, head, hair, ...this.eyes, ...cheeks, smile]).setScale(1, look.tall);
-    this.root = s.container(x, y, [shadow, this.body]).setScale(scale);
-    // 첫 방의 나만 비교한다. 주민은 무작위 키, 동행은 작은 scale을 쓰므로 제외된다.
-    if (scene.sys.settings.key === 'journey' && scene.data.get('character-preview-room')?.active && look.tall === 1 && scale === 1) {
-      this.normal = { body: this.body, legs: this.legs, eyes: this.eyes, rightArm: this.restingRightArm };
-      const preview = characterPreview(scene, look);
-      this.body.setVisible(false);
-      this.body = preview.body; this.legs = preview.legs; this.eyes = preview.eyes; this.restingRightArm = preview.rightArm;
-      this.root.add(this.body);
-    }
+    const art = figure(scene, look);
+    this.fig = art.fig; this.legs = art.legs; this.eyes = art.eyes; this.rightArm = art.rightArm;
+    this.arm = { color: art.sleeveColor, skin: look.skin };
+    this.body = scene.add.container(0, 0, [art.fig]);
+    this.root = scene.add.container(x, y, [scene.add.ellipse(0, 0, 28, 6, 0x756956, 0.17), this.body]).setScale(scale);
   }
   get x() { return this.root.x; }
   get y() { return this.root.y; }
@@ -129,23 +190,17 @@ export class Dude {
   /** 눈을 가는 쪽(또는 보는 쪽)으로. */
   look(dx: number, dy: number) {
     const len = Math.hypot(dx, dy) || 1;
-    this.eyes.forEach((eye, i) => eye.setPosition((i ? 4.5 : -4.5) + dx / len * 2.2, -39 + dy / len * 1.4));
+    this.eyes.forEach((eye, i) => eye.setPosition((i ? 4.8 : -4.8) + dx / len * 2.2, -41.5 + dy / len * 1.4));
   }
-  /** 걷는 모습: 다리 번갈아, 몸 통통. */
+  /** 걷는 모습: 다리 번갈아, 몸 통통. 팔은 가만히(검토판과 같게). */
   walk(dtMs: number, moving: boolean, reduced: boolean) {
-    if (this.normal && !this.scene.data.get('character-preview-room')?.active) {
-      this.scene.tweens.killTweensOf(this.body);
-      this.body.destroy();
-      this.body = this.normal.body; this.legs = this.normal.legs; this.eyes = this.normal.eyes; this.restingRightArm = this.normal.rightArm;
-      this.body.setVisible(true); this.normal = undefined; this.hopping = false;
-    }
     if (this.hopping) return;
     if (!moving || reduced) {
       this.walkClock = 0;
       this.legs.forEach(leg => leg.setY(-6));
       // 서 있을 때 숨쉬기
       const breath = reduced ? 0 : Math.sin((this.idleClock += dtMs) / 520) * 0.025;
-      this.body.setY(0).setScale(1 - breath * 0.5, this.tall * (1 + breath));
+      this.body.setY(0).setScale(1 - breath * 0.5, 1 + breath);
       return;
     }
     this.walkClock += dtMs;
@@ -168,12 +223,12 @@ export class Dude {
   wave(times: number, reduced: boolean) {
     if (reduced || !times) return;
     const s = this.scene.add;
-    const arm = s.container(11, -24, [s.rectangle(0, -7, 5, 14, this.arm.coat).setRounded(2.5), s.circle(0, -15, 3.6, this.arm.skin)]).setAngle(25);
-    this.restingRightArm.forEach(part => part.setVisible(false));
-    this.body.add(arm);
+    const arm = s.container(12, -25, [s.rectangle(0, -8, 8, 17, this.arm.color).setRounded(4), s.circle(0, -17, 3.5, this.arm.skin)]).setAngle(25);
+    this.rightArm.setVisible(false);
+    this.fig.add(arm);
     this.scene.tweens.add({ targets: arm, angle: -10, duration: 160, ease: 'Sine.easeInOut', yoyo: true, repeat: times - 1, onComplete: () => {
       arm.destroy();
-      this.restingRightArm.forEach(part => part.setVisible(true));
+      this.rightArm.setVisible(true);
     } });
   }
   destroy() { this.root.destroy(); }
