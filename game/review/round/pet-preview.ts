@@ -20,8 +20,8 @@ class PetScene extends Phaser.Scene {
     art.cat?.root.setVisible(false);
     const background=this.add.renderTexture(0,0,W*dpr,H*dpr).setOrigin(0,0).setScale(1/dpr).setDepth(-100000);
     art.box.setScale(dpr);background.draw(art.box);background.render();art.destroy();
-    this.pets=[new RoundPet(this,'cat',{x:W*.26,y:H*.64},2.3),new RoundPet(this,'dog',{x:W*.74,y:H*.64},2.3)];
-    for(const [index,label] of ['고양이','강아지'].entries())this.add.text(W*(index?.74:.26),H*.64+23,label,
+    this.pets=[new RoundPet(this,'cat',{x:W*.22,y:H*.64},Math.min(2.3,W/150)),new RoundPet(this,'dog',{x:W*.78,y:H*.64},Math.min(2.3,W/150))];
+    for(const [index,label] of ['고양이','강아지'].entries())this.add.text(W*(index?.78:.22),H*.64+23,label,
       {fontFamily:'Malgun Gothic, sans-serif',fontSize:'13px',color:'#68594c',backgroundColor:'#fff8e8',padding:{x:8,y:5}})
       .setOrigin(.5,0).setResolution(dpr);
     $('ready').hidden=true;
@@ -32,13 +32,13 @@ class PetScene extends Phaser.Scene {
 const scene=new PetScene();
 new Phaser.Game({type:Phaser.AUTO,parent:'canvas',backgroundColor:'#e4e5ca',width:W*dpr,height:H*dpr,
   scale:{mode:Phaser.Scale.NONE,zoom:1/dpr},render:{antialias:true},audio:{noAudio:true},banner:false,scene});
-function show(action:'natural'|'groom'|'stroll'|'rest'){
+function show(action:'natural'|'groom'|'rest'){
   resting=action==='rest';
-  scene.pets.forEach(pet=>pet.reset(action==='natural'?undefined:action==='groom'?5000:action==='stroll'?11000:0));
+  scene.pets.forEach(pet=>pet.reset(action==='natural'?undefined:action==='groom'?5000:0));
   $('motion-status').textContent=reduced.matches?'모션 줄이기 설정에 따라 편안히 쉬고 있어요.':
     action==='rest'?'잠깐 쉬고 있어요.':action==='groom'?'고양이는 앞발 세수, 강아지는 귀 긁기.':
-    action==='stroll'?'몇 걸음 걷고 원래 자리로 돌아와요.':'쉬기와 그루밍, 짧은 산책을 각자의 속도로 반복해요.';
+    '한자리에서 쉬기와 그루밍을 각자의 속도로 반복해요.';
 }
-for(const action of ['natural','groom','stroll','rest'] as const)$(action).onclick=()=>show(action);
+for(const action of ['natural','groom','rest'] as const)$(action).onclick=()=>show(action);
 reduced.addEventListener('change',()=>show('natural'));
 if(reduced.matches)$('motion-status').textContent='모션 줄이기 설정에 따라 편안히 쉬고 있어요.';

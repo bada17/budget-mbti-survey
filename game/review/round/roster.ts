@@ -72,7 +72,7 @@ class RosterScene extends Phaser.Scene {
     art.cat?.root.setVisible(false);
     const background=this.add.renderTexture(0,0,W*dpr,H*dpr).setOrigin(0,0).setScale(1/dpr).setDepth(-100000);
     art.box.setScale(dpr);background.draw(art.box);background.render();art.destroy();
-    this.pets=[new RoundPet(this,'cat',{x:24,y:H*.69},.78),new RoundPet(this,'dog',{x:W-24,y:H*.69},.78)];
+    this.pets=[new RoundPet(this,'cat',{x:20,y:H*.69},.78),new RoundPet(this,'dog',{x:W-20,y:H*.69},.78)];
     residents.forEach((resident,i)=>{
       const anchor={x:W*[.2,.5,.8][i%3],y:showAdults?H*.42+Math.floor(i/3)*(H-88-H*.42)/3:H*(i<3?.53:.77)};
       const actor=this.makeActor(resident,anchor.x,anchor.y);
