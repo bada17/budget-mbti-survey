@@ -14,16 +14,15 @@ import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, loadCardMemo, saveCardMemo, type Me, type Town, type Neighbor,
 } from './profile';
-import { openTown, openReply, openLetter, openLogin, openGateLogin, type Person, type LoginOpts } from './town';
+import { openTown, openReply, openLetter, openLogin, openGateLogin, openNews, type Person, type LoginOpts } from './town';
 import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCards, noteCard, loadMarks, rememberMine, loadPocket, savePocket, questHook, type CardsOpts } from './places';
 import type { PublicCard } from './api';
-import { PLACES, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
-import { nameFrom } from './look';
-import { seasonOf, skyAt, type Season } from './draw';
-import { providers, start as startLogin, finish as finishLogin, justLoggedIn, keepSynced, current as loginNow, logout, forget, PROVIDER_NAME } from './login';
+import { PLACES, keeperName, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
+import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
+import { providers, start as startLogin, finish as finishLogin, justLoggedIn, takeLoginEmail, keepSynced, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
-import { checkContact } from './contact';
+import { checkContact, type ContactForm } from './contact';
 import { quizFor } from './quiz';
 import { questsOn, QUEST_REWARD } from './quests';
 import { net, TABLES } from './net';
@@ -57,7 +56,6 @@ let pendingReveal: string | undefined;
 let frame = 0;
 let poll: ReturnType<typeof setInterval> | undefined;
 let card: File | undefined; // 공유 그림 — 미리 만들어 둔다(아래 prepareCard)
-let photo: string | undefined; // 주민증 증명사진 — 내 모습 고르기 끝에 찍는다
 let town: Town | undefined; // 이번에 지은 동네(링크·지난번 판에 싣는다)
 let cardFor: string | undefined;
 const bus = createEvents();
@@ -85,7 +83,7 @@ const ui = createUI(root, {
     ui.hideIntro();
     ui.dresser(me, {
       change: next => { me = next; scene?.setLook(next.pick); },
-      done: async next => { me = next; saveMe(next); photo = await scene?.portrait(); send({ type: 'start' }); void joinTable(); },
+      done: next => { me = next; saveMe(next); send({ type: 'start' }); void joinTable(); },
     });
     scene?.dress(); // 판을 먼저 열어야 판 위에 남은 자리를 잴 수 있다
   },
@@ -135,14 +133,18 @@ const statsReady = net.stats().then(found => {
 const shell = root.querySelector<HTMLElement>('.g')!;
 
 // 로그인(login.ts) — 단추는 늘 보이고 키가 없으면 「곧 열려요」. 카카오·구글에서 돌아왔으면 확인하고 다시 연다. 마을 입구 판은 gateLogin.
-const loginOpts: LoginOpts = { providers: providers(), current: loginNow, start: startLogin, logout, forget };
+const loginOpts: LoginOpts = { providers: providers(), current: loginNow, admin: loginAdmin, start: startLogin, logout, forget };
 keepSynced();
 void finishLogin().then(result => {
   if (result === 'failed') ui.toast('로그인하지 못했어요. 조금 뒤에 다시 해 주세요');
   if (result === 'cancelled') ui.toast('로그인을 그만뒀어요');
 });
 const loggedIn = justLoggedIn();
-if (loggedIn) ui.toast(`${PROVIDER_NAME[loggedIn]}로 주민증을 지켰어요`); // 마을이 열리면 주민센터를 바로 연다(enteredVillage)
+// 방금 로그인으로 확인된 이메일이 있으면 「이 이메일로 소식 받기」 판부터(openNews) — 연락처 칸이 켜진 판에서만, 주민센터 대신.
+const loginEmail = takeLoginEmail();
+const offerNews = Boolean(loggedIn && loginEmail && contactReady);
+if (offerNews) { panelOpen = true; openNews(shell, loggedIn!, loginEmail!, sendContact, () => { panelOpen = false; village?.setPaused(false); }); }
+else if (loggedIn) ui.toast(`${PROVIDER_NAME[loggedIn]}로 주민증을 지켰어요`); // 마을이 열리면 주민센터를 바로 연다(enteredVillage)
 else if (!loginNow()) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}));
 
 type UntimedCommand = Command extends infer T ? T extends { at: number } ? Omit<T, 'at'> : never : never;
@@ -279,16 +281,19 @@ function neighborSheet(who: Pick<Neighbor, 'questionId' | 'key' | 'seed'>, keepN
       addStamp('neighbor');
       ui.toast(`${josa(`「${name}」`, '이', '가')} 내 이웃이 됐어요. 마을에서 같이 다니고, 예산철엔 편지를 보내요.`);
     },
-    contact: contactReady ? async form => {
-      const checked = checkContact(form, Date.now());
-      if (!checked.ok) return { ok: false, text: checked.error };
-      const sent = await net.contact(checked.payload, { neighbor: loadNeighbor(), type: state.result ?? lastPlay?.type } /* 지역은 동의 항목에 없어 안 보낸다 */);
-      if (!sent) return { ok: false, text: '지금은 받을 수 없어요. 조금 뒤에 다시 눌러 주세요.' };
-      addStamp('news');
-      return { ok: true, text: `고마워요! ${nextSeason(Date.now()).month}월에 이웃 편지를 보내 드릴게요.` };
-    } : undefined,
+    contact: contactReady ? sendContact : undefined,
     close: () => ui.endActions(true),
   });
+}
+
+/** 소식 받기 보내기 — 내 이웃 판과 로그인 직후 판(openNews)이 같이 쓴다. */
+async function sendContact(form: ContactForm) {
+  const checked = checkContact(form, Date.now());
+  if (!checked.ok) return { ok: false, text: checked.error };
+  const sent = await net.contact(checked.payload, { neighbor: loadNeighbor(), type: state.result ?? lastPlay?.type } /* 지역은 동의 항목에 없어 안 보낸다 */);
+  if (!sent) return { ok: false, text: '지금은 받을 수 없어요. 조금 뒤에 다시 눌러 주세요.' };
+  addStamp('news');
+  return { ok: true, text: loadNeighbor() ? `고마워요! ${nextSeason(Date.now()).month}월에 이웃 편지를 보내 드릴게요.` : '고마워요! 소식이 생기면 보내 드릴게요.' };
 }
 
 /**
@@ -343,7 +348,7 @@ function enteredVillage() {
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
     if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 「내 기록 보는 곳」 주민증에 찍혀 있어요.`);
-    if (loggedIn) openPlace('hub');
+    if (loggedIn && !offerNews) openPlace('hub');
   }
   void meetVillage();
 }
@@ -389,14 +394,14 @@ async function tellNewCard() {
   await loadCards();
   marks();
   // 카드를 불러오는 사이 판이 열렸으면 알리지 않는다(판 밑에 깔린다)
-  if (newCard() && where === 'village' && !panelOpen) ui.villageNotice(nameFrom('npc:cards'), '새 문제 카드가 올라왔어요. 이 돈, 어떻게 보세요?',
+  if (newCard() && where === 'village' && !panelOpen) ui.villageNotice(keeperName('cards'), '새 문제 카드가 올라왔어요. 이 돈, 어떻게 보세요?',
     [{ label: '보러 가기', run: () => { if (!panelOpen) village?.jump('cards', () => openPlace('cards')); } }, { label: '나중에' }]);
 }
 
 async function meetVillage() {
   await statsReady; await finishing;
   if (!online) return;
-  void tellNewCard();
+  // void tellNewCard(); // [나중에 살림: 쪽지판·문제 카드] 새 문제 카드 알림·「!」
   const sid = villageMe()?.sessionId;
   const view = (sid ? await net.here(sid, me.pick) : undefined) ?? (await net.village(sid || undefined));
   if (view) showVillage(view);
@@ -406,7 +411,7 @@ function showVillage(view: VillageView) {
   villageView = view;
   // 내 쪽지는 광장에 세우지 않는다 — 내 모습을 한 주민이 하나 더 서성이면 내가 둘로 보인다(쪽지판 목록엔 있다).
   const mine = new Set(loadMarks().mine);
-  village?.setCrowd({ ...view, notes: view.notes.filter(n => !mine.has(n.id)) });
+  village?.setCrowd({ ...view, notes: [] }); // [나중에 살림: 쪽지판·문제 카드] 쪽지 든 주민 — 살리면 notes: view.notes.filter(n => !mine.has(n.id))
   village?.setWorks(view.coins ?? 0);
   ui.villageToday(view.today);
 }
@@ -437,7 +442,7 @@ function picked(tree: number, kind: Drop) {
   savePocket(pocket);
   ui.villagePocket(pocket.coins, toWorks);
   // 첫 동전 — 공사터 주민이 넣는 곳을 알려 준다(한 번만). 「나중에」 해도 위 띠 동전을 누르면 공사터로 간다.
-  if (first) ui.villageNotice(nameFrom('npc:works'), `동전을 주웠네요! 「동전 모으는 곳」 에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
+  if (first) ui.villageNotice(keeperName('works'), `동전을 주웠네요! 「동전 모으는 곳」 에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
     [{ label: '넣으러 가기', run: toWorks }, { label: '나중에' }]);
 }
 // ── 오늘의 부탁(10-14 ⓓ) — quests.ts 규칙, 해낸 것은 주머니에 ──
@@ -455,7 +460,7 @@ function questEvent(event: string) {
     pocket.quests.push(q.id); pocket.coins += QUEST_REWARD; savePocket(pocket);
     ui.villagePocket(pocket.coins, toWorks);
     sfx.coin();
-    ui.say(nameFrom(`npc:${q.place}`), `부탁 들어줘서 고마워요! 동전 ${QUEST_REWARD}개 드릴게요.`, 2800);
+    ui.say(keeperName(q.place), `부탁 들어줘서 고마워요! 동전 ${QUEST_REWARD}개 드릴게요.`, 2800);
     marks();
   }
 }
@@ -463,7 +468,7 @@ function questEvent(event: string) {
 function openQuestList() {
   const done = loadPocket(kstDay(Date.now())).quests;
   ui.placeList(todaysQuests().map(q => ({
-    name: `${done.includes(q.id) ? '✓ ' : ''}${PLACES.find(p => p.id === q.place)!.name} · ${nameFrom(`npc:${q.place}`)}`,
+    name: `${done.includes(q.id) ? '✓ ' : ''}${PLACES.find(p => p.id === q.place)!.name} · ${keeperName(q.place)}`,
     line: done.includes(q.id) ? '들어줬어요. 내일 또 부탁할게요.' : q.ask,
     run: () => village?.jump(q.place, () => openPlace(q.place)),
   })), '오늘의 부탁');
@@ -483,8 +488,9 @@ function openPhone() {
     { icon: '🪪', name: '내 기록', run: go('hub') },
     { icon: '💰', name: '세금', run: go('tax') },
     { icon: '🏗️', name: '동전 모으기', run: go('works') },
-    { icon: '📌', name: '쪽지판', run: go('board') },
-    { icon: '📢', name: '문제 카드', run: go('cards') },
+    // [나중에 살림: 쪽지판·문제 카드]
+    // { icon: '📌', name: '쪽지판', run: go('board') },
+    // { icon: '📢', name: '문제 카드', run: go('cards') },
     { icon: '🚌', name: '다시 하기', run: go('bus') },
   ]);
 }
@@ -502,7 +508,7 @@ function openPlace(id: PlaceId) {
   setTimeout(() => questEvent(`open:${id}`), 1600); // 판을 열고 주민 말을 들은 뒤에
   panelOpen = true; village?.setPaused(true); notesCard.hide(); ui.closeSheet();
   const done = () => { panelOpen = false; village?.setPaused(false); };
-  if (id === 'hub') { if (who) openHub(who.person, who.sessionId, { photo }, '← 마을로', done); else done(); }
+  if (id === 'hub') { if (who) void (village?.portrait() ?? Promise.resolve(undefined)).then(photo => openHub(who.person, who.sessionId, { photo }, '← 마을로', done)); else done(); } // 사진 = 내 모습 얼굴(10-15)
   else if (id === 'bus') openBus(shell, loadNeighbor(), () => { location.href = `${here()}?walk`; }, done);
   else if (id === 'counsel') openCounsel(shell, done);
   else if (id === 'dok') openDok(shell, done);
@@ -621,8 +627,8 @@ function measure() {
 async function boot() {
   try {
     measure();
-    // 마을 간판은 캔버스에 구워 두므로 둥근 글꼴이 먼저 와 있어야 한다(늦으면 기본 글꼴로 굳는다). 1.5초까지만 기다린다.
-    await Promise.race([Promise.all(['16px Jua', '600 16px "Pretendard Variable"'].map(f => document.fonts?.load(f, '마을'))), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
+    // 마을 간판은 캔버스에 구워 두므로 둥근 글꼴이 먼저 와 있어야 한다(늦으면 기본 글꼴로 굳는다) — 간판에 쓰는 글자가 든 조각을 다(draw.ts CANVAS_TEXT). 1.5초까지만 기다린다.
+    await Promise.race([Promise.all([document.fonts?.load('16px Jua', CANVAS_TEXT), document.fonts?.load('600 16px "Pretendard Variable"', '마을')]), new Promise(r => setTimeout(r, 1500))]).catch(() => {});
     const [{ default: Phaser }, { JourneyScene }, { VillageScene }] = await Promise.all([import('phaser'), import('./scenes/JourneyScene'), import('./scenes/VillageScene')]);
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
@@ -683,7 +689,7 @@ if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unl
 else if (lastPlay?.type) ui.homeOpen(() => { location.href = here(); }); // 걸으러 왔지만 마을로 갈 수도
 // 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.
 if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
-else if (cardLink) void statsReady.then(() => openCards(shell, cardOpts(cardLink), () => {}));
+// else if (cardLink) void statsReady.then(() => openCards(shell, cardOpts(cardLink), () => {})); // [나중에 살림: 쪽지판·문제 카드] 친구가 보낸 ?card= 링크
 else if (letterSeason) openLetter(shell, letterSeason, returning, me.name, () => {}, startInVillage ? () => { location.href = `${here()}?walk`; } : undefined);
 void boot();
 

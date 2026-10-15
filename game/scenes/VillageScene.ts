@@ -8,13 +8,15 @@
   · 내 이웃(언덕에서 이름 지어 준 주민)이 있으면 내 뒤를 따라온다.
   · 동물의 숲에서 빌린 것(사용자 10-14) — 실제 시각·철로 빛과 나무 색이 바뀌고 밤엔 가로등이 켜진다(ⓒ). 나무 밑동에 부딪히면 흔들리고,
     그날 정해진 나무에선 동전·열매가 떨어진다 — 걸어가 주우면 주머니에(ⓕ). 동전은 공사터에 넣어 모두의 공사를 채운다(ⓑ, places.ts openWorks).
+    공사가 끝나면 카메라가 그곳에 갔다가(뚝딱 서는 연출) 돌아온다(10-15).
+  · 남동쪽 구석 작은 운동장 — 공을 차서 골대에 넣는다(10-15, 걷기 판의 골 놀이를 옮겨 옴).
   배치·부딪힘은 village.ts, 그림은 draw.ts 의 drawVillage. 여기서는 위치·연출만.
 */
 import Phaser from 'phaser';
 import { FEEL } from '../feel';
-import { alongTrail, distance, type Point } from '../room';
-import { PLACES, SPAWN, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, worksAt, type PlaceId, type Drop } from '../village';
-import { Dude, lookFrom, toLook, drawVillage, noteTag, dust, tapRing, flee, meow, sparkle, dropArt, skyAt, type VillageArt, type Season } from '../draw';
+import { alongTrail, distance, rollBall, type Point } from '../room';
+import { PLACES, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
+import { Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, meow, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -61,7 +63,7 @@ export class VillageScene extends Phaser.Scene {
   private art!: VillageArt;
   private buddy?: Dude;
   private trail: Point[] = [];
-  private keepers: { dude: Dude; at: Point }[] = [];
+  private keepers: { dude: Dude; at: Point; tag?: Phaser.GameObjects.Text }[] = [];
   private folks = new Map<string, Folk>();
   private inside?: PlaceId;
   private reading?: Folk;
@@ -72,6 +74,13 @@ export class VillageScene extends Phaser.Scene {
   private items: { kind: Drop; tree: number; at: Point; obj: Phaser.GameObjects.Container }[] = [];
   private dustClock = 0;
   private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** 작은 운동장 공 — 골이 나면 잠깐 기뻐하다가(cheering) 가운데로 돌아온다. */
+  private ball?: Ball;
+  private cheering = false;
+  /** 공사 — 지금 그려 둔 모습, 막 끝나 연출을 기다리는 것, 연출 중인가(그동안 나는 멈춘다). */
+  private works?: WorksState;
+  private pendingBuilt?: WorkId;
+  private showing = false;
 
   constructor(private runtime: VillageRuntime) { super('village'); }
 
@@ -91,8 +100,10 @@ export class VillageScene extends Phaser.Scene {
     // 문 앞 주민 — 문 오른쪽에 서서 나를 본다(쪽지판엔 없다). 판 안의 한마디와 같은 생김새(npc:<id>).
     for (const place of PLACES) if (place.id !== 'board') {
       const at = { x: place.door.x + 38, y: place.door.y - 6 };
-      this.keepers.push({ dude: new Dude(this, lookFrom(`npc:${place.id}`), at.x, at.y).place(at), at });
+      const tag = place.keeper ? nameTag(this, at.x, at.y + 14, place.keeper, dpr) : undefined; // 맡은 사람 이름(10-15)
+      this.keepers.push({ dude: new Dude(this, lookFrom(`npc:${place.id}`), at.x, at.y).place(at), at, tag });
     }
+    this.ball = makeBall(this, PITCH.x + PITCH.w / 2, PITCH.y + PITCH.h / 2);
     cam.startFollow(this.player.root, true, 0.14, 0.14);
     cam.centerOn(this.pos.x, this.pos.y - 40);
     if (!this.reduced) cam.fadeIn(260, 255, 250, 240);
@@ -109,7 +120,11 @@ export class VillageScene extends Phaser.Scene {
     this.paused = paused;
     this.runtime.controls.clear();
     this.goal = undefined; this.route = [];
+    if (!paused && this.pendingBuilt) this.time.delayedCall(250, () => this.showBuilt()); // 동전을 넣은 판을 닫으면
   }
+
+  /** 주민증 사진 — 내 모습 얼굴(draw.ts facePhoto). */
+  portrait() { return facePhoto(this, toLook(this.runtime.pick()), 240); }
 
   /** 지도에서 고른 곳 — 잠깐 어두워졌다가 그 문 앞에 선다. 문이 열리는 건 다음 판이 한다(main 이 연다). */
   jump(id: PlaceId, done: () => void) {
@@ -173,7 +188,7 @@ export class VillageScene extends Phaser.Scene {
     if (!this.player) return;
     const dt = Math.min(delta, FEEL.maxDeltaMs);
     const before = { ...this.pos };
-    if (!this.paused) this.walk(dt);
+    if (!this.paused && !this.showing) this.walk(dt);
     const moving = distance(before, this.pos) > 0.05;
     if (moving) this.player.look(this.pos.x - before.x, this.pos.y - before.y);
     this.player.place(this.pos).walk(dt, moving, this.reduced);
@@ -182,6 +197,7 @@ export class VillageScene extends Phaser.Scene {
     this.wander(dt);
     for (const { dude, at } of this.keepers) { dude.look(this.pos.x - at.x, this.pos.y - at.y); dude.walk(dt, false, this.reduced); }
     this.toys();
+    this.kickAbout(dt);
     if (!this.paused) { this.shakeTrees(); this.pickUp(); }
     this.cull(); // 화면 밖은 안 그린다 — 느린 폰에서 끊기지 않게
     if (this.paused) return;
@@ -215,7 +231,7 @@ export class VillageScene extends Phaser.Scene {
     const view = this.cameras.main.worldView, m = 90;
     this.art.cull(view);
     const seen = (x: number, y: number) => x > view.x - m && x < view.right + m && y > view.y - m && y < view.bottom + m + 60;
-    for (const { dude, at } of this.keepers) dude.root.setVisible(seen(at.x, at.y));
+    for (const { dude, at, tag } of this.keepers) { const on = seen(at.x, at.y); dude.root.setVisible(on); tag?.setVisible(on); }
     for (const folk of this.folks.values()) { const on = seen(folk.at.x, folk.at.y); folk.dude.root.setVisible(on); folk.mark?.setVisible(on); }
     for (const kitty of this.art.cats) kitty.root.setVisible(seen(kitty.at.x, kitty.at.y));
     for (const bird of this.art.pigeons) if (!bird.fled) bird.root.setVisible(seen(bird.at.x, bird.at.y));
@@ -294,6 +310,25 @@ export class VillageScene extends Phaser.Scene {
     }
   }
 
+  /** 작은 운동장 — 발에 닿으면 차이고 울타리(운동장)에 튕긴다. 골대에 들어가면 골 — 기뻐한 뒤 공이 가운데로 돌아온다. */
+  private kickAbout(dt: number) {
+    const ball = this.ball;
+    if (!ball) return;
+    const fence = { x0: PITCH.x + 12, x1: PITCH.x + PITCH.w - 4, y0: PITCH.y + 12, y1: PITCH.y + PITCH.h - 6 };
+    if (rollBall(ball, this.paused ? { x: -999, y: -999 } : this.pos, dt, fence)) sfx.kick();
+    ball.root.setPosition(ball.at.x, ball.at.y).setDepth(ball.at.y);
+    ball.spin.angle += (Math.hypot(ball.v.x, ball.v.y) * dt / 1000 / 9) * (180 / Math.PI) * (ball.v.x < 0 ? -1 : 1);
+    if (this.cheering || !scored(ball.at, GOAL)) return;
+    this.cheering = true;
+    sfx.focus(); sparkle(this, GOAL.x + GOAL.w / 2, GOAL.y, this.reduced); confetti(this, 220, GOAL.y - 20, this.reduced, GOAL.x - 160);
+    this.player.hop(12, 1, this.reduced); this.buddy?.hop(12, 1, this.reduced);
+    this.time.delayedCall(this.reduced ? 300 : 1500, () => {
+      ball.at = { x: PITCH.x + PITCH.w / 2, y: PITCH.y + PITCH.h / 2 }; ball.v = { x: 0, y: 0 };
+      if (!this.reduced) dust(this, ball.at.x, ball.at.y);
+      this.cheering = false;
+    });
+  }
+
   relayout() { if (this.player) this.cameras.main.setZoom(this.runtime.view().dpr); }
 
   private marks = new Map<PlaceId, Phaser.GameObjects.Container>();
@@ -313,8 +348,38 @@ export class VillageScene extends Phaser.Scene {
     }
   }
 
-  /** 모두가 넣은 동전 수 — 공사터 간판과 다 지은 것(다리·정자)을 다시 그린다. */
-  setWorks(total: number) { this.art?.setWorks(worksAt(total)); }
+  /**
+   * 모두가 넣은 동전 수 — 공사터 간판과 다 지은 것(다리·정자)을 다시 그린다.
+   * 마을에 있는 동안 공사가 막 끝났으면 바로 그리지 않고 연출로(showBuilt) — 동전을 넣은 판이 닫힐 때. 처음 그릴 땐 연출 없이.
+   */
+  setWorks(total: number) {
+    const next = worksAt(total), was = this.works;
+    this.works = next;
+    const fresh = was ? next.done.filter(id => !was.done.includes(id)) : [];
+    if (!fresh.length || this.reduced || !this.art) { this.art?.setWorks(next); return; }
+    this.pendingBuilt = fresh[fresh.length - 1];
+    if (!this.paused) this.showBuilt();
+  }
+
+  /** 공사가 끝났다 — 카메라가 그곳으로 가서 뚝딱 서는 걸 보여 주고(draw.ts built) 나에게 돌아온다. 그동안 나는 멈춘다(사용자 10-15). */
+  private showBuilt() {
+    const id = this.pendingBuilt;
+    if (!id || this.showing || !this.works) return;
+    this.pendingBuilt = undefined; this.showing = true;
+    this.runtime.controls.clear(); this.goal = undefined; this.route = [];
+    const cam = this.cameras.main, at = this.art.builtAt(id);
+    cam.stopFollow();
+    cam.pan(at.x, at.y - 20, 900, 'Sine.easeInOut', true, (_cam, t) => {
+      if (t < 1) return;
+      this.art.setWorks(this.works!);
+      this.art.built(id, this.runtime.view().dpr);
+      this.time.delayedCall(2700, () => cam.pan(this.pos.x, this.pos.y - 40, 800, 'Sine.easeInOut', true, (_c, back) => {
+        if (back < 1) return;
+        cam.startFollow(this.player.root, true, 0.14, 0.14);
+        this.showing = false;
+      }));
+    });
+  }
 
   /** 실제 시각의 빛 — 마을 전체에 색을 곱하고, 밤이면 가로등 불을 켠다. 철마다 잎·꽃잎·눈이 조금씩 내린다. */
   private daylight(hour: number, season: Season) {

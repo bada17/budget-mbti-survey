@@ -232,7 +232,9 @@ test('마을 금고: 세금 도감은 금고 넷 안에서만, 동네 금고 자
 });
 
 test('마을 공사·나무: 동전이 앞 공사부터 채우고, 하루 떨어지는 동전은 정해진 수, 서버는 하루 한도까지만 받는다', async () => {
-  const { worksAt, dropsOn, COIN_DAY_MAX, WORKS } = await import('../game/village.ts');
+  const { worksAt, dropsOn, COIN_DAY_MAX, COIN_HIDDEN, WORKS } = await import('../game/village.ts');
+  assert.ok(COIN_DAY_MAX >= WORKS[0].goal, '하루에 다리 하나를 혼자 채울 수 있다(10-15)');
+  assert.ok(COIN_HIDDEN > COIN_DAY_MAX, '숨긴 동전이 넣을 수 있는 수보다 많다 — 쉽게 찾게(10-15)');
   assert.deepEqual(worksAt(0), { done: [], now: { id: 'bridge', name: '연못 다리', have: 0, goal: WORKS[0].goal } });
   assert.deepEqual(worksAt(WORKS[0].goal + 7).done, ['bridge']);
   assert.equal(worksAt(WORKS[0].goal + 7).now.have, 7);
@@ -240,7 +242,7 @@ test('마을 공사·나무: 동전이 앞 공사부터 채우고, 하루 떨어
   const a = dropsOn(20000, 80), b = dropsOn(20000, 80), c = dropsOn(20001, 80);
   assert.deepEqual([...a], [...b], '같은 날엔 누구에게나 같다');
   assert.notDeepEqual([...a], [...c], '날마다 바뀐다');
-  assert.equal([...a.values()].filter(k => k === 'coin').length, COIN_DAY_MAX);
+  assert.equal([...a.values()].filter(k => k === 'coin').length, COIN_HIDDEN);
   assert.equal(dropsOn(1, 0).size, 0);
   // 서버 — 끝낸 판만, 하루 COIN_DAY_MAX 까지, 합이 마을 모습에 실린다
   const store = createStore(), t0 = Date.UTC(2026, 9, 14, 3);
@@ -250,10 +252,21 @@ test('마을 공사·나무: 동전이 앞 공사부터 채우고, 하루 떨어
   assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 0 }, t0).status, 400);
   const first = handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 3 }, t0);
   assert.equal(first.body.took, 3);
-  assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 5 }, t0 + 1000).body.took, COIN_DAY_MAX - 3, '남은 만큼만');
+  assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: COIN_DAY_MAX }, t0 + 1000).body.took, COIN_DAY_MAX - 3, '남은 만큼만');
   assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 1 }, t0 + 2000).status, 429);
   assert.equal(handle(store, 'POST', '/village/coins', { sessionId: 'session-coin-1', n: 2 }, t0 + 24 * 3600e3).body.took, 2, '다음 날 다시');
   assert.equal(handle(store, 'GET', '/village', undefined, t0 + 24 * 3600e3).body.coins, COIN_DAY_MAX + 2);
+});
+
+test('작은 운동장(10-15): 골대는 운동장 안, 운동장은 건물·연못·길과 안 겹치고 지도 안, 골 판정은 상자 안만', async () => {
+  const { PITCH, GOAL, PLACES, POND, ROADS, VILLAGE_W, VILLAGE_H, scored, blocked } = await import('../game/village.ts');
+  const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  assert.ok(GOAL.x >= PITCH.x && GOAL.x + GOAL.w <= PITCH.x + PITCH.w && GOAL.y >= PITCH.y && GOAL.y + GOAL.h <= PITCH.y + PITCH.h);
+  for (const box of [...PLACES.map(p => p.box), POND, ...ROADS]) assert.ok(!overlap(PITCH, box), JSON.stringify(box));
+  assert.ok(PITCH.x + PITCH.w <= VILLAGE_W && PITCH.y + PITCH.h <= VILLAGE_H);
+  assert.ok(!blocked({ x: PITCH.x + PITCH.w / 2, y: PITCH.y + PITCH.h / 2 }), '걸어 들어갈 수 있다');
+  assert.equal(scored({ x: GOAL.x + 5, y: GOAL.y + 5 }, GOAL), true);
+  assert.equal(scored({ x: GOAL.x - 5, y: GOAL.y + 5 }, GOAL), false);
 });
 
 test('마을 배경 가락: 여덟 마디가 늘 같고, 낮·밤이 다르며, 음은 들리는 높이 안에', async () => {
@@ -300,8 +313,8 @@ test('버스 예산 퀴즈: 정답이 보기에 꼭 있고, 판마다 버스 넷
   }
 });
 
-test('방마다 다른 길: 개울은 돌을 밟아 건널 수 있고, 돌 밖은 젖는다 · 골·열쇠 자리는 방 안', async () => {
-  const { streamOf, wet, keepDry, keyOf, goalOf, catOf, scored, TWISTS } = await import('../game/twists.ts');
+test('방마다 다른 길: 개울은 돌을 밟아 건널 수 있고, 돌 밖은 젖는다 · 고양이 자리는 방 안 · 문을 잠그는 놀이는 없다(10-15)', async () => {
+  const { streamOf, wet, keepDry, catOf, TWISTS } = await import('../game/twists.ts');
   const { layoutRoom, step } = await import('../game/room.ts');
   for (const [w, h] of [[360, 640], [360, 560], [412, 915]]) {
     const room = layoutRoom(w, h), s = streamOf(room);
@@ -320,11 +333,10 @@ test('방마다 다른 길: 개울은 돌을 밟아 건널 수 있고, 돌 밖�
       }
     }
     assert.ok(p.y < s.y0, `${w}×${h} 개울 건넘`);
-    for (const at of [keyOf(room), catOf(room)]) assert.ok(at.x > 0 && at.x < w && at.y > room.wallY && at.y <= room.floor);
-    const g = goalOf(room);
-    assert.ok(scored({ x: g.x + g.w / 2, y: g.y + g.h / 2 }, g) && !scored({ x: g.x - 5, y: g.y }, g));
+    const at = catOf(room);
+    assert.ok(at.x > 0 && at.x < w && at.y > room.wallY && at.y <= room.floor);
   }
-  assert.equal(Object.keys(TWISTS).length, 6);
+  assert.deepEqual(Object.values(TWISTS).sort(), ['cat', 'stream', 'stream'], '열쇠·골은 걷었다(골은 마을 운동장으로)');
 });
 
 test('오늘의 부탁: 날마다 서로 다른 건물 셋, 같은 날엔 같고, 부탁하는 건물이 마을에 있다', async () => {

@@ -80,6 +80,60 @@ export function backCloses(close: () => void) {
 /** 도너스 정기후원. utm 은 도너스 약정에 남아 「게임에서 온 후원」을 가를 수 있다. */
 export const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
 
+/**
+ * 소식 받기 칸(연락처) — 내 이웃 판(neighborSheet)과 로그인 직후 판(town.ts openNews)이 같이 쓴다.
+ * 동의 칸·문구는 하나뿐이다(뜻은 contact.ts 를 지킨다). email 을 주면 로그인으로 받은 그 주소를 채워 둔다 — 고쳐 쓸 수 있다.
+ * 봇 막이는 칸이 보인 때부터 잰다 — 숨겼다 보이면 shown() 을 부른다.
+ */
+export function contactForm(send: (form: ContactForm) => Promise<{ ok: boolean; text: string }>, title: string, email = '') {
+  let openedAt = Date.now();
+  const contact = el('form', 'g-contact');
+  contact.innerHTML = `<h3>${title} <small>(안 받아도 돼요)</small></h3>
+    <p class="g-small">시험판이라 아직 저장하지 않아요. 받을 방법만 미리 만들어 두었어요.</p>
+    <div class="g-radio"><label><input type="radio" name="channel" value="email" checked> 이메일</label><label><input type="radio" name="channel" value="sms"> 문자</label></div>
+    <input class="g-input" name="address" type="email" autocomplete="email" placeholder="이메일 주소">
+    <input class="g-trap" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <label class="g-check"><input type="checkbox" name="age14"> <span>만 14세 이상이에요 <b>(필수)</b></span></label>
+    <label class="g-check"><input type="checkbox" name="collect"> <span>개인정보 수집·이용에 동의해요 <b>(필수)</b></span></label>
+    <details><summary>무엇을 왜 받나요</summary><ul>
+      <li>목적: 내 이웃 소식과 예산 게임 안내 보내기</li>
+      <li>항목: 이메일 주소 또는 휴대전화 번호(고른 하나), 내 이웃·유형 결과</li>
+      <li>보유·이용 기간: [단체가 정할 것] — 그 전이라도 거두시면 바로 지워요</li>
+      <li>동의하지 않을 수 있어요. 그래도 게임과 결과는 그대로이고, 소식만 받지 못해요.</li></ul></details>
+    <label class="g-check"><input type="checkbox" name="marketing"> <span>시민행동 활동·후원 소식도 받을래요 (선택)</span></label>
+    <details><summary>선택 동의 자세히</summary><ul>
+      <li>뉴스레터·문자로 시민행동 활동과 후원 안내를 보내요(광고성 정보).</li>
+      <li>언제든 그만 받을 수 있어요. 동의하지 않아도 이웃 소식은 받을 수 있어요.</li></ul></details>
+    <p class="g-small"><a target="_blank" rel="noopener"></a></p>
+    <button class="g-primary" type="submit">소식 받기</button>
+    <p class="g-small g-result" role="status"></p>`;
+  const link = contact.querySelector('a')!; link.href = PRIVACY_URL; link.textContent = '개인정보처리방침 보기';
+  const address = contact.querySelector<HTMLInputElement>('[name=address]')!;
+  address.value = email;
+  contact.querySelectorAll<HTMLInputElement>('[name=channel]').forEach(radio => { radio.onchange = () => {
+    if (!radio.checked) return;
+    const sms = radio.value === 'sms';
+    address.type = sms ? 'tel' : 'email'; address.autocomplete = sms ? 'tel' : 'email';
+    address.placeholder = sms ? '휴대전화 번호' : '이메일 주소'; address.inputMode = sms ? 'numeric' : 'email';
+  }; });
+  contact.onsubmit = async event => {
+    event.preventDefault();
+    const data = new FormData(contact);
+    const result = await send({
+      channel: data.get('channel') as Channel, address: String(data.get('address') ?? ''),
+      age14: data.has('age14'), collect: data.has('collect'), marketing: data.has('marketing'),
+      website: String(data.get('website') ?? ''), openedAt,
+    });
+    contact.querySelector('.g-result')!.textContent = result.text;
+    if (!result.ok || contact.querySelector('.g-join')) return;
+    // 소식 받기와 회원 권유를 묶는다(사용자 10-14). 회원 = 도너스 정기후원(일반·후원회원).
+    const join = el('a', 'g-link g-give g-join', '소식에서 한 걸음 더 — 함께하는 시민행동 회원 되기 →');
+    join.href = `${DONATE_URL}&utm_content=after-news`; join.target = '_blank'; join.rel = 'noopener';
+    contact.append(join);
+  };
+  return { form: contact, shown: () => { openedAt = Date.now(); } };
+}
+
 export function createUI(root: HTMLElement, actions: {
   start(): void; retry(): void; sound(): void; openTable(): void;
   reply(questionId: string, level: number): void;
@@ -409,57 +463,15 @@ export function createUI(root: HTMLElement, actions: {
 
     /** 내 이웃 — 이름 지어 주기, 그리고 소식 받기(연락처). */
     neighborSheet(wish: string, on: { save(name: string): void; contact?: (form: ContactForm) => Promise<{ ok: boolean; text: string }>; close(): void }) {
-      let openedAt = Date.now();
       const name = el('input', 'g-input'); name.maxLength = 10; name.placeholder = '이웃 이름 지어 주기 (10자까지)';
-      const contact = el('form', 'g-contact'); contact.hidden = true;
+      const contact = on.contact && contactForm(on.contact, '이웃 소식 받기');
+      if (contact) contact.form.hidden = true;
       const save = button('g-primary', '내 이웃으로 삼기', () => {
         on.save(cleanName(name.value));
         save.hidden = true; name.disabled = true;
-        if (on.contact) { contact.hidden = false; openedAt = Date.now(); }
+        if (contact) { contact.form.hidden = false; contact.shown(); }
       });
-      contact.innerHTML = `<h3>이웃 소식 받기 <small>(안 받아도 돼요)</small></h3>
-        <p class="g-small">시험판이라 아직 저장하지 않아요. 받을 방법만 미리 만들어 두었어요.</p>
-        <div class="g-radio"><label><input type="radio" name="channel" value="email" checked> 이메일</label><label><input type="radio" name="channel" value="sms"> 문자</label></div>
-        <input class="g-input" name="address" type="email" autocomplete="email" placeholder="이메일 주소">
-        <input class="g-trap" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <label class="g-check"><input type="checkbox" name="age14"> <span>만 14세 이상이에요 <b>(필수)</b></span></label>
-        <label class="g-check"><input type="checkbox" name="collect"> <span>개인정보 수집·이용에 동의해요 <b>(필수)</b></span></label>
-        <details><summary>무엇을 왜 받나요</summary><ul>
-          <li>목적: 내 이웃 소식과 예산 게임 안내 보내기</li>
-          <li>항목: 이메일 주소 또는 휴대전화 번호(고른 하나), 내 이웃·유형 결과</li>
-          <li>보유·이용 기간: [단체가 정할 것] — 그 전이라도 거두시면 바로 지워요</li>
-          <li>동의하지 않을 수 있어요. 그래도 게임과 결과는 그대로이고, 소식만 받지 못해요.</li></ul></details>
-        <label class="g-check"><input type="checkbox" name="marketing"> <span>시민행동 활동·후원 소식도 받을래요 (선택)</span></label>
-        <details><summary>선택 동의 자세히</summary><ul>
-          <li>뉴스레터·문자로 시민행동 활동과 후원 안내를 보내요(광고성 정보).</li>
-          <li>언제든 그만 받을 수 있어요. 동의하지 않아도 이웃 소식은 받을 수 있어요.</li></ul></details>
-        <p class="g-small"><a target="_blank" rel="noopener"></a></p>
-        <button class="g-primary" type="submit">소식 받기</button>
-        <p class="g-small g-result" role="status"></p>`;
-      const link = contact.querySelector('a')!; link.href = PRIVACY_URL; link.textContent = '개인정보처리방침 보기';
-      const address = contact.querySelector<HTMLInputElement>('[name=address]')!;
-      contact.querySelectorAll<HTMLInputElement>('[name=channel]').forEach(radio => { radio.onchange = () => {
-        if (!radio.checked) return;
-        const sms = radio.value === 'sms';
-        address.type = sms ? 'tel' : 'email'; address.autocomplete = sms ? 'tel' : 'email';
-        address.placeholder = sms ? '휴대전화 번호' : '이메일 주소'; address.inputMode = sms ? 'numeric' : 'email';
-      }; });
-      contact.onsubmit = async event => {
-        event.preventDefault();
-        const data = new FormData(contact);
-        const result = await on.contact!({
-          channel: data.get('channel') as Channel, address: String(data.get('address') ?? ''),
-          age14: data.has('age14'), collect: data.has('collect'), marketing: data.has('marketing'),
-          website: String(data.get('website') ?? ''), openedAt,
-        });
-        contact.querySelector('.g-result')!.textContent = result.text;
-        if (!result.ok || contact.querySelector('.g-join')) return;
-        // 소식 받기와 회원 권유를 묶는다(사용자 10-14). 회원 = 도너스 정기후원(일반·후원회원).
-        const join = el('a', 'g-link g-give g-join', '소식에서 한 걸음 더 — 함께하는 시민행동 회원 되기 →');
-        join.href = `${DONATE_URL}&utm_content=after-news`; join.target = '_blank'; join.rel = 'noopener';
-        contact.append(join);
-      };
-      openSheet(el('p', 'g-kicker', '내 이웃'), el('p', 'g-quote', `${josa(`「${wish}」`, '을', '를')} 바라던 주민`), name, save, ...(on.contact ? [contact] : []), button('g-link', '닫기', () => { closeSheet(); on.close(); }));
+      openSheet(el('p', 'g-kicker', '내 이웃'), el('p', 'g-quote', `${josa(`「${wish}」`, '을', '를')} 바라던 주민`), name, save, ...(contact ? [contact.form] : []), button('g-link', '닫기', () => { closeSheet(); on.close(); }));
     },
     closeSheet,
 

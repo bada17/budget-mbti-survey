@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
-import { createStore, handle, login } from '../game/api.ts';
+import { createStore, handle, login, isAdmin } from '../game/api.ts';
 import { verifyLogin, accountOf, serve } from '../server/gas.ts';
 
 // 기록 묶음은 localStorage 를 읽고 쓴다 — 시험에선 가짜로.
@@ -73,6 +73,51 @@ test('카카오·구글 확인: 맞는 길만 통과, 주소·키·aud·nonce·�
     assert.equal(verifyLogin({ provider: 'google', idToken: 'x', nonce: 'n1', redirectUri }, fakeDeps(google({ ...good, ...bad })), 1000 * 1000 + 1 > 0 ? 1000 : 0), undefined, JSON.stringify(bad));
   }
   assert.equal(accountOf({ provider: 'kakao', subject: '4242' }, fakeDeps([], { ACCOUNT_SALT: null })), undefined, '소금이 없으면 로그인하지 않는다');
+});
+
+// 10-15 「이메일 정도는 받을 수 있잖아」 — 확인된 이메일만 돌려주고, 시트엔 안 남긴다(동의하면 /contact 가 따로 받는다).
+const kakaoWith = account => [kakaoOk[0], ['https://kapi.kakao.com/v2/user/me', () => ({ status: 200, text: JSON.stringify({ id: 4242, kakao_account: account }) })]];
+test('로그인 이메일: 카카오·구글이 확인한 것만, 소문자로', () => {
+  const kakao = account => verifyLogin({ provider: 'kakao', code: 'good', redirectUri }, fakeDeps(kakaoWith(account)), 0);
+  assert.equal(kakao({ email: 'Me@Mail.com', is_email_valid: true, is_email_verified: true }).email, 'me@mail.com');
+  assert.equal(kakao({ email: 'me@mail.com', is_email_valid: true, is_email_verified: false }).email, undefined, '확인 안 된 이메일');
+  assert.equal(kakao({ email_needs_agreement: true }).email, undefined, '동의 안 함 — 회원번호만');
+  assert.equal(kakao(undefined).subject, '4242');
+  const google = info => verifyLogin({ provider: 'google', idToken: 'x', nonce: 'n1', redirectUri },
+    fakeDeps([['https://oauth2.googleapis.com/tokeninfo', () => ({ status: 200, text: JSON.stringify({ aud: 'gid', iss: 'accounts.google.com', exp: '2000', sub: 'g-1', nonce: 'n1', ...info }) })]]), 1000);
+  assert.equal(google({ email: 'a@gmail.com', email_verified: 'true' }).email, 'a@gmail.com');
+  assert.equal(google({ email: 'a@gmail.com', email_verified: 'false' }).email, undefined);
+});
+
+test('관리자(10-15): 단체 주소와 따로 적은 메일만, 대소문자·띄어쓰기 무시, 비슷한 주소는 아니다', () => {
+  assert.equal(isAdmin('kim@action.or.kr'), true);
+  assert.equal(isAdmin('Kim@Action.or.kr '), true);
+  assert.equal(isAdmin('kim@notaction.or.kr'), false);
+  assert.equal(isAdmin('kim@action.or.kr.evil.com'), false);
+  assert.equal(isAdmin('me@gmail.com'), false);
+  assert.equal(isAdmin('me@gmail.com', ' other@x.com , ME@gmail.com'), true);
+  assert.equal(isAdmin(undefined, 'me@gmail.com'), false);
+  assert.equal(isAdmin('', ''), false);
+});
+
+test('시트 로그인 이메일: 응답엔 오고 시트 어디에도 없다', () => {
+  const sheets = new Map();
+  const sheetOf = () => { const rows = []; return { rows, getLastRow: () => rows.length, appendRow: r => rows.push([...r]),
+    getRange: (row, col, nr = 1, nc = 1) => ({ getValues: () => rows.slice(row - 1, row - 1 + nr).map(r => r.slice(col - 1, col - 1 + nc)),
+      setValues: v => v.forEach((x, i) => { rows[row - 1 + i] = [...(rows[row - 1 + i] ?? []).slice(0, col - 1), ...x]; }) }) }; };
+  const book = { getSheetByName: name => sheets.get(name) ?? null, insertSheet: name => { const s = sheetOf(); sheets.set(name, s); return s; } };
+  const deps = fakeDeps(kakaoWith({ email: 'me@mail.com', is_email_valid: true, is_email_verified: true }));
+  const body = serve('POST', { parameter: { p: '/login' }, postData: { contents: JSON.stringify({ provider: 'kakao', code: 'good', redirectUri }) } }, book, 1000, deps).body;
+  assert.equal(body.email, 'me@mail.com');
+  assert.equal(body.admin, undefined, '보통 주민');
+  assert.match(body.key, /^[A-Za-z0-9]{32}$/);
+  const staff = fakeDeps(kakaoWith({ email: 'kim@action.or.kr', is_email_valid: true, is_email_verified: true }));
+  assert.equal(serve('POST', { parameter: { p: '/login' }, postData: { contents: JSON.stringify({ provider: 'kakao', code: 'good', redirectUri }) } }, book, 1000, staff).body.admin, true, '단체 주소');
+  const mine = fakeDeps(kakaoWith({ email: 'me@mail.com', is_email_valid: true, is_email_verified: true }), { ADMIN_EMAILS: 'me@mail.com' });
+  assert.equal(serve('POST', { parameter: { p: '/login' }, postData: { contents: JSON.stringify({ provider: 'kakao', code: 'good', redirectUri }) } }, book, 1000, mine).body.admin, true, '따로 적은 메일');
+  const unverified = fakeDeps(kakaoWith({ email: 'kim@action.or.kr', is_email_valid: true, is_email_verified: false }));
+  assert.equal(serve('POST', { parameter: { p: '/login' }, postData: { contents: JSON.stringify({ provider: 'kakao', code: 'good', redirectUri }) } }, book, 1000, unverified).body.admin, undefined, '확인 안 된 이메일은 관리자 아님');
+  assert.ok(!JSON.stringify([...sheets.values()].map(s => s.rows)).includes('me@mail.com'), '이메일이 시트에 없다');
 });
 
 test('시트 로그인: 「주민」 탭엔 해시만 — 회원번호는 어디에도 안 남고, 열쇠로 기록이 오간다', () => {

@@ -246,11 +246,11 @@ export function importSave(remote: Save) {
 }
 
 /** 로그인 열쇠 — 서버가 준 것. 이 기기에만. */
-export type Login = { key: string; provider: 'kakao' | 'google' };
+export type Login = { key: string; provider: 'kakao' | 'google'; admin?: true };
 const LOGIN_KEY = 'budget-game-login';
 export function loadLogin(): Login | undefined {
   const raw = read(LOGIN_KEY) as Partial<Login> | null;
-  return raw && typeof raw.key === 'string' && /^[A-Za-z0-9]{24,64}$/.test(raw.key) && (raw.provider === 'kakao' || raw.provider === 'google') ? { key: raw.key, provider: raw.provider } : undefined;
+  return raw && typeof raw.key === 'string' && /^[A-Za-z0-9]{24,64}$/.test(raw.key) && (raw.provider === 'kakao' || raw.provider === 'google') ? { key: raw.key, provider: raw.provider, ...(raw.admin === true ? { admin: true as const } : {}) } : undefined;
 }
 export const saveLogin = (login: Login) => { try { localStorage.setItem(LOGIN_KEY, JSON.stringify(login)); } catch { /* 막힌 창 */ } };
 export const clearLogin = () => { try { localStorage.removeItem(LOGIN_KEY); } catch { /* 막힌 창 */ } };

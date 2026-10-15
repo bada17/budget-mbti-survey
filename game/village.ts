@@ -9,12 +9,15 @@
     상담소·독상은 실제 사업 이름이라 그대로. 주민 한마디는 Claude 임시.
 */
 import type { Point } from './room';
-import { rng } from './look';
+import { rng, nameFrom } from './look';
 
 export type Box = { x: number; y: number; w: number; h: number };
 export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards';
-/** 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다). */
-export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point };
+/**
+ * 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다).
+ * keeper 는 문 앞 주민의 이름 — 시민행동 사람이 맡은 건물은 그 사람 이름(사용자 10-15), 없으면 순우리말 이름(keeperName).
+ */
+export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point; keeper?: string };
 
 export const VILLAGE_NAME = '시민마을';
 export const VILLAGE_W = 1040;
@@ -23,24 +26,39 @@ export const VILLAGE_H = 1500;
 export const PLAZA = { x: 520, y: 800, r: 150 };
 export const FOUNTAIN: Box = { x: 486, y: 770, w: 68, h: 52 };
 
+// [나중에 살림: 쪽지판·문제 카드] 사용자 10-15 「문제카드, 쪽지판은 주석처리해줘. 지금 할 수 없어. 나중에 코드 살려서 할 수 있게」.
+// 두 건물 줄을 주석으로 막았다 — 건물·문·판이 다 사라진다. 코드(판·서버·시험)는 그대로 두었다.
+// 살릴 땐 저장소에서 「[나중에 살림: 쪽지판·문제 카드]」 를 찾아 그 자리를 다 푼다(README 「숨겨 둔 것」).
 export const PLACES: Place[] = [
   { id: 'hub', name: '내 기록 보는 곳', line: '주민증과 도장, 방명록은 여기서 봐요.', box: { x: 420, y: 230, w: 200, h: 100 }, door: { x: 520, y: 352 } },
   // 세금 보는 곳 — 비워 둔 「빈 터」 에 세웠다(사용자 10-14 「내 동네가 어떻게 돈을 걷고, 나는 어떻게 세금을 내는지 알 수 있는 곳」). 판은 places.ts openTax.
   // 이름은 사용자 10-14 「세금 보는 곳이라고 바꾸고 나머지 상세 이름은 나중에」(처음엔 Claude 임시 「마을 금고」).
   { id: 'tax', name: '세금 보는 곳', line: '우리가 낸 세금이 어디로 가는지 보여 줄게요.', box: { x: 790, y: 232, w: 160, h: 96 }, door: { x: 870, y: 350 } },
-  { id: 'house', name: '시민행동 소개', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 } },
-  { id: 'counsel', name: '시민참여 상담소', line: '참여예산이 궁금하면 여기 물어보세요.', box: { x: 84, y: 500, w: 190, h: 96 }, door: { x: 179, y: 618 } },
-  { id: 'finance', name: '지방정부 예산', line: '우리 지역 지방정부의 한 해 예산을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 } },
-  { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
-  { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 } },
+  // 시민행동 사람이 문 앞을 지킨다(사용자 10-15 「밑빠진독상은 정남진, 시민참여 상담소는 김민철, 시민행동의 집은 채연하, 지방정부예산은 유종웅」).
+  { id: 'house', name: '시민행동 소개', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 }, keeper: '채연하' },
+  { id: 'counsel', name: '시민참여 상담소', line: '참여예산이 궁금하면 여기 물어보세요.', box: { x: 84, y: 500, w: 190, h: 96 }, door: { x: 179, y: 618 }, keeper: '김민철' },
+  { id: 'finance', name: '지방정부 예산', line: '우리 지역 지방정부의 한 해 예산을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 }, keeper: '유종웅' },
+  // { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
+  { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 }, keeper: '정남진' },
   // 마을 공사터 — 나무에서 주운 동전을 넣으면 모두의 동전이 모여 다리·정자가 선다(사용자 10-14 동물의 숲 ⓑ). 판은 places.ts openWorks.
   { id: 'works', name: '동전 모으는 곳', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 } },
   // 문제 카드 — 활동가가 매주·매달 올리는 사업 한 건에 반응하기(사용자 10-15 「한 달에 한 번이라도 들어올 명분」). 남쪽 문에서 광장 가는 큰길 옆이라 들어오자마자 보인다.
-  { id: 'cards', name: '문제 카드', line: '활동가가 고른 우리 세금 이야기예요. 어떻게 보세요?', box: { x: 586, y: 1150, w: 92, h: 22 }, door: { x: 632, y: 1196 } },
+  // { id: 'cards', name: '문제 카드', line: '활동가가 고른 우리 세금 이야기예요. 어떻게 보세요?', box: { x: 586, y: 1150, w: 92, h: 22 }, door: { x: 632, y: 1196 } },
   { id: 'bus', name: '게임 다시 하기', line: '버스 타고 열다섯 동네를 다시 걸어요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
 ];
 
+/** 문 앞 주민 이름 — 맡은 사람이 있으면 그 이름, 없으면 건물마다 정해진 순우리말 이름. 판의 이름표·말 상자·부탁 목록이 같이 쓴다. */
+export const keeperName = (id: PlaceId) => PLACES.find(p => p.id === id)?.keeper ?? nameFrom(`npc:${id}`);
+
 export const POND: Box = { x: 740, y: 1210, w: 170, h: 100 };
+/**
+ * 작은 운동장 — 남동쪽 구석, 연못 아래(사용자 10-15 「골대에 골 넣는 건 마을 한 구석에」 — 걷기 판의 골 놀이를 옮겨 왔다).
+ * 공은 이 안에서만 구르고(울타리), 오른쪽 끝 골대(GOAL)에 들어가면 골. 막는 벽은 아니라 걸어 들어간다.
+ */
+export const PITCH: Box = { x: 700, y: 1352, w: 316, h: 120 };
+export const GOAL: Box = { x: 970, y: 1384, w: 40, h: 56 };
+/** 공(발자리)이 골대 상자 안에 들어왔나. */
+export const scored = (ball: Point, g: Box) => ball.x > g.x && ball.x < g.x + g.w && ball.y > g.y && ball.y < g.y + g.h;
 /** 길 — 그림과 서성이는 주민의 갈 곳에 쓴다. 걷기는 길 밖(풀밭)도 된다. */
 export const ROADS: Box[] = [
   { x: 470, y: 330, w: 100, h: 1170 }, // 남북 큰길 — 언덕에서 내려와 주민센터까지
@@ -222,19 +240,23 @@ export function worksAt(total: number): WorksState {
   return { done };
 }
 
-/** 한 판이 하루에 넣을 수 있는 동전 — 나무에서 하루에 떨어지는 동전 수와 같다(서버도 이 수로 막는다). */
-export const COIN_DAY_MAX = 5;
+/**
+ * 한 판이 하루에 넣을 수 있는 동전(서버도 이 수로 막는다) — 사용자 10-15 「한 번에 다 10개를 모을 수 있게」: 하루에 다리 하나(10)를 혼자 채울 수 있다.
+ * 나무에 숨기는 건 이보다 많이(COIN_HIDDEN) — 「10개 이상 숨겨놔. 그래야 사람들이 쉽게 찾지」. 더 주운 동전은 그날 주머니에만 남는다.
+ */
+export const COIN_DAY_MAX = 10;
+export const COIN_HIDDEN = 15;
 export type Drop = 'coin' | 'fruit';
 /** 한국 날짜 번호(하루에 하나씩 늘어난다). */
 export const kstDay = (now: number) => Math.round(kstDayStart(now) / (24 * 60 * 60 * 1000));
 /**
- * 오늘 떨어지는 것 — 나무 번호 → 동전·열매. 날마다 바뀌고, 같은 날엔 누구에게나 같다. 동전은 COIN_DAY_MAX 그루, 열매는 다섯 그루에 한 그루쯤.
- * 주운 것은 이 기기에만 적는다(places.ts loadPocket) — 그래서 하루에 주울 수 있는 동전도 COIN_DAY_MAX 개.
+ * 오늘 떨어지는 것 — 나무 번호 → 동전·열매. 날마다 바뀌고, 같은 날엔 누구에게나 같다. 동전은 COIN_HIDDEN 그루, 열매는 다섯 그루에 한 그루쯤.
+ * 주운 것은 이 기기에만 적는다(places.ts loadPocket).
  */
 export function dropsOn(day: number, trees: number) {
   const r = rng(`drop:${day}`), drops = new Map<number, Drop>();
   if (trees <= 0) return drops;
-  for (let tries = 0; drops.size < Math.min(COIN_DAY_MAX, trees) && tries < 200; tries++) drops.set(Math.floor(r() * trees), 'coin');
+  for (let tries = 0; drops.size < Math.min(COIN_HIDDEN, trees) && tries < 200; tries++) drops.set(Math.floor(r() * trees), 'coin');
   for (let i = 0; i < trees; i++) if (!drops.has(i) && r() < 0.2) drops.set(i, 'fruit');
   return drops;
 }

@@ -1,12 +1,16 @@
 import { defineConfig, type Plugin } from 'vite';
 import { createHash, randomInt } from 'node:crypto';
-import { createStore, handle, login } from './game/api';
+import { createStore, handle, login, isAdmin } from './game/api';
 
 /**
  * 개발 서버에만 붙는 게임 서버(/api/game). 저장은 메모리 — 서버를 끄면 사라진다.
  * 진짜 서버는 배포 때 정한다(README 정할 것 10). 규칙은 game/api.ts 하나라서 그대로 옮겨 붙인다.
  * 로그인은 가짜 카카오·구글(/fake-login) — 카카오·구글 화면 대신 곧장 게임 주소로 돌려보낸다(game/login.ts). 키가 없어도 흐름을 끝까지 본다.
+ * 가짜 확인은 진짜처럼 확인된 이메일도 돌려준다(server/gas.ts verifyLogin) — 로그인 직후 소식 받기 판을 보려고.
+ * 가짜 구글은 단체 주소라 관리자, 가짜 카카오는 보통 주민 — 둘 다 개발판에서 볼 수 있게.
  */
+const withEmail = <T extends { status: number; body: object }>(r: T, email: string) => (r.status === 200 ? { ...r, body: { ...r.body, email, ...(isAdmin(email) ? { admin: true } : {}) } } : r);
+
 function devGameApi(): Plugin {
   const store = createStore();
   // 문제 카드 보기 두 장(개발판에서 화면을 보려고) — 진짜 카드는 활동가가 시트에 적는다. 지어낸 사실이 아니게 곳 이름은 ○○.
@@ -40,7 +44,7 @@ function devGameApi(): Plugin {
           // 가짜 확인 — 「fake-쪽-번호」 만 통과. 계정은 진짜처럼 해시로.
           const result = path === '/login' && req.method === 'POST'
             ? (/^fake-(kakao|google)-[a-z0-9]+$/.test(fake) && fake.startsWith(`fake-${proof.provider}-`)
-              ? login(store, `${proof.provider}:${createHash('sha256').update(fake).digest('hex')}`, Date.now(), () => randomInt(2 ** 32) / 2 ** 32)
+              ? withEmail(login(store, `${proof.provider}:${createHash('sha256').update(fake).digest('hex')}`, Date.now(), () => randomInt(2 ** 32) / 2 ** 32), proof.provider === 'google' ? 'staff-tester@action.or.kr' : 'kakao-tester@example.com')
               : { status: 401, body: { error: 'login-failed' } })
             : handle(store, req.method ?? 'GET', path, body, Date.now());
           res.statusCode = result.status;

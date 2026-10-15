@@ -17,7 +17,7 @@
 
   ponytail: 요청마다 탭 전체를 읽는다 — 응답이 수천 건을 넘어 느려지면 진짜 서버(README 정할 것 10)로 옮긴다.
 */
-import { handle, login, type Store, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
+import { handle, login, isAdmin, type Store, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
 import { TYPES } from '../game/content';
 
 /** 쓰는 곳(set)을 기억하는 Map — 시트에는 이것만 다시 쓴다. */
@@ -153,7 +153,14 @@ export type Deps = {
 const json = (text: string): any => { try { return JSON.parse(text); } catch { return undefined; } };
 
 /** 카카오·구글이 「이 사람 맞다」 고 하면 그 회원번호(subject). 아니면 undefined. */
-export function verifyLogin(input: Record<string, unknown>, deps: Deps, now: number): { provider: 'kakao' | 'google'; subject: string } | undefined {
+/**
+ * 카카오·구글이 확인해 준 이메일만 — 로그인 직후 「소식 받기」 칸을 채우는 데만 쓰고 시트엔 안 남긴다
+ * (동의하면 /contact 가 따로 받는다, 사용자 10-15 「이메일 정도는 받을 수 있잖아」).
+ */
+const verifiedEmail = (email: unknown, verified: unknown) =>
+  (verified === true || verified === 'true') && typeof email === 'string' && email.length <= 254 && email.includes('@') ? { email: email.toLowerCase() } : {};
+
+export function verifyLogin(input: Record<string, unknown>, deps: Deps, now: number): { provider: 'kakao' | 'google'; subject: string; email?: string } | undefined {
   const allowed = (deps.prop('LOGIN_REDIRECTS') ?? '').split(',').map(s => s.trim()).filter(Boolean);
   if (typeof input.redirectUri !== 'string' || !allowed.includes(input.redirectUri)) return undefined;
   if (input.provider === 'kakao' && typeof input.code === 'string' && input.code.length < 512) {
@@ -165,8 +172,10 @@ export function verifyLogin(input: Record<string, unknown>, deps: Deps, now: num
     const access = token.status === 200 ? json(token.text)?.access_token : undefined;
     if (typeof access !== 'string') return undefined;
     const me = deps.fetch('https://kapi.kakao.com/v2/user/me', { headers: { Authorization: `Bearer ${access}` } });
-    const id = me.status === 200 ? json(me.text)?.id : undefined;
-    return typeof id === 'number' || typeof id === 'string' ? { provider: 'kakao', subject: String(id) } : undefined;
+    const user = me.status === 200 ? json(me.text) : undefined, id = user?.id, account = user?.kakao_account;
+    // 이메일은 카카오 「동의 항목」 에 카카오계정(이메일)을 켰을 때만 온다 — 안 켜면 회원번호만.
+    return typeof id === 'number' || typeof id === 'string'
+      ? { provider: 'kakao', subject: String(id), ...verifiedEmail(account?.email, account?.is_email_valid && account?.is_email_verified) } : undefined;
   }
   if (input.provider === 'google' && typeof input.idToken === 'string' && input.idToken.length < 4096) {
     const client = deps.prop('GOOGLE_CLIENT_ID');
@@ -175,7 +184,7 @@ export function verifyLogin(input: Record<string, unknown>, deps: Deps, now: num
     const t = info.status === 200 ? json(info.text) : undefined;
     const ok = t && t.aud === client && ['accounts.google.com', 'https://accounts.google.com'].includes(t.iss) && Number(t.exp) * 1000 > now
       && typeof t.sub === 'string' && typeof input.nonce === 'string' && t.nonce === input.nonce;
-    return ok ? { provider: 'google', subject: t.sub } : undefined;
+    return ok ? { provider: 'google', subject: t.sub, ...verifiedEmail(t.email, t.email_verified) } : undefined;
   }
   return undefined;
 }
@@ -207,6 +216,8 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
     const who = deps ? verifyLogin((body ?? {}) as Record<string, unknown>, deps, now) : undefined;
     const account = who && deps ? accountOf(who, deps) : undefined;
     result = account ? login(store, account, now, deps!.random) : { status: 401, body: { error: 'login-failed' } };
+    // 이메일은 돌려주기만(저장 안 함). 관리자인지도 여기서 가린다 — 단체 주소 또는 ADMIN_EMAILS(속성·Secret.js).
+    if (who?.email && result.status === 200) result = { ...result, body: { ...result.body, email: who.email, ...(isAdmin(who.email, deps!.prop('ADMIN_EMAILS') ?? '') ? { admin: true } : {}) } };
   } else result = handle(store, method, path, body, now);
   if (method === 'POST' && result.status < 400) {
     for (const name of ['finished', 'homes', 'books', 'residents'] as const) writeKV(sheets[name], store[name] as Tracked<unknown>, now);

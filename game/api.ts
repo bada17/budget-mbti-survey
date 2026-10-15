@@ -73,6 +73,18 @@ const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
 const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
 export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], residents: new Map(), notes: new Map(), cards: new Map() });
+/**
+ * 관리자 — 로그인으로 확인된 이메일이 단체 주소(@action.or.kr)이거나 따로 적은 메일(extra, 쉼표로)이면(사용자 10-15 「@action.or.kr 메일은 다 관리자로 하고 내 개인 계정도」).
+ * 따로 적는 메일은 공개 저장소에 두지 않는다 — 앱스 스크립트 속성 또는 깃 무시 Secret.js 의 ADMIN_EMAILS.
+ * ⚠️ 지금 관리자가 하는 일은 화면 쪽뿐이다. 서버가 들어줄 관리자 일(쪽지 숨기기·카드 올리기 같은)을 만들면 그때 서버가 다시 확인해야 한다.
+ */
+export const ADMIN_DOMAIN = 'action.or.kr';
+export function isAdmin(email: string | undefined, extra = '') {
+  if (!email) return false;
+  const e = email.trim().toLowerCase();
+  return e.endsWith(`@${ADMIN_DOMAIN}`) || extra.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).includes(e);
+}
+
 const ACCOUNT = /^(kakao|google):[0-9a-f]{64}$/;
 const LOGIN_KEY = /^[A-Za-z0-9]{32}$/;
 

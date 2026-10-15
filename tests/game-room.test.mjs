@@ -1,7 +1,7 @@
 // 방 배치·걷기 규칙(game/room.ts)과 진행 신호(game/events.ts). 그림 없이 돈다.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { layoutRoom, step, passedDoor, nearest, alongTrail, rollBall } from '../game/room.ts';
+import { layoutRoom, step, passedDoor, nearest, alongTrail, rollBall, roomFence } from '../game/room.ts';
 import { createEvents } from '../game/events.ts';
 import { FEEL } from '../game/feel.ts';
 
@@ -88,14 +88,14 @@ test('신호: 연출 하나가 깨져도 다른 구독은 계속 받는다', () 
 test('공: 발에 닿으면 반대쪽으로 차이고, 방 밖으로 안 나가고, 결국 선다', () => {
   const room = layoutRoom(360, 640);
   const ball = { at: { x: 100, y: room.floor - 40 }, v: { x: 0, y: 0 } };
-  assert.equal(rollBall(ball, { x: 90, y: ball.at.y }, 16, room), true, '닿으면 찬다');
+  assert.equal(rollBall(ball, { x: 90, y: ball.at.y }, 16, roomFence(room)), true, '닿으면 찬다');
   assert.ok(ball.v.x > 0, '발 반대쪽(오른쪽)으로');
-  assert.equal(rollBall(ball, { x: 90, y: ball.at.y }, 16, room), false, '멀어지는 공은 또 차지 않는다');
+  assert.equal(rollBall(ball, { x: 90, y: ball.at.y }, 16, roomFence(room)), false, '멀어지는 공은 또 차지 않는다');
   // 벽 쪽으로 세게 차도 방 안에 남고, 몇 초 뒤엔 멈춘다.
   const wall = { at: { x: room.w - 30, y: room.wallY + 30 }, v: { x: 0, y: 0 } };
-  rollBall(wall, { x: room.w - 40, y: room.wallY + 40 }, 16, room);
+  rollBall(wall, { x: room.w - 40, y: room.wallY + 40 }, 16, roomFence(room));
   for (let i = 0; i < 400; i++) {
-    rollBall(wall, { x: -999, y: -999 }, 16, room);
+    rollBall(wall, { x: -999, y: -999 }, 16, roomFence(room));
     assert.ok(wall.at.x >= 16 && wall.at.x <= room.w - 16 && wall.at.y >= room.wallY && wall.at.y <= room.floor, `방 안 (${i})`);
   }
   assert.deepEqual(wall.v, { x: 0, y: 0 }, '멈춘다');

@@ -81,8 +81,10 @@ export function nearest(p: Point, room: Room, radius: number, sides: ('left' | '
 
 export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** 공 — 발에 닿으면 발 반대쪽으로 차이고, 방 가장자리에 튕기고, 점점 선다. 찼으면 true. */
-export function rollBall(ball: { at: Point; v: Point }, foot: Point, dtMs: number, room: Room) {
+/** 공이 구르는 울타리 — 방은 벽 아래 바닥 전체. */
+export const roomFence = (room: Room) => ({ x0: EDGE, x1: room.w - EDGE, y0: room.wallY + WALL_GAP, y1: room.floor });
+/** 공 — 발에 닿으면 발 반대쪽으로 차이고, 울타리(방 바닥·마을 운동장)에 튕기고, 점점 선다. 찼으면 true. */
+export function rollBall(ball: { at: Point; v: Point }, foot: Point, dtMs: number, fence: { x0: number; x1: number; y0: number; y1: number }) {
   const dt = Math.min(dtMs, FEEL.maxDeltaMs) / 1000;
   const d = distance(foot, ball.at);
   let kicked = false;
@@ -92,7 +94,7 @@ export function rollBall(ball: { at: Point; v: Point }, foot: Point, dtMs: numbe
     if (ball.v.x * nx + ball.v.y * ny < FEEL.kickSpeed / 2) { ball.v = { x: nx * FEEL.kickSpeed, y: ny * FEEL.kickSpeed }; kicked = true; }
   }
   ball.at.x += ball.v.x * dt; ball.at.y += ball.v.y * dt;
-  const box = { x: [EDGE, room.w - EDGE], y: [room.wallY + WALL_GAP, room.floor] } as const;
+  const box = { x: [fence.x0, fence.x1], y: [fence.y0, fence.y1] } as const;
   for (const axis of ['x', 'y'] as const) {
     const [lo, hi] = box[axis];
     if (ball.at[axis] < lo || ball.at[axis] > hi) { ball.at[axis] = Math.min(hi, Math.max(lo, ball.at[axis])); ball.v[axis] *= -FEEL.ballBounce; }

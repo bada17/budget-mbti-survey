@@ -5,7 +5,7 @@ import { encodeInvite, decodeInvite, neighborParam, readNeighborParam, TOWN_IDS,
 import { createStore, handle, BOOK_MAX } from '../game/api.ts';
 import { serve } from '../server/gas.ts';
 import { seasonAt, nextSeason, seasonById, letterFor } from '../game/seasons.ts';
-import { board, eventStamp, seasonStamp, STAMPS } from '../game/stamps.ts';
+import { board, eventStamp, seasonStamp, STAMPS, ISSUE_AT } from '../game/stamps.ts';
 import { orderedQuestions } from '../game/response.ts';
 import { CONTENT_VERSION } from '../game/content.ts';
 import { CONSENT_VERSION } from '../game/contact.ts';
@@ -58,12 +58,15 @@ test('예산철: 9월·12월(한국 날짜)만 철이고, 다음 철과 편지�
   assert.ok(!/전달|반영|제출|모아서/.test(letter.lines.join(' ')));
 });
 
-test('도장판: 열 칸, 철·현장 도장은 한 칸에 모여 세고, 목록에 없는 현장 코드는 안 찍힌다', () => {
-  assert.equal(STAMPS.length, 10);
-  assert.equal(new Set(STAMPS.map(s => s.id)).size, 10);
+test('도장판: 일곱 칸, 철·현장 도장은 한 칸에 모여 세고, 목록에 없는 현장 코드는 안 찍힌다', () => {
+  assert.equal(STAMPS.length, 7, '10-15 「6~7개만」');
+  assert.equal(new Set(STAMPS.map(s => s.id)).size, 7);
+  // 주민증 발급 — 혼자 한 번에 받을 수 있는 도장만으로 발급까지 닿는다(철·현장·손님은 혼자 못 받는다)
+  const solo = STAMPS.filter(s => !['season', 'event', 'guest'].includes(s.id));
+  assert.ok(solo.length >= ISSUE_AT && ISSUE_AT <= STAMPS.length);
+  assert.equal(board(Object.fromEntries(solo.map(s => [s.id, 1]))).filter(c => c.on).length >= ISSUE_AT, true);
   const cells = board({ walk: 1, [seasonStamp('2026-dec')]: 2, [seasonStamp('2027-sep')]: 3, 'event:pub-2026': 4 });
   assert.deepEqual(cells.filter(c => c.on).map(c => [c.id, c.count]), [['walk', 1], ['season', 2], ['event', 1]]);
-  assert.equal(cells.find(c => c.id === 'member').on, false);
   assert.equal(eventStamp('pub-2026'), 'event:pub-2026');
   assert.equal(eventStamp('toString'), undefined);
   assert.equal(eventStamp(null), undefined);

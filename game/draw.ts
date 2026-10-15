@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { FEEL } from './feel';
 import { ROUTE } from './content';
 import type { Point, Room } from './room';
-import { PLACES, PLAZA, FOUNTAIN, POND, ROADS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId, type WorksState } from './village';
+import { PLACES, PLAZA, FOUNTAIN, POND, PITCH, GOAL, ROADS, WORKS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId, type WorksState, type WorkId } from './village';
 
 type Scene = Phaser.Scene;
 type Container = Phaser.GameObjects.Container;
@@ -15,7 +15,7 @@ type Container = Phaser.GameObjects.Container;
 import { rng, lookFrom as seedLook, hairColor, type Look } from './look';
 import { sfx } from './sfx';
 import type { Outcome } from './outcomes';
-import { streamOf, keyOf, catOf, goalOf, type TwistKind } from './twists';
+import { streamOf, catOf, type TwistKind } from './twists';
 export { lookFrom, toLook, type Look } from './look';
 
 /**
@@ -304,11 +304,11 @@ export function tapRing(scene: Scene, x: number, y: number) {
   const ring = scene.add.circle(x, y, 9).setStrokeStyle(2, 0xffffff, 0.9).setDepth(8000);
   scene.tweens.add({ targets: ring, scale: 2, alpha: 0, duration: 420, onComplete: () => ring.destroy() });
 }
-export function confetti(scene: Scene, w: number, top: number, reduced: boolean) {
+export function confetti(scene: Scene, w: number, top: number, reduced: boolean, left = 0) {
   if (reduced) return;
   const colors = [0xff6b57, 0xffc74d, 0x6ad1a3, 0x6aa6d9, 0xd98cb3];
   for (let i = 0; i < 60; i++) {
-    const piece = scene.add.rectangle(Math.random() * w, top - 20 - Math.random() * 80, 6, 9, colors[i % colors.length]).setDepth(9500);
+    const piece = scene.add.rectangle(left + Math.random() * w, top - 20 - Math.random() * 80, 6, 9, colors[i % colors.length]).setDepth(9500);
     scene.tweens.add({
       targets: piece, y: piece.y + 260 + Math.random() * 260, x: piece.x + (Math.random() - 0.5) * 80,
       angle: Math.random() * 720 - 360, alpha: { from: 1, to: 0 }, duration: 1600 + Math.random() * 900, ease: 'Sine.easeIn',
@@ -348,6 +348,25 @@ export function ball(scene: Scene, x: number, y: number): Ball {
   const spin = s.container(0, -9, [s.circle(0, 0, 9, 0xfffdf2).setStrokeStyle(1, 0x807e8c), s.circle(0, 0, 3, 0x596579), ...dots, s.ellipse(-3, -4, 4, 2, 0xffffff, 0.7)]);
   const root = s.container(x, y, [s.ellipse(0, 0, 18, 5, 0x2d3a2e, 0.18), spin]);
   return { root, spin, at: { x, y }, v: { x: 0, y: 0 } };
+}
+
+/**
+ * 주민증 사진 — 내 모습(Dude) 얼굴·어깨만 한 장 그림으로(사용자 10-15 「주민증엔 자기 캐릭터 얼굴이 들어가야지」). size 는 그림 화소(정사각).
+ * 화면 어디에도 안 보이게 그림 판(DynamicTexture)에만 그리고 바로 치운다.
+ */
+export function facePhoto(scene: Scene, look: Look, size: number): Promise<string | undefined> {
+  return new Promise(resolve => {
+    const key = 'face-photo';
+    if (scene.textures.exists(key)) scene.textures.remove(key);
+    const tex = scene.textures.addDynamicTexture(key, size, size);
+    if (!tex) { resolve(undefined); return; }
+    const dude = new Dude(scene, look, 0, 0), k = size / 50; // 머리 위 끝에서 어깨까지 50px 쯤이 한 장에
+    dude.root.setScale(k).setPosition(size / 2, size / 2 + 34 * k); // 얼굴(발에서 41px 위) 조금 아래가 가운데
+    tex.draw(dude.root);
+    tex.render();
+    dude.root.destroy();
+    tex.snapshot(img => { resolve((img as HTMLImageElement).src); scene.textures.remove(key); });
+  });
 }
 
 /** 고양이 — 앉아서 꼬리를 살랑. 털색은 방마다 다르다. */
@@ -424,8 +443,32 @@ function worksArt(scene: Scene, dpr: number) {
     for (const x of [-half, half]) g.fillStyle(0x8a5e40).fillRoundedRect(x - 3, -22, 6, 26, 2);
     bridge.add(g);
   }
+  const name = (id: WorkId) => WORKS.find(w => w.id === id)!.name;
   return {
     objs: [root, bridge],
+    /** 다 지은 것이 서는 자리 — 장면이 카메라를 여기로 옮긴다. */
+    builtAt: (id: WorkId): Point => (id === 'bridge' ? { x: bridge.x, y: bridge.y } : { x: site.x + site.w / 2, y: site.y + site.h - 40 }),
+    /**
+     * 공사가 막 끝났다 — 그 자리에서 뚝딱 서는 연출(사용자 10-15 「다리가 만들어지면 그곳에 시점이 갔다가 돌아오게, 만드는 연출도」).
+     * 망치질 먼지 셋 → 다리는 이쪽 끝에서 건너편으로 뻗고(정자는 위에서 내려앉고) → 반짝·색종이·「○○ 완성!」. 2.4초쯤. set 으로 다 지은 모습을 먼저 그려 둔 뒤 부른다.
+     */
+    built(id: WorkId, dpr: number) {
+      const at = id === 'bridge' ? { x: bridge.x, y: bridge.y } : { x: site.x + site.w / 2, y: site.y + site.h - 40 };
+      [0, 220, 440].forEach((ms, i) => scene.time.delayedCall(ms, () => { puff(scene, at.x + (i - 1) * 46, at.y + 14, false); sfx.build(); }));
+      if (id === 'bridge') {
+        bridge.setScale(0.03, 1);
+        scene.tweens.add({ targets: bridge, scaleX: 1, duration: 1000, delay: 520, ease: 'Cubic.easeOut' });
+      } else {
+        root.setAlpha(0).setY(site.y - 70);
+        scene.tweens.add({ targets: root, y: site.y, alpha: 1, duration: 760, delay: 520, ease: 'Bounce.easeOut' });
+      }
+      scene.time.delayedCall(1560, () => {
+        sfx.fanfare(); sparkle(scene, at.x, at.y - 20, false); confetti(scene, 260, at.y - 60, false, at.x - 130);
+        const title = label(scene, at.x, at.y - 46, `${name(id)} 완성!`, 16, dpr, '#b8573f').setDepth(9600).setScale(0);
+        scene.tweens.add({ targets: title, scale: 1, duration: 380, ease: 'Back.easeOut' });
+        scene.tweens.add({ targets: title, y: title.y - 18, alpha: 0, duration: 500, delay: 1300, onComplete: () => title.destroy() });
+      });
+    },
     set(state: WorksState) {
       root.removeAll(true);
       bridge.setVisible(state.done.includes('bridge'));
@@ -947,8 +990,19 @@ export function drawPortal(scene: Scene, x: number, base: number, reduced: boole
 // 배치(어디에 무엇이)는 village.ts 가 정한다 — 여기서 자리를 옮기면 부딪힘과 어긋난다.
 
 const FONT = '"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif'; // 화면 글과 같은 둥근 글꼴(main 이 장면 전에 불러 둔다)
+/**
+ * 캔버스(간판·공사판·완성 글자)에 쓰는 글자 전부 — main 이 장면을 띄우기 전에 이 글자들이 든 주아 조각을 다 받아 둔다.
+ * 주아는 글자 묶음(조각)마다 따로 받는데 간판은 한 번 구워 두므로, 안 받은 조각의 글자만 기본 글꼴로 굳었다
+ * (10-15 「상담소·독상 간판 한 글자가 볼드 처리가 안 된 듯」 — 「시민참여」 의 「참」. 전엔 「마을」 두 글자의 조각만 받았다).
+ * 간판에 새 글자를 쓰면 여기에도 넣는다 — 개발판은 빠진 글자를 콘솔에 알린다(label).
+ */
+export const CANVAS_TEXT = [...PLACES.map(p => p.name + (p.keeper ?? '')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! ? 0123456789·/'].join('');
+/** 사람 이름표 — 발밑에 작게, 밝은 테두리를 둘러 바닥 위에서도 읽히게(문 앞을 맡은 시민행동 사람, 10-15). */
+export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: number) =>
+  label(scene, x, y, text, 11, dpr, '#5b402e').setStroke('#fffaf0', 4).setDepth(y + 2);
 /** 글씨 — 카메라가 기기 화소만큼 키우므로 글자 그림도 그만큼 촘촘하게 만든다. */
 function label(scene: Scene, x: number, y: number, text: string, size: number, dpr: number, color = '#51423e') {
+  if (import.meta.env?.DEV) for (const ch of text) if (ch.trim() && !CANVAS_TEXT.includes(ch)) console.warn(`간판 글자 「${ch}」 가 CANVAS_TEXT 에 없다 — 주아 조각을 미리 안 받아 기본 글꼴로 굳을 수 있다`);
   return scene.add.text(x, y, text, { fontFamily: FONT, fontSize: `${size}px`, color, resolution: dpr }).setOrigin(0.5);
 }
 
@@ -1107,6 +1161,8 @@ export type VillageArt = {
   /** 가로등 불 자리 — 밤에 장면이 빛을 켠다. */
   lamps: Point[];
   setWorks: (state: WorksState) => void;
+  builtAt: (id: WorkId) => Point;
+  built: (id: WorkId, dpr: number) => void;
   cull: (view: { x: number; y: number; width: number; height: number }) => void; destroy: () => void;
 };
 type Bounds = { x0: number; y0: number; x1: number; y1: number };
@@ -1172,10 +1228,19 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
     for (const [px, py] of [[0.3, 0.35], [0.62, 0.6], [0.45, 0.72]]) g.fillStyle(0x8cc07a).fillCircle(POND.x + POND.w * px, POND.y + POND.h * py, 7).fillStyle(0xf7c6cf).fillCircle(POND.x + POND.w * px + 3, POND.y + POND.h * py - 2, 2.5);
     for (let i = 0; i < 4; i++) g.lineStyle(2, 0xffffff, 0.45).lineBetween(POND.x + 30 + i * 28, POND.y + 30 + (i % 2) * 22, POND.x + 44 + i * 28, POND.y + 30 + (i % 2) * 22);
   });
-  // 꽃 — 길 위는 비운다
+  // 작은 운동장(village.ts PITCH) — 줄무늬 잔디와 흰 선. 골대는 서 있는 것이라 아래에 따로, 공은 장면이 세운다.
+  paint(PITCH.y, PITCH.y + PITCH.h, g => {
+    const { x, y, w, h } = PITCH;
+    g.fillStyle(0xa9cf86).fillRoundedRect(x, y, w, h, 16);
+    for (let i = 0; 12 + (i + 1) * 26 < w - 12; i += 2) g.fillStyle(0xb7d995).fillRect(x + 12 + i * 26, y + 8, 26, h - 16);
+    g.lineStyle(2.5, 0xffffff, 0.85).strokeRoundedRect(x + 10, y + 8, w - 20, h - 16, 8);
+    g.lineBetween(x + w / 2, y + 8, x + w / 2, y + h - 8).strokeCircle(x + w / 2, y + h / 2, 22);
+  });
+  // 꽃 — 길·운동장 위는 비운다
+  const onPitch = (x: number, y: number, m: number) => x > PITCH.x - m && x < PITCH.x + PITCH.w + m && y > PITCH.y - m && y < PITCH.y + PITCH.h + m;
   for (let i = 0; i < 90; i++) {
     const fx = r() * W, fy = 130 + r() * (H - 160);
-    if (ROADS.some(b => fx > b.x - 6 && fx < b.x + b.w + 6 && fy > b.y - 6 && fy < b.y + b.h + 6)) continue;
+    if (ROADS.some(b => fx > b.x - 6 && fx < b.x + b.w + 6 && fy > b.y - 6 && fy < b.y + b.h + 6) || onPitch(fx, fy, 6)) continue;
     paint(fy - 6, fy + 6, g => {
       g.fillStyle([0xfff8e4, 0xf7d391, 0xeeb1b8, 0xc9b6e8][i % 4]);
       for (let p = 0; p < 5; p++) g.fillCircle(fx + Math.cos(p * Math.PI * 0.4) * 2.4, fy + Math.sin(p * Math.PI * 0.4) * 2.4, 2);
@@ -1225,12 +1290,26 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
   for (let ty = 150; ty < H - 10; ty += 64) for (let tx = 24; tx < W; tx += 64) {
     const at = { x: tx + (r() - 0.5) * 30, y: ty + (r() - 0.5) * 24 };
     if (r() < 0.45) continue;
-    if (ROADS.some(b => near(at, b, 18)) || PLACES.some(p => near(at, p.box, 34)) || near(at, POND, 20)) continue;
+    if (ROADS.some(b => near(at, b, 18)) || PLACES.some(p => near(at, p.box, 34)) || near(at, POND, 20) || onPitch(at.x, at.y, 26)) continue;
     if (((at.x - PLAZA.x) / (PLAZA.r * 1.25)) ** 2 + ((at.y - PLAZA.y) / (PLAZA.r * 1.05)) ** 2 < 1) continue;
     const color = look.trees[Math.floor(r() * 4)];
     const b = { x0: at.x + TREE.x0, x1: at.x + TREE.x1, y0: at.y + TREE.y0, y1: at.y + TREE.y1 };
     trees.push({ at, img: keep(bake(scene, `village-tree-${color}`, () => tree(scene, 0, 0, color, season === 'winter'), TREE, sharp, { x: b.x0, y: b.y0 }).setDepth(at.y), b) });
   }
+  // 골대 — 오른쪽 끝, 왼쪽으로 열린 그물(기둥·가로대·그물 눈). 간판 「작은 운동장」.
+  const goalBox = { x0: GOAL.x - 8, x1: GOAL.x + GOAL.w + 10, y0: GOAL.y - 34, y1: GOAL.y + GOAL.h + 10 };
+  keep(bake(scene, 'village-goal', () => {
+    const n = scene.add.graphics(), { x, y, w, h } = GOAL, up = 24;
+    n.fillStyle(0x756956, 0.14).fillEllipse(x + w / 2, y + h + 3, w + 18, 10);
+    n.fillStyle(0xffffff, 0.22).fillRect(x, y - up, w, h + up);
+    n.lineStyle(1, 0xffffff, 0.75);
+    for (let gx = x + 7; gx < x + w; gx += 7) n.lineBetween(gx, y - up, gx, y + h);
+    for (let gy = y - up + 7; gy < y + h; gy += 7) n.lineBetween(x, gy, x + w, gy);
+    n.lineStyle(4, 0xfffaf0).lineBetween(x, y - up, x, y + h).lineBetween(x, y - up, x + w, y - up + 6).lineBetween(x + w, y - up + 6, x + w, y + h);
+    return n;
+  }, goalBox, sharp).setDepth(GOAL.y + GOAL.h), goalBox);
+  const sb = { x0: PITCH.x, x1: PITCH.x + 120, y0: PITCH.y - 26, y1: PITCH.y + 4 };
+  keep(bake(scene, 'village-pitch-sign', () => label(scene, PITCH.x + 60, PITCH.y - 10, '작은 운동장', 11, dpr), sb, sharp).setDepth(PITCH.y), sb);
   // 광장 벤치·가로등 — 하나씩 굽고 여러 번
   const BENCH = { x0: -24, x1: 24, y0: -22, y1: 4 }, LAMP = { x0: -12, x1: 12, y0: -66, y1: 4 };
   for (const [bx, by] of [[PLAZA.x - 118, PLAZA.y + 70], [PLAZA.x + 118, PLAZA.y + 70]]) {
@@ -1252,7 +1331,7 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
   return {
     pigeons, cats, trees,
     lamps: LAMPS.map(([x, y]) => ({ x, y: y - 54 })),
-    setWorks: works.set,
+    setWorks: works.set, builtAt: works.builtAt, built: works.built,
     cull(view) {
       const x0 = view.x - MARGIN, x1 = view.x + view.width + MARGIN, y0 = view.y - MARGIN, y1 = view.y + view.height + MARGIN;
       for (const { obj, b } of culled) obj.setVisible(b.x1 > x0 && b.x0 < x1 && b.y1 > y0 && b.y0 < y1);
@@ -1392,10 +1471,9 @@ export function playOutcome(scene: Scene, o: Outcome, at: { spot: Point; room: R
 // ───────────────────────── 방마다 다른 길(twists.ts) ─────────────────────────
 export type TwistArt = {
   objs: Phaser.GameObjects.GameObject[];
-  /** 열쇠(주우면 치운다) */ key?: Phaser.GameObjects.Text;
   /** 졸린 고양이(깨면 옆으로 비켜 걷는다) */ cat?: Cat; zz?: Phaser.GameObjects.Text;
 };
-/** 놀이 그림 — 개울(물·물결·징검돌), 덤불 옆 열쇠(가끔 반짝), 문 앞 졸린 고양이(Zz), 구석 골대. 깊이는 바닥 위·사람 아래. */
+/** 놀이 그림 — 개울(물·물결·징검돌), 문 앞 졸린 고양이(Zz). 깊이는 바닥 위·사람 아래. 골대는 마을 작은 운동장으로 옮겼다(drawVillage). */
 export function drawTwist(scene: Scene, kind: TwistKind, room: Room, dpr: number, reduced: boolean): TwistArt {
   const objs: Phaser.GameObjects.GameObject[] = [];
   const text = (x: number, y: number, t: string, size: number) => scene.add.text(x, y, t, { fontSize: `${size}px`, resolution: dpr, padding: { x: 4, y: 4 } }).setOrigin(0.5, 1);
@@ -1416,15 +1494,7 @@ export function drawTwist(scene: Scene, kind: TwistKind, room: Room, dpr: number
     }
     return { objs };
   }
-  if (kind === 'key') {
-    const at = keyOf(room);
-    const bush = text(at.x - 12, at.y + 6, '🌿', 30).setDepth(at.y + 2);
-    const key = text(at.x + 8, at.y + 2, '🗝️', 22).setDepth(at.y + 1);
-    objs.push(bush, key);
-    if (!reduced) scene.time.addEvent({ delay: 1600, loop: true, callback: () => { if (key.active && key.visible) sparkle(scene, key.x, key.y - 12, false); } });
-    return { objs, key };
-  }
-  if (kind === 'cat') {
+  {
     const at = catOf(room), kitty = cat(scene, at.x, at.y, 0xc9a27e);
     kitty.root.setDepth(at.y).setScale(1.25);
     const zz = text(at.x + 16, at.y - 26, 'Zz', 15).setColor('#7a6655').setDepth(at.y + 1);
@@ -1432,13 +1502,4 @@ export function drawTwist(scene: Scene, kind: TwistKind, room: Room, dpr: number
     objs.push(kitty.root, zz);
     return { objs, cat: kitty, zz };
   }
-  // goal — 구석 골대(그물 무늬)
-  const g = goalOf(room), net = scene.add.graphics().setDepth(g.y);
-  net.fillStyle(0x756956, 0.14).fillEllipse(g.x + g.w / 2, g.y + g.h, g.w + 14, 10);
-  net.lineStyle(1, 0xffffff, 0.75);
-  for (let x = g.x + 6; x < g.x + g.w; x += 8) net.lineBetween(x, g.y + 4, x, g.y + g.h);
-  for (let y = g.y + 8; y < g.y + g.h; y += 8) net.lineBetween(g.x, y, g.x + g.w, y);
-  net.lineStyle(4, 0xfffaf0).strokeRoundedRect(g.x, g.y, g.w, g.h, { tl: 6, tr: 6, bl: 0, br: 0 });
-  objs.push(net, text(g.x + g.w / 2, g.y - 2, '🥅', 18).setDepth(g.y).setAlpha(0));
-  return { objs };
 }

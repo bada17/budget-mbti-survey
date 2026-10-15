@@ -15,10 +15,10 @@ import './town.css';
 import { ROUTE, TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, type TypeCode } from './content';
 import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, loadRegion, saveRegion, type Town, type Neighbor, type Region, type Friend } from './profile';
 import { toLook, lookFrom, hairColor, type Look, type Pick } from './look';
-import { board } from './stamps';
+import { board, ISSUE_AT, ISSUED } from './stamps';
 import { letterFor, type Season } from './seasons';
-import { DONATE_URL, backCloses, ICONS } from './ui';
-import { PRIVACY_URL } from './contact';
+import { DONATE_URL, backCloses, ICONS, contactForm } from './ui';
+import { PRIVACY_URL, type ContactForm } from './contact';
 import { PROVIDER_NAME, type Provider } from './login';
 import type { RegionView, Visit } from './api';
 import { VILLAGE_NAME } from './village';
@@ -39,7 +39,7 @@ export type HubData = {
   login?: LoginOpts;
 };
 /** start 가 false 면 아직 못 간다(키를 넣기 전) — 판이 「준비 중」 이라 알린다. */
-export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; start(provider: Provider): boolean; logout(): void; forget(): Promise<boolean> };
+export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider): boolean; logout(): void; forget(): Promise<boolean> };
 
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));
 export const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
@@ -52,7 +52,7 @@ export const btn = (className: string, text: string, onClick: () => void) => {
   const b = el('button', className, text); b.type = 'button'; b.onclick = onClick; return b;
 };
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
-const today = () => { const d = new Date(); return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`; };
+const today = (at = Date.now()) => { const d = new Date(at); return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`; };
 const nim = (name: string) => (name ? `${name}님` : '이름 없는 주민');
 
 /** 작은 사람 — 판 안 목록·지역 동네·편지에 쓴다(게임 그림 draw.ts 의 Dude 를 HTML 로 줄인 것). */
@@ -146,10 +146,16 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     if (s.count > 1) mark.append(el('sup', '', `×${s.count}`));
     grid.append(mark);
   }
-  const got = stamps.filter(s => s.on).length;
-  card.append(el('div', 't-card-top', '시민의 숲 주민증'), body, grid, el('p', 't-issued', `도장 ${got}/${stamps.length} · ${today()} 발급 · 함께하는 시민행동`));
+  // 발급 — 도장 ISSUE_AT 개부터(사용자 10-15 「도장 찍어야 주민증이 발급되게」). 처음 발급된 날을 적어 두고 그날을 찍는다. 그 전엔 「발급 전」 도장과 남은 수.
+  const got = stamps.filter(s => s.on).length, issued = got >= ISSUE_AT;
+  if (issued) addStamp(ISSUED);
+  const issuedAt = loadStamps()[ISSUED];
+  card.classList.toggle('pending', !issued);
+  card.append(el('div', 't-card-top', '시민의 숲 주민증'), body, el('span', 't-seal', issued ? '발급' : '발급 전'), grid,
+    el('p', 't-issued', issued && issuedAt ? `도장 ${got}/${stamps.length} · ${today(issuedAt)} 발급 · 함께하는 시민행동` : `도장 ${got}/${stamps.length} · ${ISSUE_AT - got}개를 더 모으면 발급돼요`));
   const save = btn('g-primary', '주민증 저장·보내기', () => {});
-  const join = el('a', 'g-link t-join', '정주민 도장 — 시민행동 회원 되기 →');
+  save.hidden = !issued; // 발급 전 주민증은 보내지 않는다
+  const join = el('a', 'g-link t-join', '함께하는 시민행동 회원 되기 →');
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const mine = el('div'); mine.append(card, tip, save, join, status);
@@ -207,7 +213,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
 
 /**
  * 로그인 자리 — 안 했으면 「카카오로 지키기」 단추와 받는 것 안내, 했으면 「지키는 중」 과 끊기·지우기.
- * 안내는 실제로 받는 것 그대로(login.ts·server/gas.ts): 회원번호 하나(해시로 바꿔 둠) + 이 기기의 게임 기록.
+ * 안내는 실제로 받는 것 그대로(login.ts·server/gas.ts): 회원번호(해시로 바꿔 둠) + 이 기기의 게임 기록, 그리고 이메일(남기지 않고 로그인 직후 소식 받기 칸에만 — openNews).
  */
 function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그인') {
   const box = el('section', 't-login');
@@ -225,7 +231,7 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
           draw(); status.textContent = ok ? '서버 기록을 지웠어요.' : '지금은 지울 수 없어요. 조금 뒤에 다시 해 주세요.';
         }),
       );
-      box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 지키는 중이에요. 다른 폰·브라우저에서 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 이 주민증이 이어져요.`), links, status);
+      box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 지키는 중이에요${opts.admin() ? ' · 관리자 계정' : ''}. 다른 폰·브라우저에서 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 이 주민증이 이어져요.`), links, status);
       return;
     }
     if (verb !== '로그인') box.append(el('p', 't-login-title', verb === '지키기' ? '주민증 지키기' : '전에 해 봤다면'),
@@ -234,7 +240,7 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
       if (!opts.start(provider)) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
     }));
     const note = el('p', 't-small t-login-note',
-      `받는 건 ${opts.providers.map(p => PROVIDER_NAME[p]).join('·')} 회원번호 하나예요. 서버에는 알아볼 수 없게 바꿔서, 게임 기록(별명·모습·유형·도장·내 이웃·지역)과 함께 둬요. 이메일·이름·사진은 받지 않아요. `);
+      `받는 건 ${opts.providers.map(p => PROVIDER_NAME[p]).join('·')} 회원번호와 이메일이에요. 서버에는 회원번호만 알아볼 수 없게 바꿔서, 게임 기록(별명·모습·유형·도장·내 이웃·지역)과 함께 둬요. 이메일은 로그인 뒤 「소식 받기」에 동의할 때만 남기고, 이름·사진은 받지 않아요. `);
     const policy = el('a', '', '개인정보처리방침'); policy.href = PRIVACY_URL; policy.target = '_blank'; policy.rel = 'noopener';
     note.append(policy);
     box.append(status, note); // 알림(「곧 열려요」)은 단추 바로 밑에
@@ -260,6 +266,18 @@ export function openGateLogin(shell: HTMLElement, opts: LoginOpts, onClose: () =
     el('p', 't-lead', '로그인하면 내 주민증·도장·모은 동전이 다른 폰과 브라우저에서도 이어져요.'),
     loginBox(opts, '로그인'), btn('g-ghost', '로그인 없이 둘러보기', close),
     el('p', 't-small', '로그인하지 않아도 마을을 다 돌아볼 수 있어요. 기록은 이 기기에만 남아요.'));
+}
+
+/**
+ * 로그인 직후 한 번 — 카카오·구글이 확인해 준 이메일로 소식 받기(사용자 10-15 「이메일 정도는 받을 수 있잖아 — 준비해놔」).
+ * 그 주소는 이 칸을 채우는 데만 쓴다. 동의 칸은 내 이웃 판과 같은 것(contactForm) — 「소식 받기」 를 누르기 전엔 어디에도 안 남는다.
+ */
+export function openNews(shell: HTMLElement, provider: Provider, email: string, send: (form: ContactForm) => Promise<{ ok: boolean; text: string }>, onClose: () => void) {
+  const { panel, close } = panelShell(shell, onClose, '닫기');
+  panel.classList.add('t-gate');
+  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `${PROVIDER_NAME[provider]}로 주민증을 지켰어요`),
+    el('p', 't-lead', '이 이메일로 소식도 받아 볼래요? 안 받아도 기록은 그대로 이어져요.'),
+    contactForm(send, '이메일로 소식 받기', email).form, btn('g-ghost', '괜찮아요', close));
 }
 
 // ───────────────────────── 내 동네 고르기 — 지방정부 예산·우리 지역 수입·우리 동네가 같이 쓴다 ─────────────────────────

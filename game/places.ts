@@ -1,21 +1,29 @@
 /*
   마을 건물 안 판(기획 4차, 2026-10-14) — 버스 정류장·상담소·독상·나라살림 창고·쪽지판·시민행동 집. 주민센터는 town.ts 의 openTown.
   사용자(5ⓐ) 「주민이 한마디 하고, 그 사이트의 최신 것 하나를 보여 주고, 들어가기 링크」. 자료는 각 사이트가 이미 내놓은 것을 읽어 오기만 한다 —
-  상담소 첫 화면에 담긴 글 목록(#pb-post-data)·자주 묻는 문답, 독상 data/campaigns.json·awards.json, 지방재정은 구워 둔 data/local-finance.json.
+  상담소 첫 화면에 담긴 글 목록(#pb-post-data)·오간 질문, 독상 data/campaigns.json·awards.json, 지방재정은 구워 둔 data/local-finance.json.
+  상담소·독상은 사이트처럼 그 사본을 먼저 펴고, 두 사이트가 읽는 구글 시트 접수처의 최신 것이 오면 갈아 끼운다(사용자 10-15 「새 업데이트가 되어도 잘 연계되게」) —
+  그래서 시트에 새 글·새 사업을 올리면 그쪽 사이트를 다시 굽지 않아도 마을에 뜬다.
   못 불러오면 링크만 남는다 — 남의 사이트가 바뀌어도 마을은 멈추지 않게.
   쪽지판·쪽지 카드 — 사용자 「커뮤니티 기능보다는 혼자가 아니다는 느낌」: 답글 없이 한 줄, 「나도」·「신고」 만.
   모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
 import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, type FinancePlace } from './town';
 import { DONATE_URL, typeOut } from './ui';
-import { PLACES, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, COIN_DAY_MAX, WORKS, checkNote, worksAt, type PlaceId } from './village';
+import { PLACES, keeperName, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, COIN_DAY_MAX, WORKS, checkNote, worksAt, type PlaceId } from './village';
 import { SCENES, FLOWS, VAULTS, kindOf, splitTax, type Vault } from './taxes';
-import { toLook, lookFrom, nameFrom } from './look';
+import { toLook, lookFrom } from './look';
 import { josa, loadRegion, type Neighbor } from './profile';
 import type { PublicNote, VillageView, PublicCard, CardKind } from './api';
 
 const PB_URL = 'https://pb.action.or.kr/';
 const DOK_URL = 'https://dok.action.or.kr/';
+/**
+ * 두 사이트가 읽는 구글 시트 접수처(앱스 스크립트) — 상담소 pb.html 의 EP, 독상 index.html 의 DOK_SHEET_ENDPOINT 와 같은 주소.
+ * 그쪽이 접수처를 새로 배포해 주소가 바뀌면 여기도 바꾼다 — 안 바꿔도 멈추지 않고 사본(구워 둔 것)만 읽는다.
+ */
+const PB_SHEET = 'https://script.google.com/macros/s/AKfycbwq7mMwn0lgthl-aIj7UaDtR-yW1xSaF_ZBOK2Fj21DrEOIvakBXM9LzNiOYLCivwuZ/exec';
+const DOK_SHEET = 'https://script.google.com/macros/s/AKfycbxI7UMptIhxwMR7mPtqP72EDQ1z871zJNhBcJeaVBeP5KdIcDhCT4_3CpGSnxPMYgE8hg/exec';
 const FINANCE_URL = 'https://bada17.github.io/local-finance/';
 const HOME_URL = 'https://action.or.kr/';
 const UTM = 'utm_source=dongne-game&utm_medium=game&utm_campaign=village';
@@ -30,7 +38,7 @@ async function fetchText(url: string, ms = 8000) {
   const abort = new AbortController(), timer = setTimeout(() => abort.abort(), ms);
   try { const r = await fetch(url, { signal: abort.signal }); return r.ok ? await r.text() : undefined; } catch { return undefined; } finally { clearTimeout(timer); }
 }
-const fetchJson = async <T>(url: string) => { const text = await fetchText(url); try { return text ? JSON.parse(text) as T : undefined; } catch { return undefined; } };
+const fetchJson = async <T>(url: string, ms?: number) => { const text = await fetchText(url, ms); try { return text ? JSON.parse(text) as T : undefined; } catch { return undefined; } };
 
 /** 건물마다 같은 머리 — 이름, 문 앞 주민(마을 장면의 그 주민과 같은 생김새)이 말 상자로 한마디(이름표 + 한 자씩). */
 /**
@@ -44,7 +52,7 @@ function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void) {
   const { panel, close } = panelShell(shell, onClose, '마을로');
   const ask = questHook.line(id), line = ask ?? place.line;
   const npc = el('div', ask ? 'v-npc v-ask' : 'v-npc'), said = el('p', 'v-said');
-  npc.append(avatar(lookFrom(`npc:${id}`)), el('span', 'g-name', nameFrom(`npc:${id}`)), said);
+  npc.append(avatar(lookFrom(`npc:${id}`)), el('span', 'g-name', keeperName(id)), said);
   npc.onclick = () => typeOut(said, line); // 다시 누르면 한 번 더 말한다
   panel.append(el('h2', '', place.name), npc);
   typeOut(said, line);
@@ -63,41 +71,66 @@ export function openBus(shell: HTMLElement, neighbor: Neighbor | undefined, walk
 }
 
 // ───────────────────────── 시민참여 상담소 ─────────────────────────
-/** 상담소 첫 화면(HTML)에서 — 전문위원 글 목록(#pb-post-data)과 자주 묻는 문답(#pb-qa 의 details). */
-function readCounsel(html: string) {
+type Post = { id: string; title: string; by?: string; date?: string };
+type Qa = { q: string; a: string; by?: string };
+
+/**
+ * 상담소 첫 화면(HTML)에 구워 둔 사본 — 전문위원의 글(#pb-post-data 의 items)과 오간 질문(구운 qa, 없으면 마크업의 씨앗 문답 #pb-qa).
+ * 상담소도 이 사본을 먼저 펴고 시트 것이 오면 갈아 끼운다(pb.html) — 마을도 같은 순서(openCounsel).
+ */
+function readCounsel(html: string): { posts: Post[]; qas: Qa[] } {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  let posts: { id: string; title: string; by: string; date: string }[] = [];
-  try { posts = (JSON.parse(doc.querySelector('#pb-post-data')?.textContent ?? '{}').items ?? []).slice(0, 3); } catch { /* 모양이 바뀌었으면 글은 건너뛴다 */ }
-  const qas = [...doc.querySelectorAll('#pb-qa details')].map(d => ({
+  let data: { items?: Post[]; qa?: Qa[] } = {};
+  try { data = JSON.parse(doc.querySelector('#pb-post-data')?.textContent ?? '{}'); } catch { /* 모양이 바뀌었으면 글은 건너뛴다 */ }
+  const seeds = [...doc.querySelectorAll('#pb-qa details')].map(d => ({
     q: d.querySelector('summary > span:not(.mark):not(.tail)')?.textContent?.trim() ?? '',
     a: d.querySelector('.ans .body')?.textContent?.trim() ?? '',
-  })).filter(x => x.q && x.a);
-  return { posts, qa: qas[Math.floor(Math.random() * qas.length)] };
+  }));
+  return { posts: data.items ?? [], qas: data.qa?.length ? data.qa : seeds };
 }
+/** 칸 하나 — 제목·한 줄을 달아 「오간 질문」 과 「전문위원의 글」 이 섞여 보이지 않게(사용자 10-15 「함께 있으니 헷갈려」). 칸 이름은 상담소 화면 그대로. */
+const section = (title: string, sub: string, ...children: Node[]) => {
+  const box = el('section', 'v-sec'); box.append(el('h3', 'v-head', title), el('p', 't-small', sub), ...children); return box;
+};
 
 export function openCounsel(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'counsel', onClose);
   const status = el('p', 't-small', '상담소 소식을 불러오는 중…'); status.setAttribute('role', 'status');
   const body = el('div');
   panel.append(body, status, link('상담소 들어가기', out(PB_URL)));
-  void fetchText(PB_URL).then(html => {
-    const found = html ? readCounsel(html) : undefined;
-    if (!found || (!found.qa && !found.posts.length)) { status.textContent = '지금은 소식을 불러오지 못했어요. 상담소에서 바로 볼 수 있어요.'; return; }
+  let posts: Post[] = [], qas: Qa[] = [];
+  const pick = Math.random(); // 문답은 하나만 — 시트 것으로 갈아 끼워도 같은 자리를 고른다
+  const paint = () => {
+    const ready = qas.filter(x => x.q && x.a), qa = ready[Math.floor(pick * ready.length)];
+    const shown = posts.filter(p => p.id && p.title).slice(0, 3);
+    if (!qa && !shown.length) return;
     status.remove();
-    if (found.qa) {
-      const qa = el('div', 'v-qa');
-      qa.append(el('p', 'v-q', found.qa.q), el('p', 'v-a', found.qa.a));
-      body.append(qa);
+    body.replaceChildren();
+    if (qa) {
+      const box = el('div', 'v-qa');
+      box.append(el('p', 'v-q', qa.q), el('p', 'v-a', qa.a));
+      if (qa.by) box.append(el('p', 'v-by', `${qa.by} 전문위원`));
+      body.append(section('오간 질문', '상담소에 들어온 질문과 그 답이에요.', box));
     }
-    if (found.posts.length) {
+    if (shown.length) {
       const list = el('ul', 'v-list');
-      for (const post of found.posts) {
+      for (const post of shown) {
         const item = el('li'), a = link(post.title, out(PB_URL, `post-${post.id}`), 'v-item');
-        a.append(el('small', '', `${post.by} · ${post.date}`));
+        a.append(el('small', '', [post.by, post.date].filter(Boolean).join(' · ')));
         item.append(a); list.append(item);
       }
-      body.append(list);
+      body.append(section('전문위원의 글', '참여예산 전문위원이 쓴 글이에요. 누르면 상담소에서 읽어요.', list));
     }
+  };
+  // 사본(상담소 첫 화면) 먼저, 시트(상담소가 읽는 그 접수처)가 오면 갈아 끼운다 — 시트에 새 글을 올리면 상담소를 다시 굽지 않아도 마을에 뜬다.
+  // 못 받거나 0건이면 사본 그대로(상담소도 같다 — 시트에 「올림」 문답이 아직 없어 지금은 씨앗 문답이 보인다).
+  const sheet = <T>(what: string) => fetchJson<{ ok?: boolean; items?: T[] }>(`${PB_SHEET}?what=${what}`, 12000).then(r => (r?.ok && r.items?.length ? r.items : undefined));
+  const copy = fetchText(PB_URL).then(html => { if (html) ({ posts, qas } = readCounsel(html)); paint(); });
+  void Promise.all([copy, sheet<Post>('posts'), sheet<Qa>('qa')]).then(([, livePosts, liveQas]) => {
+    if (livePosts) posts = livePosts;
+    if (liveQas) qas = liveQas;
+    paint();
+    if (!posts.length && !qas.length) status.textContent = '지금은 소식을 불러오지 못했어요. 상담소에서 바로 볼 수 있어요.';
   });
 }
 
@@ -110,28 +143,37 @@ export function openDok(shell: HTMLElement, onClose: () => void) {
   const status = el('p', 't-small', '독상 소식을 불러오는 중…'); status.setAttribute('role', 'status');
   const body = el('div');
   panel.append(body, status, link('밑 빠진 독상 보러 가기', out(DOK_URL)));
-  void Promise.all([
-    fetchJson<{ campaigns?: Campaign[] }>(`${DOK_URL}data/campaigns.json`),
-    fetchJson<{ awards?: Award[] }>(`${DOK_URL}data/awards.json`),
-  ]).then(([camps, awards]) => {
-    const live = (camps?.campaigns ?? []).filter(c => c.status === 'ongoing');
-    const list = awards?.awards ?? [];
-    if (!live.length && !list.length) { status.textContent = '지금은 소식을 불러오지 못했어요. 독상 사이트에서 바로 볼 수 있어요.'; return; }
+  let camps: Campaign[] = [], awards: Award[] = [];
+  const paint = () => {
+    const live = camps.filter(c => c.status === 'ongoing' && c.id && c.title);
+    if (!live.length && !awards.length) return;
     status.remove();
-    if (list.length) {
-      const last = list[list.length - 1], since = list[0].date.slice(0, 4);
-      body.append(el('p', 't-lead', `${since}년부터 ${list.length}번 상을 줬어요. 가장 최근은 ${last.date} ${last.awardee} 「${last.project}」.`));
+    body.replaceChildren();
+    if (awards.length) {
+      const last = awards[awards.length - 1], since = awards[0].date.slice(0, 4);
+      body.append(el('p', 't-lead', `${since}년부터 ${awards.length}번 상을 줬어요. 가장 최근은 ${last.date} ${last.awardee} 「${last.project}」.`));
     }
     if (live.length) {
       const items = el('ul', 'v-list');
       for (const c of live) {
-        const a = link(c.title, out(DOK_URL, `camp-${c.id}`), 'v-item');
+        const a = link(c.title, out(DOK_URL, `camp-${c.id}`), 'v-item'); // 독상이 #camp-<id> 로 그 사업 팝업을 연다
         if (c.summary) a.append(el('span', 'v-sum', c.summary));
         if (c.period) a.append(el('small', '', c.period));
         const li = el('li'); li.append(a); items.append(li);
       }
       body.append(items);
     }
+  };
+  // 사업도 사본(data/campaigns.json) 먼저, 시트(독상이 읽는 접수처 ?action=campaigns — 담당자가 설문지로 올린 것)가 오면 갈아 끼운다.
+  // 시트가 받아지면 0건이어도 그게 맞다(독상도 그렇게 걷는다). 못 받으면 사본 그대로. 상 목록(awards.json)은 시트가 없다.
+  const copy = Promise.all([
+    fetchJson<{ campaigns?: Campaign[] }>(`${DOK_URL}data/campaigns.json`).then(r => { if (r?.campaigns) camps = r.campaigns; }),
+    fetchJson<{ awards?: Award[] }>(`${DOK_URL}data/awards.json`).then(r => { if (r?.awards) awards = r.awards; }),
+  ]).then(paint);
+  void Promise.all([copy, fetchJson<Campaign[]>(`${DOK_SHEET}?action=campaigns`, 12000)]).then(([, fromSheet]) => {
+    if (Array.isArray(fromSheet)) camps = fromSheet;
+    paint();
+    if (!camps.length && !awards.length) status.textContent = '지금은 소식을 불러오지 못했어요. 독상 사이트에서 바로 볼 수 있어요.';
   });
 }
 

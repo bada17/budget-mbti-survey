@@ -4,7 +4,9 @@
   · 왜 — 카톡 안 브라우저와 크롬은 저장소가 따로라, 로그인 없이는 같은 사람이 다시 와도 처음 온 사람이 된다.
   · 카톡 안 브라우저에서는 구글 단추를 안 보인다 — 구글이 앱 속 브라우저 로그인을 막는다.
   · 처음엔 묻지 않는다 — 끝 공터 도장 주민 판(「주민증 지키기」)과 시작 화면(「전에 해 봤어요」)에서만. 안 해도 끝까지 한다.
-  · 받는 것 = 회원번호 하나(서버가 소금 친 해시로 바꿔 둔다). 이메일·이름·사진은 받지 않는다 — 동의 항목(scope)을 열지 않는다.
+  · 받는 것 = 회원번호(서버가 소금 친 해시로 바꿔 둔다) + 확인된 이메일(사용자 10-15 「이메일 정도는 받을 수 있잖아」).
+    이메일은 서버가 돌려주기만 하고 남기지 않는다 — 로그인 직후 「소식 받기」 칸을 채우는 데만 쓰고, 동의해야 /contact 로 간다(main.ts offerNews).
+    구글은 scope 에 email, 카카오는 scope 없이 — 콘솔 「동의 항목」 에 켠 것만 묻는다(이메일을 안 켜면 회원번호만). 이름·사진은 안 받는다.
   · 단추는 키가 없어도 늘 보인다(사용자 10-15 「안 되더라도 집어넣어 놓으라니까」) — 키가 없을 때 누르면 start() 가 false 를 돌려주고 판이 「준비 중」 이라 알린다.
     키는 VITE_KAKAO_REST_KEY · VITE_GOOGLE_CLIENT_ID(빌드). 개발판(npm run dev:game)은 키가 없으면 가짜 카카오·구글(vite.game.config.ts 의 /fake-login)로 끝까지 돈다.
 
@@ -20,6 +22,7 @@ const GOOGLE: string | undefined = import.meta.env?.VITE_GOOGLE_CLIENT_ID || und
 const FAKE = Boolean(import.meta.env?.DEV);
 const PENDING = 'budget-game-login-pending';
 const DONE = 'budget-game-login-done';
+const EMAIL = 'budget-game-login-email';
 export const PROVIDER_NAME: Record<Provider, string> = { kakao: '카카오', google: '구글' };
 
 /** 카톡 안 브라우저 — 구글 로그인이 막힌다. */
@@ -46,7 +49,7 @@ export function start(provider: Provider): boolean {
     ? `./api/game/fake-login?${query({ provider, redirect_uri: back, state })}`
     : provider === 'kakao'
       ? `https://kauth.kakao.com/oauth/authorize?${query({ response_type: 'code', client_id: real, redirect_uri: back, state })}`
-      : `https://accounts.google.com/o/oauth2/v2/auth?${query({ response_type: 'id_token', client_id: real, redirect_uri: back, scope: 'openid', nonce: state, state, prompt: 'select_account' })}`;
+      : `https://accounts.google.com/o/oauth2/v2/auth?${query({ response_type: 'id_token', client_id: real, redirect_uri: back, scope: 'openid email', nonce: state, state, prompt: 'select_account' })}`;
   return true;
 }
 
@@ -69,10 +72,10 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   const proof = pending.provider === 'kakao' ? { code: code ?? '' } : { idToken: idToken ?? '', nonce: state };
   const result = await net.login({ provider: pending.provider, redirectUri: here(), ...proof });
   if (!result) return 'failed';
-  saveLogin({ key: result.key, provider: pending.provider });
+  saveLogin({ key: result.key, provider: pending.provider, ...(result.admin ? { admin: true as const } : {}) });
   importSave(result.save);
   await net.saveMe(result.key, exportSave());
-  try { sessionStorage.setItem(DONE, pending.provider); } catch { /* 알림만 못 띄운다 */ }
+  try { sessionStorage.setItem(DONE, pending.provider); if (result.email) sessionStorage.setItem(EMAIL, result.email); } catch { /* 알림만 못 띄운다 */ }
   location.reload();
   return 'done';
 }
@@ -80,6 +83,10 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
 /** 다시 연 뒤 한 번 — 방금 로그인했으면 그 쪽 이름. */
 export function justLoggedIn(): Provider | undefined {
   try { const p = sessionStorage.getItem(DONE) as Provider | null; sessionStorage.removeItem(DONE); return p ?? undefined; } catch { return undefined; }
+}
+/** 다시 연 뒤 한 번 — 방금 로그인으로 받은 이메일(카카오에서 이메일을 안 켰으면 없음). 꺼내면 지운다. */
+export function takeLoginEmail(): string | undefined {
+  try { const e = sessionStorage.getItem(EMAIL); sessionStorage.removeItem(EMAIL); return e ?? undefined; } catch { return undefined; }
 }
 
 /**
@@ -98,6 +105,8 @@ export function keepSynced() {
 }
 
 export const current = () => loadLogin()?.provider;
+/** 관리자로 로그인했나 — 서버가 로그인 때 가려 준다(api.ts isAdmin). 화면 쪽 일에만 쓴다. */
+export const admin = () => loadLogin()?.admin === true;
 /** 이 기기에서만 끊는다 — 서버 기록은 남아서 다시 로그인하면 그대로. */
 export const logout = () => clearLogin();
 /** 서버 기록을 지우고 끊는다. */
