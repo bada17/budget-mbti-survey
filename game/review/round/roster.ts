@@ -7,6 +7,7 @@ import { ROUTE } from '../../content';
 import { FEEL } from '../../feel';
 import { toLook, type Pick } from '../../look';
 import { RoundResident, type ResidentDesign, type HairPattern } from './avatar';
+import { RoundPet } from './pets';
 
 const showAdults=location.pathname.endsWith('/adults.html');
 const residents:{name:string;description:string;pick:Pick;design:ResidentDesign}[]=[
@@ -61,14 +62,17 @@ type ResidentEntry={actor:RoundResident;anchor:{x:number;y:number};manual:boolea
 
 class RosterScene extends Phaser.Scene {
   entries:ResidentEntry[]=[];
+  private pets:RoundPet[]=[];
   private clock=0;
   marker!:Phaser.GameObjects.Ellipse;
   constructor(){super('round-roster');}
   create(){
     this.cameras.main.setOrigin(0,0).setZoom(dpr);
     const art=drawRoom(this,layoutRoom(W,H),0,ROUTE[0].ids[0],0,'광장');
+    art.cat?.root.setVisible(false);
     const background=this.add.renderTexture(0,0,W*dpr,H*dpr).setOrigin(0,0).setScale(1/dpr).setDepth(-100000);
     art.box.setScale(dpr);background.draw(art.box);background.render();art.destroy();
+    this.pets=[new RoundPet(this,'cat',{x:24,y:H*.69},.78),new RoundPet(this,'dog',{x:W-24,y:H*.69},.78)];
     residents.forEach((resident,i)=>{
       const anchor={x:W*[.2,.5,.8][i%3],y:showAdults?H*.42+Math.floor(i/3)*(H-88-H*.42)/3:H*(i<3?.53:.77)};
       const actor=this.makeActor(resident,anchor.x,anchor.y);
@@ -118,16 +122,18 @@ class RosterScene extends Phaser.Scene {
       }
       actor.place(x,y);actor.look(x-old.x,y-old.y);actor.walk(dt,moving,reduced.matches);
     });
+    this.pets.forEach(pet=>pet.step(dt,reduced.matches||!walking));
     const actor=this.entries[selected]?.actor;
     if(actor){this.marker.setPosition(actor.root.x,actor.root.y+2);if(zoomed)this.frame();}
   }
   frame(){
     const actor=this.entries[selected]?.actor;if(!actor)return;
     this.entries.forEach((entry,i)=>entry.actor.root.setVisible(!zoomed||i===selected));
+    this.pets.forEach(pet=>pet.root.setVisible(!zoomed));
     const zoom=zoomed?2.8:1;
     this.cameras.main.setZoom(dpr*zoom).setScroll(zoomed?actor.root.x-W/2/zoom:0,zoomed?actor.root.y-28-H*.46/zoom:0);
   }
-  reset(){this.clock=0;keys.clear();for(const entry of this.entries){entry.manual=false;entry.target=undefined;entry.actor.place(entry.anchor.x,entry.anchor.y);}}
+  reset(){this.clock=0;keys.clear();this.pets.forEach(pet=>{pet.reset();pet.step(0,reduced.matches||!walking);});for(const entry of this.entries){entry.manual=false;entry.target=undefined;entry.actor.place(entry.anchor.x,entry.anchor.y);}}
 }
 const scene=new RosterScene();
 for(const [id,options,key] of [['hair-style',hairStyles,'hairStyle'],['top-style',tops,'top'],['hair-pattern',hairPatterns,'hairPattern'],['head-accessory',headAccessories,'headAccessory']] as const){
