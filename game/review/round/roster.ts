@@ -8,6 +8,7 @@ import { FEEL } from '../../feel';
 import { toLook, type Pick } from '../../look';
 import { RoundResident, type ResidentDesign } from './avatar';
 
+const showAdults=location.pathname.endsWith('/adults.html');
 const residents:{name:string;description:string;pick:Pick;design:ResidentDesign}[]=[
   {name:'단발 · 가디건',description:'볼이 드러나는 둥근 단발과 앞이 열린 가디건.',pick:[3,1,8,0],design:{}},
   {name:'웨이브 · 줄무늬',description:'짧고 부드러운 웨이브, 넓은 줄무늬 맨투맨.',pick:[1,2,1,1],design:{hairStyle:'wave',top:'stripes',pants:0x718397}},
@@ -16,7 +17,15 @@ const residents:{name:string;description:string;pick:Pick;design:ResidentDesign}
   {name:'가르마 · 점퍼',description:'옆으로 넘긴 머리, 깃과 지퍼가 있는 점퍼.',pick:[1,0,7,0],design:{hairStyle:'part',top:'jacket',pants:0x677580}},
   {name:'은빛 파마 · 조끼',description:'둥근 은빛 파마와 안경, 블라우스 위의 조끼.',pick:[1,3,4,1],design:{hairStyle:'silver',top:'vest',pants:0x82756f,shoes:0x756159,glasses:true}},
 ];
-const W=Math.min(360,innerWidth),H=innerWidth<=650?Math.max(460,Math.min(640,innerHeight)):640;
+if(showAdults)residents.push(
+  {name:'넓은 이마 · 셔츠',description:'이마를 드러낸 짧은 머리와 단정한 눈썹, 셔츠 차림의 중년.',pick:[1,1,10,1],design:{hairStyle:'forehead',top:'shirt',pants:0x777b83,brows:true,smileLines:true}},
+  {name:'어깨 단발 · 재킷',description:'어깨 쪽으로 둥글게 내려오는 단발과 재킷. 관자놀이에는 살짝 흰머리.',pick:[3,1,9,0],design:{hairStyle:'shoulder',top:'blazer',pants:0x767584,grayTemples:true,brows:true,smileLines:true}},
+  {name:'희끗한 웨이브 · 니트',description:'옆머리가 희끗한 웨이브와 둥근 니트. 안경을 쓴 중년 주민.',pick:[1,0,5,2],design:{hairStyle:'wave',top:'knit',pants:0x7f7c76,grayTemples:true,glasses:true,brows:true,smileLines:true}},
+  {name:'짧은 수염 · 점퍼',description:'짧게 정리한 머리와 작은 턱수염, 편안한 점퍼를 입은 중년.',pick:[1,1,3,1],design:{hairStyle:'crop',top:'jacket',pants:0x737987,brows:true,beard:true}},
+  {name:'낮은 묶음 · 앞치마',description:'낮게 묶은 머리와 밝은 앞치마. 옆머리의 흰빛과 부드러운 미소.',pick:[2,0,2,1],design:{hairStyle:'lowTie',top:'apron',pants:0x8e8074,grayTemples:true,brows:true,smileLines:true}},
+  {name:'짧은 파마 · 가디건',description:'짧은 파마에 조금 섞인 흰머리, 안경과 가디건의 포근한 중년.',pick:[1,1,7,0],design:{hairStyle:'curls',top:'cardigan',pants:0x81766c,grayTemples:true,glasses:true,brows:true,smileLines:true}},
+);
+const W=Math.min(360,innerWidth),H=showAdults?640:innerWidth<=650?Math.max(460,Math.min(640,innerHeight)):640;
 const dpr=Math.min(devicePixelRatio||1,2),reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const $=(id:string)=>document.getElementById(id)!;
 document.querySelector<HTMLElement>('.world')!.style.aspectRatio=`${W}/${H}`;
@@ -35,7 +44,7 @@ class RosterScene extends Phaser.Scene {
     const background=this.add.renderTexture(0,0,W*dpr,H*dpr).setOrigin(0,0).setScale(1/dpr).setDepth(-100000);
     art.box.setScale(dpr);background.draw(art.box);background.render();art.destroy();
     residents.forEach((resident,i)=>{
-      const anchor={x:W*[.2,.5,.8][i%3],y:H*(i<3?.53:.77)};
+      const anchor={x:W*[.2,.5,.8][i%3],y:showAdults?H*.42+Math.floor(i/3)*(H-88-H*.42)/3:H*(i<3?.53:.77)};
       const actor=new RoundResident(this,toLook(resident.pick),anchor.x,anchor.y,resident.design);
       // Keep body/face proportions identical; an updo may naturally stand a little taller.
       actor.root.setScale(56/64);
@@ -46,12 +55,12 @@ class RosterScene extends Phaser.Scene {
     this.marker=this.add.ellipse(0,0,36,9).setStrokeStyle(1.2,0x799d96,.9).setDepth(9000);
     this.input.on('pointerdown',(pointer:Phaser.Input.Pointer)=>{
       const p=this.cameras.main.getWorldPoint(pointer.x,pointer.y);
-      const hit=this.entries.findIndex(({actor})=>Math.hypot(p.x-actor.root.x,p.y-(actor.root.y-27))<25);
+      const hit=this.entries.findIndex(({actor})=>actor.root.visible&&Math.hypot(p.x-actor.root.x,p.y-(actor.root.y-27))<25);
       if(hit>=0){select(hit);return;}
       const entry=this.entries[selected];entry.manual=true;
-      entry.target={x:Phaser.Math.Clamp(p.x,26,W-26),y:Phaser.Math.Clamp(p.y,220,H-76)};
+      entry.target={x:Phaser.Math.Clamp(p.x,26,W-26),y:Phaser.Math.Clamp(p.y,showAdults?H*.42:220,H-76)};
     });
-    $('ready').hidden=true;select(0);
+    $('ready').hidden=true;select(showAdults?6:0);
   }
   update(_time:number,rawDelta:number){
     const dt=Math.min(rawDelta,FEEL.maxDeltaMs);this.clock+=dt;
@@ -64,7 +73,7 @@ class RosterScene extends Phaser.Scene {
       else if(entry.target){dx=entry.target.x-x;dy=entry.target.y-y;if(Math.hypot(dx,dy)<1){entry.target=undefined;dx=dy=0;}}
       if(dx||dy){
         const length=Math.hypot(dx,dy),distance=keyboard?FEEL.walkSpeed*dt/1000:Math.min(FEEL.walkSpeed*dt/1000,length);
-        x=Phaser.Math.Clamp(x+dx/length*distance,26,W-26);y=Phaser.Math.Clamp(y+dy/length*distance,220,H-76);
+        x=Phaser.Math.Clamp(x+dx/length*distance,26,W-26);y=Phaser.Math.Clamp(y+dy/length*distance,showAdults?H*.42:220,H-76);
         moving=Math.hypot(x-old.x,y-old.y)>.01;
       }else if(walking&&!entry.manual&&!reduced.matches){
         const phase=this.clock/4200*Math.PI*2*(1+i*.06);
@@ -77,6 +86,7 @@ class RosterScene extends Phaser.Scene {
   }
   frame(){
     const actor=this.entries[selected]?.actor;if(!actor)return;
+    this.entries.forEach((entry,i)=>entry.actor.root.setVisible(!zoomed||i===selected));
     const zoom=zoomed?2.8:1;
     this.cameras.main.setZoom(dpr*zoom).setScroll(zoomed?actor.root.x-W/2/zoom:0,zoomed?actor.root.y-28-H*.46/zoom:0);
   }
@@ -99,7 +109,7 @@ function updateWalk(){$('walk').setAttribute('aria-pressed',String(walking));$('
 new Phaser.Game({type:Phaser.AUTO,parent:'canvas',backgroundColor:'#e4e5ca',width:W*dpr,height:H*dpr,scale:{mode:Phaser.Scale.NONE,zoom:1/dpr},render:{antialias:true},audio:{noAudio:true},banner:false,scene});
 $('walk').onclick=()=>{walking=!walking;scene.reset();updateWalk();};
 $('zoom').onclick=()=>{
-  zoomed=!zoomed;$('zoom').setAttribute('aria-pressed',String(zoomed));$('zoom').textContent=zoomed?'여섯 명 같이 보기':'크게 보기';scene.frame();
+  zoomed=!zoomed;$('zoom').setAttribute('aria-pressed',String(zoomed));$('zoom').textContent=zoomed?'모두 같이 보기':'크게 보기';scene.frame();
   if(innerWidth<=650)document.querySelector('.world')!.scrollIntoView({block:'start'});
 };
 $('reset').onclick=()=>scene.reset();

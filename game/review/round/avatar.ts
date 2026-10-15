@@ -3,11 +3,15 @@ import { FEEL } from '../../feel';
 import type { Look } from '../../look';
 
 export type ResidentDesign = {
-  hairStyle?: 'bob'|'wave'|'curls'|'bun'|'part'|'silver';
-  top?: 'cardigan'|'stripes'|'hoodie'|'apron'|'jacket'|'vest';
+  hairStyle?: 'bob'|'wave'|'curls'|'bun'|'part'|'silver'|'forehead'|'shoulder'|'crop'|'lowTie';
+  top?: 'cardigan'|'stripes'|'hoodie'|'apron'|'jacket'|'vest'|'shirt'|'blazer'|'knit';
   pants?: number;
   shoes?: number;
   glasses?: boolean;
+  grayTemples?: boolean;
+  brows?: boolean;
+  beard?: boolean;
+  smileLines?: boolean;
 };
 
 /** Flat shapes like the public game, with one shared round silhouette and walking rig. */
@@ -31,6 +35,14 @@ export class RoundResident {
       back.clear().fillStyle(hair);
       if(hairStyle==='bun')back.fillCircle(2,-62,7.5).fillEllipse(0,-49,31,23);
       if(hairStyle==='silver')back.fillCircle(-13,-43,6).fillCircle(13,-43,6).fillCircle(-10,-35,5).fillCircle(10,-35,5);
+      if(hairStyle==='shoulder') {
+        const shoulder=new Phaser.Curves.Path(-17,-43).cubicBezierTo(0,-61,-18,-57,-10,-61)
+          .cubicBezierTo(18,-42,13,-61,18,-53).lineTo(19,-30)
+          .cubicBezierTo(10,-26,21,-25,14,-24).lineTo(-11,-26)
+          .cubicBezierTo(-19,-31,-17,-24,-21,-26).closePath();
+        back.fillPoints(shoulder.getPoints(18),true);
+      }
+      if(hairStyle==='lowTie')back.fillEllipse(0,-49,31,24).fillEllipse(13,-31,12,11).fillCircle(16,-33,4);
     }
     this.legs = [-6,6].map(lx => s.container(lx,-6,[
       s.rectangle(0,0,10.5,8,design.pants??0x9e8574).setRounded(4),
@@ -83,6 +95,22 @@ export class RoundResident {
         cardigan.fillStyle(0x8e697d,.7).fillCircle(0,-18,1.5).fillCircle(0,-12,1.5);
       }
     }
+    if(top==='shirt') {
+      cardigan.fillStyle(0xfff8e8,.9).fillTriangle(-8,-30,0,-25,-4,-21).fillTriangle(8,-30,0,-25,4,-21);
+      cardigan.lineStyle(.8,0x8a725d,.4).lineBetween(0,-25,0,-7);
+      cardigan.fillStyle(0x8a725d,.65);for(const cy of [-21,-16,-11])cardigan.fillCircle(0,cy,.9);
+      cardigan.lineStyle(.8,0x8a725d,.35).strokeRoundedRect(5,-21,6,5,1);
+    }
+    if(top==='blazer') {
+      cardigan.fillStyle(0xfff8e8).fillTriangle(-4,-30,4,-30,0,-8);
+      cardigan.fillStyle(0xffffff,.25).fillTriangle(-10,-28,-4,-30,-2,-15).fillTriangle(10,-28,4,-30,2,-15);
+      cardigan.fillStyle(0x5b6574,.55).fillCircle(3,-18,1.2).fillCircle(3,-12,1.2);
+      cardigan.lineStyle(1,0x5b6574,.35).lineBetween(-11,-13,-6,-13).lineBetween(6,-13,11,-13);
+    }
+    if(top==='knit') {
+      cardigan.lineStyle(2,0xfff8e8,.75).beginPath().arc(0,-31,6,0,Math.PI).strokePath();
+      cardigan.lineStyle(1.2,0xfff8e8,.4).lineBetween(-8,-8,8,-8);
+    }
     const neck = s.ellipse(0,-30,8,5,skin);
     const ears = [-14,14].map(ex => s.circle(ex,-40,3.5,skin));
     const head = s.ellipse(0,-42,29,26,skin);
@@ -125,12 +153,46 @@ export class RoundResident {
         fringe.fillEllipse(0,-52,26,14);
       }
     }
+    if(hairStyle==='forehead') {
+      const forehead=new Phaser.Curves.Path(-16,-42).cubicBezierTo(-12,-55,-18,-47,-17,-53)
+        .cubicBezierTo(11,-56,-7,-60,5,-60).cubicBezierTo(16,-42,17,-54,18,-47)
+        .lineTo(12,-45).cubicBezierTo(-12,-45,12,-57,-10,-57).closePath();
+      fringe.fillPoints(forehead.getPoints(18),true);
+    }
+    if(hairStyle==='shoulder') {
+      const sweep=new Phaser.Curves.Path(-17,-43).cubicBezierTo(5,-60,-18,-56,-8,-63)
+        .cubicBezierTo(17,-42,16,-59,19,-50).lineTo(13,-40)
+        .cubicBezierTo(8,-54,13,-46,11,-51).cubicBezierTo(-13,-43,4,-49,-8,-46)
+        .lineTo(-15,-38).closePath();
+      fringe.fillPoints(sweep.getPoints(18),true);
+    }
+    if(hairStyle==='crop') {
+      const crop=new Phaser.Curves.Path(-16,-43).cubicBezierTo(-10,-57,-17,-51,-15,-56)
+        .cubicBezierTo(10,-57,-5,-60,5,-60).cubicBezierTo(16,-43,16,-55,18,-49)
+        .lineTo(12,-44).lineTo(10,-51).cubicBezierTo(-11,-51,4,-53,-5,-53)
+        .lineTo(-13,-42).closePath();
+      fringe.fillPoints(crop.getPoints(18),true);
+    }
+    if(hairStyle==='lowTie') {
+      const tied=new Phaser.Curves.Path(-16,-44).cubicBezierTo(2,-60,-17,-55,-7,-62)
+        .cubicBezierTo(16,-43,15,-59,19,-50).lineTo(13,-39).lineTo(10,-49)
+        .cubicBezierTo(-12,-46,4,-52,-4,-48).lineTo(-14,-39).closePath();
+      fringe.fillPoints(tied.getPoints(18),true);
+    }
+    if(design.grayTemples)fringe.fillStyle(0xc9c4bd,.95).fillRoundedRect(-14.5,-48,3,7,1.5).fillRoundedRect(11.5,-48,3,7,1.5);
     this.eyes = [-4.8,4.8].map(ex => s.circle(ex,-41.5,1.75,0x39313b));
     const face = s.graphics();
     face.fillStyle(0xee9b90,.7).fillEllipse(-9.5,-37.4,6,4.5).fillEllipse(9.5,-37.4,6,4.5);
     face.fillStyle(0xe7a384,.7).fillCircle(0,-38.8,1);
     face.lineStyle(1.1,0x85554b).beginPath().arc(0,-36.2,2.3,.15,Math.PI-.15).strokePath();
     if(hairStyle==='silver')face.lineStyle(1.05,0x9a8a7c,.8).lineBetween(-8,-46.5,-4,-47).lineBetween(4,-47,8,-46.5);
+    if(design.brows)face.lineStyle(1.25,hair,.8).lineBetween(-8,-46,-3.5,-46.4).lineBetween(3.5,-46.4,8,-46);
+    if(design.smileLines)face.lineStyle(.65,0x98745f,.48).lineBetween(-9,-34.8,-8.1,-33.3).lineBetween(8.1,-33.3,9,-34.8);
+    if(design.beard) {
+      const beard=new Phaser.Curves.Path(-9,-34.7).cubicBezierTo(9,-34.7,-5,-31,5,-31)
+        .cubicBezierTo(0,-29.3,7,-30.5,3,-29).cubicBezierTo(-9,-34.7,-3,-29,-7,-30.5).closePath();
+      face.fillStyle(hair,.65).fillPoints(beard.getPoints(12),true);
+    }
     if(design.glasses)face.lineStyle(.85,0x8b796a).strokeCircle(-4.8,-41.5,3.5).strokeCircle(4.8,-41.5,3.5).lineBetween(-1.3,-41.5,1.3,-41.5);
     this.body = s.container(0,0,[back,...this.legs,...sleeves,torso,cardigan,neck,...ears,head,fringe,...this.eyes,face]);
     this.root = s.container(x,y,[s.ellipse(0,0,32,7,0x756956,.17),this.body]);
