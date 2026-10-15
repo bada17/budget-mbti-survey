@@ -341,3 +341,33 @@ test('오늘의 부탁: 날마다 서로 다른 건물 셋, 같은 날엔 같고
   }
   assert.ok(seen.size >= QUESTS.length - 2, '한 달이면 거의 모든 부탁이 한 번씩');
 });
+
+test('문제 카드: 시트에 사람이 적은 줄(보이기 O)만 뜨고, 반응은 기기마다 하나(바꿀 수 있음), 서버는 사람 칸을 안 건드린다', () => {
+  const book = fakeBook();
+  const get = () => serve('GET', { parameter: { p: '/cards' } }, book, 0).body.cards;
+  const react = (id, voter, kind) => serve('POST', { parameter: { p: `/cards/${id}/react` }, postData: { contents: JSON.stringify({ voter, kind }) } }, book, 0);
+  assert.deepEqual(get(), [], '처음엔 보기 줄 하나뿐 — 보이기 칸이 비어 안 뜬다');
+  const rows = book.sheets.get('문제 카드').rows;
+  assert.equal(rows.length, 2, '머리 줄 + 보기 줄');
+  rows.push(['2026-10-06', '지난달 카드', '설명', '전국', '12억 원', 'javascript:alert(1)', 'O']);
+  rows.push([new Date(Date.UTC(2026, 9, 12, 15)), '이번 카드', '설명 둘', '서울 마포구', '4억 원', 'https://dok.action.or.kr/', 'o']); // 시트가 날짜로 바꾼 칸(한국 13일 0시)
+  rows.push(['2026-10-14', '안 보이는 카드', '', '', '', '', '']);
+  const cards = get();
+  assert.deepEqual(cards.map(c => c.title), ['이번 카드', '지난달 카드'], '보이기 한 것만, 새것부터');
+  assert.equal(cards[0].date, '2026-10-13');
+  assert.equal(cards[1].link, '', 'http 가 아닌 링크는 버린다');
+  assert.deepEqual(cards[0].counts, { problem: 0, unsure: 0, fine: 0 });
+  const id = cards[0].id;
+  assert.equal(react(id, 'voter-aaaaaaaa', 'problem').status, 200);
+  assert.equal(react(id, 'voter-bbbbbbbb', 'problem').status, 200);
+  assert.deepEqual(react(id, 'voter-aaaaaaaa', 'fine').body.card.counts, { problem: 1, unsure: 0, fine: 1 }, '바꾸면 옮겨 간다');
+  assert.equal(react(id, 'x', 'problem').status, 400);
+  assert.equal(react(id, 'voter-cccccccc', 'love').status, 400);
+  assert.equal(react('c-nope', 'voter-cccccccc', 'problem').status, 404);
+  const row = rows.find(r => r[1] === '이번 카드');
+  assert.deepEqual(row.slice(7, 10), [1, 0, 1], '반응 수는 사람이 보는 칸에');
+  assert.deepEqual(row.slice(1, 7), ['이번 카드', '설명 둘', '서울 마포구', '4억 원', 'https://dok.action.or.kr/', 'o'], '사람 칸은 그대로');
+  assert.ok(!JSON.stringify(get()).includes('voter-'), '누가 눌렀는지는 안 나간다');
+  rows.splice(rows.indexOf(rows.find(r => r[1] === '지난달 카드')), 1); // 사람이 줄을 지워도
+  assert.deepEqual(get()[0].counts, { problem: 1, unsure: 0, fine: 1 }, '번호가 그대로라 반응이 남는다');
+});

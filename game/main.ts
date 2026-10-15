@@ -12,10 +12,11 @@ import { attachEffects } from './effects';
 import { unlockAudio, isMuted, setMuted, playVillageMusic, sfx } from './sfx';
 import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
-  loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
+  loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, loadCardMemo, saveCardMemo, type Me, type Town, type Neighbor,
 } from './profile';
 import { openTown, openReply, openLetter, openLogin, openGateLogin, type Person, type LoginOpts } from './town';
-import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, noteCard, loadMarks, rememberMine, loadPocket, savePocket, questHook } from './places';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCards, noteCard, loadMarks, rememberMine, loadPocket, savePocket, questHook, type CardsOpts } from './places';
+import type { PublicCard } from './api';
 import { PLACES, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
 import { nameFrom } from './look';
 import { seasonOf, skyAt, type Season } from './draw';
@@ -35,6 +36,7 @@ const params = new URLSearchParams(location.search);
 const invite = decodeInvite(params.get('with')); // 나를 부른 친구 — 끝에 언덕에서 만난다. replyTo 가 있으면 답장(걷기 전에 두 동네를 본다)
 // 이웃의 편지(?letter=2026-dec&nb=…) — 이 기기에 이웃이 없으면 편지 쓴 이웃을 내 이웃으로 들인다(그래야 같이 걷는다).
 const letterSeason = seasonById(params.get('letter'));
+const cardLink = /^[A-Za-z0-9-]{2,40}$/.test(params.get('card') ?? '') ? params.get('card')! : undefined; // 친구가 보낸 문제 카드
 const letterNeighbor = readNeighborParam(params.get('nb'));
 if (letterSeason && letterNeighbor && !loadNeighbor()) saveNeighbor({ ...letterNeighbor, at: Date.now() });
 const returning = loadNeighbor(); // 지난번 내 이웃 — 편지에 쓴다. 걷기 판엔 데려가지 않는다(사용자 10-14 「처음 시작할 때 애가 한 명 이미 따라다니네」 → 빼기, 마을에선 따라다닌다)
@@ -336,7 +338,7 @@ function enteredVillage() {
   ui.village({ phone: openPhone });
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
-  village?.setQuestMarks(openQuests().map(q => q.place));
+  marks();
   gateLogin();
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
@@ -355,9 +357,46 @@ function gateLogin() {
 }
 const GATE_SEEN = 'budget-game-gate-login';
 
+// ── 문제 카드(10-15) — 활동가가 시트에 올린다. 새 카드가 있으면 마을 입구에서 알리고 게시판에 「!」 ──
+let cards: PublicCard[] | undefined;
+const loadCards = async () => (cards = (await net.cards())?.cards ?? cards);
+/** 아직 안 연 새 카드가 있나 — 맨 위(가장 새) 카드만 본다. */
+const newCard = () => Boolean(cards?.[0] && !loadCardMemo().seen.includes(cards[0].id));
+/** 머리 위 「!」 — 오늘의 부탁 건물 + 새 문제 카드. */
+function marks() { village?.setQuestMarks([...openQuests().map(q => q.place), ...(newCard() ? ['cards' as const] : [])]); }
+const cardOpts = (focus?: string): CardsOpts => ({
+  online, focus, load: loadCards, mine: () => loadCardMemo().mine,
+  react: async (id, kind) => {
+    const got = await net.react(id, loadCardMemo().voter, kind);
+    if (got) { const memo = loadCardMemo(); memo.mine[id] = kind; saveCardMemo(memo); }
+    return got?.card;
+  },
+  share: card => {
+    const url = `${here()}?card=${encodeURIComponent(card.id)}`, text = `문제 카드 — ${card.title}. 이 돈, 어떻게 보세요?`;
+    if (navigator.share) navigator.share({ title: '모여봐요 시민의 숲 — 문제 카드', text, url }).catch(() => {});
+    else if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
+    else ui.toast(url);
+  },
+});
+/** 판을 열면 지금 있는 카드는 다 본 것으로(「!」·알림이 꺼진다). */
+function sawCards() {
+  const memo = loadCardMemo();
+  memo.seen = [...new Set([...memo.seen, ...(cards ?? []).map(c => c.id)])];
+  saveCardMemo(memo); marks();
+}
+async function tellNewCard() {
+  if (!online) return;
+  await loadCards();
+  marks();
+  // 카드를 불러오는 사이 판이 열렸으면 알리지 않는다(판 밑에 깔린다)
+  if (newCard() && where === 'village' && !panelOpen) ui.villageNotice(nameFrom('npc:cards'), '새 문제 카드가 올라왔어요. 이 돈, 어떻게 보세요?',
+    [{ label: '보러 가기', run: () => { if (!panelOpen) village?.jump('cards', () => openPlace('cards')); } }, { label: '나중에' }]);
+}
+
 async function meetVillage() {
   await statsReady; await finishing;
   if (!online) return;
+  void tellNewCard();
   const sid = villageMe()?.sessionId;
   const view = (sid ? await net.here(sid, me.pick) : undefined) ?? (await net.village(sid || undefined));
   if (view) showVillage(view);
@@ -417,7 +456,7 @@ function questEvent(event: string) {
     ui.villagePocket(pocket.coins, toWorks);
     sfx.coin();
     ui.say(nameFrom(`npc:${q.place}`), `부탁 들어줘서 고마워요! 동전 ${QUEST_REWARD}개 드릴게요.`, 2800);
-    village?.setQuestMarks(openQuests().map(x => x.place));
+    marks();
   }
 }
 /** 주민 폰 「오늘의 부탁」 — 셋과 해냈는지. 누르면 그 건물로. */
@@ -445,6 +484,7 @@ function openPhone() {
     { icon: '💰', name: '세금', run: go('tax') },
     { icon: '🏗️', name: '동전 모으기', run: go('works') },
     { icon: '📌', name: '쪽지판', run: go('board') },
+    { icon: '📢', name: '문제 카드', run: go('cards') },
     { icon: '🚌', name: '다시 하기', run: go('bus') },
   ]);
 }
@@ -490,6 +530,7 @@ function openPlace(id: PlaceId) {
     }, done);
   }
   else if (id === 'house') openHouse(shell, done);
+  else if (id === 'cards') { openCards(shell, cardOpts(), done); void loadCards().then(sawCards); }
   else openBoard(shell, {
     view: villageView, online, myName: me.name, like: likeNote, report: reportNote,
     refresh: async () => { const fresh = await net.village(who?.sessionId || undefined); if (fresh) showVillage(fresh); return fresh; },
@@ -642,6 +683,7 @@ if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unl
 else if (lastPlay?.type) ui.homeOpen(() => { location.href = here(); }); // 걸으러 왔지만 마을로 갈 수도
 // 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.
 if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
+else if (cardLink) void statsReady.then(() => openCards(shell, cardOpts(cardLink), () => {}));
 else if (letterSeason) openLetter(shell, letterSeason, returning, me.name, () => {}, startInVillage ? () => { location.href = `${here()}?walk`; } : undefined);
 void boot();
 

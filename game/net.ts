@@ -10,7 +10,7 @@
     테이블은 붙이지 않는다(TABLES) — 4초마다 묻는 게 앱스 스크립트 한도에 걸린다.
 */
 import { CONTENT_VERSION } from './content';
-import type { Stats, TableView, RegionView, Visit, VillageView, PublicNote } from './api';
+import type { Stats, TableView, RegionView, Visit, VillageView, PublicNote, PublicCard, CardKind } from './api';
 import type { ContactPayload } from './contact';
 import type { Neighbor, Region, Save } from './profile';
 import type { Pick } from './look';
@@ -55,6 +55,8 @@ export const net = {
   note: (sessionId: string, name: string, pick: Pick, text: string) => call<{ note: PublicNote; view: VillageView }>('POST', '/village/notes', { sessionId, name, pick, text }),
   like: (sessionId: string, id: string) => call<{ likes: number }>('POST', `/village/notes/${id}/like`, { sessionId }),
   report: (sessionId: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/report`, { sessionId }),
+  cards: () => call<{ cards: PublicCard[] }>('GET', '/cards'),
+  react: (id: string, voter: string, kind: CardKind) => call<{ card: PublicCard }>('POST', `/cards/${encodeURIComponent(id)}/react`, { voter, kind }),
   coins: (sessionId: string, n: number) => call<{ took: number; view: VillageView }>('POST', '/village/coins', { sessionId, n }),
   // 로그인(10-14) — 확인은 서버가 카카오·구글에 묻는다. 그다음은 열쇠로.
   login: (proof: { provider: string; redirectUri: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save }>('POST', '/login', proof),

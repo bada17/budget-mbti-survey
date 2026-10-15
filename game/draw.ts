@@ -907,6 +907,7 @@ const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {
   tax: { wall: 0xf3e2b8, roof: 0xc9973f },
   works: { wall: 0xe8d6b5, roof: 0xb07a52 }, // 공사터는 house 로 안 그린다(worksArt) — 자리만
   board: { wall: 0xd8b48c, roof: 0x9a7356 },
+  cards: { wall: 0xd8b48c, roof: 0xd9785f },
 };
 
 /** 집 한 채 — box 가 앞벽 발자리. 지붕이 그 위로 솟고, 문은 앞벽 가운데 아래. 깊이는 앞벽 아랫선(그 아래 선 사람이 앞에 보인다). */
@@ -1020,16 +1021,21 @@ function busStop(scene: Scene, place: Place, dpr: number) {
 
 /** 쪽지판 — 기둥 둘에 코르크 판, 색종이 쪽지들. */
 function noteBoard(scene: Scene, place: Place, dpr: number) {
-  const { x, y, w, h } = place.box;
+  const { x, y, w, h } = place.box, cards = place.id === 'cards';
   const g = scene.add.graphics();
   g.fillStyle(0x756956, 0.16).fillEllipse(w / 2, h + 2, w + 16, 10);
   g.fillStyle(0x6d5444).fillRect(8, -40, 6, h + 40).fillRect(w - 14, -40, 6, h + 40);
-  g.fillStyle(0x9a7356).fillRoundedRect(-4, -60, w + 8, 12, 5);
+  g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(-4, -60, w + 8, 12, 5);
   g.fillStyle(0xd8b48c).fillRoundedRect(0, -48, w, 44, 6);
-  const colors = [0xfff3b0, 0xffd6d0, 0xd6ecff, 0xdff3d0, 0xfffaf0];
-  for (let i = 0; i < 7; i++) g.fillStyle(colors[i % colors.length]).fillRect(6 + (i % 4) * 21 + (i > 3 ? 10 : 0), -44 + (i > 3 ? 20 : 0), 16, 14);
-  const name = label(scene, w / 2, -54, place.name, 11, dpr, '#ffffff');
-  return scene.add.container(x, y, [g, name]).setDepth(y + h);
+  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, -54, place.name, 11, dpr, '#ffffff')];
+  if (cards) { // 문제 카드 — 큰 종이 한 장에 붉은 「!」
+    g.fillStyle(0xfffaf0).fillRect(w / 2 - 22, -45, 44, 38).fillStyle(0xd9785f).fillRect(w / 2 - 22, -45, 44, 6);
+    items.push(label(scene, w / 2, -21, '!', 20, dpr, '#d9785f'));
+  } else {
+    const colors = [0xfff3b0, 0xffd6d0, 0xd6ecff, 0xdff3d0, 0xfffaf0];
+    for (let i = 0; i < 7; i++) g.fillStyle(colors[i % colors.length]).fillRect(6 + (i % 4) * 21 + (i > 3 ? 10 : 0), -44 + (i > 3 ? 20 : 0), 16, 14);
+  }
+  return scene.add.container(x, y, items).setDepth(y + h);
 }
 
 /**
@@ -1143,7 +1149,7 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
   for (const place of PLACES) {
     const { x, y, w, h } = place.box, b = { x0: x - 24, x1: x + w + 36, y0: y - 92, y1: y + h + 12 };
     if (place.id === 'works') continue; // 공사터는 동전이 모이는 대로 바뀐다 — 아래 worksArt
-    const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
+    const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' || place.id === 'cards' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
     keep(bake(scene, `village-${place.id}`, make, b, sharp).setDepth(y + h), b);
     if (place.id === 'dok') {
       const drop = scene.add.circle(x + DOK_DRIP.x, y + h + DOK_DRIP.y, 2.2, 0x9fd3e6).setDepth(y + h + 1);

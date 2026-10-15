@@ -303,7 +303,7 @@ export class VillageScene extends Phaser.Scene {
     for (const id of places) {
       if (this.marks.has(id)) continue;
       const place = PLACES.find(p => p.id === id)!;
-      const at = id === 'board' ? { x: place.box.x + place.box.w + 16, y: place.box.y - 54 } /* 판 이름 옆 — 위에 얹으면 「쪽지판」 을 가린다 */ : { x: place.door.x + 38, y: place.door.y - 70 };
+      const at = id === 'board' || id === 'cards' ? { x: place.box.x + place.box.w + 16, y: place.box.y - 54 } /* 판 이름 옆 — 위에 얹으면 「쪽지판」 을 가린다 */ : { x: place.door.x + 38, y: place.door.y - 70 };
       const bubble = this.add.container(at.x, at.y, [
         this.add.circle(0, 0, 13, 0xf5c55c).setStrokeStyle(2, 0xcf9b37),
         this.add.text(0, 1, '!', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: this.runtime.view().dpr }).setOrigin(0.5),

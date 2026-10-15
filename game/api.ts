@@ -49,8 +49,18 @@ export type Store = {
   residents: Map<string, Resident>;
   /** 마을 쪽지 — 번호 → 쪽지. */
   notes: Map<string, Note>;
+  /** 문제 카드 — 번호 → 카드(시트 「문제 카드」 탭). */
+  cards: Map<string, Card>;
 };
 export type Resident = { key: string; save: Save; at: number };
+/**
+ * 문제 카드(사용자 10-15 「활동가가 매주 혹은 매달 업데이트」) — 시트에 사람이 적는 사업 한 건. 판단(「낭비」)은 카드에 안 쓰고 보는 사람이 반응한다.
+ * votes = 기기(투표 번호) → 반응. 기기마다 하나, 바꿀 수 있다. shown 은 시트 「보이기」 칸에 O 를 적었을 때만.
+ */
+export type CardKind = 'problem' | 'unsure' | 'fine';
+export const CARD_KINDS: CardKind[] = ['problem', 'unsure', 'fine'];
+export type Card = { id: string; date: string; title: string; text: string; region: string; amount: string; link: string; shown: boolean; votes: Record<string, CardKind> };
+export const CARDS_SHOW = 12;
 export type ApiResult = { status: number; body: unknown };
 
 export const TABLE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -62,7 +72,7 @@ const ID = /^[A-Za-z0-9-]{8,64}$/;
 const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
 const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
-export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], residents: new Map(), notes: new Map() });
+export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], residents: new Map(), notes: new Map(), cards: new Map() });
 const ACCOUNT = /^(kakao|google):[0-9a-f]{64}$/;
 const LOGIN_KEY = /^[A-Za-z0-9]{32}$/;
 
@@ -79,6 +89,17 @@ export function login(store: Store, account: string, now: number, random: () => 
 }
 // ponytail: 열쇠로 찾을 때 주민 전부를 훑는다 — 수천 명을 넘으면 열쇠 → 계정 표를 따로 둔다.
 const byKey = (store: Store, key: unknown) => (typeof key === 'string' && LOGIN_KEY.test(key) ? [...store.residents].find(([, r]) => r.key === key) : undefined);
+
+/** 밖으로 내는 카드 — 누가 무엇을 눌렀는지는 빼고 수만. */
+export function publicCard({ votes, shown: _shown, ...card }: Card) {
+  const counts = { problem: 0, unsure: 0, fine: 0 } as Record<CardKind, number>;
+  for (const kind of Object.values(votes)) if (kind in counts) counts[kind]++;
+  return { ...card, counts };
+}
+export type PublicCard = ReturnType<typeof publicCard>;
+/** 보이기 한 카드, 올린 날 새것부터 CARDS_SHOW 장(같은 날이면 시트 아래 줄이 먼저). */
+export const shownCards = (store: Store) => [...store.cards.values()].filter(c => c.shown).reverse()
+  .sort((a, b) => b.date.localeCompare(a.date)).slice(0, CARDS_SHOW).map(publicCard);
 
 /** 문항마다 a·b 쪽을 고른 사람 수, 유형별 사람 수. 답 1~3 은 a, 4~6 은 b. */
 export function stats(store: Store) {
@@ -264,6 +285,17 @@ export function handle(store: Store, method: string, path: string, body: unknown
       return { status: 200, body: { ok: true } };
     }
     return { status: 404, body: { error: 'not-found' } };
+  }
+
+  // ── 문제 카드 — 보이기 한 것만, 새것부터. 반응 수는 반응한 뒤에 화면이 보인다(먼저 보이면 끌려간다). ──
+  if (method === 'GET' && path === '/cards') return { status: 200, body: { cards: shownCards(store) } };
+  if (method === 'POST' && parts[0] === 'cards' && parts.length === 3 && parts[2] === 'react') {
+    const card = store.cards.get(decode(parts[1]));
+    if (!card?.shown) return { status: 404, body: { error: 'no-card' } };
+    const voter = input.voter, kind = input.kind as CardKind;
+    if (typeof voter !== 'string' || !ID.test(voter) || !CARD_KINDS.includes(kind)) return { status: 400, body: { error: 'bad-react' } };
+    store.cards.set(card.id, { ...card, votes: { ...card.votes, [voter]: kind } });
+    return { status: 200, body: { card: publicCard(store.cards.get(card.id)!) } };
   }
 
   // ── 로그인한 주민 — 열쇠로 기록 묶음 읽기·쓰기·지우기(로그인 자체는 login(), 서버 입구가 부른다) ──

@@ -12,7 +12,7 @@ import type { Point } from './room';
 import { rng } from './look';
 
 export type Box = { x: number; y: number; w: number; h: number };
-export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works';
+export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards';
 /** 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다). */
 export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point };
 
@@ -35,6 +35,8 @@ export const PLACES: Place[] = [
   { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 } },
   // 마을 공사터 — 나무에서 주운 동전을 넣으면 모두의 동전이 모여 다리·정자가 선다(사용자 10-14 동물의 숲 ⓑ). 판은 places.ts openWorks.
   { id: 'works', name: '동전 모으는 곳', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 } },
+  // 문제 카드 — 활동가가 매주·매달 올리는 사업 한 건에 반응하기(사용자 10-15 「한 달에 한 번이라도 들어올 명분」). 남쪽 문에서 광장 가는 큰길 옆이라 들어오자마자 보인다.
+  { id: 'cards', name: '문제 카드', line: '활동가가 고른 우리 세금 이야기예요. 어떻게 보세요?', box: { x: 586, y: 1150, w: 92, h: 22 }, door: { x: 632, y: 1196 } },
   { id: 'bus', name: '게임 다시 하기', line: '버스 타고 열다섯 동네를 다시 걸어요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
 ];
 

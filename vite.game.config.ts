@@ -9,6 +9,11 @@ import { createStore, handle, login } from './game/api';
  */
 function devGameApi(): Plugin {
   const store = createStore();
+  // 문제 카드 보기 두 장(개발판에서 화면을 보려고) — 진짜 카드는 활동가가 시트에 적는다. 지어낸 사실이 아니게 곳 이름은 ○○.
+  for (const [id, date, title, text, region, amount] of [
+    ['dev-card-1', '2026-10-13', '[예시] ○○구, 청사 앞 조형물 바꾸는 데 4억 원', '3년 전에 세운 조형물을 새것으로 바꾼대요. 주민 설명회는 없었어요.', '서울 마포구', '4억 원'],
+    ['dev-card-2', '2026-10-06', '[예시] ○○군, 하루 축제에 12억 원', '작년엔 7억 원이었어요. 올해 군 전체 문화 예산의 30%예요.', '전국', '12억 원'],
+  ]) store.cards.set(id, { id, date, title, text, region, amount, link: 'https://dok.action.or.kr/', shown: true, votes: {} });
   return {
     name: 'dev-game-api',
     configureServer(server) {

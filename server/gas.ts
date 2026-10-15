@@ -17,7 +17,7 @@
 
   ponytail: 요청마다 탭 전체를 읽는다 — 응답이 수천 건을 넘어 느려지면 진짜 서버(README 정할 것 10)로 옮긴다.
 */
-import { handle, login, type Store, type Contact, type Finished, type Visit, type Resident, type Note } from '../game/api';
+import { handle, login, type Store, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
 import { TYPES } from '../game/content';
 
 /** 쓰는 곳(set)을 기억하는 Map — 시트에는 이것만 다시 쓴다. */
@@ -93,6 +93,47 @@ function writeNotes(sheet: Sheet, map: Tracked<Note>) {
   }
 }
 
+/**
+ * 문제 카드 탭 — 1~7 칸은 활동가가 적고(서버는 안 건드림), 8~11 칸은 서버가 적는다(반응 수·누른 기기).
+ * 번호는 올린 날+제목으로 만든다(줄을 지우거나 옮겨도 그대로). ponytail: 제목을 고치면 반응이 처음부터 — 드문 일이라 그대로.
+ * ponytail: 누른 기기 목록은 칸 하나(JSON, 시트 한 칸 5만 자)에 — 한 카드에 2천 명쯤 넘으면 반응을 탭 따로.
+ */
+const CARD_TAB = '문제 카드';
+const CARD_HEAD = ['올린 날', '제목(한 줄)', '설명(두세 줄 — 판단 말고 사실·숫자)', '지역(예: 서울 마포구, 전국)', '금액(예: 4억 8천만 원)', '출처 링크', '보이기(O 를 적으면 마을에 뜸)', '이건 문제다', '잘 모르겠다', '그럴 수 있다', '기록(서버가 적음)'];
+const CARD_EXAMPLE = ['2026-10-20', '[예시] ○○구, 청사 앞 조형물 바꾸는 데 4억 원', '이 줄은 보기예요. 보이기 칸이 비어 있어 마을에 안 떠요. 새 카드는 아래 줄에 적고 보이기 칸에 O.', '서울 ○○구', '4억 원', 'https://dok.action.or.kr/', ''];
+const cardId = (date: string, title: string) => { let h = 2166136261; for (const ch of `${date}|${title}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return `c${h.toString(36)}`; };
+const dayText = (v: unknown) => (v instanceof Date ? new Date(v.getTime() + 9 * 3600e3).toISOString().slice(0, 10) : String(v ?? '').trim()); // 시트가 날짜로 바꾼 칸은 한국 날짜로
+function cardSheet(book: Book) {
+  const found = book.getSheetByName(CARD_TAB);
+  if (found) return found;
+  const made = tab(book, CARD_TAB, CARD_HEAD);
+  made.appendRow(CARD_EXAMPLE);
+  return made;
+}
+function readCards(sheet: Sheet) {
+  const map = new Tracked<Card>();
+  const last = sheet.getLastRow();
+  if (last < 2) return map;
+  sheet.getRange(2, 1, last - 1, CARD_HEAD.length).getValues().forEach((row, i) => {
+    const [date, title, text, region, amount, link, show, , , , json] = row.map((v, j) => (j === 0 ? dayText(v) : v));
+    if (!String(title ?? '').trim()) return;
+    let votes: Record<string, CardKind> = {};
+    try { votes = json ? JSON.parse(String(json)) : {}; } catch { /* 손으로 망친 칸은 비운 셈 */ }
+    const id = cardId(String(date), String(title).trim());
+    map.load(id, { id, date: String(date), title: String(title).trim(), text: String(text ?? '').trim(), region: String(region ?? '').trim(), amount: String(amount ?? '').trim(),
+      link: /^https?:\/\//.test(String(link ?? '').trim()) ? String(link).trim() : '', shown: /^[oO○ㅇ예]$/.test(String(show ?? '').trim()), votes }, i + 2);
+  });
+  return map;
+}
+function writeCards(sheet: Sheet, map: Tracked<Card>) {
+  for (const id of map.dirty) {
+    const card = map.get(id)!, at = map.rows.get(id);
+    if (!at) continue; // 카드는 사람만 만든다
+    const kinds = Object.values(card.votes);
+    sheet.getRange(at, 8, 1, 4).setValues([[...(['problem', 'unsure', 'fine'] as const).map(k => kinds.filter(x => x === k).length), JSON.stringify(card.votes)]]);
+  }
+}
+
 const contactRow = (c: Contact) => [
   new Date(c.receivedAt).toISOString(), c.channel === 'sms' ? '문자' : '이메일', c.address, '예', '예', c.consents.marketing ? '예' : '아니오', c.consentVersion,
   c.neighbor?.name ?? '', c.neighbor?.questionId ?? '', c.neighbor?.key ?? '', c.neighbor?.seed ?? '', c.type ? `${c.type} ${TYPES[c.type].name}` : '',
@@ -155,11 +196,11 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   const sheets = {
     finished: tab(book, KV.finished, ['세션', '값', '고친 시각']), homes: tab(book, KV.homes, ['집 번호', '값', '고친 시각']), books: tab(book, KV.books, ['집 번호', '값', '고친 시각']),
     residents: tab(book, KV.residents, ['계정(해시)', '값', '고친 시각']),
-    notes: tab(book, NOTE_TAB, NOTE_HEAD),
+    notes: tab(book, NOTE_TAB, NOTE_HEAD), cards: cardSheet(book),
   };
   const store: Store = {
     finished: readKV<Finished>(sheets.finished), homes: readKV<{ key: string; at: number }>(sheets.homes), books: readKV<Visit[]>(sheets.books),
-    residents: readKV<Resident>(sheets.residents), tables: new Map(), contacts: [], notes: readNotes(sheets.notes),
+    residents: readKV<Resident>(sheets.residents), tables: new Map(), contacts: [], notes: readNotes(sheets.notes), cards: readCards(sheets.cards),
   };
   let result;
   if (method === 'POST' && path === '/login') {
@@ -170,6 +211,7 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   if (method === 'POST' && result.status < 400) {
     for (const name of ['finished', 'homes', 'books', 'residents'] as const) writeKV(sheets[name], store[name] as Tracked<unknown>, now);
     writeNotes(sheets.notes, store.notes as Tracked<Note>);
+    writeCards(sheets.cards, store.cards as Tracked<Card>);
     if (store.contacts.length) {
       const sheet = tab(book, CONTACT_TAB, CONTACT_HEAD);
       store.contacts.forEach(c => sheet.appendRow(contactRow(c)));

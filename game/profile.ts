@@ -169,6 +169,19 @@ export function addStamp(id: string, now = Date.now()) {
   return true;
 }
 
+// ── 문제 카드 — 이 기기의 투표 번호(반응은 기기마다 하나), 본 카드(새 카드 알림용), 내 반응 ──
+const CARD_KEY = 'budget-game-cards';
+export type CardMemo = { voter: string; seen: string[]; mine: Record<string, string> };
+export function loadCardMemo(): CardMemo {
+  const raw = read(CARD_KEY) as Partial<CardMemo> | null;
+  const voter = typeof raw?.voter === 'string' && /^[A-Za-z0-9]{20}$/.test(raw.voter) ? raw.voter
+    : Array.from(crypto.getRandomValues(new Uint8Array(20)), b => TABLE_CHARS[b % TABLE_CHARS.length]).join(''); // http 엔 randomUUID 가 없다
+  const memo = { voter, seen: Array.isArray(raw?.seen) ? raw.seen.filter(x => typeof x === 'string').slice(-60) : [], mine: raw?.mine && typeof raw.mine === 'object' ? raw.mine : {} };
+  if (memo.voter !== raw?.voter) write(CARD_KEY, memo);
+  return memo;
+}
+export const saveCardMemo = (memo: CardMemo) => write(CARD_KEY, memo);
+
 export const loadRegion = () => { const raw = read(REGION_KEY); return isRegion(raw) ? raw : undefined; };
 export const saveRegion = (region: Region) => write(REGION_KEY, region);
 

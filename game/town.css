@@ -163,3 +163,27 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-mine b{font-family:var(--display);font-size:18px;font-weight:400;color:#5b402e}
 .t-mine-tag{padding:3px 10px;border-radius:999px;background:var(--leaf);color:#fff;font-size:12px;font-weight:700}
 .t-mine .t-save{background:var(--accent);color:#fffaf0;box-shadow:none}
+/* 문제 카드(10-15) — 한 장 크게, 반응 셋, 반응한 뒤에만 막대 */
+.c-kicker{margin:14px 0 4px;font-family:var(--display);font-size:15px;color:var(--accent-dark)}
+.c-card{margin:0 0 12px;padding:16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 4px 0 #e2cfab}
+.c-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;font-size:13px;color:var(--soft)}
+.c-ours{padding:2px 9px;border-radius:999px;background:var(--leaf);color:#fff;font-size:12px;font-weight:700}
+.c-title{margin:6px 0 2px;font-family:var(--display);font-size:21px;font-weight:400;line-height:1.35;color:#5b402e}
+.c-text{margin:4px 0 0;font-size:15px;line-height:1.65;color:#5f4c3e}
+.c-react{margin:14px 0 0}
+.c-q{margin:0 0 8px;font-weight:700;font-size:15px;color:#5b402e}
+.c-kinds{display:grid;gap:8px}
+.c-kind{min-height:48px;border-radius:999px;font-family:var(--display);font-size:17px;background:#fff;box-shadow:inset 0 0 0 2px var(--line),0 3px 0 var(--edge)}
+.c-kind.c-problem{background:var(--accent);color:#fffaf0;box-shadow:0 4px 0 var(--accent-dark)}
+.c-kind:disabled{opacity:.6}
+.c-result{display:grid;gap:6px}
+.c-row{position:relative;display:flex;justify-content:space-between;padding:10px 14px;border-radius:14px;overflow:hidden;background:#f3ead8;font-size:15px;color:#5f4c3e}
+.c-row::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--p);background:#e8d7b6}
+.c-row.c-problem::before{background:#f2c1b2}
+.c-row>*{position:relative}
+.c-row.mine{font-weight:800;color:#4f3f35;box-shadow:inset 0 0 0 2px var(--accent)}
+.c-again{margin:6px auto 0}
+.c-more{margin:12px 0 0}
+.c-fold{margin:8px 0;padding:10px 14px;border-radius:16px;background:#f7efdf}
+.c-fold summary{cursor:pointer;font-size:14px;color:#5f4c3e}
+.c-fold[open] .c-card{margin:10px 0 0}

@@ -11,8 +11,8 @@ import { DONATE_URL, typeOut } from './ui';
 import { PLACES, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, COIN_DAY_MAX, WORKS, checkNote, worksAt, type PlaceId } from './village';
 import { SCENES, FLOWS, VAULTS, kindOf, splitTax, type Vault } from './taxes';
 import { toLook, lookFrom, nameFrom } from './look';
-import { josa, type Neighbor } from './profile';
-import type { PublicNote, VillageView } from './api';
+import { josa, loadRegion, type Neighbor } from './profile';
+import type { PublicNote, VillageView, PublicCard, CardKind } from './api';
 
 const PB_URL = 'https://pb.action.or.kr/';
 const DOK_URL = 'https://dok.action.or.kr/';
@@ -301,6 +301,83 @@ export function openHouse(shell: HTMLElement, onClose: () => void) {
     link('회원 되기 — 정기후원', `${DONATE_URL}&utm_content=village-house`),
     link('홈페이지 가 보기', out(HOME_URL), 'g-link'),
   );
+}
+
+// ───────────────────────── 문제 카드 — 활동가가 올린 사업 한 건, 보는 사람이 반응 ─────────────────────────
+/**
+ * 사용자 10-15 「헐 진짜 문제다, 저런 식으로 하면 안 돼 — 그런 식의 상호작용」 「이름은 문제 카드」 「활동가가 매주 혹은 매달 업데이트」.
+ * 한 번에 한 장(새것이 크게), 지난 카드는 접어서. 반응 수는 반응한 뒤에만 보인다(먼저 보이면 끌려간다). 카드엔 판단을 안 쓰고 묻는다.
+ */
+const CARD_KINDS: CardKind[] = ['problem', 'unsure', 'fine']; // api.ts 와 같은 차례(값을 끌어오면 서버 규칙이 화면 묶음에 딸려 온다)
+export const CARD_KIND_NAME: Record<CardKind, string> = { problem: '이건 문제다', unsure: '잘 모르겠다', fine: '그럴 수 있다' };
+export type CardsOpts = {
+  online: boolean;
+  load(): Promise<PublicCard[] | undefined>;
+  react(id: string, kind: CardKind): Promise<PublicCard | undefined>;
+  mine(): Record<string, string>;
+  share(card: PublicCard): void;
+  /** 링크(?card=)로 온 카드 — 이걸 맨 위에 크게. */
+  focus?: string;
+};
+const dayLabel = (date: string) => { const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(date); return m ? `${Number(m[2])}월 ${Number(m[3])}일` : date; };
+const squash = (text: string) => text.replace(/\s/g, '');
+
+export function openCards(shell: HTMLElement, opts: CardsOpts, onClose: () => void) {
+  const { panel } = placePanel(shell, 'cards', onClose);
+  const status = el('p', 't-small', '불러오는 중…'); status.setAttribute('role', 'status');
+  panel.append(status);
+  void Promise.all([opts.load(), loadPlaces().catch(() => undefined)]).then(([cards, places]) => {
+    if (!cards) { status.textContent = opts.online ? '지금은 카드를 불러올 수 없어요. 조금 뒤에 다시 와 주세요.' : '시험판이라 아직 카드가 없어요. 활동가가 올리면 여기에 떠요.'; return; }
+    if (!cards.length) { status.textContent = '아직 올라온 카드가 없어요. 곧 올라와요.'; return; }
+    status.remove();
+    const myPlace = places?.places.find(p => p.c === loadRegion());
+    const ours = (card: PublicCard) => Boolean(myPlace && !myPlace.n.endsWith('(시·도)') && squash(card.region).includes(squash(placeTitle(myPlace))));
+    const first = cards.find(c => c.id === opts.focus) ?? cards[0], rest = cards.filter(c => c !== first);
+    panel.append(el('p', 'c-kicker', first === cards[0] ? '이번 문제 카드' : '친구가 보낸 문제 카드'), cardView(first, ours(first), opts));
+    if (!rest.length) return;
+    panel.append(el('h3', 'x-h', '지난 문제 카드'));
+    for (const card of rest) {
+      const fold = el('details', 'c-fold'), mine = opts.mine()[card.id] as CardKind | undefined;
+      fold.append(el('summary', '', `${dayLabel(card.date)} · ${card.title}${mine ? ` — 내 반응: ${CARD_KIND_NAME[mine]}` : ''}`), cardView(card, ours(card), opts));
+      panel.append(fold);
+    }
+  });
+}
+
+function cardView(card: PublicCard, ours: boolean, opts: CardsOpts) {
+  const box = el('article', 'c-card'), meta = el('p', 'c-meta', `${dayLabel(card.date)} · ${card.region || '전국'}`);
+  if (ours) meta.append(el('span', 'c-ours', '우리 동네 일이에요'));
+  box.append(meta, el('h3', 'c-title', card.title));
+  if (card.amount) box.append(el('p', 't-big', card.amount));
+  if (card.text) box.append(el('p', 'c-text', card.text));
+  const area = el('div', 'c-react');
+  const ask = () => {
+    const list = el('div', 'c-kinds');
+    for (const kind of CARD_KINDS) list.append(btn(`c-kind c-${kind}`, CARD_KIND_NAME[kind], async () => {
+      list.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      const got = await opts.react(card.id, kind);
+      if (got) { card = got; result(kind); } else { list.querySelectorAll('button').forEach(b => { b.disabled = false; }); area.append(el('p', 't-small', '지금은 반응을 남길 수 없어요. 조금 뒤에 다시 해 주세요.')); }
+    }));
+    area.replaceChildren(el('p', 'c-q', '이 돈, 어떻게 보세요?'), list);
+  };
+  const result = (mine: CardKind) => {
+    const total = CARD_KINDS.reduce((a, k) => a + card.counts[k], 0) || 1;
+    const rows = el('div', 'c-result');
+    for (const kind of CARD_KINDS) {
+      const pct = Math.round((card.counts[kind] / total) * 100), row = el('div', `c-row c-${kind}${kind === mine ? ' mine' : ''}`);
+      row.style.setProperty('--p', `${pct}%`);
+      row.append(el('span', '', CARD_KIND_NAME[kind]), el('b', '', `${pct}%`));
+      rows.append(row);
+    }
+    area.replaceChildren(el('p', 'c-q', `${total}명이 반응했어요`), rows, btn('g-link c-again', '반응 바꾸기', ask));
+  };
+  const mine = opts.mine()[card.id] as CardKind | undefined;
+  if (mine && CARD_KINDS.includes(mine)) result(mine); else ask();
+  const more = el('div', 'c-more');
+  more.append(btn('g-ghost', '친구에게 보내기', () => opts.share(card)), link('밑 빠진 독상 보기', out(DOK_URL), 'g-link'));
+  if (card.link) more.append(link('출처 보기', card.link, 'g-link'));
+  box.append(area, more);
+  return box;
 }
 
 // ───────────────────────── 쪽지 — 쪽지판·광장에서 마주친 쪽지 카드 ─────────────────────────

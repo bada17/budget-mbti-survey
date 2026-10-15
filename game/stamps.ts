@@ -15,7 +15,7 @@ export const STAMPS: StampDef[] = [
   { id: 'invite', name: '친구 부름', how: '친구에게 보내거나 답장하면' },
   { id: 'guest', name: '손님 맞이', how: '친구가 답장하거나 내 동네에 다녀가면' },
   { id: 'table', name: '한 테이블', how: '테이블에서 같이 걸으면' },
-  { id: 'region', name: '우리 지역', how: '우리 지역 동네에 한 채 지으면' },
+  { id: 'region', name: '내 동네', how: '내 동네(시·군·구)를 정하고 우리 동네 탭을 열면' },
   { id: 'season', name: '철 도장', how: '예산철(9월·12월)에 걸으면' },
   { id: 'event', name: '현장 도장', how: '시민행동 행사에서 QR 을 찍으면' },
   { id: 'news', name: '소식 받는 주민', how: '이웃 소식을 받으면' },
