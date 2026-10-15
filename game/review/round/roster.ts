@@ -30,6 +30,17 @@ const hairTones:{value:HairTone;label:string}[]=[
   {value:'mixed',label:'고루 섞기'},{value:'temples',label:'양옆만'},
   {value:'silver',label:'은발'},{value:'white',label:'백발'},
 ];
+const hairStyles:{value:NonNullable<ResidentDesign['hairStyle']>;label:string}[]=[
+  {value:'bob',label:'단발'},{value:'wave',label:'웨이브'},{value:'curls',label:'곱슬'},
+  {value:'bun',label:'올림머리'},{value:'part',label:'가르마'},{value:'cloud',label:'둥근 파마'},
+  {value:'forehead',label:'넓은 이마'},{value:'shoulder',label:'어깨 단발'},
+  {value:'crop',label:'짧은 머리'},{value:'lowTie',label:'낮은 묶음'},
+];
+const tops:{value:NonNullable<ResidentDesign['top']>;label:string}[]=[
+  {value:'cardigan',label:'가디건'},{value:'stripes',label:'줄무늬'},{value:'hoodie',label:'후드'},
+  {value:'apron',label:'앞치마'},{value:'jacket',label:'점퍼'},{value:'vest',label:'조끼'},
+  {value:'shirt',label:'셔츠'},{value:'blazer',label:'정장 재킷'},{value:'knit',label:'니트'},
+];
 const W=Math.min(360,innerWidth),H=showAdults?640:innerWidth<=650?Math.max(460,Math.min(640,innerHeight)):640;
 const dpr=Math.min(devicePixelRatio||1,2),reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const $=(id:string)=>document.getElementById(id)!;
@@ -70,9 +81,11 @@ class RosterScene extends Phaser.Scene {
     const label=this.add.text(0,15/actor.root.scaleY,resident.name,{fontFamily:'Malgun Gothic, sans-serif',fontSize:'9px',color:'#68594c',backgroundColor:'#fff8e8',padding:{x:4,y:3}}).setOrigin(.5,0).setResolution(dpr);
     label.setScale(1/actor.root.scaleX);actor.root.add(label);return actor;
   }
-  changeHair(tone:HairTone){
+  changeDesign(patch:Partial<ResidentDesign>){
     const entry=this.entries[selected];if(!entry)return;
-    residents[selected].design.hairTone=tone;
+    const resident=residents[selected];Object.assign(resident.design,patch);
+    resident.name=`${hairStyles.find(option=>option.value===(resident.design.hairStyle??'bob'))!.label} · ${tops.find(option=>option.value===(resident.design.top??'cardigan'))!.label}`;
+    resident.description='머리 스타일과 옷을 각각 고른 모습이에요. 눈썹·수염·안경·미소선은 그대로예요.';
     const {x,y}=entry.actor.root;entry.actor.root.destroy();
     entry.actor=this.makeActor(residents[selected],x,y);this.frame();
   }
@@ -107,10 +120,20 @@ class RosterScene extends Phaser.Scene {
   reset(){this.clock=0;keys.clear();for(const entry of this.entries){entry.manual=false;entry.target=undefined;entry.actor.place(entry.anchor.x,entry.anchor.y);}}
 }
 const scene=new RosterScene();
+for(const [id,options,key] of [['hair-style',hairStyles,'hairStyle'],['top-style',tops,'top']] as const){
+  const selectElement=$(id) as HTMLSelectElement;
+  options.forEach(({value,label})=>selectElement.add(new Option(label,value)));
+  selectElement.onchange=()=>{
+    const value=options.find(option=>option.value===selectElement.value)?.value;if(!value)return;
+    scene.changeDesign({[key]:value});select(selected);
+    if(zoomed&&innerWidth<=650)document.querySelector('.world')!.scrollIntoView({block:'start'});
+  };
+}
+
 hairTones.forEach(({value,label})=>{
   const button=document.createElement('button');button.type='button';button.dataset.hairTone=value;
   button.textContent=label;button.onclick=()=>{
-    scene.changeHair(value);updateHair();
+    scene.changeDesign({hairTone:value});select(selected);
     if(zoomed&&innerWidth<=650)document.querySelector('.world')!.scrollIntoView({block:'start'});
   };$('hair-tones').append(button);
 });
@@ -123,7 +146,12 @@ residents.forEach((resident,i)=>{
 });
 function select(index:number){
   selected=index;keys.clear();$('who').textContent=residents[index].name;$('description').textContent=residents[index].description;
-  document.querySelectorAll<HTMLButtonElement>('[data-resident]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.resident)===index)));
+  document.querySelectorAll<HTMLButtonElement>('[data-resident]').forEach(button=>{
+    const i=Number(button.dataset.resident);button.setAttribute('aria-pressed',String(i===index));
+    button.textContent=`${i+1} · ${residents[i].name}`;
+  });
+  ($('hair-style') as HTMLSelectElement).value=residents[index].design.hairStyle??'bob';
+  ($('top-style') as HTMLSelectElement).value=residents[index].design.top??'cardigan';
   updateHair();
   if(zoomed)scene.frame();
 }
@@ -140,6 +168,6 @@ $('zoom').onclick=()=>{
   if(innerWidth<=650)document.querySelector('.world')!.scrollIntoView({block:'start'});
 };
 $('reset').onclick=()=>scene.reset();
-window.addEventListener('keydown',event=>{if(event.key.startsWith('Arrow')){event.preventDefault();keys.add(event.key);}});
+window.addEventListener('keydown',event=>{if(event.target instanceof HTMLSelectElement)return;if(event.key.startsWith('Arrow')){event.preventDefault();keys.add(event.key);}});
 window.addEventListener('keyup',event=>keys.delete(event.key));window.addEventListener('blur',()=>keys.clear());
 reduced.addEventListener('change',()=>{walking=!reduced.matches;scene.reset();updateWalk();});updateWalk();
