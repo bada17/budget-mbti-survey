@@ -10,6 +10,7 @@ export type ResidentDesign = {
   pants?: number;
   shoes?: number;
   glasses?: boolean;
+  headAccessory?: 'none'|'headband'|'hairpin'|'ribbon'|'cap';
   hairColor?: number;
   hairAccent?: number;
   hairPattern?: HairPattern;
@@ -219,6 +220,32 @@ export class RoundResident {
         fringe.fillStyle(accent).fillPoints(temple.getPoints(10),true);
       }
     }
+    const accessory=s.graphics(),decoration=design.headAccessory??'none';
+    const crown=hairStyle==='curls'||hairStyle==='cloud'?-64:hairStyle==='wave'?-63:hairStyle==='bun'?-62:-60;
+    if(decoration==='headband'){
+      const band=new Phaser.Curves.Path(-16,crown+13)
+        .cubicBezierTo(16,crown+13,-15,crown-3,15,crown-3).lineTo(13,crown+15)
+        .cubicBezierTo(-13,crown+15,13,crown+1,-13,crown+1).closePath();
+      accessory.fillStyle(0xce8c91).fillPoints(band.getPoints(18),true);
+    }
+    if(decoration==='hairpin'){
+      accessory.fillStyle(0xe2b561).fillRoundedRect(8,crown+10,9,3.5,1.75);
+      accessory.lineStyle(.7,0xfff2cb).lineBetween(10,crown+11.3,15,crown+11.3);
+    }
+    if(decoration==='ribbon'){
+      accessory.fillStyle(0xc98591).fillTriangle(-12,crown+3,-9,crown+4,-14,crown+9)
+        .fillTriangle(-9,crown+4,-7,crown+3,-5,crown+9);
+      accessory.fillStyle(0xe5a5ac).fillEllipse(-13,crown+2,8,7).fillEllipse(-6,crown+2,8,7);
+      accessory.fillStyle(0xc98591).fillRoundedRect(-11,crown,4,4,1.4);
+    }
+    if(decoration==='cap'){
+      const cap=new Phaser.Curves.Path(-18,crown+9)
+        .cubicBezierTo(0,crown-8,-18,crown-3,-9,crown-8)
+        .cubicBezierTo(18,crown+9,10,crown-8,18,crown-2).closePath();
+      accessory.fillStyle(0x85a7b8).fillPoints(cap.getPoints(18),true);
+      accessory.fillStyle(0x678d9f).fillRoundedRect(-18,crown+7,36,4,2).fillEllipse(8,crown+11,29,5);
+      accessory.fillStyle(0xf7e5bf).fillRoundedRect(-3,crown-2,6,5,1.5);
+    }
     this.eyes = [-4.8,4.8].map(ex => s.circle(ex,-41.5,1.75,0x39313b));
     const face = s.graphics();
     face.fillStyle(0xee9b90,.7).fillEllipse(-9.5,-37.4,6,4.5).fillEllipse(9.5,-37.4,6,4.5);
@@ -232,7 +259,7 @@ export class RoundResident {
       face.fillStyle(look.hair,.65).fillPoints(beard.getPoints(12),true);
     }
     if(design.glasses)face.lineStyle(.85,0x8b796a).strokeCircle(-4.8,-41.5,3.5).strokeCircle(4.8,-41.5,3.5).lineBetween(-1.3,-41.5,1.3,-41.5);
-    this.body = s.container(0,0,[back,...this.legs,...sleeves,torso,cardigan,neck,...ears,head,fringe,...this.eyes,face]);
+    this.body = s.container(0,0,[back,...this.legs,...sleeves,torso,cardigan,neck,...ears,head,fringe,accessory,...this.eyes,face]);
     this.root = s.container(x,y,[s.ellipse(0,0,32,7,0x756956,.17),this.body]);
   }
   place(x:number,y:number) { this.root.setPosition(x,y).setDepth(y); }

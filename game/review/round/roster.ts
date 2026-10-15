@@ -47,6 +47,10 @@ const tops:{value:NonNullable<ResidentDesign['top']>;label:string}[]=[
   {value:'apron',label:'앞치마'},{value:'jacket',label:'점퍼'},{value:'vest',label:'조끼'},
   {value:'shirt',label:'셔츠'},{value:'blazer',label:'정장 재킷'},{value:'knit',label:'니트'},
 ];
+const headAccessories:{value:NonNullable<ResidentDesign['headAccessory']>;label:string}[]=[
+  {value:'none',label:'없음'},{value:'headband',label:'머리띠'},{value:'hairpin',label:'머리핀'},
+  {value:'ribbon',label:'작은 리본'},{value:'cap',label:'모자'},
+];
 const W=Math.min(360,innerWidth),H=showAdults?640:innerWidth<=650?Math.max(460,Math.min(640,innerHeight)):640;
 const dpr=Math.min(devicePixelRatio||1,2),reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const $=(id:string)=>document.getElementById(id)!;
@@ -91,7 +95,7 @@ class RosterScene extends Phaser.Scene {
     const entry=this.entries[selected];if(!entry)return;
     const resident=residents[selected];Object.assign(resident.design,patch);
     resident.name=`${hairStyles.find(option=>option.value===(resident.design.hairStyle??'bob'))!.label} · ${tops.find(option=>option.value===(resident.design.top??'cardigan'))!.label}`;
-    resident.description='머리·옷·안경을 각각 고른 모습이에요. 눈썹·수염·미소선은 그대로예요.';
+    resident.description='머리·옷·안경·머리 장식을 각각 고른 모습이에요. 눈썹·수염·미소선은 그대로예요.';
     const {x,y}=entry.actor.root;entry.actor.root.destroy();
     entry.actor=this.makeActor(residents[selected],x,y);this.frame();
   }
@@ -126,7 +130,7 @@ class RosterScene extends Phaser.Scene {
   reset(){this.clock=0;keys.clear();for(const entry of this.entries){entry.manual=false;entry.target=undefined;entry.actor.place(entry.anchor.x,entry.anchor.y);}}
 }
 const scene=new RosterScene();
-for(const [id,options,key] of [['hair-style',hairStyles,'hairStyle'],['top-style',tops,'top'],['hair-pattern',hairPatterns,'hairPattern']] as const){
+for(const [id,options,key] of [['hair-style',hairStyles,'hairStyle'],['top-style',tops,'top'],['hair-pattern',hairPatterns,'hairPattern'],['head-accessory',headAccessories,'headAccessory']] as const){
   const selectElement=$(id) as HTMLSelectElement;
   options.forEach(({value,label})=>selectElement.add(new Option(label,value)));
   selectElement.onchange=()=>{
@@ -173,6 +177,7 @@ function select(index:number){
   ($('hair-style') as HTMLSelectElement).value=residents[index].design.hairStyle??'bob';
   ($('top-style') as HTMLSelectElement).value=residents[index].design.top??'cardigan';
   ($('glasses') as HTMLSelectElement).value=residents[index].design.glasses?'round':'none';
+  ($('head-accessory') as HTMLSelectElement).value=residents[index].design.headAccessory??'none';
   updateHair();
   if(zoomed)scene.frame();
 }
