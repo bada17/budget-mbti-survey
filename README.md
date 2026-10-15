@@ -742,14 +742,33 @@ Claude 가 이해한 것과 질문을 몰아 드리고 답(1ⓐⓑⓒⓕⓖ · 2
   화면: [광장](game/review/village-plaza-360.jpg) · [쪽지 카드](game/review/village-note-card-360.jpg) · [지도](game/review/village-map-360.jpg) ·
   [상담소](game/review/village-counsel-360.jpg) · [독상](game/review/village-dok-360.jpg) · [나라살림 창고](game/review/village-finance-360.jpg) ·
   [쪽지판](game/review/village-board-360.jpg) · [주민센터](game/review/village-hub-360.jpg) · [언덕 끝 화면](game/review/village-hill-end-360.jpg) · [남쪽 문](game/review/village-gate-360.jpg).
-- **캐릭터 방향 시안 — 첫 방의 나만 적용.** 사용자가 [둥근 파스텔 주민 네 명](game/review/cute-character-direction.jpg)(줄무늬 옷·가디건·초록 점퍼·보라 조끼)을 마음에 들어 하며 나중에 쓰도록 기록해 달라고 했다. 생성 주문은 [여기](game/prompts/cute-character-direction.md). 기본 얼굴·몸 틀을 공유하고 머리·옷 모양을 조합하며 색은 팔레트로 바꾸는 방향이다. 작은 실제 게임 크기에서 읽힘을 먼저 확인한다. 주민 모습은 답의 a/b와 연결하지 않는다. 큰 시안 이미지를 런타임에 줄여 넣지 않고 `draw.ts`에서 게임 크기에 맞춰 그린다.
-  사용자 「일단 마을 말고 하나만」「첫 방에 구현, 내 커스터마이징도」에 따라 **첫 방(광장)의 내 캐릭터만** 줄무늬 상의·큰 둥근 얼굴·작은 운동화로 적용했다.
-  기존 선택기(머리 모양 다섯·머리색·옷색·피부색)와 저장은 그대로 연결된다. 머리·옷·피부는 답의 a/b와 엮지 않는다.
-  다음 방부터 기존 그림으로 돌아가고, 다른 주민·마을에는 적용하지 않는다. 첫 방의 그림 컨테이너가 살아 있는 동안만 시안을 보여 주어 장면 진행 코드를 바꾸지 않았다.
-  **검토 뒤 멈춤.** [모습 고르기](game/review/character-first-dress-360x640.png) · [첫 방](game/review/character-first-room-360x640.png) ·
-  [다른 조합](game/review/character-first-custom-360x640.png) · [작은 폰](game/review/character-first-dress-360x560.png) · [다음 방 기존 그림](game/review/character-second-room-360x640.png).
-  `npm test`(68개)·`npx tsc --noEmit`·`npm run build:game` 통과. 브라우저에서 머리 다섯·각 색 세 가지, 선택 저장, 360×640·360×560, 첫 방→큰길 전환을 확인했다.
-  Chrome CDP로 CPU 4배 느리게 하고 첫 방에서 좌우로 걷는 동안 Phaser `postrender` 완료를 4초 측정: 약 46.2fps(187장 / 4.044초), 35fps 기준 통과. 브라우저 오류 0. 공개판(gh-pages)은 올리지 않는다.
+- **공개판 기반 성인 주민 열두 모습 — 2026-10-15 검토.** 승인한 둥근 몸·짧은 다리·눈·볼·미소와 보행 리그를 공통으로 쓰고, 어린이 전용 모습 없이 청년·중년·어르신 느낌의 성인 모습을 비교한다. 넓은 이마/셔츠, 어깨 단발/재킷, 웨이브/니트, 작은 턱수염/점퍼, 낮은 묶음/앞치마, 짧은 파마/가디건으로 중년 표현을 넓혔다. 성별·나이 값은 만들지 않는다. **본편 적용·내 모습 꾸미기 확장은 아직이며 디자인 검토용이다.**
+  **흰머리는 나이와 분리한다.** 양옆에 같은 흰머리를 반복했던 표현을 고치고, 사용자 「청년이더라도 흰머리를 표현하고 싶을 수 있잖아」에 따라 모든 주민이 원래 색/앞머리 한 줄/고루 섞기/양옆만/은발/백발을 고르게 했다. 은발 곱슬·후드, 앞머리 한 줄의 웨이브·줄무늬, 희끗한 웨이브·니트, 백발 낮은 묶음 등을 예시로 둔다. 부분 흰머리는 헤어라인에 맞추고, 전체 은발/백발은 앞뒤 머리에 함께 적용한다. 섞인 흰머리는 바탕색과 가는 머릿결을 부드럽게 섞는다. 머리색 선택으로 눈썹·수염·미소선이 자동 추가되거나 바뀌지 않으며, 파마 모양의 내부 이름도 색과 분리했다.
+  `npm run dev:game -- --host 127.0.0.1 --port 5190` → **`/review/round/adults.html`**. 첫 여섯 명과 중년 여섯 명의 3×4 배치이며 처음에는 은발 곱슬·후드를 고른다. 선택한 주민의 머리색을 즉시 바꾸고, 다른 주민을 골라도 각자 선택을 미리보기 안에서 유지한다(새로고침하면 예시로 복원). 변경할 때 현재 위치·이동 목표·확대 추적을 유지한다. 주민/목록 선택, 바닥 클릭·방향키 이동, 산책 정지/재개, 처음 자리 복원, 모션 줄이기를 제공한다. 확대하면 선택한 한 명만 보이며 숨긴 주민은 클릭에서 제외한다. 작은 화면은 높이 640px 검토판과 아래 선택창을 세로로 스크롤하며, 확대 중 머리색/주민 선택 후 그림으로 복귀한다.
+  `/review/round/six.html`도 같은 머리색 선택을 제공한다. 단발/가디건, 웨이브/줄무늬, 곱슬/후드, 올림머리/앞치마, 가르마/점퍼, 둥근 파마/조끼·안경의 모양은 유지하고 일부 머리색 예시를 바꿨다. `/review/round/`는 기존 `Dude`의 첫 방 주민과 기본 단발·가디건 한 명을 같은 키·색·보행 박자로 비교하며 기본 그림은 유지했다. 모두 도형·파스텔·납작한 그림자, 기존 `FEEL`의 속도/보행 주기/발 교차/몸 바운스, DPR 2까지의 정적 배경 굽기를 공유한다.
+  변경 범위는 `game/review/round/`와 이 기록이다. 새 이미지/의존성 없이 구현했으며 본편 진행·판정·`draw.ts`와 기존 보류 검토는 바꾸지 않았다. 공개 시험판 배포는 하지 않는다.
+  **검증:** 게임 테스트 49개·`npx tsc --noEmit`·`npm run build:game` 통과. 브라우저에서 청년 느낌의 곱슬·후드에 머리색 여섯 선택을 모두 적용하고 주민 전환 뒤 백발 선택 유지, 앞머리 한 줄/고루 섞기/전체 은발·백발 확대, 넓은 이마의 짧은 흰 줄, 360×640·320×560의 가로 넘침 없음과 선택창 접근·확대 후 그림으로 복귀, 머리색 변경 후 방향키 이동/자리 복원/전체 보기를 확인했다. 여섯 주민 화면의 백발 가르마·점퍼도 확인했다. 브라우저 오류/경고와 코드 검토 조치 대상 문제 없음. 코드 검토에서 교체한 그림 정리·이동 상태 유지·기본 단발 비교 호환을 확인했다. 실제 휴대폰과 CPU 4배 성능 측정은 이번 검토에서 하지 않았다.
+- **캐릭터 검토 — 2026-10-14 저장하고 보류.** 사용자 「일단 여기까지 저장해봐. 나머지는 나중에 더 고민해보자」에 따라 현재의 검토용 구현·그림·테스트·캡처를 함께 보관한다. 최종 시안도 원하는 귀여움에 이르지 못했으며 **디자인 채택·본편 적용·나머지 주민 확장은 보류**다. 현재 모습을 승인한 것으로 해석하지 않는다. 다음 작업은 사용자가 다시 요청할 때 시작한다. 한국적인 일상 헤어·다양한 옷·예쁜 커스터마이징이라는 목표는 유지하되, 디자인 기준과 제작 방식은 다시 정한다.
+  사용자가 부품을 조합한 열두 명의 두상·헤어·팔 움직임을 거절한 뒤, 얼굴·단발을 한 장으로 넣어 정돈했다. 이어 「예전에 귀여움이 사라졌다. 너무 현실같은거 같음」이라고 평가했다. [첫 주민 네 명](game/review/cute-character-direction.jpg)의 큰 머리·짧고 둥근 몸·단순한 색면을 기준으로 몸을 고쳤지만, 이 비교안도 채택하지 않았다. 원화의 인상보다 부품 조합과 부분 수정을 우선하고, 전체 인상을 충분히 확인하지 못한 점이 이번 작업의 한계였다.
+  **얼굴은 유지하고 몸부터 비교한다.** 왼쪽 한 명만 머리를 크게, 목과 팔다리를 짧게, 몸통·손·발을 둥글게 바꿨다. 옷의 주름·질감·복잡한 윤곽을 빼고 기존 게임처럼 도형과 납작한 그림자로 그린다. 줄무늬·가디건·조끼·집업·후드·블라우스·니트·겉셔츠는 색만 바꾸는 대신 각각 단순한 무늬·깃·여밈을 구별한다. 이번에는 새 이미지 생성이나 외부 에셋/스킬 설치를 하지 않았다.
+  얼굴·단발·귀·목을 함께 그린 [head-bob-v3.png](game/review/characters/head-bob-v3.png)는 같은 원본의 비율과 색을 유지해 두 명 모두에게 쓴다. 이 원본은 앞선 내장 `imagegen` 결과이며 [얼굴 참조 판](game/review/character-direction-v2.png)의 윗줄 2번을 참조했다.
+  `npm run dev:game` → **`/review/characters/`**. 첫 방 배경에 왼쪽 동글형·오른쪽 이전 시안 두 명을 같은 얼굴·옷 종류·색으로 놓았다. 「크게 비교」로 함께 확대하고, 「실제 크기로」로 돌아온다. 주민 선택·걷기·옷 모양/색 바꾸기를 확인할 수 있다. 얼굴·헤어·피부·안경은 이번 비교에서 고정이며 해당 선택기를 감췄다. 머리/옷/피부는 답의 a/b와 연결하지 않는다.
+  **기존 걷기 유지.** 팔 고정, 다리 교차·몸 바운스·숨쉬기는 `FEEL` 설정을 사용한다. 추가 팔 흔들기·좌우 뒤집기·깜빡임은 제거했다. 정적인 배경은 한 번 굽고, DPR 2까지 지원한다. 모션 줄이기 설정도 반영한다. 기존 열두 조합은 `?legacy`에서 비교용으로만 확인하며 새 디자인으로 채택한 것은 아니다.
+  별도 리뷰 화면과 자체 저장 키만 변경했다. `draw.ts`의 앞선 첫 방 실험과 본편 진행/선택기, `village.ts`·`VillageScene.ts`·`places.ts`·`main.ts`는 이번에 고치지 않았다. gh-pages에는 배포하지 않는다.
+  **재개 방법:** 저장소에서 `npm run dev:game -- --host 127.0.0.1 --port 5177` → `http://127.0.0.1:5177/review/characters/`. `?legacy`는 거절한 열두 명의 부품 조합 비교용이다. 두 모드 모두 검토 전용이며 본편에서 사용하지 않는다.
+  앞서 캡처만 보관하던 검토 코드를 이번의 명시적 저장 요청에 따라 `game/review/characters/`와 `tests/game-character-preview.test.mjs`에 함께 저장한다. `parts.png`·`parts-extra.png`는 초기 생성 부품이며 새 디자인으로 채택하지 않았다. 초기 `character-rounded-*`·`character-restored-motion-*` 캡처도 비교 이력으로 보관한다. 현재 검토 구현과 일부 모션·화면이 다를 수 있다.
+  **검증:** `npx tsc --noEmit`·캐릭터 모델 테스트 4개 통과. 브라우저에서 두 명의 같은 얼굴, 왼쪽 머리 확대와 둥근 몸, 원본 두상 비율·색 유지, 기존 걷기와 팔 고정, 옷 변경·기본 조합 복원, 직접 조작 후 위치 유지, 모션 줄이기와 이전 열두 조합을 확인했다. 오류 0. Chrome CDP CPU 4배에서 `postrender` 241장 / 4.0117초 = 약 60.1fps, 35fps 기준 통과. 이 수치는 두 명의 비교 화면에 해당한다.
+  [실제 크기 360×640](game/review/character-cute-body-v4-360x640.png) · [확대 비교](game/review/character-cute-body-v4-compare-360x640.png) · [옷 바꾸기](game/review/character-cute-body-v4-edit-360x640.png).
+
+  <details><summary>얼굴·단발 원본 생성 주문</summary>
+
+  참조: 위 「얼굴 참조 판」의 윗줄 2번. 내장 imagegen 편집, 투명 배경.
+
+  ```text
+  EDIT/EXTRACTION TARGET: the attached approved character-design board. Create ONE isolated complete head-and-short-neck sprite from character number 2 in the TOP ROW labeled 동글형: the young Korean everyday-neighborhood woman with the neat warm dark-brown bob haircut, coral cardigan, and rounded cheeky face. Preserve her attractive facial identity and integrated face/hair proportions from the original art, especially rounded broad cheeks, a short softly curved chin, clear small black circular eyes, short gentle eyebrows, tiny nose, soft blush, and a small natural curved smile. The head, front bangs, back bob, ears, face and a short neck must all remain one already-composited drawing. The neat bob should have a soft rounded crown and smooth rounded side silhouette, with just a few clear curved hair divisions, naturally attached to the scalp, no flyaway threads. Hair frames the cheeks without covering the eyes or narrowing the face. Simplify to the existing game's rounded pastel shapes and flat shadows: clean solid color masses, subtle two-tone hair shadow, no strand texture, no grain, no sketchy lines, no realistic highlights. Make her Korean contemporary everyday styling, charming and well groomed. She faces directly forward with the head upright, no tilt. Deliver ONLY this one complete head with ears and short neck, no torso, shoulders, clothes, body, accessories, other characters, panels, captions, letters, frame or scenery. Keep enough forehead visible. The short neck bottom is the attachment point; full intact hair silhouette including all sides, nothing clipped. Center the whole intact head in the square canvas with consistent transparent padding around it. The image must have true alpha transparency. This is an actual tiny 2D game sprite, ultimately about 34 CSS pixels wide, so the face must read at that size and the hair outline must stay clean. Do not redesign into the rejected taller oval face or detailed strand-filled wig. Do not provide separate interchangeable parts or a grid.
+  ```
+
+  </details>
 - **2026-10-14 GPT 귀여움 꾸미기 — 전체 장소 확장 완료.** 첫 시안 커밋 `862aa51`을 본 사용자가 「낫배드인듯. 계속해」로 승인했다.
   귀여움의 기준은 기존 둥근 도형·파스텔·납작한 그림자. 시안의 주민 작은 손·볼·미소·옷깃, 기존 고양이·비둘기·공과 합성음을 유지하고
   나머지 열두 방·버스·이웃 판까지 같은 분위기로 넓혔다. 새 소품·외부 에셋·런타임 그림/소리 파일·의존성 추가 없음.

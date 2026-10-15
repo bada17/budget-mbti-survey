@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>동글형 주민 여섯 명 · 첫 방</title><link rel="icon" href="data:,"></head>
+<body>
+<main class="demo">
+  <header class="heading"><div><p>동네 한 바퀴 · 주민 시안</p><h1>같은 동네, 서로 다른 여섯 명</h1></div><a href="./">한 명 비교로</a></header>
+  <div class="layout"><section class="world" aria-label="동글형 주민 여섯 명">
+    <div id="canvas"></div>
+    <div class="world-title"><b>통통한 동네 주민 여섯 명</b><p>주민을 누르면 골라요. 빈 바닥을 누르면 걸어요.<br>크게 보기를 누르면 고른 주민을 따라가요.</p></div>
+    <div id="ready" role="status">주민들이 준비하고 있어요…</div>
+    <div class="toolbar"><button id="walk" aria-pressed="true">산책 멈추기</button><button id="zoom" aria-pressed="false">크게 보기</button><button id="reset">처음 자리로</button></div>
+  </section><aside class="roster-panel" aria-label="주민과 머리색 고르기"><p class="roster-eyebrow">머리와 옷 모양을 함께 비교해요</p><h2 id="who">단발 · 가디건</h2><p id="description"></p>
+    <fieldset class="hair-picker" aria-describedby="hair-help"><legend>흰머리 표현</legend><p id="hair-help">나이와 관계없이 골라요. 주민마다 따로 바꿀 수 있어요.</p><div id="hair-tones" class="hair-tones"></div><p id="hair-status" role="status"></p></fieldset>
+    <div id="residents" class="resident-buttons"></div><a href="./">공개판과 한 명 비교 →</a></aside></div>
+  <p class="note">같은 둥근 몸과 얼굴 표현에 단발·웨이브·곱슬·올림머리·가르마·둥근 파마를 맞췄습니다.<br>흰머리 표현은 나이와 관계없이 고르고, 가디건·줄무늬·후드·앞치마·점퍼·조끼는 모양으로 구별합니다.<br><a href="./adults.html">중년까지 넓힌 열두 모습 보기 →</a></p>
+</main>
+<script type="module" src="./roster.ts"></script>
+</body>
+</html>
