@@ -6,12 +6,12 @@
   쪽지판·쪽지 카드 — 사용자 「커뮤니티 기능보다는 혼자가 아니다는 느낌」: 답글 없이 한 줄, 「나도」·「신고」 만.
   모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
-import { panelShell, avatar, el, btn } from './town';
+import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, type FinancePlace } from './town';
 import { DONATE_URL, typeOut } from './ui';
 import { PLACES, NOTE_MAX, NOTE_WHY, NOTE_GAP_MS, COIN_DAY_MAX, WORKS, checkNote, worksAt, type PlaceId } from './village';
 import { SCENES, FLOWS, VAULTS, kindOf, splitTax, type Vault } from './taxes';
 import { toLook, lookFrom, nameFrom } from './look';
-import { josa, REGIONS, type Neighbor, type Region } from './profile';
+import { josa, type Neighbor } from './profile';
 import type { PublicNote, VillageView } from './api';
 
 const PB_URL = 'https://pb.action.or.kr/';
@@ -136,7 +136,6 @@ export function openDok(shell: HTMLElement, onClose: () => void) {
 }
 
 // ───────────────────────── 나라살림 창고 — 우리 지역 한 해 살림 ─────────────────────────
-type FinancePlace = { c: string; n: string; s: string; p: number; b: number; pp: number; w: number; i: number };
 export function won(n: number) {
   if (n >= 1e12) return `${(Math.round(n / 1e11) / 10).toLocaleString('ko-KR')}조 원`;
   if (n >= 1e11) return `${Math.round(n / 1e8).toLocaleString('ko-KR')}억 원`;
@@ -144,37 +143,16 @@ export function won(n: number) {
   return `${Math.round(n / 1e4).toLocaleString('ko-KR')}만 원`;
 }
 
-/**
- * 시·도를 고르고 그 안의 시·군·구를 고르면 한 해 살림 카드. 판정·순위는 내지 않는다(지자체에 딱지를 안 붙이기로 함, README 「기획 2차」).
- * 자료는 누를 때 따로 불러온다(25KB) — 마을을 처음 열 때 무겁지 않게.
- */
-/** 시·도 → 시·군·구 고르기(창고·금고가 같이 쓴다). 시·도를 바꾸면 onSido, 곳을 고르면 onPick. */
-function regionPicker(all: FinancePlace[], region: Region | undefined, onPick: (place: FinancePlace) => void, onSido: () => void) {
-  const sidos = el('div', 't-regions'), towns = el('div', 't-regions');
-  const showSido = (sido: Region) => {
-    sidos.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === sido));
-    towns.replaceChildren(...all.filter(p => p.s === sido).map(p => {
-      const b = btn('t-chip', p.n, () => { towns.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); onPick(p); });
-      b.dataset.c = p.c; return b;
-    }));
-    onSido();
-  };
-  sidos.append(...REGIONS.map(sido => btn('t-chip', sido, () => showSido(sido))));
-  if (region) showSido(region);
-  return [sidos, towns];
-}
-/** 「서울 마포구」 / 「서울」 — 카드 머리에. */
-const placeTitle = (place: FinancePlace) => (place.n.endsWith('(시·도)') ? place.s : `${place.s} ${place.n}`);
-
-export function openFinance(shell: HTMLElement, region: Region | undefined, onClose: () => void) {
+/** 내 동네(시·군·구) 한 해 예산 카드 — 저장한 곳이 있으면 바로 그 곳(town.ts placeChooser). 판정·순위는 내지 않는다(지자체에 딱지를 안 붙이기로 함, README 「기획 2차」). */
+export function openFinance(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'finance', onClose);
   const status = el('p', 't-small', '불러오는 중…');
   const card = el('div');
   panel.append(card, status);
-  void import('./data/local-finance.json').then(({ default: data }) => {
+  void loadPlaces().then(data => {
     status.remove();
-    const all = data.places as FinancePlace[];
-    const showTown = (place: FinancePlace) => {
+    const showTown = (place?: FinancePlace) => {
+      if (!place) { card.replaceChildren(); return; }
       questHook.fire('finance:pick');
       const share = el('div', 't-share'); share.style.setProperty('--a', `${place.w}%`);
       share.append(el('span', '', `사회복지 ${place.w}%`), el('span', '', '그 밖'));
@@ -191,7 +169,7 @@ export function openFinance(shell: HTMLElement, region: Region | undefined, onCl
       // 칩 목록이 길어 카드가 화면 밖에 생긴다 — 판만 내린다(scrollIntoView 는 게임 화면까지 밀어 숨겨 둔 판이 삐져나왔다).
       panel.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
     };
-    card.before(...regionPicker(all, region, showTown, () => card.replaceChildren()));
+    card.before(...placeChooser(data.places, showTown));
   }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
 }
 
@@ -217,14 +195,14 @@ function stack(parts: { share: number; color: string; label: string }[]) {
  * ② 우리 동네 금고: 곳을 고르면 그 금고가 무엇으로 채워지는지(2026 예산)와, 그 동네에서 걷힌 지방세가 어느 금고로 갔는지(2024).
  * 금액은 묻지 않는다. 자료(140KB)는 ② 를 처음 열 때 불러온다.
  */
-export function openTax(shell: HTMLElement, region: Region | undefined, onClose: () => void) {
+export function openTax(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'tax', onClose);
   const tabs = el('div', 't-tabs'); tabs.setAttribute('role', 'tablist');
   const book = el('div', 't-pane'), vault = el('div', 't-pane');
   let loaded = false;
   const show = (i: number) => {
     [book, vault].forEach((pane, j) => { pane.hidden = i !== j; tabs.children[j].classList.toggle('on', i === j); tabs.children[j].setAttribute('aria-selected', String(i === j)); });
-    if (i === 1 && !loaded) { loaded = true; fillVault(vault, region); }
+    if (i === 1 && !loaded) { loaded = true; fillVault(vault); }
   };
   ['세금 종류', '우리 지역 수입'].forEach((label, i) => { const b = btn('t-tab', label, () => show(i)); b.setAttribute('role', 'tab'); tabs.append(b); });
   panel.append(tabs, book, vault);
@@ -264,13 +242,14 @@ type RevenuePlace = { f: [string, number, number][]; t?: [string, number, number
 /** 억 원 → 「1,844억 원」·「1.2조 원」 */
 const eokWon = (eok: number) => (eok >= 10000 ? `${(Math.round(eok / 1000) / 10).toLocaleString('ko-KR')}조 원` : `${Math.round(eok).toLocaleString('ko-KR')}억 원`);
 
-function fillVault(pane: HTMLElement, region: Region | undefined) {
+function fillVault(pane: HTMLElement) {
   const status = el('p', 't-small', '불러오는 중…'), card = el('div');
   pane.append(card, status);
-  void Promise.all([import('./data/local-finance.json'), import('./data/local-revenue.json')]).then(([{ default: finance }, { default: revenue }]) => {
+  void Promise.all([loadPlaces(), import('./data/local-revenue.json')]).then(([finance, { default: revenue }]) => {
     status.remove();
-    const all = finance.places as FinancePlace[], data = revenue.places as unknown as Record<string, RevenuePlace>; // JSON 이라 튜플 모양을 못 읽는다
-    const showPlace = (place: FinancePlace) => {
+    const data = revenue.places as unknown as Record<string, RevenuePlace>; // JSON 이라 튜플 모양을 못 읽는다
+    const showPlace = (place?: FinancePlace) => {
+      if (!place) { card.replaceChildren(); return; }
       questHook.fire('vault:pick');
       const rev = data[place.c];
       if (!rev) { card.replaceChildren(el('p', 't-small', '이 곳 자료는 아직 없어요.')); return; }
@@ -310,7 +289,7 @@ function fillVault(pane: HTMLElement, region: Region | undefined) {
       card.replaceChildren(...parts, source(revenue._출처));
       pane.closest('.t-panel')?.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
     };
-    card.before(...regionPicker(all, region, showPlace, () => card.replaceChildren()));
+    card.before(...placeChooser(finance.places, showPlace));
   }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
 }
 

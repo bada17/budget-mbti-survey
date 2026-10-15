@@ -13,7 +13,7 @@
 */
 import './town.css';
 import { ROUTE, TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, type TypeCode } from './content';
-import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, type Town, type Neighbor, type Region, type Friend } from './profile';
+import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, loadRegion, saveRegion, type Town, type Neighbor, type Region, type Friend } from './profile';
 import { toLook, lookFrom, type Look, type Pick } from './look';
 import { board } from './stamps';
 import { letterFor, type Season } from './seasons';
@@ -29,9 +29,8 @@ export type HubData = {
   me: Person; neighbor?: Neighbor; photo?: string;
   /** 지금이 예산철이면 그 철, 그리고 다음 철(편지 미리 보기). */
   season?: Season; next: Season;
-  /** 서버가 있을 때만 — 방명록 읽기(집이 있을 때), 우리 지역 보기·짓기. */
+  /** 서버가 있을 때만 — 방명록 읽기(집이 있을 때), 우리 동네 보기·짓기(내 동네는 profile 의 loadRegion — 시·군·구 코드). */
   book?: () => Promise<Guest[] | undefined>;
-  region?: Region;
   regionView?: (region: Region) => Promise<RegionView | undefined>;
   buildRegion?: (region: Region) => Promise<RegionView | undefined>;
   /** 이웃 편지 받기(= 소식 받기 판 열기). 연락처 칸이 켜진 판에서만. */
@@ -132,9 +131,10 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   const photo = el('div', 't-photo');
   if (data.photo) { const img = el('img'); img.src = data.photo; img.alt = '내 모습'; photo.append(img); }
   else photo.append(avatar(toLook(me.pick)));
-  const facts = el('dl', 't-facts');
+  const facts = el('dl', 't-facts'), where = el('dd', '', '아직');
+  if (loadRegion()) void loadPlaces().then(({ places }) => { const p = places.find(x => x.c === loadRegion()); if (p) where.textContent = placeTitle(p); });
   facts.append(el('dt', '', '이름'), el('dd', '', me.name || '동네 주민'), el('dt', '', '유형'), el('dd', '', TYPES[me.type].name),
-    el('dt', '', '내 이웃'), el('dd', '', data.neighbor?.name || '아직'), el('dt', '', '우리 지역'), el('dd', '', data.region || '아직'));
+    el('dt', '', '내 이웃'), el('dd', '', data.neighbor?.name || '아직'), el('dt', '', '내 동네'), where);
   const body = el('div', 't-card-body'); body.append(photo, facts);
   const grid = el('div', 't-stamps');
   const tip = el('p', 't-tip');
@@ -177,7 +177,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   }
 
   // ── 우리 지역 동네 · 이웃의 편지 ──
-  if (data.regionView && data.buildRegion) tab('우리 지역', regionSection(data));
+  if (data.regionView && data.buildRegion) tab('우리 동네', regionSection(data));
   tab('이웃 편지', letterSection(data, close));
   panel.append(tabs, ...panes);
   show(0);
@@ -262,32 +262,73 @@ export function openGateLogin(shell: HTMLElement, opts: LoginOpts, onClose: () =
     el('p', 't-small', '로그인하지 않아도 마을을 다 돌아볼 수 있어요. 기록은 이 기기에만 남아요.'));
 }
 
-/** 우리 지역 동네 — 시·도를 고르면 한 채 짓고, 같은 지역 사람들이 지은 동네를 본다. */
-function regionSection(data: HubData) {
-  const box = el('section', 't-region');
-  const status = el('p', 't-small'); status.setAttribute('role', 'status');
-  const show = (view: RegionView | undefined) => {
-    if (!view) { status.textContent = '지금은 우리 지역 동네를 불러올 수 없어요.'; return; }
-    box.replaceChildren(el('h2', '', `${view.region} 동네`), regionView(view, data.me.town));
+// ───────────────────────── 내 동네 고르기 — 지방정부 예산·우리 지역 수입·우리 동네가 같이 쓴다 ─────────────────────────
+/** 지방재정365 한 곳 — c 코드 7자리, n 이름, s 시·도, p 주민, b 예산, pp 한 사람 몫(천 원), w 사회복지 %, i 스스로 거두는 돈 %. */
+export type FinancePlace = { c: string; n: string; s: string; p: number; b: number; pp: number; w: number; i: number };
+/** 243곳(시·도 17 + 시·군·구 226) — 누를 때 불러온다(25KB, 마을을 처음 열 때 무겁지 않게). */
+export const loadPlaces = () => import('./data/local-finance.json').then(m => m.default as { year: number; places: FinancePlace[] });
+/** 「서울 마포구」 / 「서울」 */
+export const placeTitle = (place: FinancePlace) => (place.n.endsWith('(시·도)') ? place.s : `${place.s} ${place.n}`);
+
+/**
+ * 사용자 10-15 「처음에 입력할 때 내 동네를 저장할 수 있고, 그다음에 들어가면 자동으로 내 동네만, 다른 동네 보기도」.
+ * 저장한 곳이 있으면 고르는 칸은 접고 그 곳을 바로 연다(머리 줄에 「다른 동네 보기」). 없으면 시·도 → 시·군·구 고르기.
+ * 고른 곳이 내 동네가 아니면 「여기를 내 동네로 저장」. show(곳) 가 내용을 그리고(곳이 없으면 비움), 저장하면 onSave.
+ * 돌려주는 둘(고르는 칸, 머리 줄)을 내용 칸 앞에 붙인다.
+ */
+export function placeChooser(all: FinancePlace[], show: (place?: FinancePlace) => void, onSave?: (place: FinancePlace) => void) {
+  const picker = el('div', 't-picker'), sidos = el('div', 't-regions'), towns = el('div', 't-regions'), head = el('div', 't-mine');
+  picker.append(sidos, towns);
+  const mine = () => all.find(p => p.c === loadRegion());
+  const showSido = (sido: string) => {
+    sidos.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === sido));
+    towns.replaceChildren(...all.filter(p => p.s === sido).map(p => { const b = btn('t-chip', p.n, () => open(p)); b.dataset.c = p.c; return b; }));
   };
-  if (data.region) {
-    box.append(el('h2', '', `${data.region} 동네`), status);
+  const open = (place: FinancePlace) => {
+    towns.querySelectorAll<HTMLElement>('button').forEach(b => b.classList.toggle('on', b.dataset.c === place.c));
+    drawHead(place); show(place);
+  };
+  const drawHead = (place?: FinancePlace) => {
+    const my = mine();
+    head.replaceChildren();
+    if (!place) { if (!my) head.append(el('p', 't-small', '사는 곳을 골라 「내 동네로 저장」 해 두면 다음부터 바로 보여요.')); return; }
+    if (my?.c === place.c) {
+      head.append(el('span', 't-mine-tag', '내 동네'), el('b', '', placeTitle(place)));
+      if (picker.hidden) head.append(btn('g-link', '다른 동네 보기', () => { picker.hidden = false; drawHead(place); }));
+      return;
+    }
+    head.append(el('b', '', placeTitle(place)), btn('t-chip t-save', '여기를 내 동네로 저장', () => { saveRegion(place.c); picker.hidden = true; drawHead(place); onSave?.(place); }));
+    if (my) head.append(btn('g-link', '내 동네로', () => { picker.hidden = true; showSido(my.s); open(my); }));
+  };
+  sidos.append(...REGIONS.map(sido => btn('t-chip', sido, () => { showSido(sido); drawHead(); show(); })));
+  const my = mine();
+  if (my) { picker.hidden = true; showSido(my.s); open(my); } else drawHead();
+  return [picker, head];
+}
+
+/** 우리 동네 — 내 동네(시·군·구)에 이번 판 집을 한 채 세우고, 그 동네 사람들이 고른 것을 본다. 다른 동네는 보기만. */
+function regionSection(data: HubData) {
+  const box = el('section', 't-region'), view = el('div');
+  const status = el('p', 't-small'); status.setAttribute('role', 'status');
+  box.append(el('h2', '', '우리 동네 사람들'), status);
+  status.textContent = '불러오는 중…';
+  let asked = 0; // 빨리 여러 곳을 누르면 마지막 것만 그린다
+  const show = async (place?: FinancePlace) => {
+    const n = ++asked;
+    view.replaceChildren();
+    if (!place) { status.textContent = ''; return; }
+    const mineNow = place.c === loadRegion();
     status.textContent = '불러오는 중…';
-    void data.regionView!(data.region).then(show);
-    return box;
-  }
-  const pick = el('div', 't-regions');
-  for (const region of REGIONS) {
-    pick.append(btn('t-chip', region, async () => {
-      pick.querySelectorAll('button').forEach(b => { b.disabled = true; });
-      status.textContent = `${region}에 집을 짓는 중…`;
-      const view = await data.buildRegion!(region);
-      if (view) { addStamp('region'); show(view); } else { status.textContent = '지금은 지을 수 없어요. 조금 뒤에 다시 해 주세요.'; pick.querySelectorAll('button').forEach(b => { b.disabled = false; }); }
-    }));
-  }
-  box.append(
-    el('p', 't-lead', '사는 곳에 이번에 지은 집을 한 채 세워요. 같은 지역 사람들이 지은 동네를 같이 볼 수 있어요.'),
-    pick, el('p', 't-small', '시·도까지만 받아요. 다른 사람에게는 모습만 보이고 이름은 안 보여요.'), status);
+    const got = mineNow ? await data.buildRegion!(place.c) : await data.regionView!(place.c);
+    if (n !== asked) return;
+    status.textContent = got ? '' : '지금은 불러올 수 없어요. 조금 뒤에 다시 해 주세요.';
+    if (got) { if (mineNow) addStamp('region'); view.replaceChildren(regionView(got, data.me.town)); }
+  };
+  void loadPlaces().then(({ places }) => {
+    status.textContent = '';
+    box.append(...placeChooser(places, place => void show(place), place => void show(place)), view,
+      el('p', 't-small', '내 동네에는 이번 판 집이 한 채 서요. 다른 사람에게는 모습만 보이고 이름은 안 보여요.'));
+  }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
   return box;
 }
 
@@ -295,12 +336,9 @@ function regionView(view: RegionView, mine: Town) {
   const wrap = el('div');
   const crowd = el('div', 't-crowd');
   view.crowd.forEach(pick => crowd.append(avatar(toLook(pick))));
-  wrap.append(el('p', 't-lead', `주민 ${view.total}명이 한 채씩 지었어요.`), crowd);
-  if (!view.questions) {
-    wrap.append(el('p', 't-small', `다섯 명이 넘으면 이 동네 사람들이 어떻게 골랐는지 보여 줘요. 친구를 부르면 동네가 빨리 차요.`));
-    return wrap;
-  }
-  wrap.append(el('p', 't-small', '자리마다 이 지역 사람들 생각이 어떻게 갈렸는지예요. 굵은 쪽이 내가 고른 쪽이에요.'));
+  wrap.append(el('p', 't-lead', view.total ? `주민 ${view.total}명이 한 채씩 지었어요.` : '아직 이 동네에 집을 지은 사람이 없어요.'), crowd);
+  if (!view.questions || !view.total) return wrap;
+  wrap.append(el('p', 't-small', '자리마다 이 동네 사람들 생각이 어떻게 갈렸는지예요. 굵은 쪽이 내가 고른 쪽이에요.'));
   const list = el('ol', 'g-split');
   for (const id of TOWN_IDS) {
     const q = byId.get(id)!, count = view.questions[id], key = mine[TOWN_IDS.indexOf(id)];

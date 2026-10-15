@@ -21,7 +21,7 @@ test('열쇠: 같은 계정은 같은 열쇠, 열쇠로만 읽고 쓰고, 지우
   assert.match(first.key, /^[A-Za-z0-9]{32}$/);
   assert.equal(login(store, ACCOUNT, 2, random).body.key, first.key, '다른 기기에서 로그인해도 같은 열쇠');
   assert.equal(handle(store, 'POST', '/me', { key: 'x'.repeat(32) }, 3).status, 403);
-  const save = { me: { name: '민지', pick: [1, 2, 3, 0] }, stamps: { walk: 5 }, region: '서울' };
+  const save = { me: { name: '민지', pick: [1, 2, 3, 0] }, stamps: { walk: 5 }, region: '1124000' };
   assert.equal(handle(store, 'POST', '/me/save', { key: first.key, save }, 4).status, 200);
   assert.deepEqual(handle(store, 'POST', '/me', { key: first.key }, 5).body.save, save);
   assert.equal(handle(store, 'POST', '/me/save', { key: first.key, save: 'x'.repeat(5000) }, 6).status, 400);
@@ -40,12 +40,12 @@ test('기록 묶음: 이상한 칸은 그 칸만 버리고, 합칠 땐 없는 �
   addStamp('walk', 100);
   saveTown('a'.repeat(TOWN_IDS.length), { type: '101' });
   const older = { at: 1, town: 'b'.repeat(TOWN_IDS.length), type: '000' };
-  importSave({ me: { name: '서버', pick: [1, 1, 1, 1] }, stamps: { walk: 50, table: 60 }, last: older, region: '부산' });
+  importSave({ me: { name: '서버', pick: [1, 1, 1, 1] }, stamps: { walk: 50, table: 60 }, last: older, region: '2600000' });
   const here = exportSave();
   assert.equal(here.me.name, '이 기기', '이 기기 이름이 그대로');
   assert.deepEqual(loadStamps(), { walk: 50, table: 60 }, '도장은 둘 다, 먼저 받은 시각');
   assert.equal(loadLast().type, '101', '지난번 판은 나중 것(이 기기)');
-  assert.equal(here.region, '부산', '없던 칸은 서버 것으로');
+  assert.equal(here.region, '2600000', '없던 칸은 서버 것으로');
 });
 
 const props = { LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/', KAKAO_REST_KEY: 'rest', GOOGLE_CLIENT_ID: 'gid', ACCOUNT_SALT: 'salt' };
@@ -84,8 +84,8 @@ test('시트 로그인: 「주민」 탭엔 해시만 — 회원번호는 어디
   const post = (p, body, deps) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, 1000, deps);
   assert.equal(post('/login', { provider: 'kakao', code: 'good', redirectUri }).status, 401, 'deps 가 없으면(옛 Code.js) 로그인 안 됨');
   const { key } = post('/login', { provider: 'kakao', code: 'good', redirectUri }, fakeDeps(kakaoOk)).body;
-  assert.equal(post('/me/save', { key, save: { region: '서울' } }).status, 200);
-  assert.deepEqual(post('/me', { key }).body.save, { region: '서울' });
+  assert.equal(post('/me/save', { key, save: { region: '1100000' } }).status, 200);
+  assert.deepEqual(post('/me', { key }).body.save, { region: '1100000' });
   const rows = JSON.stringify(sheets.get('주민').rows);
   assert.ok(!rows.includes('4242'), '회원번호가 시트에 없다');
   assert.match(sheets.get('주민').rows[1][0], /^kakao:[0-9a-f]{64}$/);

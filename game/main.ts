@@ -299,7 +299,6 @@ function openHub(person: Person, sessionId: string, extra: { photo?: string } = 
     me: person, ...extra, neighbor: loadNeighbor(),
     season: seasonAt(now), next: nextSeason(now),
     book: online && home ? async () => (await net.book(home!.id, home!.key))?.visits : undefined,
-    region: loadRegion(),
     regionView: online ? region => net.regionView(region) : undefined,
     buildRegion: online ? async region => {
       const view = await net.region(sessionId, region, person.pick);
@@ -467,8 +466,8 @@ function openPlace(id: PlaceId) {
   else if (id === 'bus') openBus(shell, loadNeighbor(), () => { location.href = `${here()}?walk`; }, done);
   else if (id === 'counsel') openCounsel(shell, done);
   else if (id === 'dok') openDok(shell, done);
-  else if (id === 'finance') openFinance(shell, loadRegion(), done);
-  else if (id === 'tax') openTax(shell, loadRegion(), done);
+  else if (id === 'finance') openFinance(shell, done);
+  else if (id === 'tax') openTax(shell, done);
   else if (id === 'works') {
     const sid = who?.sessionId, pocket = loadPocket(kstDay(Date.now()));
     openWorks(shell, {

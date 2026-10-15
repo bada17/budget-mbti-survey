@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { encodeInvite, decodeInvite, neighborParam, readNeighborParam, TOWN_IDS, REGIONS } from '../game/profile.ts';
-import { createStore, handle, BOOK_MAX, SHOW_MIN } from '../game/api.ts';
+import { createStore, handle, BOOK_MAX } from '../game/api.ts';
 import { serve } from '../server/gas.ts';
 import { seasonAt, nextSeason, seasonById, letterFor } from '../game/seasons.ts';
 import { board, eventStamp, seasonStamp, STAMPS } from '../game/stamps.ts';
@@ -90,23 +90,24 @@ test('방명록: 끝낸 사람만, 한 판에 한 번, 동네·유형은 서버�
   assert.equal(handle(store, 'POST', `/homes/${id}/book`, { key }, 3000).body.visits.length, BOOK_MAX);
 });
 
-test('우리 지역: 끝낸 판만 한 번 짓고, 다섯 명부터 갈림을 보이고, 유형 분포는 안 낸다', () => {
+test('우리 동네(시·군·구 코드): 끝낸 판만 한 번 짓고, 한 명부터 갈림을 보이고, 유형 분포는 안 낸다', () => {
   const store = createStore();
-  const build = (sessionId, region = '서울') => handle(store, 'POST', '/region', { sessionId, region, pick: [0, 1, 2, 3] }, 5000);
+  const build = (sessionId, region = '1124000') => handle(store, 'POST', '/region', { sessionId, region, pick: [0, 1, 2, 3] }, 5000);
   assert.equal(build('session-none').status, 400);
   finish(store, 'session-0001', 1);
-  assert.equal(build('session-0001', '서울특별시').status, 400);
+  assert.equal(build('session-0001', '서울').status, 400, '시·도 이름은 이제 안 받는다');
+  assert.equal(build('session-0001', '112400').status, 400);
   let view = build('session-0001').body;
   assert.equal(view.total, 1);
-  assert.equal(view.questions, undefined, '한 명이면 갈림을 안 보인다');
+  assert.deepEqual(view.questions[orderedQuestions[0].id], { a: 1, b: 0 }, '한 명이어도 바로 보인다');
   assert.equal(view.types, undefined);
   assert.deepEqual(view.crowd, [[0, 1, 2, 3]]);
-  build('session-0001', '부산'); // 다시 지어도 처음 지은 곳
-  assert.equal(handle(store, 'GET', `/regions/${encodeURIComponent('부산')}`, null, 0).body.total, 0);
-  for (let i = 2; i <= SHOW_MIN; i++) { finish(store, `session-000${i}`, 6); build(`session-000${i}`); }
-  view = handle(store, 'GET', `/regions/${encodeURIComponent('서울')}`, null, 0).body;
-  assert.equal(view.total, SHOW_MIN);
-  assert.deepEqual(view.questions[orderedQuestions[0].id], { a: 1, b: SHOW_MIN - 1 });
+  build('session-0001', '2600000'); // 다시 지어도 처음 지은 곳
+  assert.equal(handle(store, 'GET', `/regions/2600000`, null, 0).body.total, 0);
+  for (let i = 2; i <= 3; i++) { finish(store, `session-000${i}`, 6); build(`session-000${i}`); }
+  view = handle(store, 'GET', `/regions/1124000`, null, 0).body;
+  assert.equal(view.total, 3);
+  assert.deepEqual(view.questions[orderedQuestions[0].id], { a: 1, b: 2 });
   assert.equal(handle(store, 'GET', '/regions/%E0%A4%A', null, 0).status, 404, '깨진 주소');
   assert.equal(REGIONS.length, 17);
 });
@@ -136,9 +137,9 @@ test('구글 시트 저장소: 요청마다 읽고 바뀐 줄만 쓴다, 연락�
   assert.equal(book.sheets.get('응답').rows.length, 3, '머리 줄 + 두 판');
   assert.equal(get('/stats').body.total, 2, '다음 요청이 시트에서 다시 읽는다');
   // 고친 줄은 제자리에서 고친다(줄이 늘지 않는다)
-  post('/region', { sessionId: 'session-aaaa', region: '서울', pick: [0, 0, 0, 0] }, 3000);
+  post('/region', { sessionId: 'session-aaaa', region: '1100000', pick: [0, 0, 0, 0] }, 3000);
   assert.equal(book.sheets.get('응답').rows.length, 3);
-  assert.equal(JSON.parse(book.sheets.get('응답').rows[1][1]).region, '서울');
+  assert.equal(JSON.parse(book.sheets.get('응답').rows[1][1]).region, '1100000');
   // 방명록
   const { id, key } = post('/homes', {}).body;
   post(`/homes/${id}/visits`, { sessionId: 'session-bbbb', name: '하늘', pick: [1, 1, 1, 1] });

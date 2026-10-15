@@ -101,10 +101,12 @@ export function cleanNeighbor(raw: Partial<Neighbor> | null | undefined): Neighb
   return { questionId: raw.questionId!, key: raw.key, seed: raw.seed.slice(0, 80), name: cleanName(raw.name) || '이웃', at: Number(raw.at) || 0 };
 }
 
-// ── 우리 지역 — 처음엔 시·도 열일곱(사람이 흩어져 동네가 비지 않게). 구까지 내려가는 건 사람이 모인 뒤. ──
+// ── 내 동네 — 시·군·구 하나(사용자 10-15 「시군구 단위로」, 처음엔 시·도 열일곱이었다). 지방재정365 지자체 코드 7자리(시·도 전체는 끝이 00000).
+//    지방정부 예산·우리 지역 수입·내 기록의 「우리 동네」 가 같이 쓴다(town.ts placeChooser). 고르는 칸의 시·도 열일곱이 REGIONS. ──
 export const REGIONS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'] as const;
-export type Region = (typeof REGIONS)[number];
-export const isRegion = (value: unknown): value is Region => typeof value === 'string' && (REGIONS as readonly string[]).includes(value);
+export type Sido = (typeof REGIONS)[number];
+export type Region = string;
+export const isRegion = (value: unknown): value is Region => typeof value === 'string' && /^\d{7}$/.test(value);
 
 // ── 이 기기에 남기는 것 ──
 const ME_KEY = 'budget-game-me', NEIGHBOR_KEY = 'budget-game-neighbor', TOWN_KEY = 'budget-game-town';

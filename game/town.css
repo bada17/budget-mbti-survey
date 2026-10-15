@@ -159,3 +159,7 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .x-num{font-size:13px;color:#6a5646;font-variant-numeric:tabular-nums;white-space:nowrap}
 .x-kinds small{grid-column:2/4;font-size:12px;line-height:1.5;color:var(--soft)}
 .t-bigcard .x-flow{margin:-4px 0 10px}
+.t-mine{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0 10px}
+.t-mine b{font-family:var(--display);font-size:18px;font-weight:400;color:#5b402e}
+.t-mine-tag{padding:3px 10px;border-radius:999px;background:var(--leaf);color:#fff;font-size:12px;font-weight:700}
+.t-mine .t-save{background:var(--accent);color:#fffaf0;box-shadow:none}

@@ -57,7 +57,6 @@ export const TABLE_TTL_MS = 6 * 60 * 60 * 1000;
 export const TABLE_MAX = 12;
 export const BOOK_MAX = 50;
 /** 비율을 보여 주는 최소 인원 — 두세 명 비율은 뜻이 없고, 지역은 적으면 누가 무엇을 골랐는지 드러난다. */
-export const SHOW_MIN = 5;
 export const CROWD_MAX = 30;
 const ID = /^[A-Za-z0-9-]{8,64}$/;
 const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
@@ -94,18 +93,16 @@ export function stats(store: Store) {
 }
 
 /**
- * 우리 지역 동네 — 그 지역에 한 채 지은 사람 수, 최근 주민 모습(CROWD_MAX), 문항마다 두 쪽 사람 수(SHOW_MIN 명부터).
+ * 우리 동네(시·군·구) — 그 곳에 한 채 지은 사람 수, 최근 주민 모습(CROWD_MAX), 문항마다 두 쪽 사람 수.
+ * 한 사람부터 바로 보인다(사용자 10-15 「다섯 명 채워지면 보여지는 거 별로, 바로」 — 전엔 다섯 명부터). 이름은 안 낸다.
  * **유형 분포는 내지 않는다** — 「○○는 수리공 동네」 처럼 지역에 딱지가 붙는다(지자체에 유형 딱지를 안 붙이기로 한 것과 같은 이유).
  */
 export function regionView(store: Store, region: Region) {
   const people = [...store.finished.values()].filter(f => f.region === region).sort((x, y) => x.at - y.at);
-  const enough = people.length >= SHOW_MIN;
   const questions: Record<string, { a: number; b: number }> = {};
-  if (enough) {
-    for (const q of orderedQuestions) questions[q.id] = { a: 0, b: 0 };
-    for (const { answers } of people) for (const [id, value] of Object.entries(answers)) questions[id][value <= 3 ? 'a' : 'b']++;
-  }
-  return { region, total: people.length, crowd: people.slice(-CROWD_MAX).map(f => f.pick ?? [0, 0, 0, 0]) as Pick[], ...(enough ? { questions } : {}) };
+  for (const q of orderedQuestions) questions[q.id] = { a: 0, b: 0 };
+  for (const { answers } of people) for (const [id, value] of Object.entries(answers)) if (questions[id]) questions[id][value <= 3 ? 'a' : 'b']++;
+  return { region, total: people.length, crowd: people.slice(-CROWD_MAX).map(f => f.pick ?? [0, 0, 0, 0]) as Pick[], questions };
 }
 
 /**
