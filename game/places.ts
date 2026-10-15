@@ -57,7 +57,7 @@ const source = (text: string) => { const d = el('details', 't-source'); d.append
 export function openBus(shell: HTMLElement, neighbor: Neighbor | undefined, walk: () => void, onClose: () => void) {
   const { panel } = placePanel(shell, 'bus', onClose);
   panel.append(
-    el('p', 't-lead', '「동네 한 바퀴」 열다섯 동네를 다시 걸어요. 지난번과 다르게 골라도 괜찮아요.'),
+    el('p', 't-lead', '열다섯 동네를 다시 걸어요. 지난번과 다르게 골라도 괜찮아요.'),
     btn('g-primary', '한 바퀴 걷기', walk),
   );
 }
@@ -318,7 +318,7 @@ function fillVault(pane: HTMLElement, region: Region | undefined) {
 export function openHouse(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'house', onClose);
   panel.append(
-    el('p', 't-lead', '함께하는 시민행동은 「동네 한 바퀴」와 이 마을을 만든 시민단체예요. 예산 감시, 밑 빠진 독상, 시민참여 상담소를 꾸려 가요.'),
+    el('p', 't-lead', '함께하는 시민행동은 「모여봐요 시민의 숲」과 시민마을을 만든 시민단체예요. 예산 감시, 밑 빠진 독상, 시민참여 상담소를 꾸려 가요.'),
     link('회원 되기 — 정기후원', `${DONATE_URL}&utm_content=village-house`),
     link('홈페이지 가 보기', out(HOME_URL), 'g-link'),
   );

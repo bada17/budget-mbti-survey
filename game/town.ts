@@ -145,7 +145,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     grid.append(mark);
   }
   const got = stamps.filter(s => s.on).length;
-  card.append(el('div', 't-card-top', '동네 한 바퀴 주민증'), body, grid, el('p', 't-issued', `도장 ${got}/${stamps.length} · ${today()} 발급 · 함께하는 시민행동`));
+  card.append(el('div', 't-card-top', '시민의 숲 주민증'), body, grid, el('p', 't-issued', `도장 ${got}/${stamps.length} · ${today()} 발급 · 함께하는 시민행동`));
   const save = btn('g-primary', '주민증 저장·보내기', () => {});
   const join = el('a', 'g-link t-join', '정주민 도장 — 시민행동 회원 되기 →');
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
@@ -195,7 +195,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     const ready = file ?? (await prepare(), file);
     if (!ready) { status.textContent = '그림을 만들지 못했어요. 화면을 찍어 주세요.'; return; }
     if (navigator.canShare?.({ files: [ready] })) {
-      try { await navigator.share({ files: [ready], text: '동네 한 바퀴 — 내 주민증' }); return; } catch (error) { if ((error as Error).name === 'AbortError') return; }
+      try { await navigator.share({ files: [ready], text: '모여봐요 시민의 숲 — 내 주민증' }); return; } catch (error) { if ((error as Error).name === 'AbortError') return; }
     }
     const url = URL.createObjectURL(ready), a = el('a'); a.href = url; a.download = ready.name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000); // 아이폰은 바로 지우면 저장을 놓친다(예산게임에서 겪음)

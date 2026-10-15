@@ -5,7 +5,7 @@
     (그림은 draw.ts 의 drawVillage, 판은 places.ts, 들어갔을 때 무엇을 여는지는 main.ts 의 openPlace.)
   · 사용자 「커뮤니티 기능보다는 혼자가 아니다는 느낌」 — 그래서 대화방이 아니라 쪽지(한 줄)와 다녀간 사람들의 모습이다.
     쪽지는 답글이 없고, 「나도」 와 「신고」 만 있다.
-  · 이름 「언덕 너머 마을」·건물 이름·주민 한마디는 Claude 가 붙인 임시(사용자 「임시 이름으로 해」).
+  · 이름 「시민마을」(사용자 10-15)·건물 이름·주민 한마디는 Claude 가 붙인 임시(사용자 「임시 이름으로 해」).
 */
 import type { Point } from './room';
 import { rng } from './look';
@@ -15,7 +15,7 @@ export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 
 /** 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다). */
 export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point };
 
-export const VILLAGE_NAME = '언덕 너머 마을';
+export const VILLAGE_NAME = '시민마을';
 export const VILLAGE_W = 1040;
 export const VILLAGE_H = 1500;
 /** 광장 — 가운데 분수. 다녀간 주민들이 여기서 서성인다. */

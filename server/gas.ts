@@ -12,7 +12,7 @@
 
   로그인 확인(verifyLogin) — 카카오는 받은 code 를 토큰으로 바꿔 회원번호를 묻고, 구글은 id_token 을 tokeninfo 로 확인한다.
   바깥에 묻는 건 Code.js 가 넣어 주는 deps(UrlFetchApp·스크립트 속성·해시·난수)로만 — 시험에서는 가짜로 바꿔 끼운다.
-  스크립트 속성: KAKAO_REST_KEY(·KAKAO_SECRET, 켰을 때만) · GOOGLE_CLIENT_ID · LOGIN_REDIRECTS(쉼표로, 게임 주소) · ACCOUNT_SALT(setup 이 만든다).
+  스크립트 속성: KAKAO_REST_KEY(·KAKAO_SECRET, 켰을 때만) · GOOGLE_CLIENT_ID · LOGIN_REDIRECTS(쉼표로, 게임 주소) · ACCOUNT_SALT(처음 로그인 때 Code.js 가 만든다). 키 둘·LOGIN_REDIRECTS 는 속성이 비면 Code.js 의 LOGIN_ 을 쓴다.
   키가 없는 쪽은 로그인이 안 된다(401) — 그래서 키를 넣기 전까지 로그인은 저절로 꺼져 있다.
 
   ponytail: 요청마다 탭 전체를 읽는다 — 응답이 수천 건을 넘어 느려지면 진짜 서버(README 정할 것 10)로 옮긴다.

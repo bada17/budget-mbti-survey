@@ -30,16 +30,29 @@ function setup() {
   return book_().getName();
 }
 
+/**
+ * 로그인 키 — 스크립트 속성이 비었을 때 쓴다(사용자가 속성 칸을 채우지 않아도 되게, 10-15).
+ * 둘 다 공개판 화면 주소(카카오·구글로 가는 길)에 어차피 드러나는 값이라 여기 둬도 된다. 비밀(KAKAO_SECRET)은 넣지 않는다.
+ */
+var LOGIN_ = {
+  KAKAO_REST_KEY: '',
+  GOOGLE_CLIENT_ID: '',
+  LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/',
+};
+
 /** 로그인 확인에 쓰는 바깥 것들(server/gas.ts 의 Deps). */
 function deps_() {
   var props = PropertiesService.getScriptProperties();
+  // 소금이 없으면 처음 로그인 때 만든다(setup 을 다시 안 돌려도 되게). 쓰는 요청은 doPost 가 잠금을 잡고 부른다.
+  if (!props.getProperty('ACCOUNT_SALT')) props.setProperty('ACCOUNT_SALT', Utilities.getUuid() + Utilities.getUuid());
   return {
     fetch: function (url, options) {
       var o = options || {};
       var r = UrlFetchApp.fetch(url, { method: o.method || 'get', payload: o.payload, headers: o.headers, muteHttpExceptions: true });
       return { status: r.getResponseCode(), text: r.getContentText() };
     },
-    prop: function (name) { return props.getProperty(name); },
+    // 카카오 클라이언트 시크릿처럼 비밀인 것은 Secret.js(깃 무시, clasp push 로만 올라감)의 SECRET_ 에 — 있으면 쓴다.
+    prop: function (name) { return props.getProperty(name) || LOGIN_[name] || (typeof SECRET_ !== 'undefined' && SECRET_[name]) || null; },
     sha256: function (text) {
       return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8)
         .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
