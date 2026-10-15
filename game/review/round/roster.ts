@@ -6,25 +6,30 @@ import { layoutRoom } from '../../room';
 import { ROUTE } from '../../content';
 import { FEEL } from '../../feel';
 import { toLook, type Pick } from '../../look';
-import { RoundResident, type ResidentDesign } from './avatar';
+import { RoundResident, type ResidentDesign, type HairTone } from './avatar';
 
 const showAdults=location.pathname.endsWith('/adults.html');
 const residents:{name:string;description:string;pick:Pick;design:ResidentDesign}[]=[
   {name:'단발 · 가디건',description:'볼이 드러나는 둥근 단발과 앞이 열린 가디건.',pick:[3,1,8,0],design:{}},
-  {name:'웨이브 · 줄무늬',description:'짧고 부드러운 웨이브, 넓은 줄무늬 맨투맨.',pick:[1,2,1,1],design:{hairStyle:'wave',top:'stripes',pants:0x718397}},
-  {name:'곱슬 · 후드',description:'몽글몽글한 곱슬머리, 둥근 후드와 앞주머니.',pick:[1,0,5,2],design:{hairStyle:'curls',top:'hoodie',pants:0x747c89}},
+  {name:'웨이브 · 줄무늬',description:'짧고 부드러운 웨이브, 넓은 줄무늬 맨투맨.',pick:[1,2,1,1],design:{hairStyle:'wave',hairTone:'streak',top:'stripes',pants:0x718397}},
+  {name:'곱슬 · 후드',description:'몽글몽글한 곱슬머리, 둥근 후드와 앞주머니. 젊고 편안한 느낌의 차림이에요.',pick:[1,0,5,2],design:{hairStyle:'curls',hairTone:'silver',top:'hoodie',pants:0x747c89}},
   {name:'올림머리 · 앞치마',description:'위로 묶은 머리와 밝은 소매, 초록 앞치마.',pick:[2,1,3,1],design:{hairStyle:'bun',top:'apron',pants:0x9a8c79}},
   {name:'가르마 · 점퍼',description:'옆으로 넘긴 머리, 깃과 지퍼가 있는 점퍼.',pick:[1,0,7,0],design:{hairStyle:'part',top:'jacket',pants:0x677580}},
-  {name:'은빛 파마 · 조끼',description:'둥근 은빛 파마와 안경, 블라우스 위의 조끼.',pick:[1,3,4,1],design:{hairStyle:'silver',top:'vest',pants:0x82756f,shoes:0x756159,glasses:true}},
+  {name:'둥근 파마 · 조끼',description:'둥근 파마와 안경, 블라우스 위의 조끼.',pick:[1,1,4,1],design:{hairStyle:'cloud',hairTone:'silver',top:'vest',pants:0x82756f,shoes:0x756159,glasses:true,brows:true}},
 ];
 if(showAdults)residents.push(
   {name:'넓은 이마 · 셔츠',description:'이마를 드러낸 짧은 머리와 단정한 눈썹, 셔츠 차림의 중년.',pick:[1,1,10,1],design:{hairStyle:'forehead',top:'shirt',pants:0x777b83,brows:true,smileLines:true}},
-  {name:'어깨 단발 · 재킷',description:'어깨 쪽으로 둥글게 내려오는 단발과 재킷. 관자놀이에는 살짝 흰머리.',pick:[3,1,9,0],design:{hairStyle:'shoulder',top:'blazer',pants:0x767584,grayTemples:true,brows:true,smileLines:true}},
-  {name:'희끗한 웨이브 · 니트',description:'옆머리가 희끗한 웨이브와 둥근 니트. 안경을 쓴 중년 주민.',pick:[1,0,5,2],design:{hairStyle:'wave',top:'knit',pants:0x7f7c76,grayTemples:true,glasses:true,brows:true,smileLines:true}},
+  {name:'어깨 단발 · 재킷',description:'어깨 쪽으로 둥글게 내려오는 단발과 재킷, 부드러운 미소선.',pick:[3,1,9,0],design:{hairStyle:'shoulder',hairTone:'streak',top:'blazer',pants:0x767584,brows:true,smileLines:true}},
+  {name:'웨이브 · 니트',description:'부드러운 웨이브와 둥근 니트. 안경을 쓴 중년 주민.',pick:[1,0,5,2],design:{hairStyle:'wave',hairTone:'mixed',top:'knit',pants:0x7f7c76,glasses:true,brows:true,smileLines:true}},
   {name:'짧은 수염 · 점퍼',description:'짧게 정리한 머리와 작은 턱수염, 편안한 점퍼를 입은 중년.',pick:[1,1,3,1],design:{hairStyle:'crop',top:'jacket',pants:0x737987,brows:true,beard:true}},
-  {name:'낮은 묶음 · 앞치마',description:'낮게 묶은 머리와 밝은 앞치마. 옆머리의 흰빛과 부드러운 미소.',pick:[2,0,2,1],design:{hairStyle:'lowTie',top:'apron',pants:0x8e8074,grayTemples:true,brows:true,smileLines:true}},
-  {name:'짧은 파마 · 가디건',description:'짧은 파마에 조금 섞인 흰머리, 안경과 가디건의 포근한 중년.',pick:[1,1,7,0],design:{hairStyle:'curls',top:'cardigan',pants:0x81766c,grayTemples:true,glasses:true,brows:true,smileLines:true}},
+  {name:'낮은 묶음 · 앞치마',description:'낮게 묶은 머리와 밝은 앞치마, 부드러운 미소.',pick:[2,0,2,1],design:{hairStyle:'lowTie',hairTone:'white',top:'apron',pants:0x8e8074,brows:true,smileLines:true}},
+  {name:'짧은 파마 · 가디건',description:'짧은 파마, 안경과 가디건의 포근한 중년.',pick:[1,1,7,0],design:{hairStyle:'curls',hairTone:'temples',top:'cardigan',pants:0x81766c,glasses:true,brows:true,smileLines:true}},
 );
+const hairTones:{value:HairTone;label:string}[]=[
+  {value:'natural',label:'원래 색'},{value:'streak',label:'앞머리 한 줄'},
+  {value:'mixed',label:'고루 섞기'},{value:'temples',label:'양옆만'},
+  {value:'silver',label:'은발'},{value:'white',label:'백발'},
+];
 const W=Math.min(360,innerWidth),H=showAdults?640:innerWidth<=650?Math.max(460,Math.min(640,innerHeight)):640;
 const dpr=Math.min(devicePixelRatio||1,2),reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const $=(id:string)=>document.getElementById(id)!;
@@ -45,11 +50,7 @@ class RosterScene extends Phaser.Scene {
     art.box.setScale(dpr);background.draw(art.box);background.render();art.destroy();
     residents.forEach((resident,i)=>{
       const anchor={x:W*[.2,.5,.8][i%3],y:showAdults?H*.42+Math.floor(i/3)*(H-88-H*.42)/3:H*(i<3?.53:.77)};
-      const actor=new RoundResident(this,toLook(resident.pick),anchor.x,anchor.y,resident.design);
-      // Keep body/face proportions identical; an updo may naturally stand a little taller.
-      actor.root.setScale(56/64);
-      const label=this.add.text(0,15/actor.root.scaleY,resident.name,{fontFamily:'Malgun Gothic, sans-serif',fontSize:'9px',color:'#68594c',backgroundColor:'#fff8e8',padding:{x:4,y:3}}).setOrigin(.5,0).setResolution(dpr);
-      label.setScale(1/actor.root.scaleX);actor.root.add(label);
+      const actor=this.makeActor(resident,anchor.x,anchor.y);
       this.entries.push({actor,anchor,manual:false});
     });
     this.marker=this.add.ellipse(0,0,36,9).setStrokeStyle(1.2,0x799d96,.9).setDepth(9000);
@@ -60,7 +61,20 @@ class RosterScene extends Phaser.Scene {
       const entry=this.entries[selected];entry.manual=true;
       entry.target={x:Phaser.Math.Clamp(p.x,26,W-26),y:Phaser.Math.Clamp(p.y,showAdults?H*.42:220,H-76)};
     });
-    $('ready').hidden=true;select(showAdults?6:0);
+    $('ready').hidden=true;select(showAdults?2:0);
+  }
+  makeActor(resident:typeof residents[number],x:number,y:number){
+    const actor=new RoundResident(this,toLook(resident.pick),x,y,resident.design);
+    // Keep body/face proportions identical; an updo may naturally stand a little taller.
+    actor.root.setScale(56/64);actor.place(x,y);
+    const label=this.add.text(0,15/actor.root.scaleY,resident.name,{fontFamily:'Malgun Gothic, sans-serif',fontSize:'9px',color:'#68594c',backgroundColor:'#fff8e8',padding:{x:4,y:3}}).setOrigin(.5,0).setResolution(dpr);
+    label.setScale(1/actor.root.scaleX);actor.root.add(label);return actor;
+  }
+  changeHair(tone:HairTone){
+    const entry=this.entries[selected];if(!entry)return;
+    residents[selected].design.hairTone=tone;
+    const {x,y}=entry.actor.root;entry.actor.root.destroy();
+    entry.actor=this.makeActor(residents[selected],x,y);this.frame();
   }
   update(_time:number,rawDelta:number){
     const dt=Math.min(rawDelta,FEEL.maxDeltaMs);this.clock+=dt;
@@ -93,6 +107,13 @@ class RosterScene extends Phaser.Scene {
   reset(){this.clock=0;keys.clear();for(const entry of this.entries){entry.manual=false;entry.target=undefined;entry.actor.place(entry.anchor.x,entry.anchor.y);}}
 }
 const scene=new RosterScene();
+hairTones.forEach(({value,label})=>{
+  const button=document.createElement('button');button.type='button';button.dataset.hairTone=value;
+  button.textContent=label;button.onclick=()=>{
+    scene.changeHair(value);updateHair();
+    if(zoomed&&innerWidth<=650)document.querySelector('.world')!.scrollIntoView({block:'start'});
+  };$('hair-tones').append(button);
+});
 residents.forEach((resident,i)=>{
   const button=document.createElement('button');button.type='button';button.dataset.resident=String(i);
   button.textContent=`${i+1} · ${resident.name}`;button.onclick=()=>{
@@ -103,7 +124,13 @@ residents.forEach((resident,i)=>{
 function select(index:number){
   selected=index;keys.clear();$('who').textContent=residents[index].name;$('description').textContent=residents[index].description;
   document.querySelectorAll<HTMLButtonElement>('[data-resident]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.resident)===index)));
+  updateHair();
   if(zoomed)scene.frame();
+}
+function updateHair(){
+  const tone=residents[selected].design.hairTone??'natural';
+  document.querySelectorAll<HTMLButtonElement>('[data-hair-tone]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.hairTone===tone)));
+  $('hair-status').textContent=`${residents[selected].name} · ${hairTones.find(option=>option.value===tone)!.label}`;
 }
 function updateWalk(){$('walk').setAttribute('aria-pressed',String(walking));$('walk').textContent=walking?'산책 멈추기':'산책 시작하기';}
 new Phaser.Game({type:Phaser.AUTO,parent:'canvas',backgroundColor:'#e4e5ca',width:W*dpr,height:H*dpr,scale:{mode:Phaser.Scale.NONE,zoom:1/dpr},render:{antialias:true},audio:{noAudio:true},banner:false,scene});

@@ -2,13 +2,15 @@ import Phaser from 'phaser';
 import { FEEL } from '../../feel';
 import type { Look } from '../../look';
 
+export type HairTone = 'natural'|'streak'|'mixed'|'temples'|'silver'|'white';
+
 export type ResidentDesign = {
-  hairStyle?: 'bob'|'wave'|'curls'|'bun'|'part'|'silver'|'forehead'|'shoulder'|'crop'|'lowTie';
+  hairStyle?: 'bob'|'wave'|'curls'|'bun'|'part'|'cloud'|'forehead'|'shoulder'|'crop'|'lowTie';
   top?: 'cardigan'|'stripes'|'hoodie'|'apron'|'jacket'|'vest'|'shirt'|'blazer'|'knit';
   pants?: number;
   shoes?: number;
   glasses?: boolean;
-  grayTemples?: boolean;
+  hairTone?: HairTone;
   brows?: boolean;
   beard?: boolean;
   smileLines?: boolean;
@@ -24,7 +26,11 @@ export class RoundResident {
   private idleClock = 0;
   constructor(scene: Phaser.Scene, look: Look, x: number, y: number, design: ResidentDesign = {}) {
     const s = scene.add;
-    const hair = look.hair, skin = look.skin, coat = look.coat;
+    const tone=design.hairTone??'natural';
+    let hair=tone==='silver'?0xb9beca:tone==='white'?0xeee9df:look.hair;
+    if(tone==='mixed')hair=Phaser.Display.Color.Interpolate.ColorWithColor(
+      Phaser.Display.Color.ValueToColor(hair),Phaser.Display.Color.ValueToColor(0xa5a6a8),100,38).color;
+    const skin=look.skin,coat=look.coat;
     const hairStyle=design.hairStyle??'bob',top=design.top??'cardigan';
     const back = s.graphics().fillStyle(hair);
     const backPath=new Phaser.Curves.Path(-17,-43)
@@ -34,7 +40,7 @@ export class RoundResident {
     if(hairStyle!=='bob') {
       back.clear().fillStyle(hair);
       if(hairStyle==='bun')back.fillCircle(2,-62,7.5).fillEllipse(0,-49,31,23);
-      if(hairStyle==='silver')back.fillCircle(-13,-43,6).fillCircle(13,-43,6).fillCircle(-10,-35,5).fillCircle(10,-35,5);
+      if(hairStyle==='cloud')back.fillCircle(-13,-43,6).fillCircle(13,-43,6).fillCircle(-10,-35,5).fillCircle(10,-35,5);
       if(hairStyle==='shoulder') {
         const shoulder=new Phaser.Curves.Path(-17,-43).cubicBezierTo(0,-61,-18,-57,-10,-61)
           .cubicBezierTo(18,-42,13,-61,18,-53).lineTo(19,-30)
@@ -148,7 +154,7 @@ export class RoundResident {
           .lineTo(-14,-39).closePath();
         fringe.fillPoints(parted.getPoints(18),true);
       }
-      if(hairStyle==='silver') {
+      if(hairStyle==='cloud') {
         for(const [cx,cy,r] of [[-14,-49,6],[-10,-56,6.5],[-3,-59,6.5],[5,-58,6.5],[12,-54,6.5],[15,-47,5.5]])fringe.fillCircle(cx,cy,r);
         fringe.fillEllipse(0,-52,26,14);
       }
@@ -179,19 +185,49 @@ export class RoundResident {
         .cubicBezierTo(-12,-46,4,-52,-4,-48).lineTo(-14,-39).closePath();
       fringe.fillPoints(tied.getPoints(18),true);
     }
-    if(design.grayTemples)fringe.fillStyle(0xc9c4bd,.95).fillRoundedRect(-14.5,-48,3,7,1.5).fillRoundedRect(11.5,-48,3,7,1.5);
+    const openHairline=hairStyle==='forehead'||hairStyle==='crop';
+    const curly=hairStyle==='curls'||hairStyle==='cloud';
+    if(tone==='streak') {
+      const sidePart=hairStyle==='part'||hairStyle==='shoulder'||hairStyle==='lowTie';
+      const x=sidePart?5:0,y=curly?-64:hairStyle==='wave'?-61:-59;
+      const endX=sidePart?-9:-6,endY=openHairline?-53:hairStyle==='bob'?-47:-49;
+      const streak=new Phaser.Curves.Path(x-1.5,y).lineTo(x+1.8,y+.4)
+        .cubicBezierTo(endX+1.4,endY,x+1,y+5,endX+3,endY-3)
+        .lineTo(endX-1.3,endY-1).cubicBezierTo(x-1.5,y,endX,endY-5,x-2,y+4).closePath();
+      fringe.fillStyle(0xe5e1d8).fillPoints(streak.getPoints(16),true);
+    }
+    if(tone==='mixed') {
+      // Small broken locks follow the crown; exposed foreheads keep a shorter texture.
+      const y=openHairline?-56.5:curly?-61:-57;
+      fringe.lineStyle(1.15,0xc4c6c4,.75);
+      for(const [x,dy] of [[-11,2],[-6,0],[0,-1],[6,0],[11,2]]) {
+        const length=openHairline?1.7:4.5;
+        const lock=new Phaser.Curves.Path(x,y+dy).cubicBezierTo(x-2,y+dy+length,x-.2,y+dy+1,x-1,y+dy+length-1);
+        fringe.strokePoints(lock.getPoints(8),false);
+      }
+      if(!openHairline)for(const x of [-8,1,9])fringe.lineBetween(x,-53,x-1.2,-50.5);
+      if(hairStyle==='bob'||hairStyle==='shoulder')back.lineStyle(1.3,0xdedbd3,.8).lineBetween(-16,-39,-15,-33).lineBetween(16,-37,15,-31);
+      if(hairStyle==='bun')back.lineStyle(1.4,0xdedbd3,.8).lineBetween(1,-67,-1,-63).lineBetween(6,-65,4,-61);
+      if(hairStyle==='lowTie')back.lineStyle(1.4,0xdedbd3,.8).lineBetween(13,-35,16,-31);
+    }
+    if(tone==='temples') {
+      for(const sign of [-1,1]) {
+        const temple=new Phaser.Curves.Path(sign*14.5,-48).lineTo(sign*12,-47)
+          .cubicBezierTo(sign*13,-41,sign*12,-44,sign*12,-42).lineTo(sign*15,-43).closePath();
+        fringe.fillStyle(0xd9d6ce).fillPoints(temple.getPoints(10),true);
+      }
+    }
     this.eyes = [-4.8,4.8].map(ex => s.circle(ex,-41.5,1.75,0x39313b));
     const face = s.graphics();
     face.fillStyle(0xee9b90,.7).fillEllipse(-9.5,-37.4,6,4.5).fillEllipse(9.5,-37.4,6,4.5);
     face.fillStyle(0xe7a384,.7).fillCircle(0,-38.8,1);
     face.lineStyle(1.1,0x85554b).beginPath().arc(0,-36.2,2.3,.15,Math.PI-.15).strokePath();
-    if(hairStyle==='silver')face.lineStyle(1.05,0x9a8a7c,.8).lineBetween(-8,-46.5,-4,-47).lineBetween(4,-47,8,-46.5);
-    if(design.brows)face.lineStyle(1.25,hair,.8).lineBetween(-8,-46,-3.5,-46.4).lineBetween(3.5,-46.4,8,-46);
+    if(design.brows)face.lineStyle(1.25,look.hair,.8).lineBetween(-8,-46,-3.5,-46.4).lineBetween(3.5,-46.4,8,-46);
     if(design.smileLines)face.lineStyle(.65,0x98745f,.48).lineBetween(-9,-34.8,-8.1,-33.3).lineBetween(8.1,-33.3,9,-34.8);
     if(design.beard) {
       const beard=new Phaser.Curves.Path(-9,-34.7).cubicBezierTo(9,-34.7,-5,-31,5,-31)
         .cubicBezierTo(0,-29.3,7,-30.5,3,-29).cubicBezierTo(-9,-34.7,-3,-29,-7,-30.5).closePath();
-      face.fillStyle(hair,.65).fillPoints(beard.getPoints(12),true);
+      face.fillStyle(look.hair,.65).fillPoints(beard.getPoints(12),true);
     }
     if(design.glasses)face.lineStyle(.85,0x8b796a).strokeCircle(-4.8,-41.5,3.5).strokeCircle(4.8,-41.5,3.5).lineBetween(-1.3,-41.5,1.3,-41.5);
     this.body = s.container(0,0,[back,...this.legs,...sleeves,torso,cardigan,neck,...ears,head,fringe,...this.eyes,face]);
