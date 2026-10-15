@@ -10,9 +10,10 @@
     <div id="ready" role="status">주민들이 준비하고 있어요…</div>
     <div class="toolbar"><button id="walk" aria-pressed="true">산책 멈추기</button><button id="zoom" aria-pressed="false">크게 보기</button><button id="reset">처음 자리로</button></div>
   </section><aside class="roster-panel" aria-label="주민과 머리·옷 고르기"><p class="roster-eyebrow">머리와 옷 모양을 따로 골라요</p><h2 id="who">단발 · 가디건</h2><p id="description"></p>
-    <fieldset class="style-picker"><legend>머리와 옷 따로 고르기</legend><p>머리를 바꿔도 옷은 그대로, 옷을 바꿔도 머리는 그대로예요.</p>
+    <fieldset class="style-picker"><legend>머리·옷·안경 따로 고르기</legend><p>머리·옷·안경을 각각 골라요. 다른 선택은 그대로 유지돼요.</p>
       <label for="hair-style">머리 스타일</label><select id="hair-style"></select>
       <label for="top-style">옷</label><select id="top-style"></select>
+      <label for="glasses">안경</label><select id="glasses"><option value="none">없음</option><option value="round">둥근 안경</option></select>
     </fieldset>
     <fieldset class="hair-picker" aria-describedby="hair-help"><legend>머리색</legend><p id="hair-help">바탕색과 포인트 색, 색 넣는 방식을 각각 골라요.</p>
       <p class="color-label" id="hair-colors-label">바탕색</p><div id="hair-colors" class="hair-colors" role="group" aria-labelledby="hair-colors-label"></div>

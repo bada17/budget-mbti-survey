@@ -91,7 +91,7 @@ class RosterScene extends Phaser.Scene {
     const entry=this.entries[selected];if(!entry)return;
     const resident=residents[selected];Object.assign(resident.design,patch);
     resident.name=`${hairStyles.find(option=>option.value===(resident.design.hairStyle??'bob'))!.label} · ${tops.find(option=>option.value===(resident.design.top??'cardigan'))!.label}`;
-    resident.description='머리 스타일과 옷을 각각 고른 모습이에요. 눈썹·수염·안경·미소선은 그대로예요.';
+    resident.description='머리·옷·안경을 각각 고른 모습이에요. 눈썹·수염·미소선은 그대로예요.';
     const {x,y}=entry.actor.root;entry.actor.root.destroy();
     entry.actor=this.makeActor(residents[selected],x,y);this.frame();
   }
@@ -136,6 +136,10 @@ for(const [id,options,key] of [['hair-style',hairStyles,'hairStyle'],['top-style
   };
 }
 
+$('glasses').onchange=()=>{
+  scene.changeDesign({glasses:($('glasses') as HTMLSelectElement).value==='round'});select(selected);
+  if(zoomed&&innerWidth<=650)document.querySelector('.world')!.scrollIntoView({block:'start'});
+};
 for(const key of ['hairColor','hairAccent'] as const){
   const base=key==='hairColor',container=$(base?'hair-colors':'hair-accents');
   const options=base?[{color:undefined,label:'원래색'},...hairColors]:hairColors;
@@ -168,6 +172,7 @@ function select(index:number){
   });
   ($('hair-style') as HTMLSelectElement).value=residents[index].design.hairStyle??'bob';
   ($('top-style') as HTMLSelectElement).value=residents[index].design.top??'cardigan';
+  ($('glasses') as HTMLSelectElement).value=residents[index].design.glasses?'round':'none';
   updateHair();
   if(zoomed)scene.frame();
 }
