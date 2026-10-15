@@ -226,7 +226,7 @@ export function openTax(shell: HTMLElement, region: Region | undefined, onClose:
     [book, vault].forEach((pane, j) => { pane.hidden = i !== j; tabs.children[j].classList.toggle('on', i === j); tabs.children[j].setAttribute('aria-selected', String(i === j)); });
     if (i === 1 && !loaded) { loaded = true; fillVault(vault, region); }
   };
-  ['세금 도감', '우리 동네 금고'].forEach((label, i) => { const b = btn('t-tab', label, () => show(i)); b.setAttribute('role', 'tab'); tabs.append(b); });
+  ['세금 종류', '우리 지역 수입'].forEach((label, i) => { const b = btn('t-tab', label, () => show(i)); b.setAttribute('role', 'tab'); tabs.append(b); });
   panel.append(tabs, book, vault);
 
   // ① 세금 도감 — 장면 타일(넷씩 두 줄), 고른 장면의 세금, 다시 내려오는 길

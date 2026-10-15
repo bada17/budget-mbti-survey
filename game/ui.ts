@@ -479,7 +479,7 @@ export function createUI(root: HTMLElement, actions: {
       if (!coins) { chip?.remove(); return; }
       // 누르면 공사터로 — 넣을 곳을 찾아 헤매지 않게(사용자 10-14 「동전을 어디에 넣는데?」)
       if (!chip) { chip = icon(button('g-today g-pocket', '', () => open?.()), ICONS.coin, ''); chip.append(el('span')); where.append(chip); }
-      chip.setAttribute('aria-label', `주머니 동전 ${coins}개 — 공사터에 넣으러 가기`);
+      chip.setAttribute('aria-label', `주머니 동전 ${coins}개 — 동전 모으는 곳에 넣으러 가기`);
       chip.lastElementChild!.textContent = String(coins);
       chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
     },

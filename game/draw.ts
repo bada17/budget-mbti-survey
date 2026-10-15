@@ -385,20 +385,21 @@ function worksArt(scene: Scene, dpr: number) {
         root.add([g, label(scene, w / 2, h - 86, '쉼터 정자', 12, dpr, '#ffffff')]);
         return;
       }
-      // 공사 중 — 바닥, 울타리, 벽돌 더미, 간판(이름과 모인 만큼)
+      // 공사 중 — 바닥, 울타리, 벽돌 더미, 간판(곳 이름 · 지금 공사와 모인 만큼). 이름을 늘 보이게(사용자 10-15 「직관적으로」)
       g.fillStyle(0xe2d6b8).fillRoundedRect(0, 0, w, h, 12);
       for (let x = 0; x <= w; x += 20) g.fillStyle(0xe7a24f).fillRoundedRect(x - 3, h - 22, 6, 24, 2);
       g.fillStyle(0xf2c661).fillRect(0, h - 16, w, 5).fillStyle(0x51423e).fillRect(8, h - 16, 10, 5).fillRect(38, h - 16, 10, 5).fillRect(68, h - 16, 10, 5).fillRect(98, h - 16, 10, 5).fillRect(128, h - 16, 10, 5);
       for (const [bx, by] of [[22, 30], [34, 30], [28, 22]]) g.fillStyle(0xd9785f).fillRoundedRect(bx, by, 11, 7, 2);
-      g.fillStyle(0x6d5444).fillRect(w / 2 - 2, 20, 4, 34).fillStyle(0xfffaf0).fillRoundedRect(w / 2 - 66, -32, 132, 56, 8);
-      g.lineStyle(1.5, 0xd9c3a1).strokeRoundedRect(w / 2 - 66, -32, 132, 56, 8);
+      g.fillStyle(0x6d5444).fillRect(w / 2 - 2, 20, 4, 34).fillStyle(0xfffaf0).fillRoundedRect(w / 2 - 76, -32, 152, 56, 8);
+      g.lineStyle(1.5, 0xd9c3a1).strokeRoundedRect(w / 2 - 76, -32, 152, 56, 8);
       const now = state.now;
       const items: Phaser.GameObjects.GameObject[] = [g];
       if (now) {
         const k = Math.min(1, now.have / now.goal);
         g.fillStyle(0xefe2c9).fillRoundedRect(w / 2 - 52, -4, 104, 8, 4).fillStyle(0xf2c661).fillRoundedRect(w / 2 - 52, -4, Math.max(8, 104 * k), 8, 4);
-        items.push(label(scene, w / 2, -18, `공사 중 · ${now.name}`, 12, dpr), label(scene, w / 2, 13, `동전 ${now.have} / ${now.goal}`, 10, dpr, '#8a7563'));
-      } else items.push(label(scene, w / 2, -4, '다음 공사 준비 중', 12, dpr));
+      }
+      items.push(label(scene, w / 2, -18, PLACES.find(p => p.id === 'works')!.name, 12, dpr),
+        label(scene, w / 2, 13, now ? `${now.name} · 동전 ${now.have} / ${now.goal}` : '다음 공사 준비 중', 10, dpr, '#8a7563'));
       root.add(items);
     },
   };

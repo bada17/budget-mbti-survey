@@ -5,8 +5,8 @@
   · 카톡 안 브라우저에서는 구글 단추를 안 보인다 — 구글이 앱 속 브라우저 로그인을 막는다.
   · 처음엔 묻지 않는다 — 끝 공터 도장 주민 판(「주민증 지키기」)과 시작 화면(「전에 해 봤어요」)에서만. 안 해도 끝까지 한다.
   · 받는 것 = 회원번호 하나(서버가 소금 친 해시로 바꿔 둔다). 이메일·이름·사진은 받지 않는다 — 동의 항목(scope)을 열지 않는다.
-  · **켜짐은 키로** — VITE_KAKAO_REST_KEY · VITE_GOOGLE_CLIENT_ID 가 빌드에 들어가야 단추가 보인다. 개인정보처리방침에 넣기 전엔 키를 안 넣는다.
-    개발판(npm run dev:game)은 키가 없으면 가짜 카카오·구글(vite.game.config.ts 의 /fake-login)로 끝까지 돈다.
+  · 단추는 키가 없어도 늘 보인다(사용자 10-15 「안 되더라도 집어넣어 놓으라니까」) — 키가 없을 때 누르면 start() 가 false 를 돌려주고 판이 「준비 중」 이라 알린다.
+    키는 VITE_KAKAO_REST_KEY · VITE_GOOGLE_CLIENT_ID(빌드). 개발판(npm run dev:game)은 키가 없으면 가짜 카카오·구글(vite.game.config.ts 의 /fake-login)로 끝까지 돈다.
 
   가서 돌아오는 길: start() → 카카오/구글 화면 → 게임 주소로 돌아옴(카카오 ?code=, 구글 #id_token=) → finish() 가 서버(/login)에 확인
   → 열쇠·서버 기록을 받아 이 기기 것과 합침(profile.ts importSave) → 다시 연다(합친 기록으로 처음부터 읽게).
@@ -25,22 +25,21 @@ export const PROVIDER_NAME: Record<Provider, string> = { kakao: '카카오', goo
 /** 카톡 안 브라우저 — 구글 로그인이 막힌다. */
 export const inKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
 
-/** 지금 보여 줄 로그인 단추. 비면 로그인 자리를 아예 안 낸다(키를 넣기 전 공개판). */
-export function providers(): Provider[] {
-  const list: Provider[] = [];
-  if (KAKAO || FAKE) list.push('kakao');
-  if ((GOOGLE || FAKE) && !inKakao()) list.push('google');
-  return list;
-}
+/** 보여 줄 로그인 단추 — 카카오는 늘, 구글은 카톡 안 브라우저가 아니면. */
+export const providers = (): Provider[] => (inKakao() ? ['kakao'] : ['kakao', 'google']);
+
+/** 이 빌드에서 실제로 되나 — 키가 들어갔거나 개발판(가짜 로그인). */
+const ready = (provider: Provider) => Boolean(FAKE || (provider === 'kakao' ? KAKAO : GOOGLE));
 
 const here = () => `${location.origin}${location.pathname}`;
 const randomHex = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
 const query = (o: Record<string, string>) => new URLSearchParams(o).toString();
 
-/** 카카오·구글 화면으로 간다. 돌아오면 finish(). */
-export function start(provider: Provider) {
+/** 카카오·구글 화면으로 간다. 돌아오면 finish(). 아직 못 가면(키 없음·저장소 막힘) false. */
+export function start(provider: Provider): boolean {
+  if (!ready(provider)) return false;
   const state = randomHex();
-  try { sessionStorage.setItem(PENDING, JSON.stringify({ provider, state })); } catch { return; }
+  try { sessionStorage.setItem(PENDING, JSON.stringify({ provider, state })); } catch { return false; }
   const back = here();
   const real = provider === 'kakao' ? KAKAO : GOOGLE;
   location.href = !real
@@ -48,6 +47,7 @@ export function start(provider: Provider) {
     : provider === 'kakao'
       ? `https://kauth.kakao.com/oauth/authorize?${query({ response_type: 'code', client_id: real, redirect_uri: back, state })}`
       : `https://accounts.google.com/o/oauth2/v2/auth?${query({ response_type: 'id_token', client_id: real, redirect_uri: back, scope: 'openid', nonce: state, state, prompt: 'select_account' })}`;
+  return true;
 }
 
 /**

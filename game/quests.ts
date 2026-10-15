@@ -11,18 +11,18 @@ import type { PlaceId } from './village';
 export type Quest = { id: string; place: PlaceId; ask: string; event: string; count?: number };
 
 export const QUESTS: Quest[] = [
-  { id: 'tax-smoke', place: 'tax', ask: '세금 도감에서 「담배 한 갑 살 때」 를 찾아 줄래요? 세금이 세 군데로 나뉘어요.', event: 'tax:smoke' },
-  { id: 'tax-home', place: 'tax', ask: '세금 도감에서 「집이 있으면」 을 찾아 줄래요? 서울은 재산세를 나눠 쓴대요.', event: 'tax:home' },
-  { id: 'tax-fuel', place: 'tax', ask: '세금 도감에서 「기름 넣을 때」 를 찾아 줄래요?', event: 'tax:fuel' },
-  { id: 'vault', place: 'tax', ask: '「우리 동네 금고」 에서 사는 곳을 골라 봐요. 금고가 뭘로 채워지는지 보여요.', event: 'vault:pick' },
+  { id: 'tax-smoke', place: 'tax', ask: '「세금 종류」 에서 「담배 한 갑 살 때」 를 찾아 줄래요? 세금이 세 군데로 나뉘어요.', event: 'tax:smoke' },
+  { id: 'tax-home', place: 'tax', ask: '「세금 종류」 에서 「집이 있으면」 을 찾아 줄래요? 서울은 재산세를 나눠 쓴대요.', event: 'tax:home' },
+  { id: 'tax-fuel', place: 'tax', ask: '「세금 종류」 에서 「기름 넣을 때」 를 찾아 줄래요?', event: 'tax:fuel' },
+  { id: 'vault', place: 'tax', ask: '「우리 지역 수입」 에서 사는 곳을 골라 봐요. 무슨 돈으로 채워지는지 보여요.', event: 'vault:pick' },
   { id: 'counsel', place: 'counsel', ask: '상담소에 자주 오는 질문 하나 읽고 가 줄래요?', event: 'open:counsel' },
-  { id: 'finance', place: 'finance', ask: '아무 동네나 한 해 살림을 봐 줄래요? 한 사람 몫이 얼마인지 나와요.', event: 'finance:pick' },
+  { id: 'finance', place: 'finance', ask: '아무 지역이나 한 해 예산을 봐 줄래요? 한 사람 몫이 얼마인지 나와요.', event: 'finance:pick' },
   { id: 'dok', place: 'dok', ask: '요즘 들여다보는 예산 소식 한번 봐 줄래요?', event: 'open:dok' },
   { id: 'hub', place: 'hub', ask: '주민증에 찍힌 도장 좀 봐 줘요. 몇 개 모았어요?', event: 'open:hub' },
   { id: 'cat', place: 'hub', ask: '광장 고양이한테 인사 좀 해 줄래요? 요즘 심심한가 봐요.', event: 'cat' },
   { id: 'board', place: 'board', ask: '쪽지판에 들러 지나간 주민들 쪽지를 읽어 봐요.', event: 'open:board' },
   { id: 'trees', place: 'works', ask: '나무를 세 그루 흔들어 봐요. 동전이 숨어 있을지도 몰라요!', event: 'shake', count: 3 },
-  { id: 'give', place: 'works', ask: '공사터에 동전을 넣어 줄래요? 다리가 조금씩 올라가요.', event: 'give' },
+  { id: 'give', place: 'works', ask: '여기에 동전을 넣어 줄래요? 다리가 조금씩 올라가요.', event: 'give' },
 ];
 export const QUEST_PER_DAY = 3;
 export const QUEST_REWARD = 2;

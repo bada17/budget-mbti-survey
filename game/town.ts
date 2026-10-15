@@ -21,6 +21,7 @@ import { DONATE_URL, backCloses, ICONS } from './ui';
 import { PRIVACY_URL } from './contact';
 import { PROVIDER_NAME, type Provider } from './login';
 import type { RegionView, Visit } from './api';
+import { VILLAGE_NAME } from './village';
 
 export type Person = { name: string; pick: Pick; type: TypeCode; town: Town };
 type Guest = Omit<Visit, 'sessionId'>;
@@ -38,7 +39,8 @@ export type HubData = {
   /** 로그인(login.ts) — 단추가 없는 판(키를 넣기 전)엔 안 보인다. */
   login?: LoginOpts;
 };
-export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; start(provider: Provider): void; logout(): void; forget(): Promise<boolean> };
+/** start 가 false 면 아직 못 간다(키를 넣기 전) — 판이 「준비 중」 이라 알린다. */
+export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; start(provider: Provider): boolean; logout(): void; forget(): Promise<boolean> };
 
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));
 export const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
@@ -207,7 +209,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
  * 로그인 자리 — 안 했으면 「카카오로 지키기」 단추와 받는 것 안내, 했으면 「지키는 중」 과 끊기·지우기.
  * 안내는 실제로 받는 것 그대로(login.ts·server/gas.ts): 회원번호 하나(해시로 바꿔 둠) + 이 기기의 게임 기록.
  */
-function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기') {
+function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그인') {
   const box = el('section', 't-login');
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const draw = () => {
@@ -226,9 +228,11 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기') {
       box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 지키는 중이에요. 다른 폰·브라우저에서 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 이 주민증이 이어져요.`), links, status);
       return;
     }
-    box.append(el('p', 't-login-title', verb === '지키기' ? '주민증 지키기' : '전에 해 봤다면'),
+    if (verb !== '로그인') box.append(el('p', 't-login-title', verb === '지키기' ? '주민증 지키기' : '전에 해 봤다면'),
       el('p', 't-small', verb === '지키기' ? '로그인해 두면 다른 폰·브라우저에서도 이 주민증과 도장이 이어져요. 안 해도 괜찮아요.' : '전에 로그인해 둔 주민증과 도장을 불러와요.'));
-    for (const provider of opts.providers) box.append(btn(`t-login-btn t-${provider}`, `${PROVIDER_NAME[provider]}로 ${verb}`, () => opts.start(provider)));
+    for (const provider of opts.providers) box.append(btn(`t-login-btn t-${provider}`, `${PROVIDER_NAME[provider]}로 ${verb}`, () => {
+      if (!opts.start(provider)) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
+    }));
     const note = el('p', 't-small t-login-note',
       `받는 건 ${opts.providers.map(p => PROVIDER_NAME[p]).join('·')} 회원번호 하나예요. 서버에는 알아볼 수 없게 바꿔서, 게임 기록(별명·모습·유형·도장·내 이웃·지역)과 함께 둬요. 이메일·이름·사진은 받지 않아요. `);
     const policy = el('a', '', '개인정보처리방침'); policy.href = PRIVACY_URL; policy.target = '_blank'; policy.rel = 'noopener';
@@ -243,6 +247,19 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기') {
 export function openLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => void) {
   const { panel } = panelShell(shell, onClose, '← 처음 화면으로');
   panel.append(el('h2', '', '내 주민증 불러오기'), loginBox(opts, '불러오기'));
+}
+
+/**
+ * 마을 입구 로그인(사용자 10-15 「기록을 위해서는 로그인을 해 주세요 — 카카오톡·구글, 마을 입구에서, 안 해도 돌아볼 수 있게」).
+ * 로그인 안 한 사람이 마을에 들어올 때 한 번(main 이 판마다 한 번만 부른다). 「로그인 없이 둘러보기」 로 닫는다.
+ */
+export function openGateLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => void) {
+  const { panel, close } = panelShell(shell, onClose, '로그인 없이 둘러보기');
+  panel.classList.add('t-gate');
+  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', '기록을 남기려면 로그인해 주세요'),
+    el('p', 't-lead', '로그인하면 내 주민증·도장·모은 동전이 다른 폰과 브라우저에서도 이어져요.'),
+    loginBox(opts, '로그인'), btn('g-ghost', '로그인 없이 둘러보기', close),
+    el('p', 't-small', '로그인하지 않아도 마을을 다 돌아볼 수 있어요. 기록은 이 기기에만 남아요.'));
 }
 
 /** 우리 지역 동네 — 시·도를 고르면 한 채 짓고, 같은 지역 사람들이 지은 동네를 본다. */

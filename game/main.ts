@@ -14,7 +14,7 @@ import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, type Me, type Town, type Neighbor,
 } from './profile';
-import { openTown, openReply, openLetter, openLogin, type Person, type LoginOpts } from './town';
+import { openTown, openReply, openLetter, openLogin, openGateLogin, type Person, type LoginOpts } from './town';
 import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, noteCard, loadMarks, rememberMine, loadPocket, savePocket, questHook } from './places';
 import { PLACES, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
 import { nameFrom } from './look';
@@ -132,7 +132,7 @@ const statsReady = net.stats().then(found => {
 
 const shell = root.querySelector<HTMLElement>('.g')!;
 
-// 로그인(login.ts) — 키를 넣기 전 공개판엔 단추가 없다. 카카오·구글에서 돌아왔으면 확인하고 다시 연다.
+// 로그인(login.ts) — 단추는 늘 보이고 키가 없으면 「곧 열려요」. 카카오·구글에서 돌아왔으면 확인하고 다시 연다. 마을 입구 판은 gateLogin.
 const loginOpts: LoginOpts = { providers: providers(), current: loginNow, start: startLogin, logout, forget };
 keepSynced();
 void finishLogin().then(result => {
@@ -141,7 +141,7 @@ void finishLogin().then(result => {
 });
 const loggedIn = justLoggedIn();
 if (loggedIn) ui.toast(`${PROVIDER_NAME[loggedIn]}로 주민증을 지켰어요`); // 마을이 열리면 주민센터를 바로 연다(enteredVillage)
-else if (loginOpts.providers.length && !loginNow()) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}));
+else if (!loginNow()) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}));
 
 type UntimedCommand = Command extends infer T ? T extends { at: number } ? Omit<T, 'at'> : never : never;
 function send(command: UntimedCommand | SceneCommand) {
@@ -338,13 +338,23 @@ function enteredVillage() {
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
   village?.setQuestMarks(openQuests().map(q => q.place));
+  gateLogin();
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
-    if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 주민센터 주민증에 찍혀 있어요.`);
+    if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 「내 기록 보는 곳」 주민증에 찍혀 있어요.`);
     if (loggedIn) openPlace('hub');
   }
   void meetVillage();
 }
+
+/** 마을 입구 로그인 — 로그인 안 한 사람에게 판(탭)마다 한 번. 다른 판(편지·답장)이 떠 있으면 그 위에 겹치지 않는다. */
+function gateLogin() {
+  if (loginNow() || loggedIn || shell.querySelector('.t-panel')) return;
+  try { if (sessionStorage.getItem(GATE_SEEN)) return; sessionStorage.setItem(GATE_SEEN, '1'); } catch { /* 못 적으면 들어올 때마다 보인다 */ }
+  panelOpen = true; village?.setPaused(true);
+  openGateLogin(shell, loginOpts, () => { panelOpen = false; village?.setPaused(false); });
+}
+const GATE_SEEN = 'budget-game-gate-login';
 
 async function meetVillage() {
   await statsReady; await finishing;
@@ -389,8 +399,8 @@ function picked(tree: number, kind: Drop) {
   savePocket(pocket);
   ui.villagePocket(pocket.coins, toWorks);
   // 첫 동전 — 공사터 주민이 넣는 곳을 알려 준다(한 번만). 「나중에」 해도 위 띠 동전을 누르면 공사터로 간다.
-  if (first) ui.villageNotice(nameFrom('npc:works'), `동전을 주웠네요! 마을 공사터에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
-    [{ label: '공사터로 가기', run: toWorks }, { label: '나중에' }]);
+  if (first) ui.villageNotice(nameFrom('npc:works'), `동전을 주웠네요! 「동전 모으는 곳」 에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
+    [{ label: '넣으러 가기', run: toWorks }, { label: '나중에' }]);
 }
 // ── 오늘의 부탁(10-14 ⓓ) — quests.ts 규칙, 해낸 것은 주머니에 ──
 const todaysQuests = () => questsOn(kstDay(Date.now()));
@@ -432,11 +442,11 @@ function openPhone() {
   ui.phone(head, [
     { icon: '🗺️', name: '지도', run: openMap },
     { icon: '📝', name: '오늘의 부탁', run: openQuestList },
-    { icon: '🪪', name: '주민증', run: go('hub') },
-    { icon: '💰', name: '세금 도감', run: go('tax') },
-    { icon: '🏗️', name: '마을 공사', run: go('works') },
+    { icon: '🪪', name: '내 기록', run: go('hub') },
+    { icon: '💰', name: '세금', run: go('tax') },
+    { icon: '🏗️', name: '동전 모으기', run: go('works') },
     { icon: '📌', name: '쪽지판', run: go('board') },
-    { icon: '🚌', name: '한 바퀴 더', run: go('bus') },
+    { icon: '🚌', name: '다시 하기', run: go('bus') },
   ]);
 }
 
