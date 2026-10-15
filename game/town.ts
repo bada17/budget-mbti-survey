@@ -61,7 +61,7 @@ export function avatar(look: Look, label = '') {
   a.style.setProperty('--skin', hex(look.skin));
   a.style.setProperty('--hair', hex(hairColor(look)));
   a.style.setProperty('--coat', hex(look.coat));
-  a.dataset.hair = look.form.hair;
+  a.dataset.hair = look.style;
   a.append(el('i', 't-ava-body'), el('i', 't-ava-head'), el('i', 't-ava-hair'));
   if (label) { a.setAttribute('role', 'img'); a.setAttribute('aria-label', label); } else a.setAttribute('aria-hidden', 'true');
   return a;

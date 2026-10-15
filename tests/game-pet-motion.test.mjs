@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {petPoseAt} from '../game/review/round/pet-motion.ts';
+import {petPoseAt} from '../game/pet-motion.ts';
 
 test('pets groom and rest without leaving their original spot',()=>{
   for(const kind of ['cat','dog']){

@@ -12,20 +12,22 @@ import { PLACES, PLAZA, FOUNTAIN, POND, PITCH, GOAL, ROADS, WORKS, VILLAGE_W, VI
 type Scene = Phaser.Scene;
 type Container = Phaser.GameObjects.Container;
 
-import { rng, lookFrom as seedLook, hairColor, type Look } from './look';
+import { rng, lookFrom as seedLook, hairColor, BROW, type Look } from './look';
 import { sfx } from './sfx';
 import type { Outcome } from './outcomes';
 import { streamOf, catOf, type TwistKind } from './twists';
+import { Pet } from './pets';
 export { lookFrom, toLook, type Look } from './look';
 
 /**
- * 사람 그림 — 성인 열두 모습(look.ts FORMS). GPT 검토판 game/review/round/avatar.ts(10-15 사용자 승인)의
- * 둥근 몸·짧은 다리·머리·옷·흰머리를 그대로 옮겼다. 검토판은 머리 끝이 64px 이라 56/64 로 줄여
- * 예전 사람 키에 맞춘다 — 말풍선·하트·이름표 자리가 그대로다.
+ * 사람 그림 — GPT 검토판 game/review/round/avatar.ts(10-15 사용자 승인)의 둥근 몸·짧은 다리·머리 열 가지·옷 아홉 가지·
+ * 머리색 넣는 방식(전체 단색·앞머리 한 줄·고루 섞기·양옆만, 섞는 색은 따로)·안경·머리 장식(머리띠·머리핀·작은 리본)을 그대로 옮겼다.
+ * 머리 모양·옷·안경·장식은 고른 대로(look.style·top·glasses·accessory), 바지·신발·눈썹·수염·미소선은 기본 조합(look.form) 것.
+ * 검토판은 머리 끝이 64px 이라 56/64 로 줄여 예전 사람 키에 맞춘다 — 말풍선·하트·이름표 자리가 그대로다.
  */
 const FIGURE_SCALE = 56 / 64;
 function figure(scene: Scene, look: Look) {
-  const s = scene.add, f = look.form, style = f.hair, top = f.top, tone = look.tone;
+  const s = scene.add, f = look.form, style = look.style, top = look.top, pattern = look.pattern, accent = look.accent;
   const hair = hairColor(look), skin = look.skin, coat = look.coat;
   const path = (x: number, y: number) => new Phaser.Curves.Path(x, y);
   const back = s.graphics().fillStyle(hair);
@@ -129,40 +131,53 @@ function figure(scene: Scene, look: Look) {
     .cubicBezierTo(16, -43, 16, -55, 18, -49).lineTo(12, -44).lineTo(10, -51).cubicBezierTo(-11, -51, 4, -53, -5, -53).lineTo(-13, -42));
   if (style === 'lowTie') fill(path(-16, -44).cubicBezierTo(2, -60, -17, -55, -7, -62).cubicBezierTo(16, -43, 15, -59, 19, -50).lineTo(13, -39).lineTo(10, -49)
     .cubicBezierTo(-12, -46, 4, -52, -4, -48).lineTo(-14, -39));
-  // 흰머리 — 부분은 헤어라인에 맞추고, 은발·백발은 hairColor 가 앞뒤 머리에 같이 입힌다.
+  // 섞는 색 — 부분(앞머리 한 줄·양옆)은 헤어라인에 맞추고, 고루 섞기는 hairColor 가 앞뒤 머리를 섞고 가는 머릿결을 더한다.
   const openHairline = style === 'forehead' || style === 'crop', curly = style === 'curls' || style === 'cloud';
-  if (tone === 'streak') {
+  if (pattern === 'streak') {
     const sidePart = style === 'part' || style === 'shoulder' || style === 'lowTie';
     const x = sidePart ? 5 : 0, y = curly ? -64 : style === 'wave' ? -61 : -59;
     const endX = sidePart ? -9 : -6, endY = openHairline ? -53 : style === 'bob' ? -47 : -49;
-    fringe.fillStyle(0xe5e1d8).fillPoints(path(x - 1.5, y).lineTo(x + 1.8, y + 0.4).cubicBezierTo(endX + 1.4, endY, x + 1, y + 5, endX + 3, endY - 3)
+    fringe.fillStyle(accent).fillPoints(path(x - 1.5, y).lineTo(x + 1.8, y + 0.4).cubicBezierTo(endX + 1.4, endY, x + 1, y + 5, endX + 3, endY - 3)
       .lineTo(endX - 1.3, endY - 1).cubicBezierTo(x - 1.5, y, endX, endY - 5, x - 2, y + 4).closePath().getPoints(16), true);
   }
-  if (tone === 'mixed') {
+  if (pattern === 'mixed') {
     const y = openHairline ? -56.5 : curly ? -61 : -57, length = openHairline ? 1.7 : 4.5;
-    fringe.lineStyle(1.15, 0xc4c6c4, 0.75);
+    fringe.lineStyle(1.15, accent, 0.75);
     for (const [x, dy] of [[-11, 2], [-6, 0], [0, -1], [6, 0], [11, 2]])
       fringe.strokePoints(path(x, y + dy).cubicBezierTo(x - 2, y + dy + length, x - 0.2, y + dy + 1, x - 1, y + dy + length - 1).getPoints(8), false);
     if (!openHairline) for (const x of [-8, 1, 9]) fringe.lineBetween(x, -53, x - 1.2, -50.5);
-    if (style === 'bob' || style === 'shoulder') back.lineStyle(1.3, 0xdedbd3, 0.8).lineBetween(-16, -39, -15, -33).lineBetween(16, -37, 15, -31);
-    if (style === 'bun') back.lineStyle(1.4, 0xdedbd3, 0.8).lineBetween(1, -67, -1, -63).lineBetween(6, -65, 4, -61);
-    if (style === 'lowTie') back.lineStyle(1.4, 0xdedbd3, 0.8).lineBetween(13, -35, 16, -31);
+    if (style === 'bob' || style === 'shoulder') back.lineStyle(1.3, accent, 0.8).lineBetween(-16, -39, -15, -33).lineBetween(16, -37, 15, -31);
+    if (style === 'bun') back.lineStyle(1.4, accent, 0.8).lineBetween(1, -67, -1, -63).lineBetween(6, -65, 4, -61);
+    if (style === 'lowTie') back.lineStyle(1.4, accent, 0.8).lineBetween(13, -35, 16, -31);
   }
-  if (tone === 'temples') for (const sign of [-1, 1])
-    fringe.fillStyle(0xd9d6ce).fillPoints(path(sign * 14.5, -48).lineTo(sign * 12, -47).cubicBezierTo(sign * 13, -41, sign * 12, -44, sign * 12, -42)
+  if (pattern === 'temples') for (const sign of [-1, 1])
+    fringe.fillStyle(accent).fillPoints(path(sign * 14.5, -48).lineTo(sign * 12, -47).cubicBezierTo(sign * 13, -41, sign * 12, -44, sign * 12, -42)
       .lineTo(sign * 15, -43).closePath().getPoints(10), true);
   const eyes = [-4.8, 4.8].map(x => s.circle(x, -41.5, 1.75, 0x39313b));
   const face = s.graphics();
   face.fillStyle(0xee9b90, 0.7).fillEllipse(-9.5, -37.4, 6, 4.5).fillEllipse(9.5, -37.4, 6, 4.5);
   face.fillStyle(0xe7a384, 0.7).fillCircle(0, -38.8, 1);
   face.lineStyle(1.1, 0x85554b).beginPath().arc(0, -36.2, 2.3, 0.15, Math.PI - 0.15).strokePath();
-  // 눈썹·수염은 바탕 머리 색 — 흰머리를 골라도 바뀌지 않는다.
-  if (f.brows) face.lineStyle(1.25, look.hair, 0.8).lineBetween(-8, -46, -3.5, -46.4).lineBetween(3.5, -46.4, 8, -46);
+  // 눈썹·수염은 늘 같은 색(BROW) — 머리색을 바꿔도 따라 바뀌지 않는다(승인 기준).
+  if (f.brows) face.lineStyle(1.25, BROW, 0.8).lineBetween(-8, -46, -3.5, -46.4).lineBetween(3.5, -46.4, 8, -46);
   if (f.smileLines) face.lineStyle(0.65, 0x98745f, 0.48).lineBetween(-9, -34.8, -8.1, -33.3).lineBetween(8.1, -33.3, 9, -34.8);
-  if (f.beard) face.fillStyle(look.hair, 0.65).fillPoints(path(-9, -34.7).cubicBezierTo(9, -34.7, -5, -31, 5, -31)
+  if (f.beard) face.fillStyle(BROW, 0.65).fillPoints(path(-9, -34.7).cubicBezierTo(9, -34.7, -5, -31, 5, -31)
     .cubicBezierTo(0, -29.3, 7, -30.5, 3, -29).cubicBezierTo(-9, -34.7, -3, -29, -7, -30.5).closePath().getPoints(12), true);
-  if (f.glasses) face.lineStyle(0.85, 0x8b796a).strokeCircle(-4.8, -41.5, 3.5).strokeCircle(4.8, -41.5, 3.5).lineBetween(-1.3, -41.5, 1.3, -41.5);
-  const fig = s.container(0, 0, [back, ...legs, ...sleeves, torso, wear, neck, ...ears, head, fringe, ...eyes, face]).setScale(FIGURE_SCALE);
+  if (look.glasses) face.lineStyle(0.85, 0x8b796a).strokeCircle(-4.8, -41.5, 3.5).strokeCircle(4.8, -41.5, 3.5).lineBetween(-1.3, -41.5, 1.3, -41.5);
+  // 머리 장식 — 하나만, 머리 꼭대기 높이에 맞춰(검토판 그대로). 모자는 없다.
+  const deco = s.graphics(), crown = curly ? -64 : style === 'wave' ? -63 : style === 'bun' ? -62 : -60;
+  if (look.accessory === 'headband') deco.fillStyle(0xce8c91).fillPoints(path(-16, crown + 13).cubicBezierTo(16, crown + 13, -15, crown - 3, 15, crown - 3).lineTo(13, crown + 15)
+    .cubicBezierTo(-13, crown + 15, 13, crown + 1, -13, crown + 1).closePath().getPoints(18), true);
+  if (look.accessory === 'hairpin') {
+    deco.fillStyle(0xe2b561).fillRoundedRect(8, crown + 10, 9, 3.5, 1.75);
+    deco.lineStyle(0.7, 0xfff2cb).lineBetween(10, crown + 11.3, 15, crown + 11.3);
+  }
+  if (look.accessory === 'ribbon') {
+    deco.fillStyle(0xc98591).fillTriangle(-12, crown + 3, -9, crown + 4, -14, crown + 9).fillTriangle(-9, crown + 4, -7, crown + 3, -5, crown + 9);
+    deco.fillStyle(0xe5a5ac).fillEllipse(-13, crown + 2, 8, 7).fillEllipse(-6, crown + 2, 8, 7);
+    deco.fillStyle(0xc98591).fillRoundedRect(-11, crown, 4, 4, 1.4);
+  }
+  const fig = s.container(0, 0, [back, ...legs, ...sleeves, torso, wear, neck, ...ears, head, fringe, deco, ...eyes, face]).setScale(FIGURE_SCALE);
   return { fig, legs, eyes, rightArm: sleeves[1], sleeveColor };
 }
 
@@ -1155,7 +1170,9 @@ function noteBoard(scene: Scene, place: Place, dpr: number) {
  * cull(화면) — 화면(+여유) 밖의 것은 그리지 않는다.
  */
 export type VillageArt = {
-  pigeons: Pigeon[]; cats: Cat[];
+  pigeons: Pigeon[];
+  /** 앉아 있는 동물(pets.ts) — 곁에 가면 하트, 고양이는 야옹(오늘의 부탁 「고양이에게 인사」). */
+  pets: { pet: Pet; near: boolean }[];
   /** 나무 — 흔들 수 있게(그림 한 장씩). at 은 밑동. */
   trees: { at: Point; img: Phaser.GameObjects.Image }[];
   /** 가로등 불 자리 — 밤에 장면이 빛을 켠다. */
@@ -1323,13 +1340,14 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
     keep(bake(scene, 'village-lamp', () => scene.add.container(0, 0, [scene.add.ellipse(0, 0, 14, 5, 0x2d3a2e, 0.15), scene.add.rectangle(0, -26, 4, 52, 0x6d6a73).setRounded(2), scene.add.circle(0, -54, 7, 0xfff3c4), scene.add.circle(0, -54, 11, 0xfff3c4, 0.25)]),
       LAMP, sharp, { x: lx + LAMP.x0, y: ly + LAMP.y0 }).setDepth(ly), { x0: lx - 12, x1: lx + 12, y0: ly - 66, y1: ly + 4 });
   }
-  const cats = [cat(scene, PLAZA.x - 92, PLAZA.y + 72, 0xf0a04b), cat(scene, 300, 372, 0x8f8f96)];
-  for (const kitty of cats) kitty.root.setDepth(kitty.at.y);
+  // 동물 — 광장 왼쪽 벤치 곁 고양이, 오른쪽 벤치 곁 강아지, 윗길 회색 고양이(GPT 승인 10-15). 나무·분수와 겹치지 않는 자리(나무는 광장·길엔 안 선다).
+  const pets = [new Pet(scene, 'cat', { x: PLAZA.x - 92, y: PLAZA.y + 72 }), new Pet(scene, 'dog', { x: PLAZA.x + 92, y: PLAZA.y + 72 }), new Pet(scene, 'cat', { x: 300, y: 372 }, 1, 0x8f8f96)]
+    .map(pet => ({ pet, near: false }));
   const pigeons = [[PLAZA.x + 40, PLAZA.y + 90], [PLAZA.x + 70, PLAZA.y + 100], [PLAZA.x - 50, PLAZA.y - 66], [560, 1200]].map(([px, py]) => pigeon(scene, px, py));
   const works = worksArt(scene, dpr);
   const MARGIN = 90; // 화면 밖 이만큼까지는 그려 둔다(걸어가며 들어올 때 갑자기 나타나지 않게)
   return {
-    pigeons, cats, trees,
+    pigeons, pets, trees,
     lamps: LAMPS.map(([x, y]) => ({ x, y: y - 54 })),
     setWorks: works.set, builtAt: works.builtAt, built: works.built,
     cull(view) {
@@ -1337,7 +1355,7 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
       for (const { obj, b } of culled) obj.setVisible(b.x1 > x0 && b.x0 < x1 && b.y1 > y0 && b.y0 < y1);
     },
     destroy() {
-      [...culled.map(c => c.obj), ...live, ...works.objs, ...cats.map(c => c.root), ...pigeons.filter(p => !p.fled).map(p => p.root)].forEach(t => t.destroy());
+      [...culled.map(c => c.obj), ...live, ...works.objs, ...pets.map(p => p.pet.root), ...pigeons.filter(p => !p.fled).map(p => p.root)].forEach(t => t.destroy());
     },
   };
 }

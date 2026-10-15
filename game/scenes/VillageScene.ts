@@ -16,7 +16,7 @@ import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, rollBall, type Point } from '../room';
 import { PLACES, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
-import { Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, meow, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
+import { Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -161,8 +161,8 @@ export class VillageScene extends Phaser.Scene {
       if (known) { if (note) known.note = note; continue; }
       const random = rng(key);
       // 새 쪽지는 쪽지판 앞에서 나타난다(방금 붙인 사람처럼), 나머지는 아무 데나.
-      const board = PLACES.find(p => p.id === 'board')!.door;
-      const at = note && Date.now() - note.at < 60_000 ? { x: board.x + 20, y: board.y + 10 } : wanderSpot(random);
+      const board = PLACES.find(p => p.id === 'board')?.door; // 쪽지판은 숨겨 둘 수 있다([나중에 살림]) — 없으면 아무 데나
+      const at = board && note && Date.now() - note.at < 60_000 ? { x: board.x + 20, y: board.y + 10 } : wanderSpot(random);
       const dude = new Dude(this, toLook(pick), at.x, at.y, 0.92).place(at);
       if (!this.reduced) { dude.root.setAlpha(0); this.tweens.add({ targets: dude.root, alpha: 1, duration: 500 }); }
       const folk: Folk = { dude, at, wait: random() * 2000, note, random, wavedAt: 0 };
@@ -196,7 +196,7 @@ export class VillageScene extends Phaser.Scene {
     this.follow(dt);
     this.wander(dt);
     for (const { dude, at } of this.keepers) { dude.look(this.pos.x - at.x, this.pos.y - at.y); dude.walk(dt, false, this.reduced); }
-    this.toys();
+    this.toys(dt);
     this.kickAbout(dt);
     if (!this.paused) { this.shakeTrees(); this.pickUp(); }
     this.cull(); // 화면 밖은 안 그린다 — 느린 폰에서 끊기지 않게
@@ -233,7 +233,7 @@ export class VillageScene extends Phaser.Scene {
     const seen = (x: number, y: number) => x > view.x - m && x < view.right + m && y > view.y - m && y < view.bottom + m + 60;
     for (const { dude, at, tag } of this.keepers) { const on = seen(at.x, at.y); dude.root.setVisible(on); tag?.setVisible(on); }
     for (const folk of this.folks.values()) { const on = seen(folk.at.x, folk.at.y); folk.dude.root.setVisible(on); folk.mark?.setVisible(on); }
-    for (const kitty of this.art.cats) kitty.root.setVisible(seen(kitty.at.x, kitty.at.y));
+    for (const { pet } of this.art.pets) pet.root.setVisible(seen(pet.anchor.x, pet.anchor.y));
     for (const bird of this.art.pigeons) if (!bird.fled) bird.root.setVisible(seen(bird.at.x, bird.at.y));
   }
 
@@ -301,12 +301,16 @@ export class VillageScene extends Phaser.Scene {
     this.runtime.near(best.note);
   }
 
-  private toys() {
+  private toys(dt: number) {
     for (const bird of this.art.pigeons) if (!bird.fled && distance(this.pos, bird.at) < FEEL.pigeonFleeRadius) { flee(this, bird, this.pos); sfx.flutter(); }
-    for (const kitty of this.art.cats) {
-      const d = distance(this.pos, kitty.at);
-      if (!kitty.near && d < FEEL.catRadius) { kitty.near = true; meow(this, kitty, this.reduced); sfx.meow(); this.runtime.event('cat'); }
-      else if (kitty.near && d > FEEL.catRadius + 30) kitty.near = false;
+    // 앉은 동물 — 곁에 가면 하트, 고양이는 야옹(오늘의 부탁 「고양이에게 인사」). 판이 열려 있거나 모션 줄이기면 기본 자세로 멈춘다(승인 기준).
+    for (const p of this.art.pets) {
+      p.pet.step(dt, this.reduced || this.paused);
+      const d = distance(this.pos, p.pet.anchor);
+      if (!p.near && d < FEEL.catRadius) {
+        p.near = true; hearts(this, p.pet.anchor.x - 4, p.pet.anchor.y - 26, 1, this.reduced);
+        if (p.pet.kind === 'cat') { sfx.meow(); this.runtime.event('cat'); }
+      } else if (p.near && d > FEEL.catRadius + 30) p.near = false;
     }
   }
 

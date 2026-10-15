@@ -11,7 +11,7 @@
     카톡 안 브라우저와 크롬은 저장소가 따로라, 로그인 없이는 같은 사람이 다시 와도 처음 온 사람이 된다. 규칙은 login.ts·api.ts.
 */
 import { TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, ROUTE, type TypeCode } from './content';
-import { isPick, randomPick, DEFAULT_PICK, type Pick } from './look';
+import { isPick, fullPick, randomPick, DEFAULT_PICK, type Pick } from './look';
 
 export type Me = { name: string; pick: Pick };
 export type Neighbor = { questionId: string; key: 'a' | 'b'; seed: string; name: string; at: number };
@@ -128,7 +128,7 @@ function write(key: string, value: unknown) {
  */
 export function loadMe(random = Math.random): Me {
   const raw = read(ME_KEY) as Partial<Me> | null;
-  return { name: cleanName(raw?.name), pick: isPick(raw?.pick) ? raw.pick : raw ? [...DEFAULT_PICK] : randomPick(random) };
+  return { name: cleanName(raw?.name), pick: isPick(raw?.pick) ? fullPick(raw.pick) : raw ? [...DEFAULT_PICK] as Pick : randomPick(random) }; // 옛 넷·다섯 칸은 열 칸으로 펴서(10-15 저녁)
 }
 export const saveMe = (me: Me) => write(ME_KEY, { name: cleanName(me.name), pick: me.pick });
 

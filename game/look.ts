@@ -16,15 +16,46 @@ export function rng(seed: string) {
 
 export const COATS = [0xff6b57, 0x6aa6d9, 0xf0a35e, 0x8cc084, 0xd98cb3, 0xb59ad9, 0xe6c35c, 0x7fc4c0, 0xe58f8f, 0x9db0c9, 0xc4a77d];
 export const SKINS = [0xf8dcc2, 0xf0c39f, 0xd9a07a, 0xb57b55, 0x8a5a3c];
-export const HAIRS = [0x3b2b25, 0x6b4a32, 0x2e2e3a, 0xc9c4bd, 0xc7843f, 0x8a3d2e];
-
 /**
- * 성인 열두 모습 — GPT 검토판(game/review/round, 10-15 사용자 승인)을 본편에 옮겼다. 어린이 없음, 성별·나이 값 없음.
- * 머리 모양·옷·바지는 모습마다 정해져 있고, 머리 색·흰머리·옷 색·피부는 따로 고른다.
- * 눈썹·수염·미소선은 모습에 붙어 있어 머리 색을 바꿔도 그대로다.
+ * 머리색 — 앞 여섯은 10-15 저녁 전부터 쓰던 것(옛 번호를 지키려고 그대로), 뒤 아홉은 승인한 색(GPT 검토판 roster.ts, 10-15 승인).
+ * 고르는 칸에는 승인한 열셋만 그 차례로(HAIR_MENU) — 옛 회색·주황 갈색은 옛 링크·옛 저장으로만 보인다.
  */
+export const HAIRS = [0x3b2b25, 0x6b4a32, 0x2e2e3a, 0xc9c4bd, 0xc7843f, 0x8a3d2e, 0xa67b55, 0xcaa665, 0x80465b, 0xd69aaa, 0xa795c8, 0x7393bf, 0x86b9a5, 0xb9beca, 0xeee9df];
+export const HAIR_MENU: { i: number; name: string }[] = [
+  { i: 2, name: '검정' }, { i: 0, name: '흑갈색' }, { i: 1, name: '갈색' }, { i: 6, name: '밝은갈색' }, { i: 7, name: '금색' }, { i: 5, name: '적갈색' },
+  { i: 8, name: '버건디' }, { i: 9, name: '분홍' }, { i: 10, name: '보라' }, { i: 11, name: '파랑' }, { i: 12, name: '민트' }, { i: 13, name: '은색' }, { i: 14, name: '흰색' },
+];
+const SILVER = 13, WHITE = 14;
+/** 눈썹·수염 색 — 머리색을 바꿔도 따라 바뀌지 않는다(승인 기준 「머리색을 바꿔도 눈썹·수염·미소선이 자동으로 바뀌지 않는다」). */
+export const BROW = 0x4b3a33;
+
+/*
+  성인 열두 모습 — GPT 검토판(game/review/round, 10-15 승인). 어린이 없음, 성별·나이 값 없음.
+  10-15 저녁부터 열두 모습은 「기본 조합」 이다 — 고르면 머리 모양·옷·안경이 그 모습으로 맞춰지고, 그다음 머리 모양·머리색·옷·안경·머리 장식을 하나씩 따로 바꾼다.
+  눈썹·수염·미소선·바지·신발은 기본 조합에 붙어 있어 다른 걸 바꿔도 그대로다.
+*/
 export type HairStyle = 'bob' | 'wave' | 'curls' | 'bun' | 'part' | 'cloud' | 'forehead' | 'shoulder' | 'crop' | 'lowTie';
 export type Top = 'cardigan' | 'stripes' | 'hoodie' | 'apron' | 'jacket' | 'vest' | 'shirt' | 'blazer' | 'knit';
+export const HAIR_STYLES: { value: HairStyle; name: string }[] = [
+  { value: 'bob', name: '단발' }, { value: 'wave', name: '웨이브' }, { value: 'curls', name: '곱슬' }, { value: 'bun', name: '올림머리' }, { value: 'part', name: '가르마' },
+  { value: 'cloud', name: '둥근 파마' }, { value: 'forehead', name: '넓은 이마' }, { value: 'shoulder', name: '어깨 단발' }, { value: 'crop', name: '짧은 머리' }, { value: 'lowTie', name: '낮은 묶음' },
+];
+export const TOPS: { value: Top; name: string }[] = [
+  { value: 'cardigan', name: '가디건' }, { value: 'stripes', name: '줄무늬' }, { value: 'hoodie', name: '후드' }, { value: 'apron', name: '앞치마' }, { value: 'jacket', name: '점퍼' },
+  { value: 'vest', name: '조끼' }, { value: 'shirt', name: '셔츠' }, { value: 'blazer', name: '정장 재킷' }, { value: 'knit', name: '니트' },
+];
+/** 머리색 넣는 방식 — 섞는 색(포인트)은 단색이 아닐 때만 쓴다. */
+export type HairPattern = 'solid' | 'streak' | 'mixed' | 'temples';
+export const PATTERNS: { value: HairPattern; name: string }[] = [
+  { value: 'solid', name: '전체 단색' }, { value: 'streak', name: '앞머리 한 줄' }, { value: 'mixed', name: '고루 섞기' }, { value: 'temples', name: '양옆만' },
+];
+/** 머리 장식 — 하나만, 안경과는 같이 쓴다. 모자는 승인에서 뺐다. */
+export type Accessory = 'none' | 'headband' | 'hairpin' | 'ribbon';
+export const ACCESSORIES: { value: Accessory; name: string }[] = [
+  { value: 'none', name: '없음' }, { value: 'headband', name: '머리띠' }, { value: 'hairpin', name: '머리핀' }, { value: 'ribbon', name: '작은 리본' },
+];
+export const GLASSES = ['없음', '둥근 안경'];
+
 export type Form = { name: string; hair: HairStyle; top: Top; pants: number; shoes?: number; glasses?: boolean; brows?: boolean; beard?: boolean; smileLines?: boolean };
 export const FORMS: Form[] = [
   { name: '단발·가디건', hair: 'bob', top: 'cardigan', pants: 0x9e8574 },
@@ -40,44 +71,80 @@ export const FORMS: Form[] = [
   { name: '낮은 묶음·앞치마', hair: 'lowTie', top: 'apron', pants: 0x8e8074, brows: true, smileLines: true },
   { name: '짧은 파마·가디건', hair: 'curls', top: 'cardigan', pants: 0x81766c, glasses: true, brows: true, smileLines: true },
 ];
-/** 흰머리 — 나이와 상관없이 누구나 고른다. */
-export const TONES = ['natural', 'streak', 'mixed', 'temples', 'silver', 'white'] as const;
-export type HairTone = typeof TONES[number];
-export const TONE_NAMES = ['원래 색', '앞머리 한 줄', '고루 섞기', '양옆만', '은발', '백발'];
 
-export type Look = { coat: number; skin: number; hair: number; form: Form; tone: HairTone };
+export type Look = {
+  coat: number; skin: number; hair: number; accent: number; pattern: HairPattern;
+  style: HairStyle; top: Top; glasses: boolean; accessory: Accessory;
+  /** 기본 조합 — 바지·신발·눈썹·수염·미소선은 여기서. */
+  form: Form;
+};
 /**
- * 고른 번호 — [모습, 머리 색, 옷 색, 피부, 흰머리]. 흰머리는 10-15 에 덧붙여 없어도 된다(옛 링크·옛 저장).
- * 10-15 전의 첫 칸은 머리 모양 다섯이었다 — 옛 번호는 앞의 다섯 모습으로 읽힌다.
+ * 고른 번호 열 칸 — [기본 조합, 머리색, 옷 색, 피부, 색 넣기, 머리 모양, 옷, 안경, 머리 장식, 섞는 색].
+ * 10-15 저녁 전의 넷·다섯 칸([모습, 머리 색, 옷 색, 피부, 흰머리])도 받는다 — 옛 링크·옛 저장·서버에 남은 다녀간 사람.
+ * 넷·다섯 칸이면 늘 옛 뜻으로 읽고(fullPick), 쓰는 곳은 fullPick 으로 열 칸으로 펴서 쓴다.
  */
-export type Pick = [form: number, hair: number, coat: number, skin: number, tone?: number];
-export const PICK_SIZES = [FORMS.length, HAIRS.length, COATS.length, SKINS.length, TONES.length];
-export const DEFAULT_PICK: Pick = [0, 0, 0, 0, 0];
+export type Pick = [form: number, hair: number, coat: number, skin: number, pattern?: number, style?: number, top?: number, glasses?: number, accessory?: number, accent?: number];
+export const PICK_SIZES = [FORMS.length, HAIRS.length, COATS.length, SKINS.length, PATTERNS.length, HAIR_STYLES.length, TOPS.length, GLASSES.length, ACCESSORIES.length, HAIRS.length];
+/** 옛 다섯 칸의 크기 — 머리 색 여섯, 흰머리 여섯(원래 색·앞머리 한 줄·고루 섞기·양옆만·은발·백발). */
+const LEGACY_SIZES = [FORMS.length, 6, COATS.length, SKINS.length, 6];
 
-export const isPick = (value: unknown): value is Pick =>
-  Array.isArray(value) && (value.length === 4 || value.length === 5) && value.every((n, i) => Number.isInteger(n) && n >= 0 && n < PICK_SIZES[i]);
+const inRange = (value: unknown[], sizes: number[]) => value.every((n, i) => Number.isInteger(n) && (n as number) >= 0 && (n as number) < sizes[i]);
+export const isPick = (value: unknown): value is Pick => Array.isArray(value)
+  && ((value.length === 4 || value.length === 5) ? inRange(value, LEGACY_SIZES) : value.length === PICK_SIZES.length && inRange(value, PICK_SIZES));
 
-export const toLook = ([form, hair, coat, skin, tone = 0]: Pick): Look =>
-  ({ form: FORMS[form], hair: HAIRS[hair], coat: COATS[coat], skin: SKINS[skin], tone: TONES[tone] });
+/** 옛 흰머리 → [색 넣기, 섞는 색, 바꿀 머리색]. 은발·백발은 이제 머리색이다. */
+const LEGACY_TONE: [number, number, number?][] = [[0, WHITE], [1, WHITE], [2, SILVER], [3, WHITE], [0, WHITE, SILVER], [0, WHITE, WHITE]];
+const styleOf = (form: Form) => HAIR_STYLES.findIndex(s => s.value === form.hair);
+const topOf = (form: Form) => TOPS.findIndex(t => t.value === form.top);
+/** 어떤 꼴이든 열 칸으로(옛 넷·다섯 칸은 그 모습의 머리 모양·옷·안경으로 채운다). */
+export function fullPick(pick: Pick): Required<Pick> {
+  if (pick.length === PICK_SIZES.length) return [...pick] as Required<Pick>;
+  const [form, hair, coat, skin, tone = 0] = pick, f = FORMS[form];
+  const [pattern, accent, hairOverride] = LEGACY_TONE[tone];
+  return [form, hairOverride ?? hair, coat, skin, pattern, styleOf(f), topOf(f), f.glasses ? 1 : 0, 0, accent];
+}
+/** 기본 조합을 고르면 — 머리 모양·옷·안경을 그 모습으로 맞춘다(색·피부·장식은 그대로). */
+export function withForm(pick: Pick, form: number): Required<Pick> {
+  const p = fullPick(pick), f = FORMS[form];
+  p[0] = form; p[5] = styleOf(f); p[6] = topOf(f); p[7] = f.glasses ? 1 : 0;
+  return p;
+}
+export const DEFAULT_PICK: Pick = fullPick([0, 0, 0, 0]);
 
-export function randomPick(random = Math.random): Pick {
-  return PICK_SIZES.map(size => Math.floor(random() * size)) as Pick;
+export const toLook = (pick: Pick): Look => {
+  const [form, hair, coat, skin, pattern, style, top, glasses, accessory, accent] = fullPick(pick);
+  return { form: FORMS[form], hair: HAIRS[hair], coat: COATS[coat], skin: SKINS[skin], pattern: PATTERNS[pattern].value, style: HAIR_STYLES[style].value,
+    top: TOPS[top].value, glasses: glasses === 1, accessory: ACCESSORIES[accessory].value, accent: HAIRS[accent] };
+};
+
+/** 「어떤 모습이 나올까?」 — 기본 조합 하나에 색·색 넣기·장식을 무작위로(머리 모양·옷·안경은 그 조합대로). */
+export function randomPick(random = Math.random): Required<Pick> {
+  const at = (n: number) => Math.floor(random() * n);
+  const p = withForm([0, 0, 0, 0], at(FORMS.length));
+  p[1] = HAIR_MENU[at(HAIR_MENU.length)].i; p[2] = at(COATS.length); p[3] = at(SKINS.length);
+  p[4] = random() < 0.65 ? 0 : 1 + at(PATTERNS.length - 1); p[8] = random() < 0.75 ? 0 : 1 + at(ACCESSORIES.length - 1); p[9] = HAIR_MENU[at(HAIR_MENU.length)].i;
+  return p;
 }
 
-/** 주민 모습 — 문항 id 와 화면 쪽으로 정한다(답의 a·b 와 엮이지 않게). 첫 옷 색(나의 기본색)은 쓰지 않는다. 흰머리는 셋 중 하나쯤. */
+/**
+ * 주민 모습 — 문항 id 와 화면 쪽으로 정한다(답의 a·b 와 엮이지 않게). 첫 옷 색(나의 기본색)은 쓰지 않는다.
+ * 머리색은 자연색 여섯 중에서, 은색·흰색 섞기는 셋 중 하나쯤, 머리 장식은 다섯 중 하나쯤.
+ */
 export function lookFrom(seed: string): Look {
   const r = rng(seed);
   const at = <T>(list: readonly T[], from = 0) => list[from + Math.floor(r() * (list.length - from))];
-  const form = at(FORMS), coat = at(COATS, 1), skin = at(SKINS), hair = at(HAIRS);
-  return { form, coat, skin, hair, tone: r() < 0.65 ? 'natural' : at(TONES, 1) };
+  const form = Math.floor(r() * FORMS.length), coat = Math.floor(1 + r() * (COATS.length - 1)), skin = Math.floor(r() * SKINS.length);
+  const p = withForm([form, 0, coat, skin], form);
+  p[1] = at(HAIR_MENU.slice(0, 6)).i;
+  if (r() < 0.35) { p[4] = 1 + Math.floor(r() * (PATTERNS.length - 1)); p[9] = r() < 0.5 ? SILVER : WHITE; }
+  if (r() < 0.2) p[8] = 1 + Math.floor(r() * (ACCESSORIES.length - 1));
+  return toLook(p);
 }
 
-/** 흰머리를 입힌 머리 색 — 섞기는 바탕색에 회색을 조금(눈썹·수염은 바탕색 그대로). */
+/** 머리에 칠할 색 — 고루 섞기는 바탕색에 섞는 색을 조금(38%), 나머지는 바탕색(앞머리 한 줄·양옆은 그림이 섞는 색으로 따로 그린다). */
 export function hairColor(look: Look) {
-  if (look.tone === 'silver') return 0xb9beca;
-  if (look.tone === 'white') return 0xeee9df;
-  if (look.tone !== 'mixed') return look.hair;
-  const mix = (shift: number) => Math.round(((look.hair >> shift) & 255) * 0.62 + ((0xa5a6a8 >> shift) & 255) * 0.38) << shift;
+  if (look.pattern !== 'mixed') return look.hair;
+  const mix = (shift: number) => Math.round(((look.hair >> shift) & 255) * 0.62 + ((look.accent >> shift) & 255) * 0.38) << shift;
   return mix(16) | mix(8) | mix(0);
 }
 

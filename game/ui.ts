@@ -8,7 +8,7 @@ import { AXES, ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode 
 import type { AxisScores } from './score';
 import { currentQuestion, type JourneyState } from './flow';
 import { displayOptions, orderedQuestions, type DisplaySide } from './response';
-import { COATS, HAIRS, SKINS, FORMS, TONE_NAMES, randomPick, nameFrom, type Pick } from './look';
+import { COATS, HAIRS, SKINS, FORMS, HAIR_MENU, HAIR_STYLES, TOPS, PATTERNS, ACCESSORIES, GLASSES, fullPick, withForm, randomPick, nameFrom, type Pick } from './look';
 import { sfx } from './sfx';
 import { cleanName, josa, type Me } from './profile';
 import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
@@ -314,39 +314,65 @@ export function createUI(root: HTMLElement, actions: {
       const barBox = bar && !bar.hidden ? bar.getBoundingClientRect() : undefined;
       return { top: card ? card.bottom - box.top : 0, bottom: barBox ? barBox.top - box.top : box.height };
     },
+    /**
+     * 내 모습 고르기 — 승인한 기준(GPT 검토판 roster.ts, 10-15): 기본 모습 열둘을 고른 뒤 머리 모양·머리색(바탕색·색 넣기·섞는 색)·옷·안경·머리 장식을 하나씩 따로.
+     * 줄이 열 개라 탭 셋(모습·머리·옷과 꾸미기)으로 나눈다. 탭은 겹쳐 두고 안 보이는 탭은 자리만 차지해서 판 높이가 늘 같다 —
+     * 판 위에 크게 보이는 내 모습이 탭을 바꿔도 가려지지 않게(JourneyScene 의 dressView 가 처음 판 높이로 자리를 잡는다).
+     */
     dresser(me: Me, on: { change(me: Me): void; done(me: Me): void }) {
-      const current: Me = { name: me.name, pick: [...me.pick] as Pick };
+      const current = { name: me.name, pick: fullPick(me.pick) };
       const name = el('input', 'g-input'); name.maxLength = 10; name.value = me.name; name.placeholder = '이름이나 별명 (안 써도 돼요)';
       name.oninput = () => { current.name = cleanName(name.value); };
-      const rows = el('div', 'g-rows');
-      // 줄마다 [이름, 고른 번호의 자리(Pick), 글 단추면 이름들 · 색 단추면 색들]. 흰머리는 나이와 상관없이 누구나(10-15).
-      const lines: [string, number, string[] | number[]][] = [
-        ['모습', 0, FORMS.map(f => f.name)], ['머리 색', 1, HAIRS], ['흰머리', 4, TONE_NAMES], ['옷 색', 2, COATS], ['피부', 3, SKINS],
+      const menu = HAIR_MENU.map(c => c.i), menuColors = HAIR_MENU.map(c => HAIRS[c.i]), menuNames = HAIR_MENU.map(c => c.name);
+      // 줄마다 [이름, 고른 번호의 자리(Pick), 글 단추면 이름들 · 색 단추면 색들, 단추 → 넣을 번호(없으면 차례 그대로), 색 이름].
+      type Line = [string, number, string[] | number[], number[]?, string[]?];
+      const tabs: [string, Line[]][] = [
+        ['모습', [['기본 모습', 0, FORMS.map(f => f.name)], ['피부', 3, SKINS]]],
+        ['머리', [['머리 모양', 5, HAIR_STYLES.map(h => h.name)], ['머리색', 1, menuColors, menu, menuNames], ['색 넣기', 4, PATTERNS.map(p => p.name)], ['섞는 색', 9, menuColors, menu, menuNames]]],
+        ['옷과 꾸미기', [['옷', 6, TOPS.map(t => t.name)], ['옷 색', 2, COATS], ['안경', 7, GLASSES], ['머리 장식', 8, ACCESSORIES.map(a => a.name)]]],
       ];
       const changed = () => { draw(); on.change({ ...current, pick: [...current.pick] as Pick }); };
-      const swatch = (label: string, slot: number, value: string | number, i: number) => {
-        const b = button(typeof value === 'string' ? 'g-chip' : 'g-swatch', typeof value === 'string' ? value : '', () => { current.pick[slot] = i; changed(); });
-        if (typeof value === 'number') { b.style.background = hex(value); b.setAttribute('aria-label', `${label} ${i + 1}`); }
-        b.dataset.row = String(slot); b.dataset.i = String(i);
+      const swatch = ([label, slot, , ids, names]: Line, value: string | number, i: number) => {
+        const stored = ids?.[i] ?? i;
+        // 기본 모습을 고르면 머리 모양·옷·안경이 그 모습으로 맞춰진다(색·피부·장식은 그대로).
+        const b = button(typeof value === 'string' ? 'g-chip' : 'g-swatch', typeof value === 'string' ? value : '', () => { current.pick = slot === 0 ? withForm(current.pick, stored) : Object.assign(current.pick, { [slot]: stored }); changed(); });
+        if (typeof value === 'number') { b.style.background = hex(value); b.setAttribute('aria-label', `${label} ${names?.[i] ?? i + 1}`); if (names) b.title = names[i]; }
+        b.dataset.row = String(slot); b.dataset.i = String(stored);
         return b;
       };
+      const bar = el('div', 'g-tabs'), panes = el('div', 'g-panes'), mixRow: HTMLElement[] = [];
+      tabs.forEach(([title, lines], t) => {
+        const rows = el('div', `g-rows${t ? ' off' : ''}`);
+        const tab = button(`g-tab${t ? '' : ' on'}`, title, () => {
+          panes.querySelectorAll<HTMLElement>('.g-rows').forEach((pane, j) => pane.classList.toggle('off', j !== t));
+          bar.querySelectorAll('.g-tab').forEach((x, j) => x.classList.toggle('on', j === t));
+          draw();
+        });
+        bar.append(tab);
+        for (const line of lines) {
+          const [label, slot, values] = line;
+          const row = el('div', typeof values[0] === 'string' || values.length > 12 ? 'g-row g-row-scroll' : 'g-row');
+          row.append(...values.map((value, i) => swatch(line, value, i)));
+          const head = el('span', 'g-row-label', label);
+          if (slot === 9) mixRow.push(head, row);
+          rows.append(head, row);
+        }
+        panes.append(rows);
+      });
       const draw = () => {
-        rows.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.classList.toggle('on', (current.pick[+b.dataset.row!] ?? 0) === +b.dataset.i!));
-        // 옆으로 미는 줄 — 고른 단추가 가려져 있으면 가운데로(처음 열 때·「어떤 모습이 나올까?」).
-        rows.querySelectorAll<HTMLElement>('.g-row-scroll').forEach(row => {
+        panes.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.classList.toggle('on', (current.pick[+b.dataset.row!] ?? 0) === +b.dataset.i!));
+        // 섞는 색은 전체 단색이면 쓸 일이 없다 — 자리는 그대로 두고 안 보이게(판 높이가 흔들리지 않게).
+        mixRow.forEach(x => { x.style.visibility = current.pick[4] === 0 ? 'hidden' : ''; });
+        // 옆으로 미는 줄 — 고른 단추가 가려져 있으면 가운데로(처음 열 때·탭을 바꿀 때·「어떤 모습이 나올까?」).
+        panes.querySelectorAll<HTMLElement>('.g-row-scroll').forEach(row => {
           const on = row.querySelector<HTMLElement>('.on');
           if (on && (on.offsetLeft < row.scrollLeft || on.offsetLeft + on.offsetWidth > row.scrollLeft + row.clientWidth)) row.scrollLeft = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
         });
       };
-      for (const [label, slot, values] of lines) {
-        const line = el('div', typeof values[0] === 'string' ? 'g-row g-row-scroll' : 'g-row');
-        line.append(...values.map((value, i) => swatch(label, slot, value, i)));
-        rows.append(el('span', 'g-row-label', label), line);
-      }
       draw();
       const random = button('g-link', '어떤 모습이 나올까?', () => { current.pick = randomPick(); changed(); });
       const done = button('g-primary', '이 모습으로 걷기', () => { closeSheet(); on.done({ name: cleanName(name.value), pick: [...current.pick] as Pick }); });
-      openSheet(el('p', 'g-kicker', '오늘은 이 모습으로'), name, rows, random, done);
+      openSheet(el('p', 'g-kicker', '오늘은 이 모습으로'), name, bar, panes, random, done);
       draw(); // 판이 열린 뒤에야 단추 자리를 잴 수 있다
     },
 
