@@ -49,7 +49,7 @@ const tops:{value:NonNullable<ResidentDesign['top']>;label:string}[]=[
 ];
 const headAccessories:{value:NonNullable<ResidentDesign['headAccessory']>;label:string}[]=[
   {value:'none',label:'없음'},{value:'headband',label:'머리띠'},{value:'hairpin',label:'머리핀'},
-  {value:'ribbon',label:'작은 리본'},{value:'cap',label:'모자'},
+  {value:'ribbon',label:'작은 리본'},
 ];
 const W=Math.min(360,innerWidth),H=showAdults?640:innerWidth<=650?Math.max(460,Math.min(640,innerHeight)):640;
 const dpr=Math.min(devicePixelRatio||1,2),reduced=matchMedia('(prefers-reduced-motion: reduce)');

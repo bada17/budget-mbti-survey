@@ -10,7 +10,7 @@ export type ResidentDesign = {
   pants?: number;
   shoes?: number;
   glasses?: boolean;
-  headAccessory?: 'none'|'headband'|'hairpin'|'ribbon'|'cap';
+  headAccessory?: 'none'|'headband'|'hairpin'|'ribbon';
   hairColor?: number;
   hairAccent?: number;
   hairPattern?: HairPattern;
@@ -237,14 +237,6 @@ export class RoundResident {
         .fillTriangle(-9,crown+4,-7,crown+3,-5,crown+9);
       accessory.fillStyle(0xe5a5ac).fillEllipse(-13,crown+2,8,7).fillEllipse(-6,crown+2,8,7);
       accessory.fillStyle(0xc98591).fillRoundedRect(-11,crown,4,4,1.4);
-    }
-    if(decoration==='cap'){
-      const cap=new Phaser.Curves.Path(-18,crown+9)
-        .cubicBezierTo(0,crown-8,-18,crown-3,-9,crown-8)
-        .cubicBezierTo(18,crown+9,10,crown-8,18,crown-2).closePath();
-      accessory.fillStyle(0x85a7b8).fillPoints(cap.getPoints(18),true);
-      accessory.fillStyle(0x678d9f).fillRoundedRect(-18,crown+7,36,4,2).fillEllipse(8,crown+11,29,5);
-      accessory.fillStyle(0xf7e5bf).fillRoundedRect(-3,crown-2,6,5,1.5);
     }
     this.eyes = [-4.8,4.8].map(ex => s.circle(ex,-41.5,1.75,0x39313b));
     const face = s.graphics();
