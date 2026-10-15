@@ -237,7 +237,7 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
       `받는 건 ${opts.providers.map(p => PROVIDER_NAME[p]).join('·')} 회원번호 하나예요. 서버에는 알아볼 수 없게 바꿔서, 게임 기록(별명·모습·유형·도장·내 이웃·지역)과 함께 둬요. 이메일·이름·사진은 받지 않아요. `);
     const policy = el('a', '', '개인정보처리방침'); policy.href = PRIVACY_URL; policy.target = '_blank'; policy.rel = 'noopener';
     note.append(policy);
-    box.append(note, status);
+    box.append(status, note); // 알림(「곧 열려요」)은 단추 바로 밑에
   };
   draw();
   return box;
