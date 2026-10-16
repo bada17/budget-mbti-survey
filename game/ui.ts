@@ -166,7 +166,7 @@ export function createUI(root: HTMLElement, actions: {
   replies.append(replyList, talk);
   const intro = el('section', 'g-intro');
   intro.innerHTML = `<div class="g-intro-card"><span class="g-kicker">함께하는 시민행동 · 예산 성향 게임 · 3분</span>
-    <h1>모여봐요<br>시민의 숲</h1>
+    <h1>함께해요<br>시민의 숲</h1>
     <p>주민 열다섯 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
     <ul class="g-notes"></ul>
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>

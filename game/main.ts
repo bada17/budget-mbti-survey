@@ -260,10 +260,10 @@ function share(reply = false) {
   ui.toast(to ? `답장 링크에는 ${to.name}님과 내가 지은 동네가 담겨요` : '보내는 링크에 내가 지은 동네(고른 열다섯 가지)가 담겨요');
   const text = to
     ? `${to.name}님, 답장이에요! 나는 ${josa(`「${TYPES[state.result].name}」`, '이래요', '래요')}. 우리 동네 나란히 놓고 봐요.`
-    : `모여봐요 시민의 숲 — 나는 ${josa(`「${TYPES[state.result].name}」`, '이래요', '래요')}. 너도 걸어 봐!`;
+    : `함께해요 시민의 숲 — 나는 ${josa(`「${TYPES[state.result].name}」`, '이래요', '래요')}. 너도 걸어 봐!`;
   // 그림이 준비됐고 받는 쪽이 파일을 받으면 그림 + 글(링크 포함), 아니면 지금처럼 링크만.
   const files = card && navigator.canShare?.({ files: [card] }) ? [card] : undefined;
-  if (navigator.share) navigator.share(files ? { files, text: `${text}\n${url}` } : { title: '모여봐요 시민의 숲', text, url }).catch(() => {});
+  if (navigator.share) navigator.share(files ? { files, text: `${text}\n${url}` } : { title: '함께해요 시민의 숲', text, url }).catch(() => {});
   else if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
   else ui.toast(url); // 공유·복사가 다 없는 곳(https 가 아닌 주소) — 주소라도 보인다
 }
@@ -378,7 +378,7 @@ const cardOpts = (focus?: string): CardsOpts => ({
   },
   share: card => {
     const url = `${here()}?card=${encodeURIComponent(card.id)}`, text = `문제 카드 — ${card.title}. 이 돈, 어떻게 보세요?`;
-    if (navigator.share) navigator.share({ title: '모여봐요 시민의 숲 — 문제 카드', text, url }).catch(() => {});
+    if (navigator.share) navigator.share({ title: '함께해요 시민의 숲 — 문제 카드', text, url }).catch(() => {});
     else if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
     else ui.toast(url);
   },

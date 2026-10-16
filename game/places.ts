@@ -339,7 +339,7 @@ function fillVault(pane: HTMLElement) {
 export function openHouse(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'house', onClose);
   panel.append(
-    el('p', 't-lead', '함께하는 시민행동은 「모여봐요 시민의 숲」과 시민마을을 만든 시민단체예요. 예산 감시, 밑 빠진 독상, 시민참여 상담소를 꾸려 가요.'),
+    el('p', 't-lead', '함께하는 시민행동은 「함께해요 시민의 숲」과 시민마을을 만든 시민단체예요. 예산 감시, 밑 빠진 독상, 시민참여 상담소를 꾸려 가요.'),
     link('회원 되기 — 정기후원', `${DONATE_URL}&utm_content=village-house`),
     link('홈페이지 가 보기', out(HOME_URL), 'g-link'),
   );

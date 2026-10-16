@@ -35,8 +35,8 @@ function setup() {
  * 둘 다 공개판 화면 주소(카카오·구글로 가는 길)에 어차피 드러나는 값이라 여기 둬도 된다. 비밀(KAKAO_SECRET)은 넣지 않는다.
  */
 var LOGIN_ = {
-  KAKAO_REST_KEY: '',
-  GOOGLE_CLIENT_ID: '',
+  KAKAO_REST_KEY: '2c211b5e7341b2e654b07178f8c4a2e0',
+  GOOGLE_CLIENT_ID: '923895140266-9s542791ibsnb8d8j0iouirhocovbi1f.apps.googleusercontent.com',
   LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/',
 };
 

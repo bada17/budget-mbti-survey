@@ -203,7 +203,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     const ready = file ?? (await prepare(), file);
     if (!ready) { status.textContent = '그림을 만들지 못했어요. 화면을 찍어 주세요.'; return; }
     if (navigator.canShare?.({ files: [ready] })) {
-      try { await navigator.share({ files: [ready], text: '모여봐요 시민의 숲 — 내 주민증' }); return; } catch (error) { if ((error as Error).name === 'AbortError') return; }
+      try { await navigator.share({ files: [ready], text: '함께해요 시민의 숲 — 내 주민증' }); return; } catch (error) { if ((error as Error).name === 'AbortError') return; }
     }
     const url = URL.createObjectURL(ready), a = el('a'); a.href = url; a.download = ready.name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000); // 아이폰은 바로 지우면 저장을 놓친다(예산게임에서 겪음)
