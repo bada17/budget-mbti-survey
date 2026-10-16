@@ -172,7 +172,7 @@ export function createUI(root: HTMLElement, actions: {
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
     <button class="g-link g-table-open" type="button" hidden>테이블에서 같이 하기</button>
     <button class="g-link g-home-open" type="button" hidden>걷지 않고 마을로 가기</button>
-    <button class="g-link g-login-open" type="button" hidden>전에 해 봤어요 — 내 주민증 불러오기</button>
+    <button class="g-link g-login-open" type="button" hidden>전에 해 봤어요 — 내 시민증 불러오기</button>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
   const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·테이블·이웃이 번갈아 쓰는 아래 판
   const panel = el('section', 'g-panel'); panel.hidden = true; // 화면을 덮는 판(다른 사람들 마음)
@@ -204,7 +204,7 @@ export function createUI(root: HTMLElement, actions: {
     online(on: boolean) { intro.querySelector<HTMLElement>('.g-table-open')!.hidden = !on; },
     /** 다시 온 사람이 링크로 걷기 화면에 왔을 때 — 걷지 않고 마을로(기획 4차). */
     homeOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-home-open')!; b.hidden = false; b.onclick = run; },
-    /** 로그인 안 한 사람 — 다른 기기에서 지켜 둔 주민증 불러오기(login.ts). */
+    /** 로그인 안 한 사람 — 다른 기기에서 지켜 둔 시민증 불러오기(login.ts). */
     /** 시작 화면 로그인 단추 — 로그인했으면 label(「✓ 카카오로 로그인됨」)로 늘 보인다(사용자 10-16 「된 건지 모르겠다」). */
     loginOpen(run: () => void, label?: string) { const b = intro.querySelector<HTMLButtonElement>('.g-login-open')!; b.hidden = false; b.onclick = run; if (label) b.textContent = label; },
     /** 시작 화면 아래 한 줄씩 — 초대한 친구, 지난번 이웃, 테이블. */
@@ -434,7 +434,7 @@ export function createUI(root: HTMLElement, actions: {
 
     /**
      * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들.
-     * 주민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차). 마을로는 언덕의 빛 아치를 걸어서 지난다(10-14).
+     * 시민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차). 마을로는 언덕의 빛 아치를 걸어서 지난다(10-14).
      */
     end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; village(): void }) {
       const card = el('div', 'g-end-card');

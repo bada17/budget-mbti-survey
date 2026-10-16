@@ -18,7 +18,7 @@ export const QUESTS: Quest[] = [
   { id: 'counsel', place: 'counsel', ask: '상담소에 자주 오는 질문 하나 읽고 가 줄래요?', event: 'open:counsel' },
   { id: 'finance', place: 'finance', ask: '아무 지역이나 한 해 예산을 봐 줄래요? 한 사람 몫이 얼마인지 나와요.', event: 'finance:pick' },
   { id: 'dok', place: 'dok', ask: '요즘 들여다보는 예산 소식 한번 봐 줄래요?', event: 'open:dok' },
-  { id: 'hub', place: 'hub', ask: '주민증에 찍힌 도장 좀 봐 줘요. 몇 개 모았어요?', event: 'open:hub' },
+  { id: 'hub', place: 'hub', ask: '시민증에 찍힌 도장 좀 봐 줘요. 몇 개 모았어요?', event: 'open:hub' },
   { id: 'cat', place: 'hub', ask: '광장 고양이한테 인사 좀 해 줄래요? 요즘 심심한가 봐요.', event: 'cat' },
   // [나중에 살림: 쪽지판·문제 카드]
   // { id: 'board', place: 'board', ask: '쪽지판에 들러 지나간 주민들 쪽지를 읽어 봐요.', event: 'open:board' },

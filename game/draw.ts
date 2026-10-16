@@ -366,7 +366,7 @@ export function ball(scene: Scene, x: number, y: number): Ball {
 }
 
 /**
- * 주민증 사진 — 내 모습(Dude) 얼굴·어깨만 한 장 그림으로(사용자 10-15 「주민증엔 자기 캐릭터 얼굴이 들어가야지」). size 는 그림 화소(정사각).
+ * 시민증 사진 — 내 모습(Dude) 얼굴·어깨만 한 장 그림으로(사용자 10-15 「시민증엔 자기 캐릭터 얼굴이 들어가야지」). size 는 그림 화소(정사각).
  * 화면 어디에도 안 보이게 그림 판(DynamicTexture)에만 그리고 바로 치운다.
  */
 export function facePhoto(scene: Scene, look: Look, size: number): Promise<string | undefined> {

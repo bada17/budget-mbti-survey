@@ -118,8 +118,8 @@ function notes() {
   if (invite?.home && online) lines.push(`끝까지 걸으면 ${invite.name}님 동네 방명록에 내 이름·모습·유형이 남아요.`);
   if (tableCode) lines.push(`테이블 ${tableCode} 에 앉았어요. 끝에 다 같이 모여요.`);
   const season = seasonAt(Date.now());
-  if (season) lines.push(`지금은 ${season.name} — 이번 철에 걸으면 주민증에 철 도장이 찍혀요.`);
-  if (gotEvent) lines.push(`「${gotEvent}」 현장 도장을 받았어요. 주민증에 찍혀 있어요.`);
+  if (season) lines.push(`지금은 ${season.name} — 이번 철에 걸으면 시민증에 철 도장이 찍혀요.`);
+  if (gotEvent) lines.push(`「${gotEvent}」 현장 도장을 받았어요. 시민증에 찍혀 있어요.`);
   ui.notes(lines);
 }
 notes();
@@ -351,14 +351,14 @@ function enteredVillage() {
   hubGuide();
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
-    if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 「내 기록 보는 곳」 주민증에 찍혀 있어요.`);
+    if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 「내 기록 보는 곳」 시민증에 찍혀 있어요.`);
   }
   void meetVillage();
 }
 
 /**
  * 주민센터 안내(사용자 10-16) — 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 「기록을 저장하려면 주민센터로」 + 카메라가 주민센터를 보여 주고 돌아온다.
- * 주민센터(내 기록 보는 곳)는 남쪽 문 정면 위라 그대로 걸어 올라가면 닿는다. 로그인은 그 안 주민증 탭에서.
+ * 주민센터(내 기록 보는 곳)는 남쪽 문 정면 위라 그대로 걸어 올라가면 닿는다. 로그인은 그 안 시민증 탭에서.
  * 예전 「마을 입구 로그인 판」(들어오자마자 로그인 요구)은 지웠다 — 사용자 「마을 입구 로그인판은 그럼 지워」, 같은 말을 두 번 하게 돼서.
  */
 function hubGuide() {

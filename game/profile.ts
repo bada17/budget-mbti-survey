@@ -6,7 +6,7 @@
     받은 코드는 남이 만든 값이라 다 검사한다.
   · 내 동네 = 이번 판에 고른 열다섯 가지. 다시 하면 새로 지어지고, 지난번과 달라진 곳을 표시한다(사용자 10-14).
   · 다시 올 이유(기획 3차, 10-14) — 답장(링크에 「누구에게 답하는지」 를 같이 싣는다)·방명록 집 번호·
-    주민증 도장·우리 지역도 이 기기에 남는다.
+    시민증 도장·우리 지역도 이 기기에 남는다.
   · 로그인(카카오·구글, 10-14 「로그인 넣어야 새로 들어올 때 기록될 듯」)하면 이것들을 한 묶음(Save)으로 서버에도 둔다 —
     카톡 안 브라우저와 크롬은 저장소가 따로라, 로그인 없이는 같은 사람이 다시 와도 처음 온 사람이 된다. 규칙은 login.ts·api.ts.
 */
@@ -157,7 +157,7 @@ export function loadHome(): Home | undefined {
 }
 export const saveHome = (home: Home) => write(HOME_KEY, home);
 
-/** 주민증 도장 — 도장 이름 → 처음 받은 시각. 답이 아니라 한 일에 찍힌다(stamps.ts). */
+/** 시민증 도장 — 도장 이름 → 처음 받은 시각. 답이 아니라 한 일에 찍힌다(stamps.ts). */
 export function loadStamps(): Record<string, number> {
   const raw = read(STAMP_KEY);
   if (!raw || typeof raw !== 'object') return {};

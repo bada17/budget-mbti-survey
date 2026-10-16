@@ -1,14 +1,14 @@
 /*
-  마을 주민센터의 판 「주민증」 — 기획 2차(주민증)와 기획 3차(다시 올 이유, 10-14).
+  마을 주민센터의 판 「시민증」 — 기획 2차(시민증)와 기획 3차(다시 올 이유, 10-14).
   그리고 링크로 들어왔을 때 걷기 전에 뜨는 판 둘 — 답장(openReply)·이웃의 편지(openLetter).
 
-  · 마을(기획 4차) 주민센터 문 앞에 서면 연다 — openTown(주민증 먼저). 다른 건물의 판은 places.ts(여기 panelShell 을 같이 쓴다).
+  · 마을(기획 4차) 주민센터 문 앞에 서면 연다 — openTown(시민증 먼저). 다른 건물의 판은 places.ts(여기 panelShell 을 같이 쓴다).
   · 우리 동네 예산은 마을 「나라살림 창고」 로 옮겼다(places.ts openFinance — 망원동 시험 자료를 243곳으로 넓힘).
   · 「내가 지은 동네」(고른 열다섯 가지 판)는 10-14 걷었다 — 사용자 「어차피 안 봐」. 답장 판에만 두 사람 것을 나란히 남겼다.
   · 방명록 — 내가 보낸 링크로 들어와 끝까지 걸은 사람(서버가 있을 때만). 열쇠가 이 기기에만 있어 나만 본다.
   · 우리 지역 동네 — 시·도에 한 채 짓고 같은 지역 사람들이 어떻게 골랐는지 본다(다섯 명부터). **지역에 유형 딱지는 안 붙인다.**
   · 이웃의 편지 — 예산철(9·12월)에 내 이웃이 보내는 편지 미리 보기와 받기(소식 받기, seasons.ts).
-  · 주민증 + 도장판 — 한 일에 찍히는 도장 열 칸(stamps.ts). 그림으로 저장·보내기.
+  · 시민증 + 도장판 — 한 일에 찍히는 도장 열 칸(stamps.ts). 그림으로 저장·보내기.
   게임 화면(ui.ts)과 따로 둔 파일 — GPT 가 ui.ts 를 꾸미는 동안 겹치지 않게. 모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
 import './town.css';
@@ -107,12 +107,12 @@ export function panelShell(shell: HTMLElement, onClose: () => void, backText = '
   return { panel, close };
 }
 
-// ───────────────────────── 주민센터 — 주민증·도장판, 그리고 방명록·우리 지역·이웃의 편지 ─────────────────────────
+// ───────────────────────── 주민센터 — 시민증·도장판, 그리고 방명록·우리 지역·이웃의 편지 ─────────────────────────
 export function openTown(shell: HTMLElement, data: HubData, onClose: () => void, backText?: string) {
   const { panel, close } = panelShell(shell, onClose, backText);
   const { me } = data;
 
-  // 위 갈래(탭)로 한 번에 하나만 — 사용자 10-14 「주민 도장 받기 보여주는 게 난잡해, 깔끔하게」. 처음엔 주민증.
+  // 위 갈래(탭)로 한 번에 하나만 — 사용자 10-14 「주민 도장 받기 보여주는 게 난잡해, 깔끔하게」. 처음엔 시민증.
   const tabs = el('div', 't-tabs'); tabs.setAttribute('role', 'tablist');
   const panes: HTMLElement[] = [];
   const show = (i: number) => panes.forEach((pane, j) => {
@@ -127,7 +127,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     tabs.append(b);
   };
 
-  // ── 주민증 + 도장판 — 도장을 누르면 받는 법이 아래 한 줄로 ──
+  // ── 시민증 + 도장판 — 도장을 누르면 받는 법이 아래 한 줄로 ──
   const stamps = board(loadStamps());
   const card = el('div', 't-card');
   const photo = el('div', 't-photo');
@@ -148,21 +148,21 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     if (s.count > 1) mark.append(el('sup', '', `×${s.count}`));
     grid.append(mark);
   }
-  // 발급 — 도장 ISSUE_AT 개부터(사용자 10-15 「도장 찍어야 주민증이 발급되게」). 처음 발급된 날을 적어 두고 그날을 찍는다. 그 전엔 「발급 전」 도장과 남은 수.
+  // 발급 — 도장 ISSUE_AT 개부터(사용자 10-15 「도장 찍어야 시민증이 발급되게」). 처음 발급된 날을 적어 두고 그날을 찍는다. 그 전엔 「발급 전」 도장과 남은 수.
   const got = stamps.filter(s => s.on).length, issued = got >= ISSUE_AT;
   if (issued) addStamp(ISSUED);
   const issuedAt = loadStamps()[ISSUED];
   card.classList.toggle('pending', !issued);
-  card.append(el('div', 't-card-top', '시민의 숲 주민증'), body, el('span', 't-seal', issued ? '발급' : '발급 전'), grid,
+  card.append(el('div', 't-card-top', '시민의 숲 시민증'), body, el('span', 't-seal', issued ? '발급' : '발급 전'), grid,
     el('p', 't-issued', issued && issuedAt ? `도장 ${got}/${stamps.length} · ${today(issuedAt)} 발급 · 함께하는 시민행동` : `도장 ${got}/${stamps.length} · ${ISSUE_AT - got}개를 더 모으면 발급돼요`));
-  const save = btn('g-primary', '주민증 저장·보내기', () => {});
-  save.hidden = !issued; // 발급 전 주민증은 보내지 않는다
+  const save = btn('g-primary', '시민증 저장·보내기', () => {});
+  save.hidden = !issued; // 발급 전 시민증은 보내지 않는다
   const join = el('a', 'g-link t-join', '함께하는 시민행동 회원 되기 →');
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const mine = el('div'); mine.append(card, tip, save, join, status);
   if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, '지키기'));
-  tab('주민증', mine);
+  tab('시민증', mine);
 
   // ── 방명록 ──
   if (data.book) {
@@ -205,11 +205,11 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     const ready = file ?? (await prepare(), file);
     if (!ready) { status.textContent = '그림을 만들지 못했어요. 화면을 찍어 주세요.'; return; }
     if (navigator.canShare?.({ files: [ready] })) {
-      try { await navigator.share({ files: [ready], text: '함께해요 시민의 숲 — 내 주민증' }); return; } catch (error) { if ((error as Error).name === 'AbortError') return; }
+      try { await navigator.share({ files: [ready], text: '함께해요 시민의 숲 — 내 시민증' }); return; } catch (error) { if ((error as Error).name === 'AbortError') return; }
     }
     const url = URL.createObjectURL(ready), a = el('a'); a.href = url; a.download = ready.name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000); // 아이폰은 바로 지우면 저장을 놓친다(예산게임에서 겪음)
-    status.textContent = '주민증 그림을 저장했어요.';
+    status.textContent = '시민증 그림을 저장했어요.';
   };
 }
 
@@ -232,16 +232,16 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
           else status.textContent = '기록을 서버에 못 올려서 로그아웃하지 않았어요. 조금 뒤에 다시 해 주세요.';
         }),
         btn('g-link', '서버 기록 지우기', async () => {
-          if (!confirm('서버에 둔 주민증 기록을 지울까요? 이 기기의 기록은 그대로 남아요.')) return;
+          if (!confirm('서버에 둔 시민증 기록을 지울까요? 이 기기의 기록은 그대로 남아요.')) return;
           const ok = await opts.forget();
           draw(); status.textContent = ok ? '서버 기록을 지웠어요.' : '지금은 지울 수 없어요. 조금 뒤에 다시 해 주세요.';
         }),
       );
-      box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 지키는 중이에요${opts.admin() ? ' · 관리자 계정' : ''}. 다른 폰·브라우저에서 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 이 주민증이 이어져요.`), links, status);
+      box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 지키는 중이에요${opts.admin() ? ' · 관리자 계정' : ''}. 다른 폰·브라우저에서 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 이 시민증이 이어져요.`), links, status);
       return;
     }
-    if (verb !== '로그인') box.append(el('p', 't-login-title', verb === '지키기' ? '주민증 지키기' : '전에 해 봤다면'),
-      el('p', 't-small', verb === '지키기' ? '로그인해 두면 다른 폰·브라우저에서도 이 주민증과 도장이 이어져요. 안 해도 괜찮아요.' : '전에 로그인해 둔 주민증과 도장을 불러와요.'));
+    if (verb !== '로그인') box.append(el('p', 't-login-title', verb === '지키기' ? '시민증 지키기' : '전에 해 봤다면'),
+      el('p', 't-small', verb === '지키기' ? '로그인해 두면 다른 폰·브라우저에서도 이 시민증과 도장이 이어져요. 안 해도 괜찮아요.' : '전에 로그인해 둔 시민증과 도장을 불러와요.'));
     for (const provider of opts.providers) {
       const button = btn(`t-login-btn t-${provider}`, '', () => {
         if (!opts.start(provider)) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
@@ -262,10 +262,10 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
   return box;
 }
 
-/** 시작 화면 「전에 해 봤어요」 — 다른 기기에서 지켜 둔 주민증 불러오기. */
+/** 시작 화면 「전에 해 봤어요」 — 다른 기기에서 지켜 둔 시민증 불러오기. */
 export function openLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => void) {
   const { panel } = panelShell(shell, onClose, '← 처음 화면으로');
-  panel.append(el('h2', '', '내 주민증 불러오기'), loginBox(opts, '불러오기'));
+  panel.append(el('h2', '', '내 시민증 불러오기'), loginBox(opts, '불러오기'));
 }
 
 /**
@@ -278,7 +278,7 @@ export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: bo
   panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `✓ ${PROVIDER_NAME[provider]}로 로그인했어요`),
     el('p', 't-lead', unsaved
       ? '로그인은 됐지만 기록을 서버에 아직 못 올렸어요. 이 기기에는 그대로 있고, 다음에 열 때 다시 올려요.'
-      : `내 주민증과 도장을 ${PROVIDER_NAME[provider]} 계정에 지켜 뒀어요. 다른 폰·브라우저에서 같은 계정으로 들어오면 그대로 이어져요.`),
+      : `내 시민증과 도장을 ${PROVIDER_NAME[provider]} 계정에 지켜 뒀어요. 다른 폰·브라우저에서 같은 계정으로 들어오면 그대로 이어져요.`),
     btn('g-primary', '확인', close));
 }
 
@@ -289,7 +289,7 @@ export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: bo
 export function openNews(shell: HTMLElement, provider: Provider, email: string, send: (form: ContactForm) => Promise<{ ok: boolean; text: string }>, onClose: () => void) {
   const { panel, close } = panelShell(shell, onClose, '닫기');
   panel.classList.add('t-gate');
-  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `${PROVIDER_NAME[provider]}로 주민증을 지켰어요`),
+  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `${PROVIDER_NAME[provider]}로 시민증을 지켰어요`),
     el('p', 't-lead', '이 이메일로 소식도 받아 볼래요? 안 받아도 기록은 그대로 이어져요.'),
     contactForm(send, '이메일로 소식 받기', email).form, btn('g-ghost', '괜찮아요', close));
 }

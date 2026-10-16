@@ -61,7 +61,7 @@ test('예산철: 9월·12월(한국 날짜)만 철이고, 다음 철과 편지�
 test('도장판: 일곱 칸, 철·현장 도장은 한 칸에 모여 세고, 목록에 없는 현장 코드는 안 찍힌다', () => {
   assert.equal(STAMPS.length, 7, '10-15 「6~7개만」');
   assert.equal(new Set(STAMPS.map(s => s.id)).size, 7);
-  // 주민증 발급 — 혼자 한 번에 받을 수 있는 도장만으로 발급까지 닿는다(철·현장·손님은 혼자 못 받는다)
+  // 시민증 발급 — 혼자 한 번에 받을 수 있는 도장만으로 발급까지 닿는다(철·현장·손님은 혼자 못 받는다)
   const solo = STAMPS.filter(s => !['season', 'event', 'guest'].includes(s.id));
   assert.ok(solo.length >= ISSUE_AT && ISSUE_AT <= STAMPS.length);
   assert.equal(board(Object.fromEntries(solo.map(s => [s.id, 1]))).filter(c => c.on).length >= ISSUE_AT, true);
