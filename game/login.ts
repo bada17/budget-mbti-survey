@@ -92,7 +92,7 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   history.replaceState(null, '', `${location.pathname}${search.toString() ? `?${search}` : ''}`);
   let pending: { provider?: Provider; state?: string } | null = null;
   try { pending = JSON.parse(sessionStorage.getItem(PENDING) ?? 'null'); sessionStorage.removeItem(PENDING); } catch { pending = null; }
-  if (!pending?.provider || pending.state !== state) return 'failed'; // 내가 보낸 길이 아니다
+  if (!pending?.provider || pending.state !== state) { failure = pending ? '표식 다름' : '표식 없음'; return 'failed'; } // 내가 보낸 길이 아니다
   if (error) return 'cancelled';
   const proof = pending.provider === 'kakao' ? { code: code ?? '' } : { idToken: idToken ?? '', nonce: state };
   const result = await net.login({ provider: pending.provider, redirectUri: here(), ...proof });
@@ -104,6 +104,9 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   location.reload();
   return 'done';
 }
+
+/** 로그인 실패 까닭 한 마디 — 폰에서만 생기는 실패를 사용자 화면으로 가려내려고(10-16). */
+export let failure = '';
 
 /** 다시 연 뒤 한 번 — 방금 로그인했으면 그 쪽 이름. */
 export function justLoggedIn(): Provider | undefined {

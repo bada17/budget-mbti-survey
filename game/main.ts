@@ -19,7 +19,7 @@ import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openT
 import type { PublicCard } from './api';
 import { PLACES, keeperName, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
-import { providers, start as startLogin, finish as finishLogin, arrivedFromKakao, justLoggedIn, takeLoginEmail, keepSynced, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
+import { providers, start as startLogin, finish as finishLogin, arrivedFromKakao, failure as loginFailure, justLoggedIn, takeLoginEmail, keepSynced, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact, type ContactForm } from './contact';
@@ -137,7 +137,7 @@ const loginOpts: LoginOpts = { providers: providers(), current: loginNow, admin:
 keepSynced();
 arrivedFromKakao(); // 카톡 안에서 구글을 눌러 밖 브라우저로 나왔으면 실어 온 기록을 합치고 바로 구글로
 void finishLogin().then(result => {
-  if (result === 'failed') ui.toast('로그인하지 못했어요. 조금 뒤에 다시 해 주세요');
+  if (result === 'failed') ui.toast(`로그인하지 못했어요(${loginFailure}). 조금 뒤에 다시 해 주세요`);
   if (result === 'cancelled') ui.toast('로그인을 그만뒀어요');
 });
 const loggedIn = justLoggedIn();
