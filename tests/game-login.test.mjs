@@ -8,7 +8,7 @@ import { verifyLogin, accountOf, serve } from '../server/gas.ts';
 // 기록 묶음은 localStorage 를 읽고 쓴다 — 시험에선 가짜로.
 const memory = new Map();
 globalThis.localStorage = { getItem: k => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, String(v)), removeItem: k => memory.delete(k) };
-const { cleanSave, exportSave, importSave, saveMe, addStamp, loadStamps, loadLast, saveTown, TOWN_IDS } = await import('../game/profile.ts');
+const { cleanSave, clearSave, exportSave, importSave, saveMe, addStamp, loadStamps, loadLast, saveTown, TOWN_IDS } = await import('../game/profile.ts');
 
 const ACCOUNT = `kakao:${'a'.repeat(64)}`;
 let n = 0;
@@ -42,10 +42,21 @@ test('기록 묶음: 이상한 칸은 그 칸만 버리고, 합칠 땐 없는 �
   const older = { at: 1, town: 'b'.repeat(TOWN_IDS.length), type: '000' };
   importSave({ me: { name: '서버', pick: [1, 1, 1, 1] }, stamps: { walk: 50, table: 60 }, last: older, region: '2600000' });
   const here = exportSave();
-  assert.equal(here.me.name, '이 기기', '이 기기 이름이 그대로');
+  assert.equal(here.me.name, '서버', '로그인한 계정의 모습·이름은 서버 것(10-16 — 새 브라우저의 기본 모습이 서버를 덮던 것)');
   assert.deepEqual(loadStamps(), { walk: 50, table: 60 }, '도장은 둘 다, 먼저 받은 시각');
   assert.equal(loadLast().type, '101', '지난번 판은 나중 것(이 기기)');
   assert.equal(here.region, '2600000', '없던 칸은 서버 것으로');
+  importSave({});
+  assert.equal(exportSave().me.name, '서버', '서버에 없는 칸(처음 로그인한 계정)은 이 기기 것 그대로');
+  // 모습은 더 나중에 직접 고른 쪽(10-16) — 이 기기에서 방금 고른 모습이 계정의 옛 모습에 덮이지 않게
+  saveMe({ name: '방금 고름', pick: [2, 2, 2, 2], at: 500 });
+  importSave({ me: { name: '옛 모습', pick: [1, 1, 1, 1], at: 100 } });
+  assert.equal(exportSave().me.name, '방금 고름', '나중에 고른 이 기기 모습이 이긴다');
+  importSave({ me: { name: '다른 폰에서 새로', pick: [3, 3, 3, 3], at: 900 } });
+  assert.equal(exportSave().me.name, '다른 폰에서 새로', '서버가 더 나중이면 서버');
+  assert.equal(exportSave().me.at, 900, '고른 때도 같이 온다');
+  clearSave(); // 로그아웃(login.ts logout) — 다음 사람 계정에 앞사람 기록이 섞이지 않게(10-16)
+  assert.deepEqual(exportSave(), {}, '로그아웃하면 이 기기의 기록 묶음이 빈다');
 });
 
 const props = { LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/', KAKAO_REST_KEY: 'rest', GOOGLE_CLIENT_ID: 'gid', ACCOUNT_SALT: 'salt' };

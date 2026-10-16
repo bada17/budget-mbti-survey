@@ -20,7 +20,7 @@ export const STAMPS: StampDef[] = [
   { id: 'guest', name: '손님 맞이', how: '친구가 답장하거나 내 동네에 다녀가면' },
   // [나중에 살림: 도장 셋] 테이블이 켜지면(net.ts TABLES)
   // { id: 'table', name: '한 테이블', how: '테이블에서 같이 걸으면' },
-  { id: 'region', name: '내 동네', how: '내 동네(시·군·구)를 정하고 우리 동네 탭을 열면' },
+  { id: 'region', name: '내 동네', how: '내 동네(시·군·구)를 정하면' },
   { id: 'season', name: '철 도장', how: '예산철(9월·12월)에 걸으면' },
   { id: 'event', name: '현장 도장', how: '시민행동 행사에서 QR 을 찍으면' },
   // [나중에 살림: 도장 셋] 연락처 칸이 공개판에 켜지면(main.ts contactReady) · 회원 확인 길이 생기면

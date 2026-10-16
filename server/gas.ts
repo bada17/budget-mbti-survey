@@ -66,6 +66,12 @@ function writeKV<V>(sheet: Sheet, map: Tracked<V>, now: number) {
   if (fresh.length) sheet.getRange(sheet.getLastRow() + 1, 1, fresh.length, 3).setValues(fresh);
 }
 
+/**
+ * 사람이 쓴 글은 시트에 글자로만 — 앞에 ' 를 붙이면 시트가 수식·숫자로 읽지 않는다(값에는 ' 가 안 남는다).
+ * 안 붙이면 「=연락처!C2」 같은 쪽지가 수식으로 돌아 다른 탭 값을 공개 쪽지로 읽어 오고, 010… 번호는 숫자로 바뀌어 0 이 빠진다(10-16 GPT 검토).
+ */
+const plain = (text: string) => `'${text}`;
+
 const NOTE_TAB = '쪽지';
 const NOTE_HEAD = ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록'];
 function readNotes(sheet: Sheet) {
@@ -84,7 +90,7 @@ function readNotes(sheet: Sheet) {
 function writeNotes(sheet: Sheet, map: Tracked<Note>) {
   for (const id of map.dirty) {
     const n = map.get(id)!;
-    const shown = [n.id, new Date(n.at).toISOString(), n.name, n.text, n.likes.length, n.reports.length];
+    const shown = [n.id, new Date(n.at).toISOString(), plain(n.name), plain(n.text), n.likes.length, n.reports.length];
     const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, likes: n.likes, reports: n.reports });
     const at = map.rows.get(id) ?? sheet.getLastRow() + 1;
     sheet.getRange(at, 1, 1, shown.length).setValues([shown]); // 숨김 칸(7)은 건드리지 않는다
@@ -135,8 +141,8 @@ function writeCards(sheet: Sheet, map: Tracked<Card>) {
 }
 
 const contactRow = (c: Contact) => [
-  new Date(c.receivedAt).toISOString(), c.channel === 'sms' ? '문자' : '이메일', c.address, '예', '예', c.consents.marketing ? '예' : '아니오', c.consentVersion,
-  c.neighbor?.name ?? '', c.neighbor?.questionId ?? '', c.neighbor?.key ?? '', c.neighbor?.seed ?? '', c.type ? `${c.type} ${TYPES[c.type].name}` : '',
+  new Date(c.receivedAt).toISOString(), c.channel === 'sms' ? '문자' : '이메일', plain(c.address), '예', '예', c.consents.marketing ? '예' : '아니오', c.consentVersion,
+  plain(c.neighbor?.name ?? ''), c.neighbor?.questionId ?? '', c.neighbor?.key ?? '', c.neighbor?.seed ?? '', c.type ? `${c.type} ${TYPES[c.type].name}` : '',
 ];
 
 export type GasEvent = { parameter?: Record<string, string>; postData?: { contents: string } };

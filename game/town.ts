@@ -41,7 +41,7 @@ export type HubData = {
   login?: LoginOpts;
 };
 /** start 가 false 면 아직 못 간다(키를 넣기 전) — 판이 「준비 중」 이라 알린다. */
-export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider): boolean; logout(): void; forget(): Promise<boolean> };
+export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider): boolean; logout(): Promise<boolean>; forget(): Promise<boolean> };
 
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));
 export const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
@@ -226,7 +226,11 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
     if (now) {
       const links = el('div', 't-login-links');
       links.append(
-        btn('g-link', '이 기기에서 로그아웃', () => { opts.logout(); draw(); }),
+        btn('g-link', '이 기기에서 로그아웃', async () => {
+          status.textContent = '기록을 올리는 중…';
+          if (await opts.logout()) location.reload(); // 이 기기 기록도 비웠으니 처음 화면부터
+          else status.textContent = '기록을 서버에 못 올려서 로그아웃하지 않았어요. 조금 뒤에 다시 해 주세요.';
+        }),
         btn('g-link', '서버 기록 지우기', async () => {
           if (!confirm('서버에 둔 주민증 기록을 지울까요? 이 기기의 기록은 그대로 남아요.')) return;
           const ok = await opts.forget();
@@ -272,9 +276,23 @@ export function openGateLogin(shell: HTMLElement, opts: LoginOpts, onClose: () =
   const { panel, close } = panelShell(shell, onClose, '로그인 없이 둘러보기');
   panel.classList.add('t-gate');
   panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', '기록을 남기려면 로그인해 주세요'),
-    el('p', 't-lead', '로그인하면 내 주민증·도장·모은 동전이 다른 폰과 브라우저에서도 이어져요.'),
+    el('p', 't-lead', '로그인하면 내 주민증·도장이 다른 폰과 브라우저에서도 이어져요.'), // 동전은 이 기기에만(Save 에 없음)
     loginBox(opts, '로그인'), btn('g-ghost', '로그인 없이 둘러보기', close),
     el('p', 't-small', '로그인하지 않아도 마을을 다 돌아볼 수 있어요. 기록은 이 기기에만 남아요.'));
+}
+
+/**
+ * 로그인 직후 한 번 — 됐다는 걸 판으로 확실히(사용자 10-16 「된 건지 안 된 건지 모르겠다」, 예전엔 2초 알림 한 줄).
+ * 기록을 서버에 못 올렸으면(unsaved) 그렇게 말한다 — 다음에 열 때 keepSynced 가 다시 올린다.
+ */
+export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: boolean, onClose: () => void) {
+  const { panel, close } = panelShell(shell, onClose, '확인');
+  panel.classList.add('t-gate');
+  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `✓ ${PROVIDER_NAME[provider]}로 로그인했어요`),
+    el('p', 't-lead', unsaved
+      ? '로그인은 됐지만 기록을 서버에 아직 못 올렸어요. 이 기기에는 그대로 있고, 다음에 열 때 다시 올려요.'
+      : `내 주민증과 도장을 ${PROVIDER_NAME[provider]} 계정에 지켜 뒀어요. 다른 폰·브라우저에서 같은 계정으로 들어오면 그대로 이어져요.`),
+    btn('g-primary', '확인', close));
 }
 
 /**
@@ -305,32 +323,44 @@ export const placeTitle = (place: FinancePlace) => (place.n.endsWith('(시·도)
  */
 export function placeChooser(all: FinancePlace[], show: (place?: FinancePlace) => void, onSave?: (place: FinancePlace) => void) {
   const picker = el('div', 't-picker'), sidos = el('div', 't-regions'), towns = el('div', 't-regions'), head = el('div', 't-mine');
+  // 내 동네가 없으면 맨 위에서 묻고, 처음 고른 곳을 바로 내 동네로(사용자 10-16 「설정하는 것을 쉽게 해야 볼 수 있지」 — 작은 저장 단추는 눈에 안 띄었다).
+  const ask = el('div', 't-mine-ask');
+  ask.append(el('p', 't-mine-q', '내 동네는 어디예요?'), el('p', 't-small', '시·도를 누르고 사는 시·군·구를 고르면 내 동네로 저장되고 「내 동네」 도장이 찍혀요. 나중에 바꿀 수 있어요.'));
   picker.append(sidos, towns);
   const mine = () => all.find(p => p.c === loadRegion());
   const showSido = (sido: string) => {
     sidos.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === sido));
     towns.replaceChildren(...all.filter(p => p.s === sido).map(p => { const b = btn('t-chip', p.n, () => open(p)); b.dataset.c = p.c; return b; }));
   };
+  /** 내 동네로 — 어디서 정하든 「내 동네」 도장(10-16, 예전엔 주민센터 우리 동네 탭을 열어야만). */
+  const save = (place: FinancePlace) => {
+    saveRegion(place.c);
+    const got = addStamp('region');
+    ask.hidden = true; picker.hidden = true;
+    drawHead(place, got ? '내 동네로 저장했어요 · 「내 동네」 도장을 받았어요' : '내 동네로 저장했어요');
+  };
   const open = (place: FinancePlace) => {
     towns.querySelectorAll<HTMLElement>('button').forEach(b => b.classList.toggle('on', b.dataset.c === place.c));
-    drawHead(place); show(place);
+    if (!loadRegion()) save(place); else drawHead(place);
+    show(place);
   };
-  const drawHead = (place?: FinancePlace) => {
+  const drawHead = (place?: FinancePlace, note?: string) => {
     const my = mine();
     head.replaceChildren();
-    if (!place) { if (!my) head.append(el('p', 't-small', '사는 곳을 골라 「내 동네로 저장」 해 두면 다음부터 바로 보여요.')); return; }
+    if (!place) return;
     if (my?.c === place.c) {
       head.append(el('span', 't-mine-tag', '내 동네'), el('b', '', placeTitle(place)));
       if (picker.hidden) head.append(btn('g-link', '다른 동네 보기', () => { picker.hidden = false; drawHead(place); }));
+      if (note) { const done = el('p', 't-mine-done', note); done.setAttribute('role', 'status'); head.append(done); }
       return;
     }
-    head.append(el('b', '', placeTitle(place)), btn('t-chip t-save', '여기를 내 동네로 저장', () => { saveRegion(place.c); picker.hidden = true; drawHead(place); onSave?.(place); }));
+    head.append(el('b', '', placeTitle(place)), btn('t-chip t-save', '여기를 내 동네로 저장', () => { save(place); onSave?.(place); }));
     if (my) head.append(btn('g-link', '내 동네로', () => { picker.hidden = true; showSido(my.s); open(my); }));
   };
   sidos.append(...REGIONS.map(sido => btn('t-chip', sido, () => { showSido(sido); drawHead(); show(); })));
   const my = mine();
-  if (my) { picker.hidden = true; showSido(my.s); open(my); } else drawHead();
-  return [picker, head];
+  if (my) { ask.hidden = true; picker.hidden = true; showSido(my.s); open(my); } else drawHead();
+  return [ask, picker, head];
 }
 
 /** 우리 동네 — 내 동네(시·군·구)에 이번 판 집을 한 채 세우고, 그 동네 사람들이 고른 것을 본다. 다른 동네는 보기만. */

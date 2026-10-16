@@ -172,13 +172,14 @@ test('시트의 쪽지 탭: 사람이 읽는 칸, 숨김 칸에 적으면 숨고
   const { id } = post('/village/notes', { sessionId: 'session-aaaa', name: '민지', pick: [1, 1, 1, 1], text: '반가워요' }, now).body.note;
   const rows = book.sheets.get('쪽지').rows;
   assert.deepEqual(rows[0], ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록']);
-  assert.deepEqual(rows[1].slice(0, 6), [id, new Date(now).toISOString(), '민지', '반가워요', 0, 0]);
+  assert.deepEqual(rows[1].slice(0, 6), [id, new Date(now).toISOString(), "'민지", "'반가워요", 0, 0], "사람이 쓴 칸은 ' 를 붙여 글자로만");
   assert.equal(JSON.parse(rows[1][7]).sessionId, 'session-aaaa');
   assert.equal(post(`/village/notes/${id}/like`, { sessionId: 'session-bbbb' }, now).body.likes, 1);
   assert.equal(rows.length, 2, '고친 쪽지는 제자리');
   assert.equal(rows[1][4], 1);
   const get = () => serve('GET', { parameter: { p: '/village' } }, book, now).body;
   assert.equal(get().notes.length, 1);
+  assert.equal(get().notes[0].text, '반가워요', "읽을 땐 ' 없이");
   assert.equal(get().today, 1);
   rows[1][6] = '광고'; // 지우는 사람이 시트에 적는다
   assert.equal(get().notes.length, 0);
@@ -189,6 +190,17 @@ test('시트의 쪽지 탭: 사람이 읽는 칸, 숨김 칸에 적으면 숨고
   post(`/village/notes/${id}/like`, { sessionId: 'session-aaaa' }, now);
   assert.equal(rows[1][6], '확인함', '서버가 숨김 칸을 덮어쓰지 않는다');
   assert.equal(rows[1][5], 1);
+});
+
+test("시트의 쪽지 탭: 「=」 로 시작하는 쪽지도 수식이 아니라 글자로 쓴다(10-16 — 다른 탭 값을 읽어 오지 않게)", () => {
+  const book = fakeBook();
+  const post = (p, body, now) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, now);
+  const now = Date.UTC(2026, 9, 14, 3);
+  post('/finish', { sessionId: 'session-aaaa', contentVersion: CONTENT_VERSION, answers }, now);
+  post('/village/here', { sessionId: 'session-aaaa', pick: [1, 1, 1, 1] }, now);
+  post('/village/notes', { sessionId: 'session-aaaa', name: '민지', pick: [1, 1, 1, 1], text: '=연락처!C2' }, now);
+  const cell = book.sheets.get('쪽지').rows[1][3];
+  assert.equal(cell, "'=연락처!C2");
 });
 
 test('지방재정 자료(구운 것): 243곳, 시·도 열일곱, 숫자 넷이 다 있고 순위·등급은 없다', () => {
