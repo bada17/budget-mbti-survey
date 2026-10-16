@@ -165,6 +165,8 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-bigcard .x-flow{margin:-4px 0 10px}
 .t-mine{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0 10px}
 .t-mine b{font-family:var(--display);font-size:18px;font-weight:400;color:#5b402e}
+.t-mine-ask{margin:4px 0 6px}.t-mine-q{margin:0;font-family:var(--display);font-size:20px;color:#5b402e} /* 겉모습은 GPT 몫 */
+.t-mine-done{flex-basis:100%;margin:0;font-size:13px;font-weight:700;color:var(--leaf)}
 .t-mine-tag{padding:3px 10px;border-radius:999px;background:var(--leaf);color:#fff;font-size:12px;font-weight:700}
 .t-mine .t-save{background:var(--accent);color:#fffaf0;box-shadow:none}
 /* 문제 카드(10-15) — 한 장 크게, 반응 셋, 반응한 뒤에만 막대 */

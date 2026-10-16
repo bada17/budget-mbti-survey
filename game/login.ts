@@ -15,7 +15,7 @@
   → 열쇠·서버 기록을 받아 이 기기 것과 합침(profile.ts importSave) → 다시 연다(합친 기록으로 처음부터 읽게).
 */
 import { net } from './net';
-import { saveLogin, loadLogin, clearLogin, importSave, exportSave, cleanSave, onWrite, type Login, type Save } from './profile';
+import { saveLogin, loadLogin, clearLogin, clearSave, importSave, exportSave, cleanSave, onWrite, type Login, type Save } from './profile';
 
 export type Provider = Login['provider'];
 const KAKAO: string | undefined = import.meta.env?.VITE_KAKAO_REST_KEY || undefined;
@@ -24,6 +24,7 @@ const FAKE = Boolean(import.meta.env?.DEV);
 const PENDING = 'budget-game-login-pending';
 const DONE = 'budget-game-login-done';
 const EMAIL = 'budget-game-login-email';
+const UNSAVED = 'budget-game-login-unsaved';
 export const PROVIDER_NAME: Record<Provider, string> = { kakao: '카카오', google: '구글' };
 
 /** 카톡 안 브라우저 — 구글 로그인이 막혀서 밖으로 내보낸다(escapeKakao). */
@@ -99,8 +100,13 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   if (!result) return 'failed';
   saveLogin({ key: result.key, provider: pending.provider, ...(result.admin ? { admin: true as const } : {}) });
   importSave(result.save);
-  await net.saveMe(result.key, exportSave());
-  try { sessionStorage.setItem(DONE, pending.provider); if (result.email) sessionStorage.setItem(EMAIL, result.email); } catch { /* 알림만 못 띄운다 */ }
+  // 못 올렸으면 알린다(다음에 열 때 keepSynced 가 다시 올린다) — 예전엔 실패해도 「지켰어요」 였다(10-16).
+  const saved = Boolean(await net.saveMe(result.key, exportSave()));
+  try {
+    sessionStorage.setItem(DONE, pending.provider);
+    if (result.email) sessionStorage.setItem(EMAIL, result.email);
+    if (!saved) sessionStorage.setItem(UNSAVED, '1');
+  } catch { /* 알림만 못 띄운다 */ }
   location.reload();
   return 'done';
 }
@@ -111,6 +117,10 @@ export let failure = '';
 /** 다시 연 뒤 한 번 — 방금 로그인했으면 그 쪽 이름. */
 export function justLoggedIn(): Provider | undefined {
   try { const p = sessionStorage.getItem(DONE) as Provider | null; sessionStorage.removeItem(DONE); return p ?? undefined; } catch { return undefined; }
+}
+/** 다시 연 뒤 한 번 — 방금 로그인은 됐는데 기록을 서버에 못 올렸나. */
+export function takeUnsaved(): boolean {
+  try { const u = sessionStorage.getItem(UNSAVED); sessionStorage.removeItem(UNSAVED); return u === '1'; } catch { return false; }
 }
 /** 다시 연 뒤 한 번 — 방금 로그인으로 받은 이메일(카카오에서 이메일을 안 켰으면 없음). 꺼내면 지운다. */
 export function takeLoginEmail(): string | undefined {
@@ -129,14 +139,29 @@ export function keepSynced() {
     timer = setTimeout(() => { const login = loadLogin(); if (login) void net.saveMe(login.key, exportSave()); }, 1500);
   });
   const login = loadLogin();
-  if (login) void net.me(login.key).then(result => { if (result) importSave(result.save); });
+  if (!login) return;
+  // 열 때 한 번 받고, 합친 것이 서버 것과 다르면 올린다 — 지난번에 못 올린 것(로그인 직후 실패 등)이 여기서 다시 간다.
+  void net.me(login.key).then(result => {
+    if (!result) return;
+    importSave(result.save);
+    const mine = exportSave();
+    if (JSON.stringify(mine) !== JSON.stringify(cleanSave(result.save) ?? {})) void net.saveMe(login.key, mine);
+  });
 }
 
 export const current = () => loadLogin()?.provider;
 /** 관리자로 로그인했나 — 서버가 로그인 때 가려 준다(api.ts isAdmin). 화면 쪽 일에만 쓴다. */
 export const admin = () => loadLogin()?.admin === true;
-/** 이 기기에서만 끊는다 — 서버 기록은 남아서 다시 로그인하면 그대로. */
-export const logout = () => clearLogin();
+/**
+ * 이 기기에서 끊는다 — 마지막 기록을 서버에 올린 뒤 이 기기의 기록도 비운다(서버 기록은 남아서 다시 로그인하면 그대로).
+ * 안 비우면 같은 기기로 다음에 로그인한 사람 계정에 앞사람 기록이 섞인다(10-16). 못 올렸으면 끊지 않는다(false) — 기록을 잃지 않게.
+ */
+export async function logout() {
+  const login = loadLogin();
+  if (login && !(await net.saveMe(login.key, exportSave()))) return false;
+  clearLogin(); clearSave();
+  return true;
+}
 /** 서버 기록을 지우고 끊는다. */
 export async function forget() {
   const login = loadLogin();

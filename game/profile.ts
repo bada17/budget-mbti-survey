@@ -13,7 +13,8 @@
 import { TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, ROUTE, type TypeCode } from './content';
 import { isPick, fullPick, randomPick, DEFAULT_PICK, type Pick } from './look';
 
-export type Me = { name: string; pick: Pick };
+/** at = 사람이 직접 고르거나 이름을 쓴 때 — 로그인해 합칠 때 더 나중에 고른 쪽이 이긴다(importSave). 손 안 댄 기본 모습엔 없다. */
+export type Me = { name: string; pick: Pick; at?: number };
 export type Neighbor = { questionId: string; key: 'a' | 'b'; seed: string; name: string; at: number };
 /** 링크에 실려 오가는 한 사람 — 이름·모습·유형·지은 동네. */
 export type Friend = { name: string; pick: Pick; type: TypeCode; town?: Town };
@@ -128,9 +129,10 @@ function write(key: string, value: unknown) {
  */
 export function loadMe(random = Math.random): Me {
   const raw = read(ME_KEY) as Partial<Me> | null;
-  return { name: cleanName(raw?.name), pick: isPick(raw?.pick) ? fullPick(raw.pick) : raw ? [...DEFAULT_PICK] as Pick : randomPick(random) }; // 옛 넷·다섯 칸은 열 칸으로 펴서(10-15 저녁)
+  const at = Number(raw?.at);
+  return { name: cleanName(raw?.name), pick: isPick(raw?.pick) ? fullPick(raw.pick) : raw ? [...DEFAULT_PICK] as Pick : randomPick(random), ...(at > 0 ? { at } : {}) }; // 옛 넷·다섯 칸은 열 칸으로 펴서(10-15 저녁)
 }
-export const saveMe = (me: Me) => write(ME_KEY, { name: cleanName(me.name), pick: me.pick });
+export const saveMe = (me: Me) => write(ME_KEY, { name: cleanName(me.name), pick: me.pick, ...(me.at ? { at: me.at } : {}) });
 
 export const loadNeighbor = () => cleanNeighbor(read(NEIGHBOR_KEY) as Partial<Neighbor> | null);
 export const saveNeighbor = (neighbor: Neighbor) => write(NEIGHBOR_KEY, { ...neighbor, name: cleanName(neighbor.name) });
@@ -202,7 +204,7 @@ export function cleanSave(raw: unknown): Save | undefined {
   if (!raw || typeof raw !== 'object' || JSON.stringify(raw).length > SAVE_MAX) return undefined;
   const r = raw as Record<string, any>;
   const save: Save = {};
-  if (r.me && isPick(r.me.pick)) save.me = { name: cleanName(r.me.name), pick: r.me.pick };
+  if (r.me && isPick(r.me.pick)) save.me = { name: cleanName(r.me.name), pick: r.me.pick, ...(Number(r.me.at) > 0 ? { at: Number(r.me.at) } : {}) };
   const neighbor = cleanNeighbor(r.neighbor);
   if (neighbor) save.neighbor = neighbor;
   if (r.last && isTown(r.last.town) && Number.isFinite(r.last.at)) {
@@ -235,7 +237,9 @@ export function exportSave(): Save {
  */
 export function importSave(remote: Save) {
   const here = exportSave();
-  if (remote.me) saveMe(remote.me);
+  // 모습은 더 나중에 직접 고른 쪽(10-16) — 서버만 이기면 이 기기에서 방금 고른 모습이 계정의 옛 모습에 덮였다(헤드리스로 확인).
+  // 손 안 댄 기본 모습(at 없음)은 늘 서버에 진다 — 새 브라우저 기본 모습이 진짜 모습을 덮던 일(2658071) 그대로 막힌다.
+  if (remote.me && (remote.me.at ?? 0) >= (here.me?.at ?? 0)) saveMe(remote.me);
   if (remote.neighbor) saveNeighbor(remote.neighbor);
   if (remote.last && (!here.last || remote.last.at > here.last.at)) write(TOWN_KEY, remote.last);
   if (remote.home) saveHome(remote.home);
@@ -256,3 +260,5 @@ export function loadLogin(): Login | undefined {
 }
 export const saveLogin = (login: Login) => { try { localStorage.setItem(LOGIN_KEY, JSON.stringify(login)); } catch { /* 막힌 창 */ } };
 export const clearLogin = () => { try { localStorage.removeItem(LOGIN_KEY); } catch { /* 막힌 창 */ } };
+/** 로그아웃 때 — 이 기기의 Save 칸(서버에 올린 그 기록)을 비운다. 안 비우면 다음에 이 기기로 로그인한 다른 사람 계정에 섞인다(10-16). */
+export const clearSave = () => { for (const key of [ME_KEY, NEIGHBOR_KEY, TOWN_KEY, HOME_KEY, STAMP_KEY, REGION_KEY]) try { localStorage.removeItem(key); } catch { /* 막힌 창 */ } };

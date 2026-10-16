@@ -14,12 +14,12 @@ import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, loadCardMemo, saveCardMemo, type Me, type Town, type Neighbor,
 } from './profile';
-import { openTown, openReply, openLetter, openLogin, openGateLogin, openNews, type Person, type LoginOpts } from './town';
+import { openTown, openReply, openLetter, openLogin, openGateLogin, openNews, openLoggedIn, type Person, type LoginOpts } from './town';
 import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCards, noteCard, loadMarks, rememberMine, loadPocket, savePocket, questHook, type CardsOpts } from './places';
 import type { PublicCard } from './api';
 import { PLACES, keeperName, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
-import { providers, start as startLogin, finish as finishLogin, arrivedFromKakao, failure as loginFailure, justLoggedIn, takeLoginEmail, keepSynced, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
+import { providers, start as startLogin, finish as finishLogin, arrivedFromKakao, failure as loginFailure, justLoggedIn, takeLoginEmail, takeUnsaved, keepSynced, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact, type ContactForm } from './contact';
@@ -32,6 +32,7 @@ import type { VillageScene } from './scenes/VillageScene';
 
 const root = document.querySelector<HTMLElement>('#game-root')!;
 const params = new URLSearchParams(location.search);
+const arrivedPlain = !location.search && !location.hash; // 소개 페이지용 — 아무것도 안 붙은 주소로 왔나(로그인 길이 주소를 지우기 전에 잰다)
 const invite = decodeInvite(params.get('with')); // 나를 부른 친구 — 끝에 언덕에서 만난다. replyTo 가 있으면 답장(걷기 전에 두 동네를 본다)
 // 이웃의 편지(?letter=2026-dec&nb=…) — 이 기기에 이웃이 없으면 편지 쓴 이웃을 내 이웃으로 들인다(그래야 같이 걷는다).
 const letterSeason = seasonById(params.get('letter'));
@@ -142,11 +143,13 @@ void finishLogin().then(result => {
 });
 const loggedIn = justLoggedIn();
 // 방금 로그인으로 확인된 이메일이 있으면 「이 이메일로 소식 받기」 판부터(openNews) — 연락처 칸이 켜진 판에서만, 주민센터 대신.
-const loginEmail = takeLoginEmail();
-const offerNews = Boolean(loggedIn && loginEmail && contactReady);
-if (offerNews) { panelOpen = true; openNews(shell, loggedIn!, loginEmail!, sendContact, () => { panelOpen = false; village?.setPaused(false); }); }
-else if (loggedIn) ui.toast(`${PROVIDER_NAME[loggedIn]}로 주민증을 지켰어요`); // 마을이 열리면 주민센터를 바로 연다(enteredVillage)
-else if (!loginNow()) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}));
+const loginEmail = takeLoginEmail(), loginUnsaved = takeUnsaved();
+const offerNews = Boolean(loggedIn && loginEmail && contactReady && !loginUnsaved);
+const unpause = () => { panelOpen = false; village?.setPaused(false); };
+if (offerNews) { panelOpen = true; openNews(shell, loggedIn!, loginEmail!, sendContact, unpause); }
+else if (loggedIn) { panelOpen = true; openLoggedIn(shell, loggedIn, loginUnsaved, unpause); } // 됐다는 판(예전엔 2초 알림)
+const loginLabel = loginNow() && `✓ ${PROVIDER_NAME[loginNow()!]}로 로그인됨`;
+ui.loginOpen(() => openLogin(shell, loginOpts, () => {}), loginLabel || undefined);
 
 type UntimedCommand = Command extends infer T ? T extends { at: number } ? Omit<T, 'at'> : never : never;
 function send(command: UntimedCommand | SceneCommand) {
@@ -349,7 +352,6 @@ function enteredVillage() {
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
     if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 「내 기록 보는 곳」 주민증에 찍혀 있어요.`);
-    if (loggedIn && !offerNews) openPlace('hub');
   }
   void meetVillage();
 }
@@ -686,6 +688,8 @@ if (import.meta.env.DEV && params.has('village') && !lastPlay?.type) {
   lastPlay = loadLast();
 }
 const startInVillage = Boolean(lastPlay?.type) && !params.has('walk') && !invite && !tableCode && !(import.meta.env.DEV && params.has('end'));
+// 소개 페이지(landing.ts, 10-16) — 처음 온 사람이 맨 주소로 왔을 때만 게임 위에 덮는다. ?about 이면 늘(보기용). 따로 불러와 첫 화면을 무겁게 하지 않는다.
+if (params.has('about') || (arrivedPlain && !lastPlay?.type)) void Promise.all([import('./landing'), import('./landing.css')]).then(([m]) => m.openLanding(() => {}));
 if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unlockAudio, { once: true }); } // 「출발」 을 안 누르니 첫 손길에 소리를 푼다
 else if (lastPlay?.type) ui.homeOpen(() => { location.href = here(); }); // 걸으러 왔지만 마을로 갈 수도
 // 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.

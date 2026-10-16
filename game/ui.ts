@@ -205,7 +205,8 @@ export function createUI(root: HTMLElement, actions: {
     /** 다시 온 사람이 링크로 걷기 화면에 왔을 때 — 걷지 않고 마을로(기획 4차). */
     homeOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-home-open')!; b.hidden = false; b.onclick = run; },
     /** 로그인 안 한 사람 — 다른 기기에서 지켜 둔 주민증 불러오기(login.ts). */
-    loginOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-login-open')!; b.hidden = false; b.onclick = run; },
+    /** 시작 화면 로그인 단추 — 로그인했으면 label(「✓ 카카오로 로그인됨」)로 늘 보인다(사용자 10-16 「된 건지 모르겠다」). */
+    loginOpen(run: () => void, label?: string) { const b = intro.querySelector<HTMLButtonElement>('.g-login-open')!; b.hidden = false; b.onclick = run; if (label) b.textContent = label; },
     /** 시작 화면 아래 한 줄씩 — 초대한 친구, 지난번 이웃, 테이블. */
     notes(lines: string[]) { intro.querySelector('.g-notes')!.replaceChildren(...lines.map(line => el('li', '', line))); },
 
@@ -320,9 +321,9 @@ export function createUI(root: HTMLElement, actions: {
      * 판 위에 크게 보이는 내 모습이 탭을 바꿔도 가려지지 않게(JourneyScene 의 dressView 가 처음 판 높이로 자리를 잡는다).
      */
     dresser(me: Me, on: { change(me: Me): void; done(me: Me): void }) {
-      const current = { name: me.name, pick: fullPick(me.pick) };
+      const current = { name: me.name, pick: fullPick(me.pick), at: me.at }; // at = 직접 고른 때(손대면 지금으로)
       const name = el('input', 'g-input'); name.maxLength = 10; name.value = me.name; name.placeholder = '이름이나 별명 (안 써도 돼요)';
-      name.oninput = () => { current.name = cleanName(name.value); };
+      name.oninput = () => { current.name = cleanName(name.value); current.at = Date.now(); };
       const menu = HAIR_MENU.map(c => c.i), menuColors = HAIR_MENU.map(c => HAIRS[c.i]), menuNames = HAIR_MENU.map(c => c.name);
       // 줄마다 [이름, 고른 번호의 자리(Pick), 글 단추면 이름들 · 색 단추면 색들, 단추 → 넣을 번호(없으면 차례 그대로), 색 이름].
       type Line = [string, number, string[] | number[], number[]?, string[]?];
@@ -331,7 +332,7 @@ export function createUI(root: HTMLElement, actions: {
         ['머리', [['머리 모양', 5, HAIR_STYLES.map(h => h.name)], ['머리색', 1, menuColors, menu, menuNames], ['색 넣기', 4, PATTERNS.map(p => p.name)], ['섞는 색', 9, menuColors, menu, menuNames]]],
         ['옷과 꾸미기', [['옷', 6, TOPS.map(t => t.name)], ['옷 색', 2, COATS], ['안경', 7, GLASSES], ['머리 장식', 8, ACCESSORIES.map(a => a.name)]]],
       ];
-      const changed = () => { draw(); on.change({ ...current, pick: [...current.pick] as Pick }); };
+      const changed = () => { current.at = Date.now(); draw(); on.change({ ...current, pick: [...current.pick] as Pick }); };
       const swatch = ([label, slot, , ids, names]: Line, value: string | number, i: number) => {
         const stored = ids?.[i] ?? i;
         // 기본 모습을 고르면 머리 모양·옷·안경이 그 모습으로 맞춰진다(색·피부·장식은 그대로).
@@ -351,7 +352,8 @@ export function createUI(root: HTMLElement, actions: {
         bar.append(tab);
         for (const line of lines) {
           const [label, slot, values] = line;
-          const row = el('div', typeof values[0] === 'string' || values.length > 12 ? 'g-row g-row-scroll' : 'g-row');
+          // 줄은 모두 한 줄 옆 스크롤(사용자 10-16 「글자가 잘리고 난잡해」) — 감싸는 줄·미는 줄이 섞여 있던 것을 하나로.
+          const row = el('div', 'g-row g-row-scroll');
           row.append(...values.map((value, i) => swatch(line, value, i)));
           const head = el('span', 'g-row-label', label);
           if (slot === 9) mixRow.push(head, row);
@@ -371,7 +373,7 @@ export function createUI(root: HTMLElement, actions: {
       };
       draw();
       const random = button('g-link', '어떤 모습이 나올까?', () => { current.pick = randomPick(); changed(); });
-      const done = button('g-primary', '이 모습으로 걷기', () => { closeSheet(); on.done({ name: cleanName(name.value), pick: [...current.pick] as Pick }); });
+      const done = button('g-primary', '이 모습으로 걷기', () => { closeSheet(); on.done({ name: cleanName(name.value), pick: [...current.pick] as Pick, ...(current.at ? { at: current.at } : {}) }); });
       openSheet(el('p', 'g-kicker', '오늘은 이 모습으로'), name, bar, panes, random, done);
       draw(); // 판이 열린 뒤에야 단추 자리를 잴 수 있다
     },

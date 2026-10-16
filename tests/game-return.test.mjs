@@ -152,7 +152,7 @@ test('구글 시트 저장소: 요청마다 읽고 바뀐 줄만 쓴다, 연락�
   post('/contact', { payload, type: '101', region: '서울' }, Date.UTC(2026, 9, 14));
   const contacts = book.sheets.get('연락처').rows;
   assert.equal(contacts[0][0], '받은 시각');
-  assert.deepEqual(contacts[1].slice(1, 7), ['문자', '01012345678', '예', '예', '예', CONSENT_VERSION]);
+  assert.deepEqual(contacts[1].slice(1, 7), ['문자', "'01012345678", '예', '예', '예', CONSENT_VERSION], "번호는 ' 를 붙여 글자로 — 안 그러면 숫자가 돼 0 이 빠진다");
   assert.equal(contacts[1][11], '101 밥 짓는 이웃');
   assert.equal(contacts[1].length, 12, '지역 칸 없음');
   // 테이블·이상한 길은 없다, 깨진 몸통은 400
