@@ -371,13 +371,27 @@ export class VillageScene extends Phaser.Scene {
     if (!id || this.showing || !this.works) return;
     this.pendingBuilt = undefined; this.showing = true;
     this.runtime.controls.clear(); this.goal = undefined; this.route = [];
-    const cam = this.cameras.main, at = this.art.builtAt(id);
+    const at = this.art.builtAt(id);
+    this.tour(at.x, at.y - 20, 2700, () => { this.art.setWorks(this.works!); this.art.built(id, this.runtime.view().dpr); });
+  }
+
+  /** 마을에 처음 들어온 사람에게 그 건물을 보여 준다(10-16 주민센터 안내) — 카메라가 문 앞에 갔다가 나에게 돌아온다. 움직임 줄이기면 안 간다. */
+  showPlace(id: PlaceId) {
+    if (this.reduced || this.showing) return;
+    const place = PLACES.find(p => p.id === id)!;
+    this.showing = true;
+    this.runtime.controls.clear(); this.goal = undefined; this.route = [];
+    this.tour(place.door.x, place.door.y - 60, 2400);
+  }
+
+  /** 카메라가 (x, y)로 가서 hold 만큼 머물고 나에게 돌아온다 — 그동안 나는 멈춘다(showing). 닿으면 arrive. */
+  private tour(x: number, y: number, hold: number, arrive?: () => void) {
+    const cam = this.cameras.main;
     cam.stopFollow();
-    cam.pan(at.x, at.y - 20, 900, 'Sine.easeInOut', true, (_cam, t) => {
+    cam.pan(x, y, 900, 'Sine.easeInOut', true, (_cam, t) => {
       if (t < 1) return;
-      this.art.setWorks(this.works!);
-      this.art.built(id, this.runtime.view().dpr);
-      this.time.delayedCall(2700, () => cam.pan(this.pos.x, this.pos.y - 40, 800, 'Sine.easeInOut', true, (_c, back) => {
+      arrive?.();
+      this.time.delayedCall(hold, () => cam.pan(this.pos.x, this.pos.y - 40, 800, 'Sine.easeInOut', true, (_c, back) => {
         if (back < 1) return;
         cam.startFollow(this.player.root, true, 0.14, 0.14);
         this.showing = false;

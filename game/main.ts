@@ -14,7 +14,7 @@ import {
   loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, loadCardMemo, saveCardMemo, type Me, type Town, type Neighbor,
 } from './profile';
-import { openTown, openReply, openLetter, openLogin, openGateLogin, openNews, openLoggedIn, type Person, type LoginOpts } from './town';
+import { openTown, openReply, openLetter, openLogin, openNews, openLoggedIn, type Person, type LoginOpts } from './town';
 import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCards, noteCard, loadMarks, rememberMine, loadPocket, savePocket, questHook, type CardsOpts } from './places';
 import type { PublicCard } from './api';
 import { PLACES, keeperName, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
@@ -133,7 +133,7 @@ const statsReady = net.stats().then(found => {
 
 const shell = root.querySelector<HTMLElement>('.g')!;
 
-// 로그인(login.ts) — 단추는 늘 보이고 키가 없으면 「곧 열려요」. 카카오·구글에서 돌아왔으면 확인하고 다시 연다. 마을 입구 판은 gateLogin.
+// 로그인(login.ts) — 단추는 늘 보이고 키가 없으면 「곧 열려요」. 카카오·구글에서 돌아왔으면 확인하고 다시 연다. 마을에선 주민센터 안내(hubGuide).
 const loginOpts: LoginOpts = { providers: providers(), current: loginNow, admin: loginAdmin, start: startLogin, logout, forget };
 keepSynced();
 arrivedFromKakao(); // 카톡 안에서 구글을 눌러 밖 브라우저로 나왔으면 실어 온 기록을 합치고 바로 구글로
@@ -348,7 +348,7 @@ function enteredVillage() {
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
   marks();
-  gateLogin();
+  hubGuide();
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
     if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 「내 기록 보는 곳」 주민증에 찍혀 있어요.`);
@@ -356,14 +356,18 @@ function enteredVillage() {
   void meetVillage();
 }
 
-/** 마을 입구 로그인 — 로그인 안 한 사람에게 판(탭)마다 한 번. 다른 판(편지·답장)이 떠 있으면 그 위에 겹치지 않는다. */
-function gateLogin() {
-  if (loginNow() || loggedIn || shell.querySelector('.t-panel')) return;
-  try { if (sessionStorage.getItem(GATE_SEEN)) return; sessionStorage.setItem(GATE_SEEN, '1'); } catch { /* 못 적으면 들어올 때마다 보인다 */ }
-  panelOpen = true; village?.setPaused(true);
-  openGateLogin(shell, loginOpts, () => { panelOpen = false; village?.setPaused(false); });
+/**
+ * 주민센터 안내(사용자 10-16) — 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 「기록을 저장하려면 주민센터로」 + 카메라가 주민센터를 보여 주고 돌아온다.
+ * 주민센터(내 기록 보는 곳)는 남쪽 문 정면 위라 그대로 걸어 올라가면 닿는다. 로그인은 그 안 주민증 탭에서.
+ * 예전 「마을 입구 로그인 판」(들어오자마자 로그인 요구)은 지웠다 — 사용자 「마을 입구 로그인판은 그럼 지워」, 같은 말을 두 번 하게 돼서.
+ */
+function hubGuide() {
+  if (villageStart !== 'gate' || loginNow() || loggedIn || shell.querySelector('.t-panel')) return;
+  try { if (localStorage.getItem(HUB_GUIDE)) return; localStorage.setItem(HUB_GUIDE, '1'); } catch { /* 못 적으면 들어올 때마다 보인다 */ }
+  ui.villageNotice(keeperName('hub'), '지금 한 기록을 저장하려면 저 위 「내 기록 보는 곳」(주민센터)으로 가 보세요. 거기서 로그인하면 다른 폰에서도 이어져요.', [{ label: '알겠어요' }]);
+  village?.showPlace('hub');
 }
-const GATE_SEEN = 'budget-game-gate-login';
+const HUB_GUIDE = 'budget-game-hub-guide';
 
 // ── 문제 카드(10-15) — 활동가가 시트에 올린다. 새 카드가 있으면 마을 입구에서 알리고 게시판에 「!」 ──
 let cards: PublicCard[] | undefined;

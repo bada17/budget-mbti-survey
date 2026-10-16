@@ -260,19 +260,6 @@ export function openLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => vo
 }
 
 /**
- * 마을 입구 로그인(사용자 10-15 「기록을 위해서는 로그인을 해 주세요 — 카카오톡·구글, 마을 입구에서, 안 해도 돌아볼 수 있게」).
- * 로그인 안 한 사람이 마을에 들어올 때 한 번(main 이 판마다 한 번만 부른다). 「로그인 없이 둘러보기」 로 닫는다.
- */
-export function openGateLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => void) {
-  const { panel, close } = panelShell(shell, onClose, '로그인 없이 둘러보기');
-  panel.classList.add('t-gate');
-  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', '기록을 남기려면 로그인해 주세요'),
-    el('p', 't-lead', '로그인하면 내 주민증·도장이 다른 폰과 브라우저에서도 이어져요.'), // 동전은 이 기기에만(Save 에 없음)
-    loginBox(opts, '로그인'), btn('g-ghost', '로그인 없이 둘러보기', close),
-    el('p', 't-small', '로그인하지 않아도 마을을 다 돌아볼 수 있어요. 기록은 이 기기에만 남아요.'));
-}
-
-/**
  * 로그인 직후 한 번 — 됐다는 걸 판으로 확실히(사용자 10-16 「된 건지 안 된 건지 모르겠다」, 예전엔 2초 알림 한 줄).
  * 기록을 서버에 못 올렸으면(unsaved) 그렇게 말한다 — 다음에 열 때 keepSynced 가 다시 올린다.
  */
