@@ -12,6 +12,8 @@
   게임 화면(ui.ts)과 따로 둔 파일 — GPT 가 ui.ts 를 꾸미는 동안 겹치지 않게. 모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
 import './town.css';
+import kakaoSymbol from './brand/kakao.svg?raw';
+import googleSymbol from './brand/google.svg?raw';
 import { ROUTE, TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, type TypeCode } from './content';
 import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, loadRegion, saveRegion, type Town, type Neighbor, type Region, type Friend } from './profile';
 import { toLook, lookFrom, hairColor, type Look, type Pick } from './look';
@@ -240,9 +242,16 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
     }
     if (verb !== '로그인') box.append(el('p', 't-login-title', verb === '지키기' ? '주민증 지키기' : '전에 해 봤다면'),
       el('p', 't-small', verb === '지키기' ? '로그인해 두면 다른 폰·브라우저에서도 이 주민증과 도장이 이어져요. 안 해도 괜찮아요.' : '전에 로그인해 둔 주민증과 도장을 불러와요.'));
-    for (const provider of opts.providers) box.append(btn(`t-login-btn t-${provider}`, `${PROVIDER_NAME[provider]}로 ${verb}`, () => {
-      if (!opts.start(provider)) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
-    }));
+    for (const provider of opts.providers) {
+      const button = btn(`t-login-btn t-${provider}`, '', () => {
+        if (!opts.start(provider)) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
+      });
+      const symbol = el('span', 't-login-symbol'); symbol.setAttribute('aria-hidden', 'true');
+      // 공식 배포 SVG의 기호만. 사용자 입력은 이 HTML에 넣지 않는다.
+      symbol.innerHTML = provider === 'kakao' ? kakaoSymbol : googleSymbol;
+      button.append(symbol, el('span', 't-login-label', `${PROVIDER_NAME[provider]}로 ${verb}`));
+      box.append(button);
+    }
     const note = el('p', 't-small t-login-note',
       `받는 건 ${opts.providers.map(p => PROVIDER_NAME[p]).join('·')} 회원번호와 이메일이에요. 서버에는 회원번호만 알아볼 수 없게 바꿔서, 게임 기록(별명·모습·유형·도장·내 이웃·지역)과 함께 둬요. 이메일은 로그인 뒤 「소식 받기」에 동의할 때만 남기고, 이름·사진은 받지 않아요. `);
     const policy = el('a', '', '개인정보처리방침'); policy.href = PRIVACY_URL; policy.target = '_blank'; policy.rel = 'noopener';

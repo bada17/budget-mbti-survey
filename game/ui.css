@@ -116,18 +116,24 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-sheet:has(.g-rows) .g-input{margin:6px 0;padding:9px 12px}
 .g-sheet:has(.g-rows)>.g-link{margin:4px auto 6px;padding:4px 10px;font-size:12px}
 .g-sheet:has(.g-rows)>.g-primary{min-height:48px}
-.g-tabs{display:flex;gap:4px;margin:4px 0 2px}.g-tab{flex:1;padding:6px 0 5px;border-radius:999px;background:#f1e5cd;font-family:var(--display);font-size:14px;color:#6c5240}.g-tab.on{background:#7c624d;color:#fffaf0;box-shadow:0 2px 0 #5b4636}
-.g-panes{display:grid}.g-panes>.g-rows{grid-area:1/1}.g-panes>.g-rows.off{visibility:hidden} /* 안 보이는 탭도 자리는 차지 — 판 높이가 탭마다 같게([hidden] 은 위에서 display:none!important) */
-/* 줄 = 이름표 + 한 줄 옆 스크롤(10-16). 위에 붙여 쌓는다(align-content) — 판 높이가 남아도 줄 사이가 벌어지지 않게.
-   줄은 판 끝까지 나가고 양 끝은 잘리지 않고 흐려진다(mask) — 「더 있다」 는 표시. 겉모습은 GPT 몫(README 「GPT 에게」). */
-.g-rows{display:grid;gap:4px;margin:4px 0;align-content:start}.g-row{display:flex;align-items:center;gap:6px}.g-row-label{font-size:12px;color:var(--soft);margin:4px 0 -1px}
-.g-row-scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;scroll-padding:0 16px;margin:0 -16px;padding:3px 16px 5px;
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 28px),transparent)}
-.g-row-scroll::-webkit-scrollbar{display:none}.g-row-scroll>*{flex:none;scroll-snap-align:start}.g-row-scroll .g-chip{white-space:nowrap}
-.g-chip{padding:5px 10px 4px;border-radius:999px;background:#f1e5cd;font-family:var(--body);font-weight:600;font-size:13px;color:#6c5240}
-.g-chip.on{background:#7c624d;color:#fffaf0;box-shadow:0 2px 0 #5b4636}
-.g-swatch{position:relative;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1px #6b4a2a22,inset 0 2px 0 #fff5}
-.g-swatch.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px #7c624d}
+/* 모습 선택: 탭은 갈래, 글 단추는 선택, 색은 견본. 겹친 탭의 고정 높이는 유지한다. */
+.g-tabs{display:flex;gap:3px;margin:5px 0 8px;padding:3px;border-radius:14px;background:#eee5d3}
+.g-tab{flex:1;min-width:0;min-height:32px;padding:6px 4px;border-radius:11px;font-family:var(--display);font-size:14px;color:#76604e}
+.g-tab.on{background:var(--card);color:#4c6542;box-shadow:0 2px 3px #6b4a2a18}
+.g-panes{display:grid;min-width:0}
+.g-panes>.g-rows{grid-area:1/1;min-width:0}.g-panes>.g-rows.off{visibility:hidden}
+.g-rows{display:grid;gap:3px;margin:0;padding:6px 10px;align-content:start;align-self:start;border:1px solid #eee3cd;border-radius:16px;background:#faf4e7;overflow:hidden}
+.g-row{display:flex;align-items:center;gap:8px;min-width:0}
+.g-row-label{margin:4px 2px 0;font-family:var(--body);font-size:11px;font-weight:700;color:#76604e;line-height:1.3}
+.g-row-scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;scroll-padding:0 12px;margin:0 -10px;padding:5px 12px 7px;
+ -webkit-mask-image:linear-gradient(90deg,transparent,#000 10px,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,transparent,#000 10px,#000 calc(100% - 18px),transparent)}
+.g-row-scroll::-webkit-scrollbar{display:none}.g-row-scroll>*{flex:none;scroll-snap-align:start}
+.g-rows .g-chip{min-height:28px;padding:5px 11px;border-radius:9px;background:#fffcf3;box-shadow:inset 0 0 0 1px #e2d5bd;font-family:var(--body);font-weight:600;font-size:13px;line-height:1.4;color:#6c5240;white-space:nowrap}
+.g-rows .g-chip.on{background:#557348;color:#fffdf5;box-shadow:inset 0 0 0 1px #48643b}
+.g-swatch{position:relative;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1px #6b4a2a33,inset 0 2px 0 #fff5}
+.g-swatch.on{box-shadow:0 0 0 2px #faf4e7,0 0 0 4px #557348}
+.g-swatch.on::after{content:'';position:absolute;inset:9px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #4f3f3570}
+.g-rows button:focus-visible{outline-offset:2px}
 .g-code{margin:8px 0;padding:12px;border-radius:18px;background:#f6ecd8;font-family:var(--display);font-size:44px;letter-spacing:10px;text-align:center;color:#7a5a43;border:2px dashed #d8c19b}
 .g-place-row{display:grid;width:100%;gap:2px;margin:6px 0 0;padding:11px 14px;border-radius:18px;background:#f7efdf;text-align:left;color:var(--ink);transition:background .15s}
 .g-place-row:hover{background:#f2e6cf}.g-place-row b{font-family:var(--display);font-weight:400;font-size:17px}.g-place-row small{font-size:13px;color:var(--soft)}

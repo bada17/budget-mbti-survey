@@ -353,7 +353,7 @@ export const DAYLIGHT = [
 
 export type Pigeon = { root: Container; at: Point; fled: boolean };
 export type Ball = { root: Container; spin: Container; at: Point; v: Point };
-export type Cat = { root: Container; at: Point; near: boolean };
+export type Cat = { pet: Pet; root: Container; at: Point; near: boolean };
 export type RoomArt = { box: Container; openDoor: (reduced: boolean) => void; pigeons: Pigeon[]; ball?: Ball; cat?: Cat; destroy: () => void };
 
 /** 축구공 — 흰 바탕에 검은 점 여섯. 굴러가는 게 보이게 무늬가 돈다(spin). */
@@ -384,27 +384,11 @@ export function facePhoto(scene: Scene, look: Look, size: number): Promise<strin
   });
 }
 
-/** 고양이 — 앉아서 꼬리를 살랑. 털색은 방마다 다르다. */
+/** 방 고양이도 승인된 Pet — 바깥 root 가 폴짝·비켜 걷기를 맡아 제자리 모션과 겹치지 않는다. */
 export function cat(scene: Scene, x: number, y: number, fur: number): Cat {
-  const s = scene.add;
-  const tail = s.rectangle(10, -3, 5, 16, fur).setRounded(2.5).setOrigin(0.5, 1).setAngle(20);
-  const face = s.graphics();
-  face.fillStyle(fur).fillTriangle(-13, -19, -12, -29, -5, -23).fillTriangle(3, -23, 10, -29, 11, -18);
-  face.fillStyle(0xe9a4a1).fillTriangle(-11, -22, -11, -26, -8, -23).fillTriangle(5, -23, 9, -26, 9, -22);
-  face.fillStyle(0x514651, 0.4).fillRoundedRect(-5, -25, 2, 4, 1).fillRoundedRect(-1, -25, 2, 4, 1);
-  face.lineStyle(1, 0x514651, 0.7).lineBetween(-12, -15, -8, -14).lineBetween(5, -14, 9, -15);
-  face.lineBetween(-2, -13, -4, -12).lineBetween(-2, -13, 0, -12);
-  const root = s.container(x, y, [
-    s.ellipse(0, 1, 27, 7, 0x756956, 0.15), tail,
-    s.ellipse(1, -8, 22, 18, fur), s.ellipse(0, -7, 12, 12, 0xfff5e6, 0.7),
-    s.ellipse(-2, -18, 24, 20, fur), face,
-    s.ellipse(-7, -2, 7, 4, 0xfff5e6, 0.9), s.ellipse(5, -2, 7, 4, 0xfff5e6, 0.9),
-    s.circle(-6.5, -18, 1.2, 0x332e38), s.circle(2.5, -18, 1.2, 0x332e38),
-    s.ellipse(-10, -15, 4, 2.5, 0xef9d99, 0.7), s.ellipse(7, -15, 4, 2.5, 0xef9d99, 0.7),
-    s.triangle(-2, -14, 0, 0, 3, 0, 1.5, 2, 0xb96f76),
-  ]);
-  scene.tweens.add({ targets: tail, angle: -15, duration: 700, ease: 'Sine.easeInOut', yoyo: true, repeat: -1, delay: Math.random() * 700 });
-  return { root, at: { x, y }, near: false };
+  const pet = new Pet(scene, 'cat', { x: 0, y: 0 }, 1, fur);
+  const root = scene.add.container(x, y, [pet.root]).setDepth(y);
+  return { pet, root, at: { x, y }, near: false };
 }
 
 /** 다가가면 야옹 — 폴짝, 하트 하나. */
@@ -413,7 +397,7 @@ export function meow(scene: Scene, kitty: Cat, reduced: boolean) {
   if (!reduced) scene.tweens.add({ targets: kitty.root, y: kitty.at.y - 7, duration: 130, ease: 'Quad.easeOut', yoyo: true });
 }
 
-function tree(scene: Scene, x: number, y: number, color: number, snow = false) {
+export function tree(scene: Scene, x: number, y: number, color: number, snow = false) {
   return scene.add.container(x, y, [
     scene.add.ellipse(0, 0, 30, 9, 0x2d3a2e, 0.14),
     scene.add.rectangle(0, -8, 7, 16, 0x9a7356).setRounded(3),
@@ -1515,6 +1499,7 @@ export function drawTwist(scene: Scene, kind: TwistKind, room: Room, dpr: number
   {
     const at = catOf(room), kitty = cat(scene, at.x, at.y, 0xc9a27e);
     kitty.root.setDepth(at.y).setScale(1.25);
+    kitty.pet.step(0, reduced, true);
     const zz = text(at.x + 16, at.y - 26, 'Zz', 15).setColor('#7a6655').setDepth(at.y + 1);
     if (!reduced) scene.tweens.add({ targets: zz, y: zz.y - 6, alpha: 0.4, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     objs.push(kitty.root, zz);

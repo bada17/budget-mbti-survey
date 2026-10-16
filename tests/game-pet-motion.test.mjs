@@ -20,3 +20,16 @@ test('grooming lifts a paw and reduced motion holds a neutral seated pose',()=>{
     }
   }
 });
+
+test('sleeping room cats keep their eyes shut and wake into normal grooming', () => {
+  for (const reduced of [false, true]) {
+    for (const time of [0, 4100, 6000, 7900, 14000]) {
+      const asleep = petPoseAt(time, 'cat', reduced, true);
+      assert.ok(asleep.eyes <= 0.2, 'a sleeping cat must keep its eyes shut');
+      assert.equal(asleep.groom, 0, 'sleep must not turn into face washing');
+      assert.equal(asleep.dx, 0);
+    }
+  }
+  assert.equal(petPoseAt(6000, 'cat', false, false).action, 'groom');
+  assert.equal(petPoseAt(6000, 'cat', true, false).eyes, 1);
+});

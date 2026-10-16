@@ -105,12 +105,15 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-tip{min-height:1.6em;margin:4px 4px 12px;font-size:14px;color:#6a5646;text-align:center}
 .t-join{color:var(--accent-dark)}
 
-/* 로그인 자리 — 카카오 단추는 카카오 색(#FEE500) 그대로 */
+/* 로그인 자리 — 공식 기호·색·여백. 문구의 가이드 차이는 README에 기록. */
 .t-login{margin:18px 0 8px;padding:16px;border-radius:20px;background:#f7efdf}
 .t-login-title{margin:0 0 2px;font-family:var(--display);font-size:17px;color:#5b402e}
-.t-login-btn{display:block;width:100%;min-height:48px;margin:8px 0 0;border-radius:999px;font-family:var(--display);font-size:16px}
-.t-kakao{background:#FEE500;color:#191919}
-.t-google{background:#fff;color:#3c4043;box-shadow:inset 0 0 0 1px #dadce0}
+.t-login-btn{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;margin:8px 0 0;padding:8px 12px;border-radius:4px;font:500 14px/20px "Google Sans",var(--body);letter-spacing:.25px}
+.t-login-symbol{display:grid;place-items:center;flex:none;width:20px;height:20px}
+.t-login-symbol svg{display:block;width:20px;height:20px}
+.t-login-label{flex:1;text-align:center}
+.t-kakao{border-radius:12px;background:#FEE500;color:rgb(0 0 0 / 85%);font-family:system-ui,sans-serif;font-size:16px;letter-spacing:0}
+.t-google{background:#fff;color:#1f1f1f;box-shadow:inset 0 0 0 1px #747775}
 .t-login-note{margin:10px 0 0;font-size:12px}.t-login-note a{color:var(--accent-dark)}
 .t-login-on{margin:0 0 6px;font-size:14px;line-height:1.6;color:#5f4c3e}
 .t-login-links{display:flex;gap:16px}
@@ -165,9 +168,18 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-bigcard .x-flow{margin:-4px 0 10px}
 .t-mine{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0 10px}
 .t-mine b{font-family:var(--display);font-size:18px;font-weight:400;color:#5b402e}
-.t-mine-ask{margin:4px 0 6px}.t-mine-q{margin:0;font-family:var(--display);font-size:20px;color:#5b402e} /* 겉모습은 GPT 몫 */
-.t-mine-done{flex-basis:100%;margin:0;font-size:13px;font-weight:700;color:var(--leaf)}
-.t-mine-tag{padding:3px 10px;border-radius:999px;background:var(--leaf);color:#fff;font-size:12px;font-weight:700}
+/* 내 동네: 질문과 고르는 곳을 잇고, 저장·도장은 초록 안내로 마무리한다. */
+.t-mine-ask{margin:16px 0 0;padding:18px 18px 14px;border:1px solid #e1d4b8;border-bottom:0;border-radius:22px 22px 0 0;background:#fffcf3}
+.t-mine-q{margin:0 0 8px;font-family:var(--display);font-size:23px;line-height:1.3;color:#5b402e}
+.t-mine-ask .t-small{margin:0;font-size:14px;line-height:1.75;color:#76604e}
+.t-picker{min-width:0;margin:10px 0 16px}
+.t-mine-ask:not([hidden])+.t-picker{margin-top:0;padding:2px 12px 14px;border:1px solid #e1d4b8;border-top:0;border-radius:0 0 22px 22px;background:#fffcf3}
+.t-picker .t-regions{gap:8px;margin:0;padding:12px 0}
+.t-picker .t-regions:empty{display:none}.t-picker .t-regions+.t-regions:not(:empty){border-top:1px dashed #ded1b7;padding-bottom:0}
+.t-picker .t-chip{justify-content:center;min-height:40px;padding:7px 13px;border-radius:12px;background:#f7efdf;box-shadow:inset 0 0 0 1px #e6d8be;font-size:14px;line-height:1.4}
+.t-picker .t-chip.on{background:#557348;color:#fffdf5;box-shadow:none}
+.t-mine-done{flex-basis:100%;margin:6px 0 0;padding:12px 14px;border:1px solid #cedac0;border-radius:14px;background:#edf2e5;font-size:13px;font-weight:650;line-height:1.65;color:#416135;overflow-wrap:anywhere}
+.t-mine-tag{padding:5px 11px;border:1px solid #cbd8be;border-radius:999px;background:#edf2e5;color:#416135;font-size:12px;font-weight:700}
 .t-mine .t-save{background:var(--accent);color:#fffaf0;box-shadow:none}
 /* 문제 카드(10-15) — 한 장 크게, 반응 셋, 반응한 뒤에만 막대 */
 .c-kicker{margin:14px 0 4px;font-family:var(--display);font-size:15px;color:var(--accent-dark)}
