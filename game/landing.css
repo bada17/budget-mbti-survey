@@ -1,62 +1,53 @@
-/* 소개 페이지(landing.ts) — 뼈대·움직임만. 색·글꼴·사진 다루기 등 겉모습은 GPT 몫(README 「GPT 에게 — 소개 페이지·모습 고르기」). */
-.lp{position:fixed;inset:0;z-index:50;overflow-y:auto;overflow-x:hidden;background:#fffaf0;color:#4a3426;font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif;outline:none;transition:opacity .4s,transform .4s}
+/* 소개 페이지: 게임과 같은 크림 종이·둥근 간판. 글과 사진은 PAGE의 빈 자리 그대로. */
+.lp{--lp-paper:#fff7e6;--lp-ink:#4f3f35;--lp-soft:#76604e;--lp-line:#e6d7b9;--lp-action:#ad503d;position:fixed;inset:0;z-index:50;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:var(--lp-paper);color:var(--lp-ink);font-family:var(--body);outline:none;transition:opacity .4s,transform .4s}
 .lp.out{opacity:0;transform:translateY(-12px);pointer-events:none}
-.lp-title{margin:0 0 10px;font-family:'Jua',sans-serif;font-weight:400;font-size:26px;line-height:1.3}
-h1.lp-title{font-size:36px}
-.lp-text{margin:0;font-size:16px;line-height:1.7;color:#6c5240}
-.lp-empty{display:grid;place-items:center;background:#efe3cc;color:#a08a70;font-size:14px;font-weight:700;letter-spacing:.1em}
-
-/* 첫 화면 — 사진을 화면 가득, 글은 아래쪽 */
+.lp-title{margin:0 0 14px;font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,42px);line-height:1.2;letter-spacing:-.025em;text-wrap:balance}
+h1.lp-title{font-size:clamp(44px,7vw,80px)}
+.lp-text{margin:0;max-width:36em;font-size:16px;line-height:1.85;color:var(--lp-soft);word-break:keep-all;overflow-wrap:anywhere}
+.lp-empty{display:grid;place-items:center;background:#e9e2cd;color:#78664f;font:500 14px var(--body);letter-spacing:.04em}
 .lp-hero{position:relative;display:grid;min-height:100dvh;align-items:end;overflow:hidden}
 .lp-hero-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:lp-zoom 14s ease-out both}
-.lp-hero-words{position:relative;padding:28px 20px calc(56px + env(safe-area-inset-bottom));background:linear-gradient(transparent,#fffaf0 38%)}
-.lp-scroll-hint{position:absolute;left:50%;bottom:18px;width:14px;height:14px;border-right:2px solid #8a705a;border-bottom:2px solid #8a705a;transform:translateX(-50%) rotate(45deg);animation:lp-bob 1.6s ease-in-out infinite}
-
-/* 게임 단추 */
-.lp-play{display:block;width:100%;margin:20px 0 0;padding:15px 0;border:0;border-radius:999px;background:#e07a5f;color:#fffaf0;font-family:'Jua',sans-serif;font-size:20px;box-shadow:0 4px 0 #b85b44;cursor:pointer}
-.lp-play:active{transform:translateY(2px);box-shadow:0 2px 0 #b85b44}
-
-/* 이야기 — 폰은 위아래, 넓은 화면은 좌우(번갈아) */
-.lp-story{display:grid;gap:16px;padding:48px 20px}
-.lp-photo{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:20px}
-.lp-photo.lp-empty{display:grid}
-@media (min-width:720px){
-  .lp-story{grid-template-columns:1fr 1fr;align-items:center;max-width:1040px;margin:0 auto;gap:40px}
-  .lp-flip>.lp-photo{order:2}
-}
-
-/* 고정 배경 사진 — 스크롤해도 사진은 멈춰 있다(아이폰 사파리는 fixed 를 안 해서 그냥 따라 움직인다) */
-.lp-band{display:grid;min-height:70dvh;place-items:center;padding:48px 20px;background:center/cover fixed;text-align:center}
-.lp-band-words{max-width:560px;padding:24px;border-radius:20px;background:#fffaf0e6}
-
-/* 카드 — 폰에선 옆으로 밀기 */
-.lp-cards{padding:48px 0}
-.lp-cards>.lp-title{padding:0 20px}
-.lp-card-list{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 20px 12px;scrollbar-width:none}
-.lp-card-list::-webkit-scrollbar{display:none}
-.lp-card{flex:0 0 78%;max-width:320px;scroll-snap-align:center;border-radius:20px;background:#fff;box-shadow:0 2px 0 #e8d8bb;color:inherit;text-decoration:none;overflow:hidden}
-.lp-card .lp-photo{border-radius:0}
-.lp-card-words{padding:14px 16px 18px}
-.lp-card .lp-title{font-size:20px}
-
-/* 끝 */
-.lp-end{padding:56px 20px calc(110px + env(safe-area-inset-bottom));text-align:center}
-.lp-links{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:16px}
-.lp-link{padding:10px 18px;border-radius:999px;background:#f1e5cd;color:#6c5240;font-weight:700;text-decoration:none}
-
-/* 첫 화면을 지나면 아래에 떠 있는 단추 */
-.lp-bar{position:fixed;left:0;right:0;bottom:0;z-index:51;padding:10px 20px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(transparent,#fffaf0 40%);transform:translateY(110%);transition:transform .3s}
-.lp-bar.on{transform:none}
-.lp-bar .lp-play{margin:0}
-.lp.out .lp-bar{display:none}
-
-/* 떠오르기 */
-.lp-up{opacity:0;transform:translateY(24px);transition:opacity .6s,transform .6s}
-.lp-up.in{opacity:1;transform:none}
+.lp-hero-photo.lp-empty{background:#e5e4d0;align-items:start;padding-top:26dvh}
+.lp-hero-words{position:relative;width:100%;padding:100px max(24px,calc((100vw - 1120px)/2)) calc(64px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--lp-paper) 46%)}
+.lp-hero-words .lp-title{max-width:12em}.lp-hero-words .lp-text{max-width:30em}
+.lp-scroll-hint{position:absolute;left:50%;bottom:22px;width:12px;height:12px;border-right:2px solid #8a705a;border-bottom:2px solid #8a705a;transform:translateX(-50%) rotate(45deg);animation:lp-bob 1.6s ease-in-out infinite}
+.lp-play{display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;min-height:56px;margin:24px 0 4px;padding:12px 24px;border:0;border-radius:999px;background:var(--lp-action);color:#fffaf0;font:400 20px var(--display);box-shadow:0 4px 0 #7e382b;cursor:pointer;transition:background .15s,transform .1s,box-shadow .1s}
+.lp-play:hover{background:#9c4534}.lp-play:active{transform:translateY(2px);box-shadow:0 2px 0 #7e382b}
+.lp :is(button,a):focus-visible{outline:3px solid #476c7e;outline-offset:5px}
+.lp-story{display:grid;gap:26px;padding:48px 24px;max-width:1200px;margin:0 auto}
+.lp-photo{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:28px}
+.lp-photo.lp-empty{display:grid;border:1px solid #ddd5be}
+.lp-story-words{padding:0 4px}.lp-story-words .lp-title{margin-bottom:12px}
+.lp-band{display:grid;min-height:60dvh;place-items:center;margin:32px 0;padding:64px 24px;background:center/cover fixed;text-align:center}
+.lp-band.lp-empty{background-color:#e1e5d3;letter-spacing:normal}
+.lp-band-words{width:100%;max-width:600px;padding:36px 24px;border-radius:30px;background:#fff7e6f2}
+.lp-band .lp-text{margin-inline:auto}
+.lp-cards{max-width:1200px;margin:0 auto;padding:48px 0 56px}
+.lp-cards>.lp-title{padding:0 28px;margin-bottom:26px}
+.lp-card-list{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:24px;padding:0 24px 14px;scrollbar-width:thin;scrollbar-color:#c8b798 transparent}
+.lp-card{flex:0 0 82%;max-width:352px;scroll-snap-align:start;border:1px solid var(--lp-line);border-radius:26px;background:#fffcf3;box-shadow:0 4px 0 #e6d8bd;color:inherit;text-decoration:none;overflow:hidden}
+.lp-card .lp-photo{aspect-ratio:5/4;border:0;border-radius:0}
+.lp-card-words{padding:24px}.lp-card .lp-title{font-size:25px;margin-bottom:10px}
+.lp-end{padding:56px 24px calc(88px + env(safe-area-inset-bottom));border-top:1px solid var(--lp-line);text-align:center}
+.lp-end>div{max-width:640px;margin:auto}.lp-end .lp-text,.lp-end .lp-play{margin-inline:auto}
+.lp-links{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:26px}
+.lp-link{display:inline-flex;align-items:center;justify-content:center;min-width:100px;min-height:44px;padding:10px 22px;border:1px solid #d8c7a8;border-radius:999px;background:transparent;color:var(--lp-soft);font-size:14px;font-weight:650;letter-spacing:normal;text-decoration:none}
+.lp-bar{position:fixed;left:0;right:0;bottom:0;z-index:51;display:flex;justify-content:center;padding:16px 24px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(transparent,#fff7e6f5 35%);transform:translateY(110%);transition:transform .3s;pointer-events:none}
+.lp-bar.on{transform:none}.lp-bar .lp-play{margin:0;pointer-events:auto}.lp.out .lp-bar{display:none}
+.lp-up{opacity:0;transform:translateY(24px);transition:opacity .6s,transform .6s}.lp-up.in{opacity:1;transform:none}
 @keyframes lp-zoom{from{transform:scale(1.08)}to{transform:none}}
 @keyframes lp-bob{50%{transform:translate(-50%,6px) rotate(45deg)}}
-@media (prefers-reduced-motion:reduce){
-  .lp-up{opacity:1;transform:none;transition:none}
-  .lp-hero-photo,.lp-scroll-hint{animation:none}
-  .lp-band{background-attachment:scroll}
+@media(min-width:720px){
+ .lp-hero-words{padding-top:140px;padding-bottom:88px}
+ .lp-story{grid-template-columns:1fr 1fr;align-items:center;gap:clamp(40px,7vw,96px);padding:80px 40px}
+ .lp-flip>.lp-photo{order:2}.lp-story-words{padding:16px 0}
+ .lp-band{min-height:68dvh;margin:48px 0}.lp-band-words{padding:48px}
+ .lp-cards{padding:80px 16px}.lp-cards>.lp-title{padding-inline:24px}
+ .lp-card-list{gap:24px}.lp-card{flex:1;min-width:0;max-width:none}
+ .lp-end{padding-top:88px;padding-bottom:100px}
 }
+@media(prefers-reduced-motion:reduce){
+ .lp,.lp-bar,.lp-play,.lp-up{transition:none}.lp-up{opacity:1;transform:none}
+ .lp-hero-photo,.lp-scroll-hint{animation:none}.lp-band{background-attachment:scroll}
+}
+@media(hover:none){.lp-band{background-attachment:scroll}}
