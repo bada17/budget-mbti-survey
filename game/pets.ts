@@ -47,10 +47,10 @@ export class Pet {
   }
   /** 둘이 같은 박자로 세수하지 않게 강아지는 9초 앞에서 시작한다. */
   reset(time = this.kind === 'cat' ? 0 : 9000) { this.clock = time; this.step(0, false); }
-  /** 한 프레임 — 쉬고 있으면(모션 줄이기·일시정지) 기본 자세로 멈춘다. */
-  step(deltaMs: number, resting: boolean) {
+  /** 한 프레임 — 쉬고 있으면(모션 줄이기·일시정지) 기본 자세로 멈춘다. sleeping 이면 눈을 감고 세수하지 않는다. */
+  step(deltaMs: number, resting: boolean, sleeping = false) {
     if (!resting && Number.isFinite(deltaMs)) this.clock += Math.max(0, Math.min(deltaMs, 50));
-    const pose = petPoseAt(this.clock, this.kind, resting);
+    const pose = petPoseAt(this.clock, this.kind, resting, sleeping);
     this.root.setPosition(this.anchor.x, this.anchor.y);
     this.body.setScale(1 - pose.breath * 0.4, 1 + pose.breath);
     this.head.root.setPosition(-2, -18 + pose.headY).setAngle(pose.headAngle);

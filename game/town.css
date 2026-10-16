@@ -105,12 +105,15 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-tip{min-height:1.6em;margin:4px 4px 12px;font-size:14px;color:#6a5646;text-align:center}
 .t-join{color:var(--accent-dark)}
 
-/* 로그인 자리 — 카카오 단추는 카카오 색(#FEE500) 그대로 */
+/* 로그인 자리 — 공식 기호·색·여백. 문구의 가이드 차이는 README에 기록. */
 .t-login{margin:18px 0 8px;padding:16px;border-radius:20px;background:#f7efdf}
 .t-login-title{margin:0 0 2px;font-family:var(--display);font-size:17px;color:#5b402e}
-.t-login-btn{display:block;width:100%;min-height:48px;margin:8px 0 0;border-radius:999px;font-family:var(--display);font-size:16px}
-.t-kakao{background:#FEE500;color:#191919}
-.t-google{background:#fff;color:#3c4043;box-shadow:inset 0 0 0 1px #dadce0}
+.t-login-btn{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;margin:8px 0 0;padding:8px 12px;border-radius:4px;font:500 14px/20px "Google Sans",var(--body);letter-spacing:.25px}
+.t-login-symbol{display:grid;place-items:center;flex:none;width:20px;height:20px}
+.t-login-symbol svg{display:block;width:20px;height:20px}
+.t-login-label{flex:1;text-align:center}
+.t-kakao{border-radius:12px;background:#FEE500;color:rgb(0 0 0 / 85%);font-family:system-ui,sans-serif;font-size:16px;letter-spacing:0}
+.t-google{background:#fff;color:#1f1f1f;box-shadow:inset 0 0 0 1px #747775}
 .t-login-note{margin:10px 0 0;font-size:12px}.t-login-note a{color:var(--accent-dark)}
 .t-login-on{margin:0 0 6px;font-size:14px;line-height:1.6;color:#5f4c3e}
 .t-login-links{display:flex;gap:16px}

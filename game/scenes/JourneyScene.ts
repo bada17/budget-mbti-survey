@@ -19,7 +19,7 @@ import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, rollBall, 
 import { OUTCOMES, THANKS } from '../outcomes';
 import { nameFrom } from '../look';
 import { TWISTS, streamOf, keepDry, catOf, CAT_WAKE, type TwistKind } from '../twists';
-import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, ball as makeBall, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt } from '../draw';
+import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, ball as makeBall, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt, type Cat } from '../draw';
 import type { Pick } from '../look';
 import type { Neighbor } from '../profile';
 import { sfx } from '../sfx';
@@ -69,6 +69,8 @@ export class JourneyScene extends Phaser.Scene {
   private roomIndex = 0;
   private room!: Room;
   private art!: RoomArt;
+  /** 넘어오는 방도 매 프레임 숨쉰다. 좌표는 각 방 컨테이너 안의 at 그대로. */
+  private roomCats = new Set<Cat>();
   private residents: Partial<Record<DisplaySide, Dude>> = {};
   private chosen?: DisplaySide;
   private doorOpen = false;
@@ -108,7 +110,7 @@ export class JourneyScene extends Phaser.Scene {
     this.trail = [{ x: this.pos.x, y: this.pos.y + 80 }, { ...this.pos }];
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.tapHill(p.worldX, p.worldY));
     const stop = this.runtime.subscribe(event => this.onEvent(event));
-    this.events.once('shutdown', stop);
+    this.events.once('shutdown', () => { stop(); this.roomCats.clear(); });
     this.runtime.ready();
   }
 
@@ -155,6 +157,7 @@ export class JourneyScene extends Phaser.Scene {
     const question = orderedQuestions[index];
     const room = layoutRoom(w, h);
     const art = drawRoom(this, room, Math.floor(index / 3), question.id, offsetY, question.place);
+    if (art.cat) this.roomCats.add(art.cat);
     const residents: Partial<Record<DisplaySide, Dude>> = {};
     for (const side of SIDES) {
       const at = room.residents[side];
@@ -170,6 +173,7 @@ export class JourneyScene extends Phaser.Scene {
   }
 
   private dropRoom() {
+    if (this.art.cat) this.roomCats.delete(this.art.cat);
     this.art.destroy();
     this.dropTwist();
     this.dropResidents();
@@ -247,6 +251,9 @@ export class JourneyScene extends Phaser.Scene {
     if (!this.player) return;
     const dt = Math.min(delta, FEEL.maxDeltaMs);
     const state = this.runtime.state();
+    const resting = this.reduced || state.paused;
+    for (const kitty of this.roomCats) kitty.pet.step(dt, resting);
+    this.twist?.art.cat?.pet.step(dt, resting, !this.twist.done);
     const before = { ...this.pos };
     if (this.mode === 'play' && !state.paused) this.walk(dt);
     else if (this.hillRoom && !this.warping) this.walk(dt, this.hillRoom, [], true);
