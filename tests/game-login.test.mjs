@@ -42,10 +42,12 @@ test('기록 묶음: 이상한 칸은 그 칸만 버리고, 합칠 땐 없는 �
   const older = { at: 1, town: 'b'.repeat(TOWN_IDS.length), type: '000' };
   importSave({ me: { name: '서버', pick: [1, 1, 1, 1] }, stamps: { walk: 50, table: 60 }, last: older, region: '2600000' });
   const here = exportSave();
-  assert.equal(here.me.name, '이 기기', '이 기기 이름이 그대로');
+  assert.equal(here.me.name, '서버', '로그인한 계정의 모습·이름은 서버 것(10-16 — 새 브라우저의 기본 모습이 서버를 덮던 것)');
   assert.deepEqual(loadStamps(), { walk: 50, table: 60 }, '도장은 둘 다, 먼저 받은 시각');
   assert.equal(loadLast().type, '101', '지난번 판은 나중 것(이 기기)');
   assert.equal(here.region, '2600000', '없던 칸은 서버 것으로');
+  importSave({});
+  assert.equal(exportSave().me.name, '서버', '서버에 없는 칸(처음 로그인한 계정)은 이 기기 것 그대로');
 });
 
 const props = { LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/', KAKAO_REST_KEY: 'rest', GOOGLE_CLIENT_ID: 'gid', ACCOUNT_SALT: 'salt' };

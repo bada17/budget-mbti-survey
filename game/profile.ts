@@ -228,16 +228,18 @@ export function exportSave(): Save {
 }
 
 /**
- * 서버 묶음을 이 기기에 합친다 — 이 기기에 없는 칸은 서버 것으로, 지난번 판은 더 나중 것으로, 도장은 둘 다(먼저 받은 시각).
- * 이 기기에 이미 있는 이름·이웃·방명록 집·지역은 그대로 둔다(지금 쓰고 있는 기기가 더 새것이라고 본다).
+ * 서버 묶음을 이 기기에 합친다 — 이름·모습·이웃·방명록 집·지역은 서버에 있으면 서버 것, 없으면 이 기기 것 그대로.
+ * 지난번 판은 더 나중 것으로, 도장은 둘 다(먼저 받은 시각).
+ * 서버가 이긴다(10-16) — 예전엔 이 기기가 이겨서, 새 브라우저의 기본 모습이 로그인하자마자 서버의 진짜 모습을 덮고
+ * 두 브라우저를 번갈아 쓰면 옛 브라우저가 옛 기록을 다시 올렸다. 이 기기에서 고친 것은 1.5초 안에 서버로 가니(keepSynced) 서버가 늘 최신이다.
  */
 export function importSave(remote: Save) {
   const here = exportSave();
-  if (!here.me && remote.me) saveMe(remote.me);
-  if (!here.neighbor && remote.neighbor) saveNeighbor(remote.neighbor);
+  if (remote.me) saveMe(remote.me);
+  if (remote.neighbor) saveNeighbor(remote.neighbor);
   if (remote.last && (!here.last || remote.last.at > here.last.at)) write(TOWN_KEY, remote.last);
-  if (!here.home && remote.home) saveHome(remote.home);
-  if (!here.region && remote.region) saveRegion(remote.region);
+  if (remote.home) saveHome(remote.home);
+  if (remote.region) saveRegion(remote.region);
   if (remote.stamps) {
     const mine = loadStamps(), merged = { ...remote.stamps, ...mine };
     for (const [id, at] of Object.entries(remote.stamps)) if (mine[id]) merged[id] = Math.min(mine[id], at);
