@@ -136,3 +136,14 @@ test('시트 로그인: 「주민」 탭엔 해시만 — 회원번호는 어디
   assert.match(sheets.get('주민').rows[1][0], /^kakao:[0-9a-f]{64}$/);
   assert.equal(post('/login', { provider: 'kakao', code: 'good', redirectUri }, fakeDeps(kakaoOk)).body.key, key, '다시 로그인해도 같은 열쇠');
 });
+
+test('카톡 밖으로 실어 보내는 기록: 한글 이름까지 그대로 돌아오고, 깨진 글자는 버린다', async () => {
+  const { packCarry, unpackCarry } = await import('../game/login.ts');
+  memory.clear();
+  saveMe({ name: '한빛', pick: [0, 0, 0, 0] });
+  addStamp(TOWN_IDS[0]);
+  const save = exportSave();
+  assert.deepEqual(unpackCarry(packCarry(save)), cleanSave(save));
+  assert.equal(unpackCarry('%%%'), undefined);
+  assert.equal(unpackCarry(btoa('{"me":{"name":1}}'))?.me, undefined);
+});

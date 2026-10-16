@@ -2,7 +2,8 @@
   로그인 — 카카오·구글 두 가지(사용자 10-14 「로그인 넣어야 새로 들어올 때 기록될 듯」 「카카오톡, 지메일로만」). 네이버는 안 넣는다(README 「로그인」).
 
   · 왜 — 카톡 안 브라우저와 크롬은 저장소가 따로라, 로그인 없이는 같은 사람이 다시 와도 처음 온 사람이 된다.
-  · 카톡 안 브라우저에서는 구글 단추를 안 보인다 — 구글이 앱 속 브라우저 로그인을 막는다.
+  · 카톡 안 브라우저에서 구글을 누르면 카톡 밖 브라우저(크롬·사파리·삼성)로 같은 주소를 열고 거기서 구글로 간다 — 구글이 앱 속 브라우저 로그인을 막는다
+    (사용자 10-16 「단톡방에서 열어도 구글로그인되게」). 카톡 안과 밖은 저장소가 따로라 이 기기 기록을 주소 # 에 실어 보낸다. 카카오는 카톡 안에서 그대로.
   · 처음엔 묻지 않는다 — 끝 공터 도장 주민 판(「주민증 지키기」)과 시작 화면(「전에 해 봤어요」)에서만. 안 해도 끝까지 한다.
   · 받는 것 = 회원번호(서버가 소금 친 해시로 바꿔 둔다) + 확인된 이메일(사용자 10-15 「이메일 정도는 받을 수 있잖아」).
     이메일은 서버가 돌려주기만 하고 남기지 않는다 — 로그인 직후 「소식 받기」 칸을 채우는 데만 쓰고, 동의해야 /contact 로 간다(main.ts offerNews).
@@ -14,7 +15,7 @@
   → 열쇠·서버 기록을 받아 이 기기 것과 합침(profile.ts importSave) → 다시 연다(합친 기록으로 처음부터 읽게).
 */
 import { net } from './net';
-import { saveLogin, loadLogin, clearLogin, importSave, exportSave, onWrite, type Login } from './profile';
+import { saveLogin, loadLogin, clearLogin, importSave, exportSave, cleanSave, onWrite, type Login, type Save } from './profile';
 
 export type Provider = Login['provider'];
 const KAKAO: string | undefined = import.meta.env?.VITE_KAKAO_REST_KEY || undefined;
@@ -25,11 +26,34 @@ const DONE = 'budget-game-login-done';
 const EMAIL = 'budget-game-login-email';
 export const PROVIDER_NAME: Record<Provider, string> = { kakao: '카카오', google: '구글' };
 
-/** 카톡 안 브라우저 — 구글 로그인이 막힌다. */
+/** 카톡 안 브라우저 — 구글 로그인이 막혀서 밖으로 내보낸다(escapeKakao). */
 export const inKakao = () => /KAKAOTALK/i.test(navigator.userAgent);
 
-/** 보여 줄 로그인 단추 — 카카오는 늘, 구글은 카톡 안 브라우저가 아니면. */
-export const providers = (): Provider[] => (inKakao() ? ['kakao'] : ['kakao', 'google']);
+/** 보여 줄 로그인 단추 — 어디서든 둘 다. */
+export const providers = (): Provider[] => ['kakao', 'google'];
+
+/** 기록 묶음 ↔ 주소에 실을 글자(base64). 못 읽으면 undefined. */
+export const packCarry = (save: Save) => btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(save))));
+export function unpackCarry(text: string): Save | undefined {
+  try { return cleanSave(JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(text), c => c.charCodeAt(0))))); } catch { return undefined; }
+}
+
+/** 카톡 안에서 구글 — 카톡 밖 브라우저로 이 주소를 연다. 이 기기 기록과 「구글로 가라」 를 # 에 싣는다. */
+function escapeKakao() {
+  const url = `${here()}#${query({ carry: packCarry(exportSave()), go: 'google' })}`;
+  location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
+  return true;
+}
+
+/** 카톡에서 밖으로 나와 열렸을 때 한 번 — 실어 온 기록을 합치고 바로 구글로 간다. 그런 길이 아니면 false. */
+export function arrivedFromKakao(): boolean {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get('go') !== 'google') return false;
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+  const carried = unpackCarry(hash.get('carry') ?? '');
+  if (carried) importSave(carried);
+  return start('google');
+}
 
 /** 이 빌드에서 실제로 되나 — 키가 들어갔거나 개발판(가짜 로그인). */
 const ready = (provider: Provider) => Boolean(FAKE || (provider === 'kakao' ? KAKAO : GOOGLE));
@@ -41,6 +65,7 @@ const query = (o: Record<string, string>) => new URLSearchParams(o).toString();
 /** 카카오·구글 화면으로 간다. 돌아오면 finish(). 아직 못 가면(키 없음·저장소 막힘) false. */
 export function start(provider: Provider): boolean {
   if (!ready(provider)) return false;
+  if (provider === 'google' && inKakao()) return escapeKakao();
   const state = randomHex();
   try { sessionStorage.setItem(PENDING, JSON.stringify({ provider, state })); } catch { return false; }
   const back = here();

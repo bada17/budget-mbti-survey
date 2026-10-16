@@ -19,7 +19,7 @@ import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openT
 import type { PublicCard } from './api';
 import { PLACES, keeperName, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
-import { providers, start as startLogin, finish as finishLogin, justLoggedIn, takeLoginEmail, keepSynced, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
+import { providers, start as startLogin, finish as finishLogin, arrivedFromKakao, justLoggedIn, takeLoginEmail, keepSynced, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact, type ContactForm } from './contact';
@@ -135,6 +135,7 @@ const shell = root.querySelector<HTMLElement>('.g')!;
 // 로그인(login.ts) — 단추는 늘 보이고 키가 없으면 「곧 열려요」. 카카오·구글에서 돌아왔으면 확인하고 다시 연다. 마을 입구 판은 gateLogin.
 const loginOpts: LoginOpts = { providers: providers(), current: loginNow, admin: loginAdmin, start: startLogin, logout, forget };
 keepSynced();
+arrivedFromKakao(); // 카톡 안에서 구글을 눌러 밖 브라우저로 나왔으면 실어 온 기록을 합치고 바로 구글로
 void finishLogin().then(result => {
   if (result === 'failed') ui.toast('로그인하지 못했어요. 조금 뒤에 다시 해 주세요');
   if (result === 'cancelled') ui.toast('로그인을 그만뒀어요');
