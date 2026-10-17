@@ -10,6 +10,7 @@
     그날 정해진 나무에선 동전·열매가 떨어진다 — 걸어가 주우면 주머니에(ⓕ). 동전은 공사터에 넣어 모두의 공사를 채운다(ⓑ, places.ts openWorks).
     공사가 끝나면 카메라가 그곳에 갔다가(뚝딱 서는 연출) 돌아온다(10-15).
   · 남동쪽 구석 작은 운동장 — 공을 차서 골대에 넣는다(10-15, 걷기 판의 골 놀이를 옮겨 옴).
+  · 마을 부탁(10-17) — 필드에 선 주민 머리 위 「!」. 곁에 가면 부탁을 듣는다(runtime.errand). 규칙은 quests.ts.
   배치·부딪힘은 village.ts, 그림은 draw.ts 의 drawVillage. 여기서는 위치·연출만.
 */
 import Phaser from 'phaser';
@@ -41,8 +42,8 @@ export type VillageRuntime = {
   drops(trees: number): Map<number, Drop>;
   /** 주웠다 — main 이 주머니에 넣는다. */
   picked(tree: number, kind: Drop): void;
-  /** 오늘의 부탁에 쓰는 일 — 'cat'(고양이에게 인사) · 'shake'(나무 흔들기). */
-  event(name: string): void;
+  /** 부탁하는 주민 곁에 닿았다 — main 이 말 상자를 연다(멀어졌다 와야 또 연다). */
+  errand(id: string): void;
 };
 
 /** 서성이는 주민 — 최근에 들른 사람의 모습. 쪽지를 붙였으면 쪽지를 든다. */
@@ -64,6 +65,9 @@ export class VillageScene extends Phaser.Scene {
   private buddy?: Dude;
   private trail: Point[] = [];
   private keepers: { dude: Dude; at: Point; tag?: Phaser.GameObjects.Text }[] = [];
+  /** 부탁하는 주민(quests.ts) — 「!」 는 아직 안 들어준 부탁만. talking = 지금 말 건 주민(멀어져야 또 연다). */
+  private errands = new Map<string, { dude: Dude; at: Point; mark?: Phaser.GameObjects.Container }>();
+  private talking?: string;
   private folks = new Map<string, Folk>();
   private inside?: PlaceId;
   private reading?: Folk;
@@ -129,14 +133,23 @@ export class VillageScene extends Phaser.Scene {
   /** 지도에서 고른 곳 — 잠깐 어두워졌다가 그 문 앞에 선다. 문이 열리는 건 다음 판이 한다(main 이 연다). */
   jump(id: PlaceId, done: () => void) {
     const place = PLACES.find(p => p.id === id)!;
+    this.jumpTo({ x: place.door.x, y: place.door.y + 4 }, () => { this.inside = id; done(); }); // 도착하자마자 또 열리지 않게
+  }
+
+  /** 부탁하는 주민 곁으로(주민 폰 「부탁」) — 왼쪽 옆에 선다(겹쳐 서지 않게). 닿았으니 talk 가 곧 말을 건다. */
+  jumpToErrand(id: string) {
+    const npc = this.errands.get(id);
+    if (npc) this.jumpTo({ x: npc.at.x - 28, y: npc.at.y + 2 }, () => {});
+  }
+
+  private jumpTo(at: Point, done: () => void) {
     const go = () => {
       this.goal = undefined; this.route = [];
-      this.pos = { x: place.door.x, y: place.door.y + 4 };
+      this.pos = { ...at };
       this.trail = [{ x: this.pos.x, y: this.pos.y + 40 }, { ...this.pos }];
       this.buddy?.place({ x: this.pos.x, y: this.pos.y + 30 });
       this.player.place(this.pos);
       this.cameras.main.centerOn(this.pos.x, this.pos.y - 40);
-      this.inside = id; // 도착하자마자 또 열리지 않게
       done();
       if (!this.reduced) this.cameras.main.fadeIn(200, 255, 250, 240);
     };
@@ -178,10 +191,12 @@ export class VillageScene extends Phaser.Scene {
     return { x: at.x, y: at.y };
   }
 
-  /** 톡 친 곳이 건물(지붕 포함)이면 그 문 앞으로. */
+  /** 톡 친 곳이 건물(지붕 포함)이면 그 문 앞으로, 부탁하는 주민(몸 둘레)이면 그 발밑으로. */
   private tapGoal(p: Point): Point {
     const hit = PLACES.find(({ box }) => p.x > box.x - 8 && p.x < box.x + box.w + 8 && p.y > box.y - 64 && p.y < box.y + box.h + 4);
-    return hit ? { x: hit.door.x, y: hit.door.y } : p;
+    if (hit) return { x: hit.door.x, y: hit.door.y };
+    for (const { at } of this.errands.values()) if (Math.abs(p.x - at.x) < 22 && p.y > at.y - 60 && p.y < at.y + 10) return { ...at }; // 곁(talk 거리)에 닿으면 말을 걸며 멈춘다
+    return p;
   }
 
   update(_time: number, delta: number) {
@@ -195,13 +210,14 @@ export class VillageScene extends Phaser.Scene {
     if (moving && !this.reduced && (this.dustClock += dt) > FEEL.dustEveryMs) { this.dustClock = 0; dust(this, this.pos.x - 6, this.pos.y); }
     this.follow(dt);
     this.wander(dt);
-    for (const { dude, at } of this.keepers) { dude.look(this.pos.x - at.x, this.pos.y - at.y); dude.walk(dt, false, this.reduced); }
+    for (const { dude, at } of [...this.keepers, ...this.errands.values()]) { dude.look(this.pos.x - at.x, this.pos.y - at.y); dude.walk(dt, false, this.reduced); }
     this.toys(dt);
     this.kickAbout(dt);
     if (!this.paused) { this.shakeTrees(); this.pickUp(); }
     this.cull(); // 화면 밖은 안 그린다 — 느린 폰에서 끊기지 않게
     if (this.paused) return;
     this.doors();
+    this.talk();
     this.notes();
   }
 
@@ -232,6 +248,7 @@ export class VillageScene extends Phaser.Scene {
     this.art.cull(view);
     const seen = (x: number, y: number) => x > view.x - m && x < view.right + m && y > view.y - m && y < view.bottom + m + 60;
     for (const { dude, at, tag } of this.keepers) { const on = seen(at.x, at.y); dude.root.setVisible(on); tag?.setVisible(on); }
+    for (const { dude, at, mark } of this.errands.values()) { const on = seen(at.x, at.y); dude.root.setVisible(on); mark?.setVisible(on); }
     for (const folk of this.folks.values()) { const on = seen(folk.at.x, folk.at.y); folk.dude.root.setVisible(on); folk.mark?.setVisible(on); }
     for (const { pet } of this.art.pets) pet.root.setVisible(seen(pet.anchor.x, pet.anchor.y));
     for (const bird of this.art.pigeons) if (!bird.fled) bird.root.setVisible(seen(bird.at.x, bird.at.y));
@@ -287,6 +304,43 @@ export class VillageScene extends Phaser.Scene {
     }
   }
 
+  /** 부탁하는 주민 곁에 닿으면 말을 건다 — 한 번 걸고 나면 멀어졌다 와야 또. */
+  private talk() {
+    if (this.talking) {
+      const npc = this.errands.get(this.talking);
+      if (!npc || distance(npc.at, this.pos) > LEAVE_RADIUS) this.talking = undefined;
+      return;
+    }
+    for (const [id, npc] of this.errands) if (distance(npc.at, this.pos) < ENTER_RADIUS + 8) {
+      this.talking = id;
+      this.runtime.controls.clear(); this.goal = undefined; this.route = [];
+      npc.dude.hop(8, 1, this.reduced);
+      sfx.meet();
+      this.runtime.errand(id);
+      return;
+    }
+  }
+
+  /** 부탁하는 주민 — 오늘 세울 주민(quests.ts errandsShown). 이미 선 사람은 그대로 두고 「!」 만 고친다. */
+  setErrands(list: { id: string; at: Point; open: boolean }[]) {
+    for (const [id, npc] of this.errands) if (!list.some(e => e.id === id)) { npc.dude.destroy(); npc.mark?.destroy(); this.errands.delete(id); }
+    for (const { id, at, open } of list) {
+      let npc = this.errands.get(id);
+      if (!npc) { npc = { dude: new Dude(this, lookFrom(`errand:${id}`), at.x, at.y).place(at), at }; this.errands.set(id, npc); }
+      if (open && !npc.mark) npc.mark = this.bubble({ x: at.x, y: at.y - 70 });
+      if (!open && npc.mark) { npc.mark.destroy(); npc.mark = undefined; }
+    }
+  }
+
+  /** 받은 액세서리를 쓰면 — 내 모습을 다시 그리고 폴짝, 반짝. */
+  setLook(pick: Pick) {
+    this.player.destroy();
+    this.player = new Dude(this, toLook(pick), this.pos.x, this.pos.y).place(this.pos);
+    if (!this.showing) this.cameras.main.startFollow(this.player.root, true, 0.14, 0.14);
+    this.player.hop(12, 2, this.reduced);
+    sparkle(this, this.pos.x, this.pos.y - 40, this.reduced);
+  }
+
   /** 쪽지 든 주민 곁에 서면 그 주민이 멈춰 나를 보고, 아래에 쪽지가 뜬다. */
   private notes() {
     if (this.reading && distance(this.reading.at, this.pos) > NOTE_LEAVE) { this.reading.wait = 600; this.reading = undefined; this.runtime.near(undefined); }
@@ -309,7 +363,7 @@ export class VillageScene extends Phaser.Scene {
       const d = distance(this.pos, p.pet.anchor);
       if (!p.near && d < FEEL.catRadius) {
         p.near = true; hearts(this, p.pet.anchor.x - 4, p.pet.anchor.y - 26, 1, this.reduced);
-        if (p.pet.kind === 'cat') { sfx.meow(); this.runtime.event('cat'); }
+        if (p.pet.kind === 'cat') sfx.meow();
       } else if (p.near && d > FEEL.catRadius + 30) p.near = false;
     }
   }
@@ -336,20 +390,25 @@ export class VillageScene extends Phaser.Scene {
   relayout() { if (this.player) this.cameras.main.setZoom(this.runtime.view().dpr); }
 
   private marks = new Map<PlaceId, Phaser.GameObjects.Container>();
-  /** 오늘의 부탁이 있는 건물 — 문 앞 주민 머리 위 「!」(쪽지판은 판 위). 다 들어주면 없어진다. */
+  /** 「!」 를 띄울 건물 — 지금은 새 문제 카드뿐([나중에 살림]), 쪽지판·문제 카드는 판 위. */
   setQuestMarks(places: PlaceId[]) {
     for (const [id, mark] of this.marks) if (!places.includes(id)) { mark.destroy(); this.marks.delete(id); }
     for (const id of places) {
       if (this.marks.has(id)) continue;
       const place = PLACES.find(p => p.id === id)!;
       const at = id === 'board' || id === 'cards' ? { x: place.box.x + place.box.w + 16, y: place.box.y - 54 } /* 판 이름 옆 — 위에 얹으면 「쪽지판」 을 가린다 */ : { x: place.door.x + 38, y: place.door.y - 70 };
-      const bubble = this.add.container(at.x, at.y, [
-        this.add.circle(0, 0, 13, 0xf5c55c).setStrokeStyle(2, 0xcf9b37),
-        this.add.text(0, 1, '!', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: this.runtime.view().dpr }).setOrigin(0.5),
-      ]).setDepth(at.y + 200);
-      if (!this.reduced) this.tweens.add({ targets: bubble, y: at.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      this.marks.set(id, bubble);
+      this.marks.set(id, this.bubble(at));
     }
+  }
+
+  /** 머리 위 「!」 — 둥실. */
+  private bubble(at: Point) {
+    const bubble = this.add.container(at.x, at.y, [
+      this.add.circle(0, 0, 13, 0xf5c55c).setStrokeStyle(2, 0xcf9b37),
+      this.add.text(0, 1, '!', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: this.runtime.view().dpr }).setOrigin(0.5),
+    ]).setDepth(at.y + 200);
+    if (!this.reduced) this.tweens.add({ targets: bubble, y: at.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    return bubble;
   }
 
   /**
@@ -431,7 +490,6 @@ export class VillageScene extends Phaser.Scene {
       this.shaken.set(i, now);
       if (!this.reduced) { const x0 = t.img.x; this.tweens.add({ targets: t.img, x: x0 + 2.5, duration: 55, yoyo: true, repeat: 3, onComplete: () => t.img.setX(x0) }); }
       sfx.rustle();
-      this.runtime.event('shake');
       const kind = this.drops.get(i);
       if (!kind) return;
       this.drops.delete(i);

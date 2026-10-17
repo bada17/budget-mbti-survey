@@ -15,7 +15,8 @@ import {
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, loadCardMemo, saveCardMemo, type Me, type Town, type Neighbor,
 } from './profile';
 import { openTown, openReply, openLetter, openLogin, openNews, openLoggedIn, type Person, type LoginOpts } from './town';
-import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCards, noteCard, loadMarks, rememberMine, loadPocket, savePocket, questHook, type CardsOpts } from './places';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCards, noteCard, loadMarks, rememberMine, loadPocket, savePocket, type CardsOpts } from './places';
+import { openArcade } from './arcade';
 import type { PublicCard } from './api';
 import { PLACES, keeperName, dropsOn, kstDay, worksAt, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
@@ -24,7 +25,8 @@ import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp, EVENTS } from './stamps';
 import { checkContact, type ContactForm } from './contact';
 import { quizFor } from './quiz';
-import { questsOn, QUEST_REWARD } from './quests';
+import { ERRANDS, ERRAND_COIN, errandDay, errandsShown, finishErrand, loadErrands, saveErrands, type Choice } from './quests';
+import { REWARDS, wearing, nameFrom } from './look';
 import { net, TABLES } from './net';
 import type { Stats, TableView, VillageView } from './api';
 import type { JourneyScene, SceneCommand, Guest } from './scenes/JourneyScene';
@@ -348,7 +350,11 @@ function enteredVillage() {
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
   marks();
+  showErrands();
   hubGuide();
+  // 개발판 ?go=건물 — 마을에 들어오자마자 그 건물 판을 연다(오락실 같은 판을 바로 보려고, 10-17). 공개판엔 없다.
+  const go = import.meta.env.DEV ? PLACES.find(p => p.id === params.get('go')) : undefined;
+  if (go) village?.jump(go.id, () => openPlace(go.id));
   if (!online) village?.setWorks(loadPocket(kstDay(Date.now())).given); // 서버 없는 시험판 — 내가 넣은 동전만
   if (villageStart === 'plaza') {
     if (gotEvent) ui.toast(`「${gotEvent}」 현장 도장을 받았어요. 「내 기록 보는 곳」 시민증에 찍혀 있어요.`);
@@ -374,8 +380,8 @@ let cards: PublicCard[] | undefined;
 const loadCards = async () => (cards = (await net.cards())?.cards ?? cards);
 /** 아직 안 연 새 카드가 있나 — 맨 위(가장 새) 카드만 본다. */
 const newCard = () => Boolean(cards?.[0] && !loadCardMemo().seen.includes(cards[0].id));
-/** 머리 위 「!」 — 오늘의 부탁 건물 + 새 문제 카드. */
-function marks() { village?.setQuestMarks([...openQuests().map(q => q.place), ...(newCard() ? ['cards' as const] : [])]); }
+/** 건물 머리 위 「!」 — 새 문제 카드([나중에 살림]). 부탁하는 주민의 「!」 는 showErrands. */
+function marks() { village?.setQuestMarks(newCard() ? ['cards'] : []); }
 const cardOpts = (focus?: string): CardsOpts => ({
   online, focus, load: loadCards, mine: () => loadCardMemo().mine,
   react: async (id, kind) => {
@@ -452,33 +458,47 @@ function picked(tree: number, kind: Drop) {
   if (first) ui.villageNotice(keeperName('works'), `동전을 주웠네요! 「동전 모으는 곳」 에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
     [{ label: '넣으러 가기', run: toWorks }, { label: '나중에' }]);
 }
-// ── 오늘의 부탁(10-14 ⓓ) — quests.ts 규칙, 해낸 것은 주머니에 ──
-const todaysQuests = () => questsOn(kstDay(Date.now()));
-/** 아직 안 들어준 부탁이 있는 건물 — 마을 「!」. */
-const openQuests = () => { const done = loadPocket(kstDay(Date.now())).quests; return todaysQuests().filter(q => !done.includes(q.id)); };
-questHook.line = id => openQuests().find(q => q.place === id)?.ask;
-questHook.fire = questEvent;
-function questEvent(event: string) {
-  const pocket = loadPocket(kstDay(Date.now()));
-  for (const q of todaysQuests()) {
-    if (q.event !== event || pocket.quests.includes(q.id)) continue;
-    const n = (pocket.progress[q.id] ?? 0) + 1;
-    if (q.count && n < q.count) { pocket.progress[q.id] = n; savePocket(pocket); continue; }
-    pocket.quests.push(q.id); pocket.coins += QUEST_REWARD; savePocket(pocket);
-    ui.villagePocket(pocket.coins, toWorks);
-    sfx.coin();
-    ui.say(keeperName(q.place), `부탁 들어줘서 고마워요! 동전 ${QUEST_REWARD}개 드릴게요.`, 2800);
-    marks();
-  }
+// ── 마을 부탁(10-17) — quests.ts 규칙(하루 셋·닷새, 그날 셋을 다 해야 다음 날), 해낸 것은 이 기기에. 하루치를 다 하면 액세서리(look.ts REWARDS) ──
+if (import.meta.env.DEV && params.has('errands')) saveErrands({ done: [], cleared: [] }); // 개발판 ?errands — 부탁을 처음부터(공개판엔 없다)
+const errandName = (id: string) => nameFrom(`errand:${id}`);
+function showErrands() { village?.setErrands(errandsShown(loadErrands(), kstDay(Date.now()))); }
+/** 부탁하는 주민 곁 — 말 상자에 부탁과 보기(다 같은 모양). 이미 들어줬으면 한마디만. */
+function openErrand(id: string) {
+  const errand = ERRANDS.find(e => e.id === id);
+  if (!errand || panelOpen) return;
+  const who = errandName(id);
+  if (loadErrands().done.includes(id)) { ui.say(who, '저번엔 고마웠어요!'); return; }
+  ui.villageNotice(who, errand.ask, errand.choices.map(choice => ({ label: choice.text, run: () => answerErrand(id, choice) })), true);
 }
-/** 주민 폰 「오늘의 부탁」 — 셋과 해냈는지. 누르면 그 건물로. */
-function openQuestList() {
-  const done = loadPocket(kstDay(Date.now())).quests;
-  ui.placeList(todaysQuests().map(q => ({
-    name: `${done.includes(q.id) ? '✓ ' : ''}${PLACES.find(p => p.id === q.place)!.name} · ${keeperName(q.place)}`,
-    line: done.includes(q.id) ? '들어줬어요. 내일 또 부탁할게요.' : q.ask,
-    run: () => village?.jump(q.place, () => openPlace(q.place)),
-  })), '오늘의 부탁');
+/** 골랐다 — 맞는 답이 있는 부탁은 틀리면 까닭을 듣고 다시 고른다. 들어주면 동전, 그날 셋을 다 하면 dayDone. */
+function answerErrand(id: string, choice: Choice) {
+  const errand = ERRANDS.find(e => e.id === id)!, who = errandName(id);
+  if (errand.choices.some(c => c.right) && !choice.right) { ui.villageNotice(who, choice.reply, [{ label: '다시 골라 볼게요', run: () => openErrand(id) }]); return; }
+  const today = kstDay(Date.now()), { memo, cleared } = finishErrand(loadErrands(), id, today);
+  saveErrands(memo);
+  const pocket = loadPocket(today);
+  pocket.coins += ERRAND_COIN; savePocket(pocket);
+  ui.villagePocket(pocket.coins, toWorks); sfx.coin();
+  showErrands();
+  ui.villageNotice(who, `${choice.reply} 고마워요! 동전 ${ERRAND_COIN}개 드릴게요.`, [{ label: '좋아요', run: () => { if (cleared !== undefined) dayDone(who, cleared); } }]);
+}
+/** 그날 셋을 다 들어줬다 — 액세서리를 받아 바로 쓰고(옷장은 아직 없음), 다음 부탁은 언제인지. */
+function dayDone(who: string, day: number) {
+  const reward = REWARDS[day];
+  if (reward) { me = { ...me, pick: wearing(me.pick, reward), at: Date.now() }; saveMe(me); village?.setLook(me.pick); }
+  const wait = errandDay(loadErrands(), kstDay(Date.now())).wait;
+  const next = wait === 'all' ? '부탁 열다섯을 다 들어줬어요!' : wait === 'soon' ? '다음 부탁은 아직 준비 중이에요.' : '내일 새 부탁 셋이 열려요.';
+  ui.villageNotice(who, `오늘 부탁을 다 들어줬어요! ${reward ? `선물로 ${josa(reward.name, '을', '를')} 드려요. 지금 쓰고 있어요. ` : ''}${next}`, [{ label: '고마워요' }]);
+}
+/** 주민 폰 「오늘의 부탁」 — 오늘 셋과 들어줬는지. 누르면 그 주민 곁으로. */
+function openErrandList() {
+  const memo = loadErrands(), { day, list, wait } = errandDay(memo, kstDay(Date.now()));
+  if (!list.length) { ui.placeList([], wait === 'tomorrow' ? '오늘 부탁은 다 했어요 — 내일 셋이 더 열려요' : wait === 'all' ? '부탁 열다섯을 다 들어줬어요' : '다음 부탁은 준비 중이에요'); return; }
+  ui.placeList(list.map(e => ({
+    name: `${memo.done.includes(e.id) ? '✓ ' : ''}${errandName(e.id)}`,
+    line: memo.done.includes(e.id) ? '들어줬어요.' : e.ask,
+    run: () => village?.jumpToErrand(e.id),
+  })), `오늘의 부탁 · ${day + 1}일째`);
 }
 
 /** 공사터 문 앞으로 가서 판을 연다. */
@@ -491,7 +511,8 @@ function openPhone() {
   const go = (id: PlaceId) => () => village?.jump(id, () => openPlace(id));
   ui.phone(head, [
     { icon: '🗺️', name: '지도', run: openMap },
-    { icon: '📝', name: '오늘의 부탁', run: openQuestList },
+    { icon: '📝', name: '오늘의 부탁', run: openErrandList },
+    { icon: '🕹️', name: '오락실', run: go('arcade') },
     { icon: '🪪', name: '내 기록', run: go('hub') },
     { icon: '💰', name: '세금', run: go('tax') },
     { icon: '🏗️', name: '동전 모으기', run: go('works') },
@@ -512,7 +533,6 @@ function openMap() {
 function openPlace(id: PlaceId) {
   const who = villageMe();
   ui.villageNotice();
-  setTimeout(() => questEvent(`open:${id}`), 1600); // 판을 열고 주민 말을 들은 뒤에
   panelOpen = true; village?.setPaused(true); notesCard.hide(); ui.closeSheet();
   const done = () => { panelOpen = false; village?.setPaused(false); };
   if (id === 'hub') { if (who) void (village?.portrait() ?? Promise.resolve(undefined)).then(photo => openHub(who.person, who.sessionId, { photo }, '← 마을로', done)); else done(); } // 사진 = 내 모습 얼굴(10-15)
@@ -534,7 +554,6 @@ function openPlace(id: PlaceId) {
           took = done.took; total = done.view.coins; showVillage(done.view);
         } else total = fresh.given + n;
         fresh.coins -= took; fresh.given += took; savePocket(fresh);
-        questEvent('give');
         pocket.coins = fresh.coins; ui.villagePocket(fresh.coins);
         if (!online) village?.setWorks(fresh.given);
         return { took, total };
@@ -543,6 +562,16 @@ function openPlace(id: PlaceId) {
     }, done);
   }
   else if (id === 'house') openHouse(shell, done);
+  else if (id === 'arcade') openArcade(shell, {
+    paid: game => loadPocket(kstDay(Date.now())).arcade.includes(game),
+    earn: game => { // 놀이마다 하루 한 번 동전 하나
+      const pocket = loadPocket(kstDay(Date.now()));
+      if (pocket.arcade.includes(game)) return false;
+      pocket.arcade.push(game); pocket.coins++; savePocket(pocket);
+      ui.villagePocket(pocket.coins, toWorks); sfx.coin();
+      return true;
+    },
+  }, done);
   else if (id === 'cards') { openCards(shell, cardOpts(), done); void loadCards().then(sawCards); }
   else openBoard(shell, {
     view: villageView, online, myName: me.name, like: likeNote, report: reportNote,
@@ -659,7 +688,7 @@ async function boot() {
     const villageScene = new VillageScene({
       view: () => view, controls, pick: () => me.pick, neighbor: loadNeighbor, start: () => villageStart,
       enter: openPlace, near: note => (note ? notesCard.show(note) : notesCard.hide()), ready: enteredVillage,
-      clock, drops: todaysDrops, picked, event: questEvent,
+      clock, drops: todaysDrops, picked, errand: openErrand,
     });
     village = villageScene;
     if (import.meta.env.DEV) Object.assign(window, { __village: villageScene, __journey: journey }); // 개발판 봇이 장면 안 자리를 읽는다(공개판엔 없다)

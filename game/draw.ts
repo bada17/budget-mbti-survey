@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { FEEL } from './feel';
 import { ROUTE } from './content';
 import type { Point, Room } from './room';
+import { ERRANDS } from './quests';
 import { PLACES, PLAZA, FOUNTAIN, POND, PITCH, GOAL, ROADS, WORKS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId, type WorksState, type WorkId } from './village';
 
 type Scene = Phaser.Scene;
@@ -1016,6 +1017,7 @@ const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {
   works: { wall: 0xe8d6b5, roof: 0xb07a52 }, // 공사터는 house 로 안 그린다(worksArt) — 자리만
   board: { wall: 0xd8b48c, roof: 0x9a7356 },
   cards: { wall: 0xd8b48c, roof: 0xd9785f },
+  arcade: { wall: 0xe9d8f0, roof: 0x8a6fb3 }, // 겉모습은 GPT 가 다듬는다(10-17 Claude 임시)
 };
 
 /** 집 한 채 — box 가 앞벽 발자리. 지붕이 그 위로 솟고, 문은 앞벽 가운데 아래. 깊이는 앞벽 아랫선(그 아래 선 사람이 앞에 보인다). */
@@ -1070,6 +1072,10 @@ function house(scene: Scene, place: Place, dpr: number) {
     mark.fillStyle(0x6f8a7e).fillRoundedRect(w / 2 - 18, -66, 36, 32, 7).fillStyle(0x8fa99c).fillRoundedRect(w / 2 - 15, -63, 30, 26, 5);
     mark.fillStyle(0xfffaf0).fillCircle(w / 2 - 3, -50, 7).fillStyle(0x6f8a7e).fillCircle(w / 2 - 3, -50, 2.5).fillStyle(0xf2c661).fillRoundedRect(w / 2 + 7, -56, 4, 12, 2);
     for (const [i, cx] of [[0, w / 2 + 30], [1, w / 2 + 30], [2, w / 2 + 30]] as const) mark.fillStyle(i % 2 ? 0xe2ae45 : 0xf2c661).fillEllipse(cx, -38 - i * 5, 16, 6);
+  } else if (place.id === 'arcade') { // 오락기 — 화면에 동전, 옆에 조이스틱
+    mark.fillStyle(0x5d4a7a).fillRoundedRect(w / 2 - 20, -72, 40, 40, 8).fillStyle(0xbfe6d8).fillRoundedRect(w / 2 - 15, -67, 30, 20, 4);
+    mark.fillStyle(0xf2c661).fillCircle(w / 2, -57, 5).fillStyle(0xffffff, 0.6).fillCircle(w / 2 - 2, -59, 1.5);
+    mark.lineStyle(3, 0x5d4a7a).lineBetween(w / 2 + 34, -34, w / 2 + 34, -50).fillStyle(0xff6b57).fillCircle(w / 2 + 34, -52, 5);
   } else if (place.id === 'dok') { // 밑 빠진 독 — 금 간 항아리에서 물이 샌다
     const jx = 22, jy = h - 2;
     mark.fillStyle(0x756956, 0.18).fillEllipse(jx, jy + 2, 34, 8);
@@ -1292,6 +1298,7 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
     const at = { x: tx + (r() - 0.5) * 30, y: ty + (r() - 0.5) * 24 };
     if (r() < 0.45) continue;
     if (ROADS.some(b => near(at, b, 18)) || PLACES.some(p => near(at, p.box, 34)) || near(at, POND, 20) || onPitch(at.x, at.y, 26)) continue;
+    if (ERRANDS.some(e => Math.abs(at.x - e.at.x) < 50 && at.y > e.at.y - 30 && at.y < e.at.y + 70)) continue; // 부탁하는 주민 자리는 비운다(나무가 가리지 않게)
     if (((at.x - PLAZA.x) / (PLAZA.r * 1.25)) ** 2 + ((at.y - PLAZA.y) / (PLAZA.r * 1.05)) ** 2 < 1) continue;
     const color = look.trees[Math.floor(r() * 4)];
     const b = { x0: at.x + TREE.x0, x1: at.x + TREE.x1, y0: at.y + TREE.y0, y1: at.y + TREE.y1 };

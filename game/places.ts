@@ -40,18 +40,12 @@ async function fetchText(url: string, ms = 8000) {
 }
 const fetchJson = async <T>(url: string, ms?: number) => { const text = await fetchText(url, ms); try { return text ? JSON.parse(text) as T : undefined; } catch { return undefined; } };
 
-/** 건물마다 같은 머리 — 이름, 문 앞 주민(마을 장면의 그 주민과 같은 생김새)이 말 상자로 한마디(이름표 + 한 자씩). */
-/**
- * 오늘의 부탁(quests.ts)과 잇는 고리 — main 이 채운다. line = 이 건물 주민의 오늘 부탁(없으면 undefined), fire = 「이걸 해냈다」 알리기.
- * places.ts 는 부탁 규칙을 모르고 일만 알린다(세금 도감 장면을 눌렀다, 동네 금고를 골랐다 …).
- */
-export const questHook: { line(id: PlaceId): string | undefined; fire(event: string): void } = { line: () => undefined, fire: () => {} };
-
-function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void) {
+/** 건물마다 같은 머리 — 이름, 문 앞 주민(마을 장면의 그 주민과 같은 생김새)이 말 상자로 한마디(이름표 + 한 자씩). 오락실(arcade.ts)도 쓴다. */
+export function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void) {
   const place = PLACES.find(p => p.id === id)!;
   const { panel, close } = panelShell(shell, onClose, '마을로');
-  const ask = questHook.line(id), line = ask ?? place.line;
-  const npc = el('div', ask ? 'v-npc v-ask' : 'v-npc'), said = el('p', 'v-said');
+  const line = place.line;
+  const npc = el('div', 'v-npc'), said = el('p', 'v-said');
   npc.append(avatar(lookFrom(`npc:${id}`)), el('span', 'g-name', keeperName(id)), said);
   npc.onclick = () => typeOut(said, line); // 다시 누르면 한 번 더 말한다
   panel.append(el('h2', '', place.name), npc);
@@ -195,7 +189,6 @@ export function openFinance(shell: HTMLElement, onClose: () => void) {
     status.remove();
     const showTown = (place?: FinancePlace) => {
       if (!place) { card.replaceChildren(); return; }
-      questHook.fire('finance:pick');
       const share = el('div', 't-share'); share.style.setProperty('--a', `${place.w}%`);
       share.append(el('span', '', `사회복지 ${place.w}%`), el('span', '', '그 밖'));
       const box = el('div', 't-bigcard');
@@ -266,7 +259,7 @@ export function openTax(shell: HTMLElement, onClose: () => void) {
       return row;
     }));
   };
-  grid.append(...SCENES.map((scene, i) => { const b = btn('x-scene', '', () => { pick(i); questHook.fire(`tax:${scene.id}`); }); b.append(el('span', 'x-icon', scene.icon), el('span', '', scene.title)); return b; }));
+  grid.append(...SCENES.map((scene, i) => { const b = btn('x-scene', '', () => pick(i)); b.append(el('span', 'x-icon', scene.icon), el('span', '', scene.title)); return b; }));
   const flows = el('ul', 'x-flows');
   for (const flow of FLOWS) {
     const li = el('li'), head = el('p', 'x-flow');
@@ -292,7 +285,6 @@ function fillVault(pane: HTMLElement) {
     const data = revenue.places as unknown as Record<string, RevenuePlace>; // JSON 이라 튜플 모양을 못 읽는다
     const showPlace = (place?: FinancePlace) => {
       if (!place) { card.replaceChildren(); return; }
-      questHook.fire('vault:pick');
       const rev = data[place.c];
       if (!rev) { card.replaceChildren(el('p', 't-small', '이 곳 자료는 아직 없어요.')); return; }
       const total = rev.f.reduce((a, [, eok]) => a + eok, 0);
@@ -553,7 +545,7 @@ export function noteCard(shell: HTMLElement, on: NoteActions) {
  */
 export type Pocket = {
   day: number; taken: number[]; coins: number; fruits: number; given: number; /** 공사터를 알려 줬나(첫 동전에 한 번) */ told: boolean;
-  /** 오늘 해낸 부탁(quests.ts)과 모으는 중인 수 — 날이 바뀌면 비운다. */ quests: string[]; progress: Record<string, number>;
+  /** 오늘 동전을 받은 오락실 놀이(arcade.ts) — 놀이마다 하루 한 번. 날이 바뀌면 비운다. */ arcade: string[];
 };
 const POCKET_KEY = 'budget-game-pocket';
 export function loadPocket(day: number): Pocket {
@@ -561,13 +553,11 @@ export function loadPocket(day: number): Pocket {
     const raw = JSON.parse(localStorage.getItem(POCKET_KEY) ?? 'null');
     const num = (v: unknown) => (Number.isInteger(v) && (v as number) >= 0 ? (v as number) : 0);
     const sameDay = raw?.day === day;
-    const progress: Record<string, number> = {};
-    if (sameDay && raw.progress && typeof raw.progress === 'object') for (const [k, v] of Object.entries(raw.progress)) if (Number.isInteger(v)) progress[k] = v as number;
     return {
       day, taken: sameDay && Array.isArray(raw.taken) ? raw.taken.filter(Number.isInteger).slice(0, 200) : [], coins: num(raw?.coins), fruits: num(raw?.fruits), given: num(raw?.given), told: raw?.told === true,
-      quests: sameDay && Array.isArray(raw.quests) ? raw.quests.filter((x: unknown) => typeof x === 'string').slice(0, 20) : [], progress,
+      arcade: sameDay && Array.isArray(raw.arcade) ? raw.arcade.filter((x: unknown) => typeof x === 'string').slice(0, 10) : [],
     };
-  } catch { return { day, taken: [], coins: 0, fruits: 0, given: 0, told: false, quests: [], progress: {} }; }
+  } catch { return { day, taken: [], coins: 0, fruits: 0, given: 0, told: false, arcade: [] }; }
 }
 export const savePocket = (pocket: Pocket) => { try { localStorage.setItem(POCKET_KEY, JSON.stringify(pocket)); } catch { /* 막힌 창 */ } };
 

@@ -12,7 +12,7 @@ import type { Point } from './room';
 import { rng, nameFrom } from './look';
 
 export type Box = { x: number; y: number; w: number; h: number };
-export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards';
+export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards' | 'arcade';
 /**
  * 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다).
  * keeper 는 문 앞 주민의 이름 — 시민행동 사람이 맡은 건물은 그 사람 이름(사용자 10-15), 없으면 순우리말 이름(keeperName).
@@ -20,7 +20,7 @@ export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 
 export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point; keeper?: string };
 
 export const VILLAGE_NAME = '시민마을';
-export const VILLAGE_W = 1040;
+export const VILLAGE_W = 1300; // 10-17 동쪽으로 넓힘(1040 →) — 큰길 동쪽 끝 예산 오락실 자리(사용자 「마을 확장해봐도 되고」)
 export const VILLAGE_H = 1500;
 /** 광장 — 가운데 분수. 다녀간 주민들이 여기서 서성인다. */
 export const PLAZA = { x: 520, y: 800, r: 150 };
@@ -45,6 +45,8 @@ export const PLACES: Place[] = [
   // 문제 카드 — 활동가가 매주·매달 올리는 사업 한 건에 반응하기(사용자 10-15 「한 달에 한 번이라도 들어올 명분」). 남쪽 문에서 광장 가는 큰길 옆이라 들어오자마자 보인다.
   // { id: 'cards', name: '문제 카드', line: '활동가가 고른 우리 세금 이야기예요. 어떻게 보세요?', box: { x: 586, y: 1150, w: 92, h: 22 }, door: { x: 632, y: 1196 } },
   { id: 'bus', name: '게임 다시 하기', line: '버스 타고 열다섯 동네를 다시 걸어요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
+  // 예산 오락실 — 사는 집이 아니라 들어가서 짧은 예산 놀이를 하는 집(사용자 10-17 「게임을 하는 집」). 동서 큰길을 따라 동쪽 끝. 판은 arcade.ts.
+  { id: 'arcade', name: '예산 오락실', line: '한 판에 30초, 예산 놀이 셋이 있어요.', box: { x: 1080, y: 640, w: 180, h: 96 }, door: { x: 1170, y: 758 } },
 ];
 
 /** 문 앞 주민 이름 — 맡은 사람이 있으면 그 이름, 없으면 건물마다 정해진 순우리말 이름. 판의 이름표·말 상자·부탁 목록이 같이 쓴다. */
@@ -260,3 +262,32 @@ export function dropsOn(day: number, trees: number) {
   for (let i = 0; i < trees; i++) if (!drops.has(i) && r() < 0.2) drops.set(i, 'fruit');
   return drops;
 }
+
+// ───────────────────────── 예산 오락실 놀이 규칙(arcade.ts 가 판을 그린다, 10-17) ─────────────────────────
+export type GameId = 'pricier' | 'vault' | 'dok';
+type Item = { name: string; won: number };
+/** 예시 금액(원) — 실제가 아니다. 나라장터 계약 금액을 붙이면 갈아 끼운다. 두 쪽은 늘 다른 값. */
+export const PRICIER: [Item, Item][] = [
+  [{ name: '놀이터 하나 새로 만들기', won: 2e8 }, { name: '횡단보도 신호등 하나', won: 3e7 }],
+  [{ name: '마을버스 한 대', won: 2e8 }, { name: '동네 작은 도서관 짓기', won: 3e9 }],
+  [{ name: '공원 화장실 고치기', won: 1e8 }, { name: '가로등 100개 LED로 바꾸기', won: 3e8 }],
+  [{ name: '하루짜리 동네 축제', won: 5e8 }, { name: '경로당 한 해 난방비', won: 1e7 }],
+  [{ name: '학교 앞 안전 울타리 1km', won: 2e8 }, { name: '구청 누리집 새로 만들기', won: 4e8 }],
+];
+export const PRICIER_WIN = 3;
+/** 금고 칸 수와 블록 크기(예시) — 블록 이름은 「사업 1」… 빈칸. 크기를 다 더하면 칸보다 커서 골라 넣어야 한다. */
+export const VAULT_CAP = 10;
+export const VAULT_BLOCKS = [4, 3, 3, 2, 2, 1];
+/** 이 블록들(번호)이 금고에 들어가나 / 딱 맞나. */
+export const vaultUsed = (placed: number[]) => placed.reduce((sum, i) => sum + VAULT_BLOCKS[i], 0);
+export const vaultFits = (placed: number[], add: number) => vaultUsed(placed) + VAULT_BLOCKS[add] <= VAULT_CAP;
+/** 독 구멍에 뜨는 것 — 새는 돈(leak)만 막는다. 예시 한 판. */
+export const LEAKS: { name: string; leak: boolean }[] = [
+  { name: '멀쩡한 보도블록 연말에 또 갈기', leak: true },
+  { name: '아무도 안 오는 축제 해마다 열기', leak: true },
+  { name: '쓰지도 않는 전망대 짓기', leak: true },
+  { name: '학교 앞 횡단보도 신호등', leak: false },
+  { name: '어르신 점심 급식', leak: false },
+  { name: '놀이터 안전 점검', leak: false },
+];
+export const DOK_MS = 30_000, DOK_HOLES = 6, DOK_WIN = 3;

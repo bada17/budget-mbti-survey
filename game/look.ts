@@ -31,8 +31,10 @@ export const BROW = 0x4b3a33;
 
 /*
   성인 열두 모습 — GPT 검토판(game/review/round, 10-15 승인). 어린이 없음, 성별·나이 값 없음.
-  10-15 저녁부터 열두 모습은 「기본 조합」 이다 — 고르면 머리 모양·옷·안경이 그 모습으로 맞춰지고, 그다음 머리 모양·머리색·옷·안경·머리 장식을 하나씩 따로 바꾼다.
+  10-15 저녁부터 열두 모습은 「기본 조합」 이다 — 고르면 머리 모양·옷이 그 모습으로 맞춰지고, 그다음 머리 모양·머리색·옷을 하나씩 따로 바꾼다.
   눈썹·수염·미소선·바지·신발은 기본 조합에 붙어 있어 다른 걸 바꿔도 그대로다.
+  안경·머리 장식(액세서리)은 처음에 고르지 않고 마을 부탁의 보상으로만 받는다(사용자 10-17 「악세사리는 다 보상으로」, 안경도 액세서리로) —
+  그래서 기본 조합은 안경을 정하지 않는다. 안경 쓴 기본 조합(FORMS 의 glasses)은 마을 주민(lookFrom)·옛 링크(fullPick)만 그대로 쓴다.
 */
 export type HairStyle = 'bob' | 'wave' | 'curls' | 'bun' | 'part' | 'cloud' | 'forehead' | 'shoulder' | 'crop' | 'lowTie';
 export type Top = 'cardigan' | 'stripes' | 'hoodie' | 'apron' | 'jacket' | 'vest' | 'shirt' | 'blazer' | 'knit';
@@ -103,10 +105,10 @@ export function fullPick(pick: Pick): Required<Pick> {
   const [pattern, accent, hairOverride] = LEGACY_TONE[tone];
   return [form, hairOverride ?? hair, coat, skin, pattern, styleOf(f), topOf(f), f.glasses ? 1 : 0, 0, accent];
 }
-/** 기본 조합을 고르면 — 머리 모양·옷·안경을 그 모습으로 맞춘다(색·피부·장식은 그대로). */
+/** 기본 조합을 고르면 — 머리 모양·옷을 그 모습으로 맞춘다(색·피부·안경·장식은 그대로 — 안경·장식은 보상으로 받은 것). */
 export function withForm(pick: Pick, form: number): Required<Pick> {
   const p = fullPick(pick), f = FORMS[form];
-  p[0] = form; p[5] = styleOf(f); p[6] = topOf(f); p[7] = f.glasses ? 1 : 0;
+  p[0] = form; p[5] = styleOf(f); p[6] = topOf(f);
   return p;
 }
 export const DEFAULT_PICK: Pick = fullPick([0, 0, 0, 0]);
@@ -117,13 +119,26 @@ export const toLook = (pick: Pick): Look => {
     top: TOPS[top].value, glasses: glasses === 1, accessory: ACCESSORIES[accessory].value, accent: HAIRS[accent] };
 };
 
-/** 「어떤 모습이 나올까?」 — 기본 조합 하나에 색·색 넣기·장식을 무작위로(머리 모양·옷·안경은 그 조합대로). */
-export function randomPick(random = Math.random): Required<Pick> {
+/** 「어떤 모습이 나올까?」 — 기본 조합 하나에 색·색 넣기를 무작위로(머리 모양·옷은 그 조합대로). 안경·장식은 keep 것 그대로(보상으로 받은 것이라). */
+export function randomPick(random = Math.random, keep?: Pick): Required<Pick> {
   const at = (n: number) => Math.floor(random() * n);
-  const p = withForm([0, 0, 0, 0], at(FORMS.length));
+  const p = withForm([0, 0, 0, 0], at(FORMS.length)), kept = keep ? fullPick(keep) : undefined;
   p[1] = HAIR_MENU[at(HAIR_MENU.length)].i; p[2] = at(COATS.length); p[3] = at(SKINS.length);
-  p[4] = random() < 0.65 ? 0 : 1 + at(PATTERNS.length - 1); p[8] = random() < 0.75 ? 0 : 1 + at(ACCESSORIES.length - 1); p[9] = HAIR_MENU[at(HAIR_MENU.length)].i;
+  p[4] = random() < 0.65 ? 0 : 1 + at(PATTERNS.length - 1); p[9] = HAIR_MENU[at(HAIR_MENU.length)].i;
+  p[7] = kept?.[7] ?? 0; p[8] = kept?.[8] ?? 0;
   return p;
+}
+
+/**
+ * 부탁 보상 — 날마다(부탁 셋을 다 들어주면) 하나씩, 이 차례로. 받으면 바로 쓴다(옷장에서 갈아입기는 아직 안 만듦 — 사용자 10-17 「일단 구현하지 말고」).
+ * 다섯째 날 것은 새 액세서리 — 그림은 GPT 몫(README 「GPT 에게 — 새 액세서리」), 그리기 전까지는 비워 둔다.
+ */
+export const REWARDS: { name: string; slot: 7 | 8; value: number }[] = [
+  { name: '머리핀', slot: 8, value: 2 }, { name: '머리띠', slot: 8, value: 1 }, { name: '작은 리본', slot: 8, value: 3 }, { name: '둥근 안경', slot: 7, value: 1 },
+];
+/** 받은 액세서리를 쓴 모습. */
+export function wearing(pick: Pick, reward: (typeof REWARDS)[number]): Required<Pick> {
+  const p = fullPick(pick); p[reward.slot] = reward.value; return p;
 }
 
 /**
@@ -135,6 +150,7 @@ export function lookFrom(seed: string): Look {
   const at = <T>(list: readonly T[], from = 0) => list[from + Math.floor(r() * (list.length - from))];
   const form = Math.floor(r() * FORMS.length), coat = Math.floor(1 + r() * (COATS.length - 1)), skin = Math.floor(r() * SKINS.length);
   const p = withForm([form, 0, coat, skin], form);
+  p[7] = FORMS[form].glasses ? 1 : 0; // 주민은 기본 조합대로 안경을 쓴다 — 받을 수 있는 걸 마을에서 미리 보게
   p[1] = at(HAIR_MENU.slice(0, 6)).i;
   if (r() < 0.35) { p[4] = 1 + Math.floor(r() * (PATTERNS.length - 1)); p[9] = r() < 0.5 ? SILVER : WHITE; }
   if (r() < 0.2) p[8] = 1 + Math.floor(r() * (ACCESSORIES.length - 1));

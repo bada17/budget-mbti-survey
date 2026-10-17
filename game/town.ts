@@ -242,6 +242,19 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
     }
     if (verb !== '로그인') box.append(el('p', 't-login-title', verb === '지키기' ? '시민증 지키기' : '전에 해 봤다면'),
       el('p', 't-small', verb === '지키기' ? '로그인해 두면 다른 폰·브라우저에서도 이 시민증과 도장이 이어져요. 안 해도 괜찮아요.' : '전에 로그인해 둔 시민증과 도장을 불러와요.'));
+    // 필수 동의 둘을 체크해야 로그인 단추가 켜진다(사용자 10-16 「다 선택해야 로그인되게 하면 되지」, 10-17 「그럼 만들어」).
+    // 「활동·후원 소식」 은 여기 묶지 않는다 — 선택 동의를 거부했다고 서비스를 막으면 안 된다(정보통신망법 50조·개인정보보호법 22조). 소식은 로그인 뒤 따로.
+    const agree = el('div', 't-agree'), buttons: HTMLButtonElement[] = [];
+    const checks = ['[필수] 만 14세 이상이에요', '[필수] 아래처럼 회원번호·이메일을 받아 내 기록을 잇는 데 동의해요'].map(text => {
+      const label = el('label', 't-check'), box = el('input');
+      box.type = 'checkbox';
+      box.onchange = () => { const ok = checks.every(c => c.checked); buttons.forEach(b => { b.disabled = !ok; }); hint.hidden = ok; };
+      label.append(box, el('span', '', text));
+      agree.append(label);
+      return box;
+    });
+    const hint = el('p', 't-small t-agree-hint', '두 칸에 체크하면 로그인 단추가 켜져요.');
+    box.append(agree, hint);
     for (const provider of opts.providers) {
       const button = btn(`t-login-btn t-${provider}`, '', () => {
         if (!opts.start(provider)) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
@@ -250,6 +263,8 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
       // 공식 배포 SVG의 기호만. 사용자 입력은 이 HTML에 넣지 않는다.
       symbol.innerHTML = provider === 'kakao' ? kakaoSymbol : googleSymbol;
       button.append(symbol, el('span', 't-login-label', `${PROVIDER_NAME[provider]}로 ${verb}`));
+      button.disabled = true;
+      buttons.push(button);
       box.append(button);
     }
     const note = el('p', 't-small t-login-note',

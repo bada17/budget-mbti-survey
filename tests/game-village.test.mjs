@@ -351,19 +351,50 @@ test('방마다 다른 길: 개울은 돌을 밟아 건널 수 있고, 돌 밖�
   assert.deepEqual(Object.values(TWISTS).sort(), ['cat', 'stream', 'stream'], '열쇠·골은 걷었다(골은 마을 운동장으로)');
 });
 
-test('오늘의 부탁: 날마다 서로 다른 건물 셋, 같은 날엔 같고, 부탁하는 건물이 마을에 있다', async () => {
-  const { questsOn, QUESTS, QUEST_PER_DAY } = await import('../game/quests.ts');
-  const ids = new Set(PLACES.map(p => p.id));
-  for (const q of QUESTS) assert.ok(ids.has(q.place), q.id);
-  const seen = new Set();
-  for (let day = 20000; day < 20030; day++) {
-    const today = questsOn(day);
-    assert.equal(today.length, QUEST_PER_DAY);
-    assert.equal(new Set(today.map(q => q.place)).size, QUEST_PER_DAY, '건물마다 하나');
-    assert.deepEqual(questsOn(day), today);
-    today.forEach(q => seen.add(q.id));
+test('마을 부탁(10-17): 하루 셋, 그날 셋을 다 해야 다음 날 열리고, 하루치를 다 하면 그 날 번호(보상)', async () => {
+  const { ERRAND_DAYS, ERRANDS, errandDay, errandsShown, finishErrand } = await import('../game/quests.ts');
+  const { REWARDS } = await import('../game/look.ts');
+  assert.equal(ERRAND_DAYS.length, 5, '닷새');
+  for (const day of ERRAND_DAYS) assert.ok(day.length === 0 || day.length === 3, '하루 셋(아직 안 만든 날은 비움)');
+  assert.equal(new Set(ERRANDS.map(e => e.id)).size, ERRANDS.length);
+  for (const e of ERRANDS) {
+    assert.equal(blocked(e.at), false, `${e.id} 주민이 디딜 수 있는 곳에`);
+    assert.ok(e.choices.filter(c => c.right).length <= 1, `${e.id} 맞는 답은 하나까지`);
   }
-  assert.ok(seen.size >= QUESTS.length - 2, '한 달이면 거의 모든 부탁이 한 번씩');
+  assert.ok(REWARDS.length >= ERRAND_DAYS.filter(d => d.length).length, '만든 날마다 보상이 있다');
+
+  let memo = { done: [], cleared: [] };
+  const [a, b, c] = ERRAND_DAYS[0];
+  assert.deepEqual(errandDay(memo, 100).list.map(e => e.id), [a.id, b.id, c.id]);
+  assert.equal(finishErrand(memo, 'nope', 100).memo, memo, '열리지 않은 부탁은 그대로');
+  memo = finishErrand(memo, a.id, 100).memo;
+  memo = finishErrand(memo, b.id, 100).memo;
+  assert.equal(finishErrand(memo, b.id, 100).memo, memo, '한 번 한 부탁은 또 안 센다');
+  const last = finishErrand(memo, c.id, 100);
+  assert.equal(last.cleared, 0, '셋째를 하면 첫날 끝 — 보상 0번');
+  memo = last.memo;
+  assert.deepEqual(memo.cleared, [100]);
+  assert.ok(errandsShown(memo, 100).every(e => !e.open), '다 한 날 주민은 「!」 없이 남는다');
+  // 둘째 날은 아직 비어 있어 「준비 중」 — 채우면 다음 날(101)에야 열린다
+  assert.equal(errandDay(memo, 101).wait, ERRAND_DAYS[1].length ? undefined : 'soon');
+  const filled = [[...ERRAND_DAYS[0]], [{ id: 'x1' }, { id: 'x2' }, { id: 'x3' }]];
+  ERRAND_DAYS.splice(1, 1, filled[1]);
+  try {
+    assert.equal(errandDay(memo, 100).wait, 'tomorrow', '같은 날엔 다음 셋이 안 열린다');
+    assert.deepEqual(errandDay(memo, 101).list.map(e => e.id), ['x1', 'x2', 'x3'], '다음 날 열린다');
+  } finally { ERRAND_DAYS.splice(1, 1, []); }
+});
+
+test('예산 오락실(10-17): 비쌀까 두 쪽은 늘 다르고, 금고는 딱 맞게 채울 수 있고, 독에는 새는 돈과 필요한 돈이 둘 다', async () => {
+  const { PRICIER, PRICIER_WIN, VAULT_CAP, VAULT_BLOCKS, vaultUsed, vaultFits, LEAKS } = await import('../game/village.ts');
+  assert.equal(PRICIER.length, 5);
+  for (const [a, b] of PRICIER) assert.notEqual(a.won, b.won, `${a.name}·${b.name}`);
+  assert.ok(PRICIER_WIN <= PRICIER.length);
+  assert.ok(VAULT_BLOCKS.reduce((x, y) => x + y, 0) > VAULT_CAP, '다 넣을 수는 없어야 고른다');
+  assert.equal(vaultUsed([0, 1, 2]), 10);
+  assert.ok(vaultFits([0, 1], 2) && !vaultFits([0, 1, 2], 5), '칸을 넘으면 못 넣는다');
+  assert.ok(LEAKS.some(x => x.leak) && LEAKS.some(x => !x.leak));
+  assert.ok(PLACES.some(p => p.id === 'arcade'), '마을에 오락실');
 });
 
 test('문제 카드: 시트에 사람이 적은 줄(보이기 O)만 뜨고, 반응은 기기마다 하나(바꿀 수 있음), 서버는 사람 칸을 안 건드린다', () => {
