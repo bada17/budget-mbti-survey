@@ -194,6 +194,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-split>li{padding:12px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line)}
 .g-split .g-small{margin:0 0 7px}
 /* 왜 이 유형일까(10-19) — 되게만 둔 모양, 다듬기는 GPT */
+.g-end-card .g-kicker{margin:0}.g-end-card .g-mean{margin:8px 0 0}
 .g-why{display:block;margin:8px auto 0}
 .g-split h3{margin:0 0 4px;font-size:15px;color:#5b402e}
 .g-why-rows{margin:0;padding-left:18px;display:grid;gap:3px;font-size:13px;color:#8a7563}.g-why-rows .on{color:#5b402e;font-weight:700}

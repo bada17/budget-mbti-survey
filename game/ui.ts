@@ -83,6 +83,12 @@ export function backCloses(close: () => void) {
  * 뒤에 &utm_content=… 를 덧붙여 쓰니 주소에 ? 가 있어야 한다.
  */
 export const DONATE_URL = 'https://action.or.kr/74?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
+/** 끝 화면 「우리 세금을 ○, ○, ○ 쓰자는 쪽이에요」 — 축마다 [left, right]. content.ts AXES 의 leftMeans·rightMeans 를 해요체 한 토막으로(초안, 사용자 확인 전). */
+const SPEND = {
+  hands: ['모두가 함께 쓰는 시설·제도에', '사람에게 바로 닿게'],
+  time: ['올해 안에 효과가 나게', '몇 년 뒤부터 오래 효과가 나게'],
+  reach: ['꼭 필요한 곳에 몰아서', '많은 사람에게 고르게'],
+} as const;
 
 /**
  * 소식 받기 칸(연락처) — 내 이웃 판(neighborSheet)과 로그인 직후 판(town.ts openNews)이 같이 쓴다.
@@ -475,7 +481,10 @@ export function createUI(root: HTMLElement, actions: {
       }
       // 「왜 이 유형일까?」 — 누르면 축마다 내 선택 다섯이 어느 쪽으로 당겼는지(화면에만 — 공유 그림에선 뺀다, picture)
       const why = button('g-link g-why', '왜 이 유형일까?', () => this.why(info.answers, info.scores));
-      card.append(el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes, why);
+      // 이 게임이 무엇이고 이 유형이 무슨 뜻인지(사용자 10-19 「알려줘야지」) — 위에 「나의 예산 성향」, 막대 밑에 세금을 어떻게 쓰자는 쪽인지 한 줄(코드 자리 1 = right 쪽).
+      const spend = AXES.map((axis, i) => SPEND[axis.key][info.code[i] === '1' ? 1 : 0]).join(', ');
+      card.append(el('p', 'g-kicker', '나의 예산 성향'), el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes,
+        el('p', 'g-small g-mean', `우리 세금을 ${spend} 쓰자는 쪽이에요.`), why);
       const give = el('a', 'g-link g-give', '함께하는 시민행동 후원하기');
       give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
