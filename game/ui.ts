@@ -192,8 +192,9 @@ export function createUI(root: HTMLElement, actions: {
   let askId = 0; // 늦게 도착한 「말풍선 치우기」 가 다음 방의 말풍선을 지우지 않게
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const later = (ms: number, fn: () => void) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); };
-  const openSheet = (...children: Node[]) => { sheet.replaceChildren(...children); sheet.hidden = false; };
-  const closeSheet = () => { sheet.hidden = true; sheet.replaceChildren(); };
+  let releaseSheet = () => {};
+  const openSheet = (...children: Node[]) => { releaseSheet(); releaseSheet = () => {}; sheet.replaceChildren(...children); sheet.hidden = false; };
+  const closeSheet = () => { releaseSheet(); releaseSheet = () => {}; sheet.hidden = true; sheet.replaceChildren(); };
 
   return {
     surface: stage,
@@ -343,6 +344,7 @@ export function createUI(root: HTMLElement, actions: {
         return b;
       };
       const bar = el('div', 'g-tabs'), panes = el('div', 'g-panes'), mixRow: HTMLElement[] = [];
+      const rowUpdates: (() => void)[] = [];
       tabs.forEach(([title, lines], t) => {
         const rows = el('div', `g-rows${t ? ' off' : ''}`);
         const tab = button(`g-tab${t ? '' : ' on'}`, title, () => {
@@ -356,14 +358,25 @@ export function createUI(root: HTMLElement, actions: {
           // 줄은 모두 한 줄 옆 스크롤(사용자 10-16 「글자가 잘리고 난잡해」) — 감싸는 줄·미는 줄이 섞여 있던 것을 하나로.
           const row = el('div', 'g-row g-row-scroll');
           row.append(...values.map((value, i) => swatch(line, value, i)));
-          const head = el('span', 'g-row-label', label);
+          const head = el('div', 'g-row-head'), nav = el('div', 'g-row-nav');
+          const step = (direction: number) => row.scrollBy({ left: direction * row.clientWidth * 0.8,
+            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+          const previous = button('g-row-step', '‹', () => step(-1)), next = button('g-row-step', '›', () => step(1));
+          previous.setAttribute('aria-label', `${label} 이전 보기`); next.setAttribute('aria-label', `${label} 다음 보기`);
+          const update = () => {
+            const end = row.scrollWidth - row.clientWidth;
+            nav.hidden = end <= 1;
+            previous.disabled = row.scrollLeft <= 1; next.disabled = row.scrollLeft >= end - 1;
+          };
+          row.onscroll = update; rowUpdates.push(update);
+          nav.append(previous, next); head.append(el('span', 'g-row-label', label), nav);
           if (slot === 9) mixRow.push(head, row);
           rows.append(head, row);
         }
         panes.append(rows);
       });
       const draw = () => {
-        panes.querySelectorAll<HTMLButtonElement>('button').forEach(b => {
+        panes.querySelectorAll<HTMLButtonElement>('button[data-row]').forEach(b => {
           const slot = +b.dataset.row!, selected = slot === 0 ? faceOf(current.pick[0]) : current.pick[slot] ?? 0;
           b.classList.toggle('on', selected === +b.dataset.i!);
         });
@@ -374,12 +387,16 @@ export function createUI(root: HTMLElement, actions: {
           const on = row.querySelector<HTMLElement>('.on');
           if (on && (on.offsetLeft < row.scrollLeft || on.offsetLeft + on.offsetWidth > row.scrollLeft + row.clientWidth)) row.scrollLeft = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
         });
+        rowUpdates.forEach(update => update());
       };
       draw();
       const random = button('g-link', '어떤 모습이 나올까?', () => { current.pick = randomPick(Math.random, current.pick); changed(); });
       const done = button('g-primary', '이 모습으로 걷기', () => { closeSheet(); on.done({ name: cleanName(name.value), pick: [...current.pick] as Pick, ...(current.at ? { at: current.at } : {}) }); });
       openSheet(el('p', 'g-kicker', '오늘은 이 모습으로'), name, bar, panes, random, done);
       draw(); // 판이 열린 뒤에야 단추 자리를 잴 수 있다
+      // 창 크기가 바뀌어도 넘기기 상태를 맞춘다. 판을 닫거나 바꾸면 관찰을 해제한다.
+      const resize = new ResizeObserver(draw); resize.observe(panes);
+      releaseSheet = () => resize.disconnect();
     },
 
     /** 테이블에서 같이 하기 — 새로 만들거나 코드로 들어간다. */
