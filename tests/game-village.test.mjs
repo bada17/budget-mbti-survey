@@ -394,7 +394,7 @@ test('예산 오락실(10-17): 비쌀까 두 쪽은 늘 다르고, 금고는 딱
   assert.equal(vaultUsed([0, 1, 2]), 10);
   assert.ok(vaultFits([0, 1], 2) && !vaultFits([0, 1, 2], 5), '칸을 넘으면 못 넣는다');
   assert.ok(LEAKS.some(x => x.leak) && LEAKS.some(x => !x.leak));
-  assert.ok(PLACES.some(p => p.id === 'arcade'), '마을에 오락실');
+  // assert.ok(PLACES.some(p => p.id === 'arcade'), '마을에 오락실'); // [나중에 살림: 오락실·부탁]
 });
 
 test('문제 카드: 시트에 사람이 적은 줄(보이기 O)만 뜨고, 반응은 기기마다 하나(바꿀 수 있음), 서버는 사람 칸을 안 건드린다', () => {

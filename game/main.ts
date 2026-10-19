@@ -350,7 +350,7 @@ function enteredVillage() {
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
   marks();
-  showErrands();
+  // showErrands(); // [나중에 살림: 오락실·부탁] 사용자 10-19 「필드에 부탁도 일단 주석처리해놔」 — 부탁하는 주민이 안 선다(규칙 quests.ts·시험은 그대로)
   hubGuide();
   // 개발판 ?go=건물 — 마을에 들어오자마자 그 건물 판을 연다(오락실 같은 판을 바로 보려고, 10-17). 공개판엔 없다.
   const go = import.meta.env.DEV ? PLACES.find(p => p.id === params.get('go')) : undefined;
@@ -511,8 +511,9 @@ function openPhone() {
   const go = (id: PlaceId) => () => village?.jump(id, () => openPlace(id));
   ui.phone(head, [
     { icon: '🗺️', name: '지도', run: openMap },
-    { icon: '📝', name: '오늘의 부탁', run: openErrandList },
-    { icon: '🕹️', name: '오락실', run: go('arcade') },
+    // [나중에 살림: 오락실·부탁]
+    // { icon: '📝', name: '오늘의 부탁', run: openErrandList },
+    // { icon: '🕹️', name: '오락실', run: go('arcade') },
     { icon: '🪪', name: '내 기록', run: go('hub') },
     { icon: '💰', name: '세금', run: go('tax') },
     { icon: '🏗️', name: '동전 모으기', run: go('works') },
