@@ -325,18 +325,19 @@ export class JourneyScene extends Phaser.Scene {
   private glowPortal(x: number, base: number) {
     const { half, height } = PORTAL, mid = base - height * 0.55;
     const glow = this.add.container(x, mid, [
-      this.add.ellipse(0, 0, half * 5.2, height * 2.1, 0xfff1c4, 0.12), this.add.ellipse(0, 0, half * 3.6, height * 1.6, 0xfff6dc, 0.16), this.add.ellipse(0, 4, half * 2.4, height * 1.15, 0xffffff, 0.2),
-    ].map(e => e.setBlendMode(Phaser.BlendModes.ADD))).setDepth(base - 1).setAlpha(0.45);
+      this.add.ellipse(0, 0, half * 3.8, height * 1.55, 0xffdea9, 0.12),
+      this.add.ellipse(0, 4, half * 2, height, 0xfff6df, 0.27),
+    ]).setDepth(base - 1).setAlpha(0.58);
     this.portalGlow = glow;
     if (this.reduced) return;
     glow.setScale(0.6);
-    this.tweens.add({ targets: glow, scale: 1, duration: 600, ease: 'Back.easeOut', onComplete: () => this.tweens.add({ targets: glow, scale: 1.12, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }) });
+    this.tweens.add({ targets: glow, scale: 1, duration: 650, ease: 'Sine.easeOut', onComplete: () => this.tweens.add({ targets: glow, scale: 1.08, duration: 1450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }) });
     this.time.addEvent({
-      delay: 340, loop: true, callback: () => {
+      delay: 520, loop: true, callback: () => {
         if (!glow.active || this.warping) return;
-        const side = Math.random() < 0.5 ? -1 : 1, sx = x + side * (half + 6 + Math.random() * 14), sy = base - Math.random() * height * 0.8;
-        const star = this.add.star(sx, sy, 4, 1.2, 4 + Math.random() * 2, Math.random() < 0.5 ? 0xffffff : 0xffe9a8, 0.95).setDepth(base + 2).setBlendMode(Phaser.BlendModes.ADD);
-        this.tweens.add({ targets: star, y: sy - 34 - Math.random() * 26, angle: 90, alpha: 0, scale: 0.4, duration: 1200, ease: 'Sine.easeOut', onComplete: () => star.destroy() });
+        const side = Math.random() < 0.5 ? -1 : 1, sx = x + side * (half + 4 + Math.random() * 11), sy = base - 9 - Math.random() * height * 0.73;
+        const star = this.add.star(sx, sy, 4, 0.9, 3.2 + Math.random() * 1.5, Math.random() < 0.45 ? 0xfff9dd : 0xffdc99, 0.84).setDepth(base + 2);
+        this.tweens.add({ targets: star, y: sy - 25 - Math.random() * 20, angle: 75, alpha: 0, scale: 0.35, duration: 1100, ease: 'Sine.easeOut', onComplete: () => star.destroy() });
       },
     });
   }

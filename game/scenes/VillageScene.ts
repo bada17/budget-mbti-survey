@@ -247,22 +247,19 @@ export class VillageScene extends Phaser.Scene {
   }
 
   /**
-   * 쉼터 정자 — 다 지었으면 평상 자리에 멈춰 서면 앉고, 움직이면 일어난다. 앉는 모습은 장면에서만 — 몸을 낮추고 살짝 눌러
-   * (사람 그림 draw.ts Dude 는 GPT 몫이라 손대지 않는다. 진짜 앉은 자세는 GPT 넘김 목록).
+   * 쉼터 정자 — 다 지었으면 평상 자리에 멈춰 서면 앉고, 움직이면 일어난다.
    */
   private rest(moving: boolean) {
     const can = Boolean(this.works?.done.includes('pavilion')) && !this.paused;
     const want = can && !moving && distance(this.pos, PAVILION_SEAT) < 12;
     if (want === this.sitting) return;
     this.sitting = want;
-    const body = this.player.root;
-    this.tweens.killTweensOf(body);
+    this.player.sit(want);
     if (want) {
       this.player.look(0, 1);
-      if (!this.reduced) { this.tweens.add({ targets: body, scaleY: 0.9, scaleX: 1.04, duration: 180, ease: 'Quad.easeOut' }); hearts(this, this.pos.x, this.pos.y - 52, 1, false); }
-      else body.setScale(1.04, 0.9);
+      if (!this.reduced) hearts(this, this.pos.x, this.pos.y - 52, 1, false);
       sfx.meet();
-    } else body.setScale(1);
+    }
   }
 
   /** 화면(+여유) 밖의 그림·사람은 숨긴다. 걷기·서성이기는 그대로 돈다(보이기만 끈다). */

@@ -8,9 +8,9 @@ import { AXES, ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode 
 import type { AxisScores } from './score';
 import { currentQuestion, type JourneyState } from './flow';
 import { displayOptions, orderedQuestions, pullsOf, type DisplaySide } from './response';
-import { COATS, HAIRS, SKINS, FACES, faceOf, HAIR_MENU, HAIR_STYLES, TOPS, PATTERNS, fullPick, randomPick, nameFrom, type Pick } from './look';
+import { COATS, HAIRS, SKINS, FACES, faceOf, HAIR_MENU, HAIR_STYLES, TOPS, PATTERNS, REWARDS, fullPick, randomPick, nameFrom, type Pick } from './look';
 import { sfx } from './sfx';
-import { cleanName, josa, type Me } from './profile';
+import { cleanName, josa, loadOwned, type Me } from './profile';
 import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
 import type { Stats } from './api';
 import type { Point } from './room';
@@ -328,7 +328,7 @@ export function createUI(root: HTMLElement, actions: {
     },
     /**
      * 내 모습 고르기 — 얼굴(피부·눈썹·미소선·수염)·머리·옷을 각각 따로 고른다(사용자 10-19).
-     * 안경·머리 장식은 여기서 고르지 않는다 — 마을 부탁의 보상으로만(사용자 10-17). 받은 건 pick 에 남아 그대로 보인다.
+     * 안경·머리 장식은 처음엔 고르지 않는다. 받은 뒤에는 가진 것과 지금 쓰는 것을 이 판에서 끼고 벗는다.
      * 줄이 여덟 개라 탭 셋(얼굴·머리·옷)으로 나눈다. 탭은 겹쳐 두고 안 보이는 탭은 자리만 차지해서 판 높이가 늘 같다 —
      * 판 위에 크게 보이는 내 모습이 탭을 바꿔도 가려지지 않게(JourneyScene 의 dressView 가 처음 판 높이로 자리를 잡는다).
      */
@@ -344,6 +344,8 @@ export function createUI(root: HTMLElement, actions: {
         ['머리', [['머리 모양', 5, HAIR_STYLES.map(h => h.name)], ['머리색', 1, menuColors, menu, menuNames], ['색 넣기', 4, PATTERNS.map(p => p.name)], ['섞는 색', 9, menuColors, menu, menuNames]]],
         ['옷', [['옷', 6, TOPS.map(t => t.name)], ['옷 색', 2, COATS]]],
       ];
+      const ownedRewards = new Set(loadOwned());
+      REWARDS.forEach((reward, i) => { if (current.pick[reward.slot] === reward.value) ownedRewards.add(i); });
       const changed = () => { current.at = Date.now(); draw(); on.change({ ...current, pick: [...current.pick] as Pick }); };
       const swatch = ([label, slot, , ids, names]: Line, value: string | number, i: number) => {
         const stored = ids?.[i] ?? i;
@@ -381,6 +383,35 @@ export function createUI(root: HTMLElement, actions: {
           row.onscroll = update; rowUpdates.push(update);
           nav.append(previous, next); head.append(el('span', 'g-row-label', label), nav);
           if (slot === 9) mixRow.push(head, row);
+          rows.append(head, row);
+        }
+        if (t === 2 && ownedRewards.size) {
+          const label = '액세서리 끼고 벗기';
+          const row = el('div', 'g-row g-row-scroll');
+          const choice = (text: string, slot: 7 | 8, value: number) => {
+            const b = button('g-chip', text, () => { current.pick[slot] = value; changed(); });
+            b.dataset.row = String(slot); b.dataset.i = String(value);
+            return b;
+          };
+          for (const slot of [7, 8] as const) {
+            if ([...ownedRewards].some(i => REWARDS[i]?.slot === slot)) row.append(choice(slot === 7 ? '안경 벗기' : '머리 장식 벗기', slot, 0));
+          }
+          for (const i of ownedRewards) {
+            const reward = REWARDS[i];
+            if (reward) row.append(choice(reward.name, reward.slot, reward.value));
+          }
+          const head = el('div', 'g-row-head'), nav = el('div', 'g-row-nav');
+          const step = (direction: number) => row.scrollBy({ left: direction * row.clientWidth * 0.8,
+            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+          const previous = button('g-row-step', '‹', () => step(-1)), next = button('g-row-step', '›', () => step(1));
+          previous.setAttribute('aria-label', `${label} 이전 보기`); next.setAttribute('aria-label', `${label} 다음 보기`);
+          const update = () => {
+            const end = row.scrollWidth - row.clientWidth;
+            nav.hidden = end <= 1;
+            previous.disabled = row.scrollLeft <= 1; next.disabled = row.scrollLeft >= end - 1;
+          };
+          row.onscroll = update; rowUpdates.push(update);
+          nav.append(previous, next); head.append(el('span', 'g-row-label', label), nav);
           rows.append(head, row);
         }
         panes.append(rows);

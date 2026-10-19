@@ -185,7 +185,14 @@ function figure(scene: Scene, look: Look) {
     deco.fillStyle(0xe5a5ac).fillEllipse(-13, crown + 2, 8, 7).fillEllipse(-6, crown + 2, 8, 7);
     deco.fillStyle(0xc98591).fillRoundedRect(-11, crown, 4, 4, 1.4);
   }
-  const fig = s.container(0, 0, [back, ...legs, ...sleeves, torso, wear, neck, ...ears, head, fringe, deco, ...eyes, face]).setScale(FIGURE_SCALE);
+  const scarf = s.graphics();
+  if (look.accessory === 'scarf') {
+    scarf.fillStyle(0x507d73).fillRoundedRect(-14, -34, 28, 9, 4);
+    scarf.fillStyle(0x3c665e).fillRoundedRect(4, -28, 8, 19, 3);
+    scarf.fillStyle(0xecc68e, 0.9).fillRoundedRect(-12, -32, 24, 2, 1);
+    scarf.fillStyle(0xecc68e, 0.75).fillRoundedRect(5, -20, 6, 2, 1).fillRoundedRect(5, -14, 6, 2, 1);
+  }
+  const fig = s.container(0, 0, [back, ...legs, ...sleeves, torso, wear, neck, ...ears, head, scarf, fringe, deco, ...eyes, face]).setScale(FIGURE_SCALE);
   return { fig, legs, eyes, rightArm: sleeves[1], sleeveColor };
 }
 
@@ -200,6 +207,7 @@ export class Dude {
   private walkClock = 0;
   private idleClock = Math.random() * 4000;
   private hopping = false;
+  private sitting = false;
   constructor(private scene: Scene, look: Look, x: number, y: number, scale = 1) {
     const art = figure(scene, look);
     this.fig = art.fig; this.legs = art.legs; this.eyes = art.eyes; this.rightArm = art.rightArm;
@@ -215,9 +223,17 @@ export class Dude {
     const len = Math.hypot(dx, dy) || 1;
     this.eyes.forEach((eye, i) => eye.setPosition((i ? 4.8 : -4.8) + dx / len * 2.2, -41.5 + dy / len * 1.4));
   }
+  /** 평상에 걸터앉은 모습 — 다리를 앞으로 내고 몸을 낮춘다. */
+  sit(on: boolean) {
+    if (on === this.sitting) return;
+    this.sitting = on;
+    this.walkClock = 0;
+    this.legs.forEach((leg, i) => leg.setPosition(i ? 9 : -9, on ? -2 : -6).setAngle(on ? (i ? 24 : -24) : 0));
+    this.body.setY(on ? 5 : 0).setScale(on ? 1.07 : 1, on ? 0.88 : 1);
+  }
   /** 걷는 모습: 다리 번갈아, 몸 통통. 팔은 가만히(검토판과 같게). */
   walk(dtMs: number, moving: boolean, reduced: boolean) {
-    if (this.hopping) return;
+    if (this.hopping || this.sitting) return;
     if (!moving || reduced) {
       this.walkClock = 0;
       this.legs.forEach(leg => leg.setY(-6));
@@ -488,13 +504,16 @@ function worksArt(scene: Scene, dpr: number) {
       if (open) { // 쉼터 정자 — 기와 지붕, 기둥 넷, 가운데 평상
         g.fillStyle(0x756956, 0.16).fillEllipse(w / 2, h + 2, w + 10, 16);
         g.fillStyle(0xd8c6a2).fillRoundedRect(14, h - 24, w - 28, 22, 6);
-        for (const x of [22, w - 28, 48, w - 54]) g.fillStyle(0x9a6a48).fillRoundedRect(x, h - 70, 6, 50, 2);
+        g.fillStyle(0xf0dfbc, 0.8).fillRoundedRect(18, h - 24, w - 36, 5, 2);
+        for (const x of [22, w - 28, 48, w - 54]) g.fillStyle(0x9a6a48).fillRoundedRect(x, h - 82, 6, 62, 2);
         g.fillStyle(0xb07a52).fillRoundedRect(w / 2 - 22, h - 34, 44, 8, 3);
-        const top = scene.add.graphics();
-        top.fillStyle(0x6f8a7e).fillTriangle(-6, h - 66, w / 2, h - 110, w + 6, h - 66).fillRoundedRect(-10, h - 72, w + 20, 12, 6);
-        top.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 70, w, 4, 2);
+        const top = scene.add.graphics(), lip = scene.add.graphics();
+        top.fillStyle(0x6f8a7e).fillTriangle(-6, h - 80, w / 2, h - 122, w + 6, h - 80).fillRoundedRect(-10, h - 86, w + 20, 12, 6);
+        top.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 84, w, 4, 2);
+        lip.fillStyle(0xbe9c74).fillRoundedRect(14, h - 12, w - 28, 7, 3);
+        lip.fillStyle(0xf5e4c5, 0.55).fillRoundedRect(18, h - 11, w - 36, 2, 1);
         root.add(g);
-        roof.add([top, label(scene, w / 2, h - 86, '쉼터 정자', 12, dpr, '#ffffff')]);
+        roof.add([top, label(scene, w / 2, h - 100, '쉼터 정자', 12, dpr, '#ffffff'), lip]);
         return;
       }
       // 공사 중 — 바닥, 울타리, 벽돌 더미, 간판(곳 이름 · 지금 공사와 모인 만큼). 이름을 늘 보이게(사용자 10-15 「직관적으로」)
