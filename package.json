@@ -16,7 +16,8 @@
     "dev:game": "vite --config vite.game.config.ts",
     "build:game": "vite build --config vite.game.config.ts",
     "test:game": "node --import tsx --test tests/game-*.test.mjs",
-    "build:gas": "vite build --config vite.gas.config.ts"
+    "build:gas": "vite build --config vite.gas.config.ts",
+    "port:footer": "node scripts/port-footer.mjs"
   },
   "dependencies": {
     "@fontsource/jua": "5.3.0",
