@@ -112,7 +112,7 @@ export class JourneyScene extends Phaser.Scene {
     this.light = this.add.rectangle(0, 0, w * 3, h * 3, DAYLIGHT[0][2]).setOrigin(0).setScrollFactor(0).setDepth(60000).setBlendMode(Phaser.BlendModes.MULTIPLY);
     this.setRoom(this.buildRoom(0, 0));
     this.pos = { ...this.room.spawn };
-    this.player = new Dude(this, toLook(this.runtime.pick()), this.pos.x, this.pos.y).place(this.pos);
+    this.player = new Dude(this, toLook(this.runtime.pick()), this.pos.x, this.pos.y, 1, 0).place(this.pos); // 모습 고르기에서 2.4배로 당겨 보니 굽지 않는다
     this.trail = [{ x: this.pos.x, y: this.pos.y + 80 }, { ...this.pos }];
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.tapHill(p.worldX, p.worldY));
     const stop = this.runtime.subscribe(event => this.onEvent(event));
@@ -139,7 +139,7 @@ export class JourneyScene extends Phaser.Scene {
   }
   setLook(pick: Pick) {
     this.player.destroy();
-    this.player = new Dude(this, toLook(pick), this.pos.x, this.pos.y).place(this.pos);
+    this.player = new Dude(this, toLook(pick), this.pos.x, this.pos.y, 1, 0).place(this.pos);
     this.player.hop(10, 1, this.reduced);
   }
 

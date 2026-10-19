@@ -7,7 +7,7 @@ import { scoreAnswers } from './score';
 import { ROUTE, TYPES, REPLIES } from './content';
 import { createEvents, type GameEvent } from './events';
 import { Controls } from './input';
-import { createUI } from './ui';
+import { createUI, GAME_URL } from './ui';
 import { attachEffects } from './effects';
 import { unlockAudio, isMuted, setMuted, playVillageMusic, sfx } from './sfx';
 import {
@@ -66,6 +66,7 @@ const bus = createEvents();
 const abort = new AbortController();
 const view = { w: 360, h: 640, dpr: 1 };
 const here = () => `${location.origin}${location.pathname}`;
+const shareAt = () => (import.meta.env.PROD ? GAME_URL : here()); // 남에게 보내는 링크 — 옛 주소(github.io)로 들어와 있어도 새 주소로 나간다
 /** 연락처 칸은 보유 기간이 정해지기 전까지 이 컴퓨터의 개발판에서만 보인다(README 「연락처 — 켜기 전에」). */
 const contactReady = import.meta.env.DEV;
 /** 게임 서버(다른 사람들 마음·방명록·우리 지역, 테이블은 TABLES 일 때만)가 있나. 서버 없는 시험판엔 없다 — 그때는 그 단추들을 숨긴다. */
@@ -100,7 +101,7 @@ const ui = createUI(root, {
       if (!code || !(await net.table(code))) return false;
       tableCode = code; notes(); return true;
     },
-    link: code => `${here()}?table=${code}`,
+    link: code => `${shareAt()}?table=${code}`,
     close: () => {},
   }),
   reply: (questionId, level) => send({ type: 'answer', questionId, level }),
@@ -267,7 +268,7 @@ async function prepareCard() {
 function share(reply = false) {
   if (!state.result) return;
   const to = reply ? invite : undefined;
-  const url = `${here()}?with=${encodeInvite({
+  const url = `${shareAt()}?with=${encodeInvite({
     name: me.name, pick: me.pick, type: state.result, town, home: home?.id,
     ...(to ? { replyTo: { name: to.name, pick: to.pick, type: to.type, town: to.town } } : {}),
   })}`;
@@ -416,7 +417,7 @@ const cardOpts = (focus?: string): CardsOpts => ({
     return got?.card;
   },
   share: card => {
-    const url = `${here()}?card=${encodeURIComponent(card.id)}`, text = `문제 카드 — ${card.title}. 이 돈, 어떻게 보세요?`;
+    const url = `${shareAt()}?card=${encodeURIComponent(card.id)}`, text = `문제 카드 — ${card.title}. 이 돈, 어떻게 보세요?`;
     if (navigator.share) navigator.share({ title: '함께해요 시민의 숲 — 문제 카드', text, url }).catch(() => {});
     else if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
     else ui.toast(url);

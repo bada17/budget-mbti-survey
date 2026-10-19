@@ -27,7 +27,8 @@ export { lookFrom, toLook, type Look } from './look';
  * 검토판은 머리 끝이 64px 이라 56/64 로 줄여 예전 사람 키에 맞춘다 — 말풍선·하트·이름표 자리가 그대로다.
  */
 const FIGURE_SCALE = 56 / 64;
-function figure(scene: Scene, look: Look) {
+/** bakeAt — 머리·옷 그림을 몇 배 화소로 구울지(bake). 0 이면 굽지 않는다(크게 당겨 보는 내 모습·시민증 사진). */
+function figure(scene: Scene, look: Look, bakeAt: number) {
   const s = scene.add, f = look.form, style = look.style, top = look.top, pattern = look.pattern, accent = look.accent;
   const hair = hairColor(look), skin = look.skin, coat = look.coat;
   const path = (x: number, y: number) => new Phaser.Curves.Path(x, y);
@@ -192,8 +193,23 @@ function figure(scene: Scene, look: Look) {
     scarf.fillStyle(0xecc68e, 0.9).fillRoundedRect(-12, -32, 24, 2, 1);
     scarf.fillStyle(0xecc68e, 0.75).fillRoundedRect(5, -20, 6, 2, 1).fillRoundedRect(5, -14, 6, 2, 1);
   }
-  const fig = s.container(0, 0, [back, ...legs, ...sleeves, torso, wear, neck, ...ears, head, scarf, fringe, deco, ...eyes, face]).setScale(FIGURE_SCALE);
+  // 안 움직이는 덩어리(뒷머리 · 몸통~얼굴 · 다리 하나 · 팔 하나)를 마을 그림처럼 한 장씩 굽는다(bake) — 도형이 사람마다 스무 개 넘고
+  // Graphics 는 장마다 다시 쪼개 그려서, 주민이 열 명 넘게 서면 느린 폰(CPU 4배)에서 초당 16~24장까지 떨어졌다(10-19, 마지막 방·언덕).
+  // 그릇(container)째 구워 그릇의 자리·각도는 그대로 — 걷기(다리)·앉기·손 흔들기(오른팔 숨김) 움직임은 안 바뀐다. 눈만 따로(보는 쪽으로 움직임).
+  // ponytail: 칸이 고정 — 그림이 FIG_BOX·LEG_BOX·SLEEVE_BOX 밖으로 나가면 잘린다. 더 크게 그리면 칸을 넓힐 것.
+  if (bakeAt) { legs.forEach(leg => freeze(scene, leg, LEG_BOX, bakeAt)); sleeves.forEach(arm => freeze(scene, arm, SLEEVE_BOX, bakeAt)); }
+  const lump = (parts: Phaser.GameObjects.GameObject[]) => { const c = s.container(0, 0, parts); return bakeAt ? freeze(scene, c, FIG_BOX, bakeAt) : c; };
+  const hasBack = back.commandBuffer.length > 3; // 색 정하기 하나뿐이면 그린 게 없다
+  const fig = s.container(0, 0, [hasBack ? lump([back]) : back, ...legs, ...sleeves, lump([torso, wear, neck, ...ears, head, scarf, fringe, deco, face]), ...eyes]).setScale(FIGURE_SCALE);
   return { fig, legs, eyes, rightArm: sleeves[1], sleeveColor };
+}
+const FIG_BOX = { x0: -28, y0: -76, x1: 28, y1: 0 }, LEG_BOX = { x0: -7, y0: -5, x1: 7, y1: 9 }, SLEEVE_BOX = { x0: -10, y0: -4, x1: 10, y1: 20 };
+let figBakes = 0;
+/** 그릇 c 속 도형을 그 자리 그대로 그림 한 장으로(bake) 바꿔 c 에 다시 넣는다. 사람이 사라지면 그림도 지운다. */
+function freeze(scene: Scene, c: Phaser.GameObjects.Container, b: Bounds, res: number) {
+  const key = `fig-${figBakes++}`;
+  c.add(bake(scene, key, () => scene.add.container(0, 0, [...c.list]), b, res).once('destroy', () => scene.textures.remove(key)));
+  return c;
 }
 
 export class Dude {
@@ -208,8 +224,9 @@ export class Dude {
   private idleClock = Math.random() * 4000;
   private hopping = false;
   private sitting = false;
-  constructor(private scene: Scene, look: Look, x: number, y: number, scale = 1) {
-    const art = figure(scene, look);
+  /** bakeAt — 화면 배율(dpr 3까지) 에 맞춘 3배. 모습 고르기처럼 크게 당겨 볼 사람은 0(굽지 않음). */
+  constructor(private scene: Scene, look: Look, x: number, y: number, scale = 1, bakeAt = 3) {
+    const art = figure(scene, look, bakeAt);
     this.fig = art.fig; this.legs = art.legs; this.eyes = art.eyes; this.rightArm = art.rightArm;
     this.arm = { color: art.sleeveColor, skin: look.skin };
     this.body = scene.add.container(0, 0, [art.fig]);
@@ -399,7 +416,7 @@ export function facePhoto(scene: Scene, look: Look, size: number): Promise<strin
     if (scene.textures.exists(key)) scene.textures.remove(key);
     const tex = scene.textures.addDynamicTexture(key, size, size);
     if (!tex) { resolve(undefined); return; }
-    const dude = new Dude(scene, look, 0, 0), k = size / 50; // 머리 위 끝에서 어깨까지 50px 쯤이 한 장에
+    const dude = new Dude(scene, look, 0, 0, 1, 0), k = size / 50; // 머리 위 끝에서 어깨까지 50px 쯤이 한 장에
     dude.root.setScale(k).setPosition(size / 2, size / 2 + 34 * k); // 얼굴(발에서 41px 위) 조금 아래가 가운데
     tex.draw(dude.root);
     tex.render();
