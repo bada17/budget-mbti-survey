@@ -1,7 +1,7 @@
 // 모습 값(10-15 저녁, GPT 승인 기준 본편 반영) — 열 칸 고른 번호, 옛 넷·다섯 칸 읽기, 기본 모습 고르기, 무작위·주민 모습. 화면 없이 돈다.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isPick, fullPick, withForm, toLook, randomPick, lookFrom, hairColor, wearing, PICK_SIZES, FORMS, HAIRS, HAIR_MENU, TOPS, REWARDS } from '../game/look.ts';
+import { isPick, fullPick, withForm, faceOf, toLook, randomPick, lookFrom, hairColor, wearing, PICK_SIZES, FORMS, HAIRS, HAIR_MENU, TOPS, REWARDS } from '../game/look.ts';
 
 test('고른 번호: 열 칸과 옛 넷·다섯 칸만 받고, 칸마다 범위 안이어야 한다', () => {
   assert.equal(PICK_SIZES.length, 10);
@@ -42,4 +42,8 @@ test('무작위·주민 모습: 늘 받을 수 있는 열 칸, 주민은 같은 
   assert.deepEqual(lookFrom('q1:left'), lookFrom('q1:left'));
   const mixed = { ...toLook(fullPick([0, 2, 0, 0])), pattern: 'mixed', accent: 0xffffff };
   assert.ok(hairColor(mixed) !== mixed.hair && hairColor({ ...mixed, pattern: 'solid' }) === mixed.hair);
+});
+
+test('옛 열두 기본 모습은 얼굴 특징이 같은 대표 단추로 켜진다', () => {
+  assert.deepEqual(FORMS.map((_, i) => faceOf(i)), [0, 0, 0, 0, 0, 5, 6, 6, 6, 9, 6, 6]);
 });

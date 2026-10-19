@@ -8,7 +8,7 @@ import { AXES, ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode 
 import type { AxisScores } from './score';
 import { currentQuestion, type JourneyState } from './flow';
 import { displayOptions, orderedQuestions, type DisplaySide } from './response';
-import { COATS, HAIRS, SKINS, FORMS, HAIR_MENU, HAIR_STYLES, TOPS, PATTERNS, fullPick, withForm, randomPick, nameFrom, type Pick } from './look';
+import { COATS, HAIRS, SKINS, FACES, faceOf, HAIR_MENU, HAIR_STYLES, TOPS, PATTERNS, fullPick, randomPick, nameFrom, type Pick } from './look';
 import { sfx } from './sfx';
 import { cleanName, josa, type Me } from './profile';
 import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
@@ -316,9 +316,9 @@ export function createUI(root: HTMLElement, actions: {
       return { top: card ? card.bottom - box.top : 0, bottom: barBox ? barBox.top - box.top : box.height };
     },
     /**
-     * 내 모습 고르기 — 승인한 기준(GPT 검토판 roster.ts, 10-15): 기본 모습 열둘을 고른 뒤 머리 모양·머리색(바탕색·색 넣기·섞는 색)·옷을 하나씩 따로.
+     * 내 모습 고르기 — 얼굴(피부·눈썹·미소선·수염)·머리·옷을 각각 따로 고른다(사용자 10-19).
      * 안경·머리 장식은 여기서 고르지 않는다 — 마을 부탁의 보상으로만(사용자 10-17). 받은 건 pick 에 남아 그대로 보인다.
-     * 줄이 여덟 개라 탭 셋(모습·머리·옷)으로 나눈다. 탭은 겹쳐 두고 안 보이는 탭은 자리만 차지해서 판 높이가 늘 같다 —
+     * 줄이 여덟 개라 탭 셋(얼굴·머리·옷)으로 나눈다. 탭은 겹쳐 두고 안 보이는 탭은 자리만 차지해서 판 높이가 늘 같다 —
      * 판 위에 크게 보이는 내 모습이 탭을 바꿔도 가려지지 않게(JourneyScene 의 dressView 가 처음 판 높이로 자리를 잡는다).
      */
     dresser(me: Me, on: { change(me: Me): void; done(me: Me): void }) {
@@ -329,15 +329,15 @@ export function createUI(root: HTMLElement, actions: {
       // 줄마다 [이름, 고른 번호의 자리(Pick), 글 단추면 이름들 · 색 단추면 색들, 단추 → 넣을 번호(없으면 차례 그대로), 색 이름].
       type Line = [string, number, string[] | number[], number[]?, string[]?];
       const tabs: [string, Line[]][] = [
-        ['모습', [['기본 모습', 0, FORMS.map(f => f.name)], ['피부', 3, SKINS]]],
+        ['얼굴', [['피부', 3, SKINS], ['얼굴', 0, FACES.map(f => f.name), FACES.map(f => f.i)]]],
         ['머리', [['머리 모양', 5, HAIR_STYLES.map(h => h.name)], ['머리색', 1, menuColors, menu, menuNames], ['색 넣기', 4, PATTERNS.map(p => p.name)], ['섞는 색', 9, menuColors, menu, menuNames]]],
         ['옷', [['옷', 6, TOPS.map(t => t.name)], ['옷 색', 2, COATS]]],
       ];
       const changed = () => { current.at = Date.now(); draw(); on.change({ ...current, pick: [...current.pick] as Pick }); };
       const swatch = ([label, slot, , ids, names]: Line, value: string | number, i: number) => {
         const stored = ids?.[i] ?? i;
-        // 기본 모습을 고르면 머리 모양·옷이 그 모습으로 맞춰진다(색·피부·안경·장식은 그대로).
-        const b = button(typeof value === 'string' ? 'g-chip' : 'g-swatch', typeof value === 'string' ? value : '', () => { current.pick = slot === 0 ? withForm(current.pick, stored) : Object.assign(current.pick, { [slot]: stored }); changed(); });
+        // 얼굴은 대표 기본 모습 번호만 바꾼다 — 머리·옷·안경·장식은 그대로.
+        const b = button(typeof value === 'string' ? 'g-chip' : 'g-swatch', typeof value === 'string' ? value : '', () => { current.pick[slot] = stored; changed(); });
         if (typeof value === 'number') { b.style.background = hex(value); b.setAttribute('aria-label', `${label} ${names?.[i] ?? i + 1}`); if (names) b.title = names[i]; }
         b.dataset.row = String(slot); b.dataset.i = String(stored);
         return b;
@@ -363,7 +363,10 @@ export function createUI(root: HTMLElement, actions: {
         panes.append(rows);
       });
       const draw = () => {
-        panes.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.classList.toggle('on', (current.pick[+b.dataset.row!] ?? 0) === +b.dataset.i!));
+        panes.querySelectorAll<HTMLButtonElement>('button').forEach(b => {
+          const slot = +b.dataset.row!, selected = slot === 0 ? faceOf(current.pick[0]) : current.pick[slot] ?? 0;
+          b.classList.toggle('on', selected === +b.dataset.i!);
+        });
         // 섞는 색은 전체 단색이면 쓸 일이 없다 — 자리는 그대로 두고 안 보이게(판 높이가 흔들리지 않게).
         mixRow.forEach(x => { x.style.visibility = current.pick[4] === 0 ? 'hidden' : ''; });
         // 옆으로 미는 줄 — 고른 단추가 가려져 있으면 가운데로(처음 열 때·탭을 바꿀 때·「어떤 모습이 나올까?」).

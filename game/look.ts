@@ -31,8 +31,8 @@ export const BROW = 0x4b3a33;
 
 /*
   성인 열두 모습 — GPT 검토판(game/review/round, 10-15 승인). 어린이 없음, 성별·나이 값 없음.
-  10-15 저녁부터 열두 모습은 「기본 조합」 이다 — 고르면 머리 모양·옷이 그 모습으로 맞춰지고, 그다음 머리 모양·머리색·옷을 하나씩 따로 바꾼다.
-  눈썹·수염·미소선·바지·신발은 기본 조합에 붙어 있어 다른 걸 바꿔도 그대로다.
+  열두 「기본 조합」은 무작위·주민 모습·옛 기록에서 그대로 쓴다.
+  고르는 판은 얼굴·머리·옷을 각각 따로 고른다(10-19). 눈썹·수염·미소선·바지·신발은 기본 조합 번호에서 읽는다.
   안경·머리 장식(액세서리)은 처음에 고르지 않고 마을 부탁의 보상으로만 받는다(사용자 10-17 「악세사리는 다 보상으로」, 안경도 액세서리로) —
   그래서 기본 조합은 안경을 정하지 않는다. 안경 쓴 기본 조합(FORMS 의 glasses)은 마을 주민(lookFrom)·옛 링크(fullPick)만 그대로 쓴다.
 */
@@ -73,6 +73,16 @@ export const FORMS: Form[] = [
   { name: '낮은 묶음·앞치마', hair: 'lowTie', top: 'apron', pants: 0x8e8074, brows: true, smileLines: true },
   { name: '짧은 파마·가디건', hair: 'curls', top: 'cardigan', pants: 0x81766c, glasses: true, brows: true, smileLines: true },
 ];
+
+/** 얼굴 단추 — 저장에는 기존 기본 모습 번호만 쓴다. 머리·옷·안경·장식과는 독립(10-19). */
+export const FACES = [
+  { i: 0, name: '기본' }, { i: 5, name: '또렷한 눈썹' }, { i: 6, name: '웃음 주름' }, { i: 9, name: '짧은 수염' },
+];
+/** 옛 기본 모습도 눈썹·미소선·수염으로 같은 얼굴 단추를 켠다. */
+export function faceOf(form: number): number {
+  const f = FORMS[form];
+  return f.beard ? 9 : f.smileLines ? 6 : f.brows ? 5 : 0;
+}
 
 export type Look = {
   coat: number; skin: number; hair: number; accent: number; pattern: HairPattern;

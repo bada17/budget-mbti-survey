@@ -161,7 +161,8 @@ function figure(scene: Scene, look: Look) {
   face.lineStyle(1.1, 0x85554b).beginPath().arc(0, -36.2, 2.3, 0.15, Math.PI - 0.15).strokePath();
   // 눈썹·수염은 늘 같은 색(BROW) — 머리색을 바꿔도 따라 바뀌지 않는다(승인 기준).
   if (f.brows) face.lineStyle(1.25, BROW, 0.8).lineBetween(-8, -46, -3.5, -46.4).lineBetween(3.5, -46.4, 8, -46);
-  if (f.smileLines) face.lineStyle(0.65, 0x98745f, 0.48).lineBetween(-9, -34.8, -8.1, -33.3).lineBetween(8.1, -33.3, 9, -34.8);
+  // 폰에서도 눈썹만 있는 얼굴과 구별되도록 미소선을 또렷하게(10-19).
+  if (f.smileLines) face.lineStyle(1.1, 0x98745f, 0.75).lineBetween(-9.2, -36.3, -7.8, -33.3).lineBetween(7.8, -33.3, 9.2, -36.3);
   if (f.beard) face.fillStyle(BROW, 0.65).fillPoints(path(-9, -34.7).cubicBezierTo(9, -34.7, -5, -31, 5, -31)
     .cubicBezierTo(0, -29.3, 7, -30.5, 3, -29).cubicBezierTo(-9, -34.7, -3, -29, -7, -30.5).closePath().getPoints(12), true);
   if (look.glasses) face.lineStyle(0.85, 0x8b796a).strokeCircle(-4.8, -41.5, 3.5).strokeCircle(4.8, -41.5, 3.5).lineBetween(-1.3, -41.5, 1.3, -41.5);
