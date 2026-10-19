@@ -52,9 +52,10 @@ export const PATTERNS: { value: HairPattern; name: string }[] = [
   { value: 'solid', name: '전체 단색' }, { value: 'streak', name: '앞머리 한 줄' }, { value: 'mixed', name: '고루 섞기' }, { value: 'temples', name: '양옆만' },
 ];
 /** 머리 장식 — 하나만, 안경과는 같이 쓴다. 모자는 승인에서 뺐다. */
-export type Accessory = 'none' | 'headband' | 'hairpin' | 'ribbon';
+export type Accessory = 'none' | 'headband' | 'hairpin' | 'ribbon' | 'scarf';
 export const ACCESSORIES: { value: Accessory; name: string }[] = [
   { value: 'none', name: '없음' }, { value: 'headband', name: '머리띠' }, { value: 'hairpin', name: '머리핀' }, { value: 'ribbon', name: '작은 리본' },
+  { value: 'scarf', name: '목도리' },
 ];
 export const GLASSES = ['없음', '둥근 안경'];
 
@@ -145,11 +146,12 @@ export function randomPick(random = Math.random, keep?: Pick): Required<Pick> {
 }
 
 /**
- * 부탁 보상 — 날마다(부탁 셋을 다 들어주면) 하나씩, 이 차례로. 받으면 바로 쓴다(옷장에서 갈아입기는 아직 안 만듦 — 사용자 10-17 「일단 구현하지 말고」).
- * 다섯째 날 것은 새 액세서리 — 그림은 GPT 몫(README 「GPT 에게 — 새 액세서리」), 그리기 전까지는 비워 둔다.
+ * 부탁 보상 — 날마다(부탁 셋을 다 들어주면) 하나씩, 이 차례로. 받으면 바로 쓴다.
+ * 다섯째 날 목도리는 기존 번호 뒤에 둬 옛 링크의 모습을 지킨다.
  */
 export const REWARDS: { name: string; slot: 7 | 8; value: number }[] = [
   { name: '머리핀', slot: 8, value: 2 }, { name: '머리띠', slot: 8, value: 1 }, { name: '작은 리본', slot: 8, value: 3 }, { name: '둥근 안경', slot: 7, value: 1 },
+  { name: '목도리', slot: 8, value: 4 },
 ];
 /** 받은 액세서리를 쓴 모습. */
 export function wearing(pick: Pick, reward: (typeof REWARDS)[number]): Required<Pick> {

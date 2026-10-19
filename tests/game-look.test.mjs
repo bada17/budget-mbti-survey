@@ -63,3 +63,10 @@ test('얼굴을 추가해도 무작위와 같은 씨앗의 주민은 원래 열�
   assert.equal(randomPick(() => 0.999999)[0], 11);
   assert.deepEqual(['q1:left', 'q1:right', 'q2:left'].map(seed => lookFrom(seed).form.name), ['짧은 수염·점퍼', '둥근 파마·조끼', '짧은 수염·점퍼']);
 });
+
+test('새 목도리는 다섯째 보상으로 입고, 옛 머리 장식 번호는 그대로 읽힌다', () => {
+  const base = fullPick([0, 0, 0, 0]);
+  assert.equal(toLook(wearing(base, REWARDS[4])).accessory, 'scarf');
+  assert.equal(toLook(wearing(base, REWARDS[1])).accessory, 'headband');
+  assert.deepEqual(wearing(base, REWARDS[4]).slice(0, 8), base.slice(0, 8));
+});

@@ -28,7 +28,9 @@ a.g-link{text-align:center}
 .v-q,.v-a{margin:0;line-height:1.6}
 .v-q{font-family:var(--body);font-weight:700;font-size:17px;color:#5b402e}.v-q::before{content:"Q ";color:var(--accent)}
 .v-a{margin-top:6px;font-size:14px;color:#6a5646}.v-a::before{content:"A ";font-family:var(--display);color:var(--leaf-dark)}
-.v-sec+.v-sec{margin-top:20px;padding-top:14px;border-top:2px dashed var(--line)}
+.v-sec+.v-sec{margin-top:22px;padding-top:17px;border-top:2px dashed var(--line)}
+.v-sec:has(a[href^="mailto:"]){padding-bottom:20px}
+.v-sec:has(a[href^="mailto:"]) a{display:block;width:max-content;max-width:100%;margin:6px 0;color:var(--accent-dark);text-underline-offset:3px}
 .v-head{margin:4px 2px 2px;font-family:var(--display);font-size:19px;color:#5b402e}
 .v-by{margin:8px 0 0;text-align:right;font-size:13px;color:var(--soft)}
 .v-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}
@@ -105,12 +107,17 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-tip{min-height:1.6em;margin:4px 4px 12px;font-size:14px;color:#6a5646;text-align:center}
 .t-join{color:var(--accent-dark)}
 /* 10-19 새 칸 — 되게만 둔 모양, 다듬기는 GPT */
-a.t-join.g-ghost{display:flex;align-items:center;justify-content:center;margin:0 0 12px;text-decoration:none}
-.t-login-can{margin:4px 0 8px;padding-left:18px;line-height:1.6}
-.t-invite{margin:10px 0}.t-invite .g-ghost{width:100%}
-.t-talk{margin:14px 0}
-.v-ware{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line)}
-.v-ware .g-ghost{margin:0;min-height:40px;font-size:14px;width:auto;padding:0 14px}.v-ware b{white-space:nowrap}
+a.t-join.g-ghost{display:flex;align-items:center;justify-content:center;min-height:46px;margin:10px 0 16px;border:2px solid #d7b28d;background:#fffaf0;color:var(--accent-dark);text-decoration:none;box-shadow:0 3px 0 #e1c9a9}
+a.t-join.g-ghost:hover{background:#fff1e6}
+.t-login-can{margin:10px 0 14px;padding:12px 13px 12px 29px;border-radius:14px;background:#f5eddd;color:#604c3a;line-height:1.65}
+.t-login-can li+li{margin-top:3px}
+.t-invite{margin:12px 0 16px;padding:10px;border-radius:17px;background:#f8efdf}.t-invite .g-ghost{width:100%;min-height:44px}
+.t-talk{margin:16px 0;padding:14px;border-radius:18px;background:#f7efdf;box-shadow:inset 0 0 0 1px #ead9bc}
+.t-talk :is(input,textarea){max-width:100%}
+.v-ware{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px 10px;padding:11px 12px;border-radius:15px;background:#fffaf0;box-shadow:inset 0 0 0 1.5px #e9d5b6}
+.v-ware b{min-width:0;color:#5b402e;font-family:var(--display);font-size:16px;font-weight:400}
+.v-ware .t-small{margin:0;color:#6b7960;font-weight:700}
+.v-ware .g-ghost{margin:0;min-height:40px;width:auto;max-width:100%;padding:0 12px;font-size:13px;white-space:nowrap}
 
 /* 로그인 자리 — 공식 기호·색·여백. 문구의 가이드 차이는 README에 기록. */
 .t-login{margin:18px 0 8px;padding:16px;border-radius:20px;background:#f7efdf}
@@ -127,9 +134,11 @@ a.t-join.g-ghost{display:flex;align-items:center;justify-content:center;margin:0
 .t-login [role=status]:not(:empty){margin:10px 0 0;font-weight:700;color:var(--accent-dark)}
 
 /* 쪽지 — 쪽지판 목록과 광장 카드 */
-.v-write{margin:4px 0 16px}
-.v-write .g-primary{min-height:48px;font-size:17px}
-.v-notes{display:grid;gap:8px}
+.v-write{margin:9px 0 19px;padding:12px;border-radius:18px;background:#f7efdf}
+.v-write :is(input,textarea){max-width:100%}
+.v-write .g-primary{min-height:48px;margin-top:9px;font-size:16px}
+.v-notes{display:grid;gap:10px;padding-top:2px}
+.v-notes .v-note{border-left:3px solid #d8a982}
 .v-note{padding:12px 14px;border-radius:20px;background:#fffdf6;box-shadow:inset 0 0 0 2px #f0e3c8}
 .v-who{display:flex;align-items:center;gap:6px;font-family:var(--body);font-weight:700;font-size:15px;color:#5b402e}
 .v-who small{font-family:var(--body);font-size:12px;color:var(--soft)}

@@ -26,8 +26,11 @@
 .lp-hero-art{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:20px}
 .lp-hero-words .lp-play{margin-top:28px}
 /* 「전에 해 봤어요」(10-19) — 큰 단추 밑 작은 글 링크, 되게만 둔 모양 */
-.lp-recall{display:block;margin:12px 0 0;padding:6px 0;border:0;background:none;color:inherit;font:600 14px var(--body, sans-serif);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-.lp-hero-words .t-login{max-width:360px;color:#4f3f35}
+.lp-recall{display:inline-flex;align-items:center;min-height:38px;margin:14px 0 0;padding:5px 0;border:0;background:none;color:var(--lp-ink);font:700 14px var(--body);text-decoration:underline;text-decoration-color:var(--lp-brand-deep);text-decoration-thickness:2px;text-underline-offset:5px;cursor:pointer}
+.lp-recall:hover{color:var(--lp-brand-deep)}
+.lp-hero-words .t-login{max-width:360px;margin:12px 0 0;padding:18px;border:1px solid #d8e5ea;border-radius:17px;background:#fff;color:#4f3f35;box-shadow:0 10px 24px #0d1c2614}
+.lp-hero-words .t-login-title{font-family:var(--body);font-weight:800;letter-spacing:-.02em}
+@media(max-width:480px){.lp-hero-words .t-login{max-width:100%;padding:15px}}
 
 /* 게임 단추 — 게임과 잇는 고리(게임 색·둥근 글꼴) */
 .lp-play{display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;min-height:56px;padding:12px 24px;border:0;border-radius:999px;background:var(--lp-action);color:#fffaf0;font:400 20px var(--display);box-shadow:0 4px 0 #7e382b;cursor:pointer;transition:background .15s,transform .1s,box-shadow .1s}
