@@ -63,5 +63,7 @@ export const FEEL = {
   revealDelayMs: 900,
   portalDelayMs: 1100, // 끝 카드가 내려앉은 뒤 빛 아치가 피어나기까지
   portalGapPx: 64, // 빛 아치 발밑과 나 사이(몇 걸음 걸어 올라가게)
+  guideSidePx: 70, // 언덕 안내하는 사람 — 아치로 가는 길에서 오른쪽으로 이만큼(사용자 10-19 「오른쪽으로 좀」)
+  guideRadius: 75, // 이만큼 다가가면 안내하는 사람이 말을 건다 — guideSidePx 보다 커야 아치로 곧장 올라가도 지나치며 말을 건다, 처음 선 자리(대각선 90쯤)보단 작게
   warpMs: 700, // 아치에 빨려 들어가는 시간
 } as const;

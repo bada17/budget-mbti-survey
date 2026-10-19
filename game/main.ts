@@ -365,6 +365,7 @@ async function postNote(text: string, region: Region | undefined = loadRegion())
 function toVillage() {
   if (where === 'village' || !game) return;
   clearInterval(poll);
+  ui.villageNotice(); // 안내하는 사람 말 상자가 열린 채 아치를 지났으면 닫는다
   villageStart = 'gate';
   scene?.leave(() => { game!.scene.stop('journey'); game!.scene.start('village'); });
 }
@@ -662,6 +663,38 @@ function skipToEnd() {
   scene?.skipToEnd(picked);
 }
 
+/*
+  언덕 안내하는 사람(사용자 10-19 「이 게임이 무엇이고 예산이 어려운 이유를 알려주고, 마을로 가 보라고」 — 「구체적인 내용은 적지 마, 구조만」).
+  아치 옆에 서 있다가 다가가면 말 상자. 쪽마다 「다음」, 마지막 쪽은 「마을로 가기」(아치로 걸어 들어간다)·「조금 더 있을게요」.
+  ⚠️ 글은 사용자가 채운다 — 대괄호 칸을 갈아 끼우면 된다. 쪽은 늘리고 줄여도 된다(마지막 쪽이 늘 마을로 가라는 말).
+*/
+const HILL_GUIDE = {
+  name: '[안내하는 사람 이름]',
+  pages: [
+    '[① 이 게임은 무엇인지]',
+    '[② 예산이 어려운 이유]',
+    '[③ 이제 마을로 가 보라는 말]',
+  ],
+  next: '다음', go: '마을로 가기', stay: '조금 더 있을게요',
+};
+let guideOpen = false;
+function guideTalk(page = 0) {
+  if (where === 'village') return;
+  guideOpen = true;
+  ui.endActions(false); // 말 상자가 아래 단추 자리에 뜬다
+  const back = () => { guideOpen = false; ui.endActions(true); }, last = page >= HILL_GUIDE.pages.length - 1;
+  ui.villageNotice(HILL_GUIDE.name, HILL_GUIDE.pages[page], last
+    ? [{ label: HILL_GUIDE.go, run: () => { back(); scene?.toArch(); } }, { label: HILL_GUIDE.stay, run: back }]
+    : [{ label: HILL_GUIDE.next, run: () => guideTalk(page + 1) }]);
+}
+/** 말 상자를 연 채 멀리 걸어가면 닫고 아래 단추를 돌려놓는다. 다시 다가가면 처음 쪽부터. */
+function guideBye() {
+  if (!guideOpen) return;
+  guideOpen = false;
+  ui.villageNotice();
+  ui.endActions(true);
+}
+
 /** 언덕에서 다 같이 폴짝 뛴 뒤 — 끝 화면과 할 수 있는 것들. */
 function showEnd() {
   if (!state.result) return;
@@ -706,7 +739,7 @@ async function boot() {
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
       view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); else if (import.meta.env.DEV && params.has('room')) skipToRoom(Number(params.get('room'))); },
-      pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage,
+      pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage, guide: { name: HILL_GUIDE.name, meet: () => guideTalk(), leave: guideBye },
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);

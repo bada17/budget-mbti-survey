@@ -53,6 +53,8 @@ export type Runtime = {
   arrived(): void;
   /** 언덕의 빛 아치를 지났다 — main 이 마을을 연다. */
   enter(): void;
+  /** 언덕 안내하는 사람(사용자 10-19) — 아치 옆에 서 있다가 다가가면 meet(main 이 말 상자를 연다), 멀어지면 leave(닫는다). 이름은 머리 위 이름표. */
+  guide: { name: string; meet(): void; leave(): void };
   busCaption(stage: number, skip: () => void): void;
   /** 버스가 서면 예산 퀴즈(quiz.ts) — 답하거나 넘기면 done. 퀴즈를 안 내면 false(그냥 잠깐 섰다 간다). */
   busQuiz(stage: number, done: () => void): boolean;
@@ -86,6 +88,8 @@ export class JourneyScene extends Phaser.Scene {
   private hillRoom?: Room;
   /** 빛 아치 뒤의 빛무리 — 가까이 갈수록 밝아진다(사용자 10-19 「텍스트로 들어가게 하는 건 너무 강제적」 → 아치가 들어가고 싶게). */
   private portalGlow?: Phaser.GameObjects.Container;
+  /** 언덕 안내하는 사람 — 아치가 필 때 아치 옆에 선다. near 는 고양이처럼 멀어졌다 다시 오면 또 말을 건다. */
+  private guide?: { dude: Dude; tag: { text: string; x: number; y: number }; near: boolean; dots?: Phaser.GameObjects.Container };
   private warping = false;
   private tagsShown?: { text: string; x: number; y: number }[];
   private guestTags: { text: string; x: number; y: number }[] = [];
@@ -272,6 +276,19 @@ export class JourneyScene extends Phaser.Scene {
       const near = 1 - Math.min(1, distance(this.pos, { x: this.hillRoom.door.x, y: this.hillRoom.wallY }) / 220);
       this.portalGlow.setAlpha(0.45 + near * 0.55);
     }
+    if (this.guide && this.hillRoom && !this.warping) {
+      const { dude } = this.guide, d = distance(this.pos, dude);
+      dude.look(this.pos.x - dude.x, this.pos.y - dude.y);
+      if (!this.guide.near && d < FEEL.guideRadius) {
+        this.guide.near = true;
+        this.runtime.controls.clear();
+        dude.hop(12, 1, this.reduced);
+        sfx.meet();
+        if (this.guide.dots) { this.tweens.killTweensOf(this.guide.dots); this.guide.dots.destroy(); this.guide.dots = undefined; } // 한 번 말을 들으면 「...」 은 거둔다
+        this.runtime.guide.meet();
+      }
+      else if (this.guide.near && d > FEEL.guideRadius + 30) { this.guide.near = false; this.runtime.guide.leave(); }
+    }
     if (this.insideBand) for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(dude.y < this.insideBand.top || dude.y > this.insideBand.bottom);
     if (this.mode !== 'play') return;
     // 고른 뒤엔 남은 주민이 손 흔들고 나가는 중이라 여기서 붙잡지 않는다.
@@ -316,6 +333,36 @@ export class JourneyScene extends Phaser.Scene {
     const far = { x: -999, y: -999 };
     this.hillRoom = { w, h, wallY: base, door: { x: top.x, half: PORTAL.half }, residents: { left: far, right: far }, spawn: { ...top }, floor: Math.min(h - 22, free.bottom - 8) };
     this.player.look(0, -1);
+    this.standGuide(top, base);
+  }
+
+  /**
+   * 안내하는 사람을 아치 발치 오른쪽에 세운다 — 처음 선 자리에선 말을 걸지 않고(끝 화면을 먼저 보게), 아치로 걸어 올라가면 들어가기 전에 말을 건다(FEEL.guideRadius).
+   * 모습은 주민 씨앗 하나(lookFrom) — 따로 그린 모습·서는 자리 다듬기는 GPT 몫.
+   */
+  private standGuide(top: Point, base: number) {
+    const spot = { x: top.x + FEEL.guideSidePx, y: base + 10 };
+    const dude = new Dude(this, lookFrom('hill-guide'), spot.x, spot.y).place(spot);
+    dude.look(-1, 1);
+    dude.hop(14, 2, this.reduced);
+    sparkle(this, spot.x, spot.y - 30, this.reduced);
+    // 머리 위 「...」 말풍선 — 할 말이 있다는 표시라 가 보고 싶게(사용자 10-19). 둥실. 모양 다듬기는 GPT 몫.
+    const dotsAt = { x: spot.x, y: spot.y - 90 };
+    const dots = this.add.container(dotsAt.x, dotsAt.y, [
+      this.add.triangle(0, 13, -5, 0, 5, 0, 0, 7, 0xffffff),
+      this.add.ellipse(0, 0, 40, 26, 0xffffff).setStrokeStyle(2, 0xd6bf98),
+      this.add.text(0, -4, '...', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: this.runtime.view().dpr }).setOrigin(0.5),
+    ]).setDepth(spot.y + 200);
+    if (!this.reduced) this.tweens.add({ targets: dots, y: dotsAt.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.guide = { dude, tag: { text: this.runtime.guide.name, x: spot.x, y: spot.y - 58 }, near: false, dots };
+    this.guestTags = [...this.guestTags, this.guide.tag];
+    this.runtime.ui.tags([{ text: this.runtime.name() || '나', x: this.player.x, y: this.player.y - 58 }, ...this.guestTags]);
+  }
+
+  /** 안내하는 사람의 「마을로 가기」 — 나를 아치로 걸어 들어가게(지나면 warp). */
+  toArch() {
+    if (!this.hillRoom || this.warping) return;
+    this.runtime.controls.target = { x: this.hillRoom.door.x, y: this.hillRoom.wallY - 20 };
   }
 
   /**
@@ -692,7 +739,7 @@ export class JourneyScene extends Phaser.Scene {
       this.time.delayedCall(this.reduced ? 0 : 950, () => dude.hop(14, 2, this.reduced));
     });
     const mine = { text: this.runtime.name() || '나', x: this.player.x, y: this.player.y - 58 };
-    this.guestTags = guests.map((guest, i) => ({ text: guest.label, x: spots[i].x, y: spots[i].y - 58 }));
+    this.guestTags = [...guests.map((guest, i) => ({ text: guest.label, x: spots[i].x, y: spots[i].y - 58 })), ...(this.guide ? [this.guide.tag] : [])];
     this.time.delayedCall(this.reduced ? 0 : 960, () => this.runtime.ui.tags([mine, ...this.guestTags]));
   }
 
