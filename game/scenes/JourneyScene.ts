@@ -84,6 +84,8 @@ export class JourneyScene extends Phaser.Scene {
   private hillTop?: Point;
   /** 언덕을 방처럼 걷는다 — 빛 아치가 「문」(wallY 가 아치 발밑). 아치가 피기 전엔 없다. */
   private hillRoom?: Room;
+  /** 빛 아치 뒤의 빛무리 — 가까이 갈수록 밝아진다(사용자 10-19 「텍스트로 들어가게 하는 건 너무 강제적」 → 아치가 들어가고 싶게). */
+  private portalGlow?: Phaser.GameObjects.Container;
   private warping = false;
   private tagsShown?: { text: string; x: number; y: number }[];
   private guestTags: { text: string; x: number; y: number }[] = [];
@@ -266,6 +268,10 @@ export class JourneyScene extends Phaser.Scene {
     this.recordTrail();
     if (this.mode !== 'hill') this.follow(dt);
     if (this.hillRoom && !this.warping && passedDoor(this.pos, this.hillRoom)) this.warp();
+    if (this.portalGlow && this.hillRoom) { // 아치에 다가갈수록 빛무리가 밝고 크게
+      const near = 1 - Math.min(1, distance(this.pos, { x: this.hillRoom.door.x, y: this.hillRoom.wallY }) / 220);
+      this.portalGlow.setAlpha(0.45 + near * 0.55);
+    }
     if (this.insideBand) for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(dude.y < this.insideBand.top || dude.y > this.insideBand.bottom);
     if (this.mode !== 'play') return;
     // 고른 뒤엔 남은 주민이 손 흔들고 나가는 중이라 여기서 붙잡지 않는다.
@@ -304,11 +310,35 @@ export class JourneyScene extends Phaser.Scene {
     const free = this.runtime.ui.endFree();
     const base = Math.round(Math.min(top.y - FEEL.portalGapPx, Math.max(free.top + PORTAL.height + 16, top.y - FEEL.portalGapPx * 1.6)));
     drawPortal(this, top.x, base, this.reduced);
+    this.glowPortal(top.x, base);
     sparkle(this, top.x, base - PORTAL.height / 2, this.reduced);
     sfx.portal();
     const far = { x: -999, y: -999 };
     this.hillRoom = { w, h, wallY: base, door: { x: top.x, half: PORTAL.half }, residents: { left: far, right: far }, spawn: { ...top }, floor: Math.min(h - 22, free.bottom - 8) };
     this.player.look(0, -1);
+  }
+
+  /**
+   * 아치가 핀 뒤 — 뒤에서 빛이 숨 쉬듯 부풀고(맥박), 테 둘레로 반짝이가 올라간다. 글·단추는 더하지 않는다(사용자 10-19).
+   * 밝기는 update 가 나와의 거리로 바꾼다. 움직임 줄이기면 빛무리만 가만히. 느낌 다듬기는 GPT 몫.
+   */
+  private glowPortal(x: number, base: number) {
+    const { half, height } = PORTAL, mid = base - height * 0.55;
+    const glow = this.add.container(x, mid, [
+      this.add.ellipse(0, 0, half * 5.2, height * 2.1, 0xfff1c4, 0.12), this.add.ellipse(0, 0, half * 3.6, height * 1.6, 0xfff6dc, 0.16), this.add.ellipse(0, 4, half * 2.4, height * 1.15, 0xffffff, 0.2),
+    ].map(e => e.setBlendMode(Phaser.BlendModes.ADD))).setDepth(base - 1).setAlpha(0.45);
+    this.portalGlow = glow;
+    if (this.reduced) return;
+    glow.setScale(0.6);
+    this.tweens.add({ targets: glow, scale: 1, duration: 600, ease: 'Back.easeOut', onComplete: () => this.tweens.add({ targets: glow, scale: 1.12, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }) });
+    this.time.addEvent({
+      delay: 340, loop: true, callback: () => {
+        if (!glow.active || this.warping) return;
+        const side = Math.random() < 0.5 ? -1 : 1, sx = x + side * (half + 6 + Math.random() * 14), sy = base - Math.random() * height * 0.8;
+        const star = this.add.star(sx, sy, 4, 1.2, 4 + Math.random() * 2, Math.random() < 0.5 ? 0xffffff : 0xffe9a8, 0.95).setDepth(base + 2).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: star, y: sy - 34 - Math.random() * 26, angle: 90, alpha: 0, scale: 0.4, duration: 1200, ease: 'Sine.easeOut', onComplete: () => star.destroy() });
+      },
+    });
   }
 
   /** 빛 아치를 지났다 — 작아지며 빛 속으로, 그다음 main 이 마을을 연다. */

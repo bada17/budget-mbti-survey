@@ -21,9 +21,9 @@ import { board, ISSUE_AT, ISSUED } from './stamps';
 import { letterFor, type Season } from './seasons';
 import { DONATE_URL, backCloses, ICONS, contactForm } from './ui';
 import { PRIVACY_URL, type ContactForm } from './contact';
-import { PROVIDER_NAME, type Provider } from './login';
-import type { RegionView, Visit } from './api';
-import { VILLAGE_NAME } from './village';
+import { PROVIDER_NAME, type Provider, type Intent } from './login';
+import type { PublicNote, RegionView, Visit } from './api';
+import { VILLAGE_NAME, NOTE_MAX, NOTE_WHY, checkNote } from './village';
 
 export type Person = { name: string; pick: Pick; type: TypeCode; town: Town };
 type Guest = Omit<Visit, 'sessionId'>;
@@ -31,17 +31,22 @@ export type HubData = {
   me: Person; neighbor?: Neighbor; photo?: string;
   /** 지금이 예산철이면 그 철, 그리고 다음 철(편지 미리 보기). */
   season?: Season; next: Season;
-  /** 서버가 있을 때만 — 방명록 읽기(집이 있을 때), 우리 동네 보기·짓기(내 동네는 profile 의 loadRegion — 시·군·구 코드). */
+  /** 처음 열 탭 — 로그인하고 돌아왔을 때 「우리 동네」 로(사용자 10-19). */
+  tab?: 'region';
+  /** 서버가 있을 때만 — 방명록 읽기(집이 있을 때), 우리 동네 보기(내 동네는 profile 의 loadRegion — 시·군·구 코드). */
   book?: () => Promise<Guest[] | undefined>;
   regionView?: (region: Region) => Promise<RegionView | undefined>;
-  buildRegion?: (region: Region) => Promise<RegionView | undefined>;
+  /** 내 동네에 함께하기 — 로그인했으면 기록 묶음(내 동네)을 바로 올리고 그 동네를 다시 본다(api.ts regionView 는 로그인한 사람만 센다). */
+  joinRegion?: (region: Region) => Promise<RegionView | undefined>;
+  /** 동네 한마디(사용자 10-19 「우리동네 내용을 우리 동네에서 확인」) — 쪽지 한 장 그리기(places.ts noteView)·내 동네로 한 줄 남기기. */
+  notes?: { item(note: PublicNote): HTMLElement; post(text: string, region: Region): Promise<{ ok: boolean; text: string }> };
   /** 이웃 편지 받기(= 소식 받기 판 열기). 연락처 칸이 켜진 판에서만. */
   subscribe?: () => void;
   /** 로그인(login.ts) — 단추가 없는 판(키를 넣기 전)엔 안 보인다. */
   login?: LoginOpts;
 };
-/** start 가 false 면 아직 못 간다(키를 넣기 전) — 판이 「준비 중」 이라 알린다. */
-export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider): boolean; logout(): Promise<boolean>; forget(): Promise<boolean> };
+/** start 가 false 면 아직 못 간다(키를 넣기 전) — 판이 「준비 중」 이라 알린다. news = 로그인 칸에 [선택] 소식 받기를 보이나(연락처 칸이 켜진 판만). */
+export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider, intent?: Intent): boolean; logout(): Promise<boolean>; forget(): Promise<boolean>; news?: boolean };
 
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));
 export const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
@@ -69,7 +74,7 @@ export function avatar(look: Look, label = '') {
   return a;
 }
 
-/** 열다섯 자리 — 내 집, 옆에 세운 사람의 집(답장에서만 쓴다). */
+/** 열다섯 자리 — 내 집, 옆에 세운 사람의 집(답장·끝 화면 「○○님과 고른 것」). */
 function lotsView(mine: Town, beside?: { name: string; town?: Town }) {
   const wrap = el('div', 't-town');
   for (const stage of ROUTE) {
@@ -136,7 +141,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   const facts = el('dl', 't-facts'), where = el('dd', '', '아직');
   if (loadRegion()) void loadPlaces().then(({ places }) => { const p = places.find(x => x.c === loadRegion()); if (p) where.textContent = placeTitle(p); });
   facts.append(el('dt', '', '이름'), el('dd', '', me.name || '동네 주민'), el('dt', '', '유형'), el('dd', '', TYPES[me.type].name),
-    el('dt', '', '내 이웃'), el('dd', '', data.neighbor?.name || '아직'), el('dt', '', '내 동네'), where);
+    /* [나중에 살림: 내 이웃] el('dt', '', '내 이웃'), el('dd', '', data.neighbor?.name || '아직'), */ el('dt', '', '내 동네'), where);
   const body = el('div', 't-card-body'); body.append(photo, facts);
   const grid = el('div', 't-stamps');
   const tip = el('p', 't-tip');
@@ -157,11 +162,12 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     el('p', 't-issued', issued && issuedAt ? `도장 ${got}/${stamps.length} · ${today(issuedAt)} 발급 · 함께하는 시민행동` : `도장 ${got}/${stamps.length} · ${ISSUE_AT - got}개를 더 모으면 발급돼요`));
   const save = btn('g-primary', '시민증 저장·보내기', () => {});
   save.hidden = !issued; // 발급 전 시민증은 보내지 않는다
-  const join = el('a', 'g-link t-join', '함께하는 시민행동 회원 되기 →');
+  // 후원 — 시민증 바로 밑 테두리 단추(사용자 10-19 「시민센터, 시민행동의 집을 좀 키우자」 — 전엔 작은 글 링크), 결제 대신 정기후원 안내(/74)
+  const join = el('a', 'g-ghost t-join', '함께하는 시민행동 정기후원 안내');
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
-  const mine = el('div'); mine.append(card, tip, save, join, status);
-  if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, '지키기'));
+  const mine = el('div'); mine.append(card, tip, join, save, status);
+  if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, '함께', 'hub'));
   tab('시민증', mine);
 
   // ── 방명록 ──
@@ -169,11 +175,12 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     const book = el('section');
     const list = el('ul', 't-guests');
     const status = el('p', 't-small', '불러오는 중…');
-    book.append(status, list);
+    // 무슨 칸인지 늘 맨 위에 한 줄(사용자 10-19 「방명록을 들어가면 어떤 기능인지 설명하는 한 줄」 — 문구 확정)
+    book.append(el('p', 't-small', '내가 보낸 링크로 들어와 한 바퀴를 끝까지 걸은 친구가 여기 남아요. 나만 볼 수 있어요.'), status, list);
     tab('방명록', book);
     void data.book().then(guests => {
       if (!guests) { status.textContent = '지금은 방명록을 불러올 수 없어요.'; return; }
-      if (!guests.length) { status.textContent = '아직 없어요. 「친구에게 보내기」 로 링크를 보내면, 그 링크로 끝까지 걸은 친구가 여기에 남아요.'; return; }
+      if (!guests.length) { status.textContent = '아직 없어요. 끝 화면의 「친구에게 보내기」로 링크를 보내 보세요.'; return; }
       addStamp('guest');
       status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요.`;
       for (const g of guests) {
@@ -185,10 +192,11 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   }
 
   // ── 우리 지역 동네 · 이웃의 편지 ──
-  if (data.regionView && data.buildRegion) tab('우리 동네', regionSection(data));
-  tab('이웃 편지', letterSection(data, close));
+  const regionTab = data.regionView ? panes.length : -1;
+  if (data.regionView) tab('우리 동네', regionSection(data));
+  // tab('이웃 편지', letterSection(data, close)); // [나중에 살림: 내 이웃] 편지는 내 이웃이 보낸다
   panel.append(tabs, ...panes);
-  show(0);
+  show(data.tab === 'region' && regionTab >= 0 ? regionTab : 0);
 
   // ── 그림 — 미리 찍어 둔다(누른 뒤에 찍으면 아이폰이 공유창을 막는다, main.ts 와 같은 까닭) ──
   let file: File | undefined;
@@ -214,10 +222,13 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
 }
 
 /**
- * 로그인 자리 — 안 했으면 「카카오로 지키기」 단추와 받는 것 안내, 했으면 「지키는 중」 과 끊기·지우기.
- * 안내는 실제로 받는 것 그대로(login.ts·server/gas.ts): 회원번호(해시로 바꿔 둠) + 이 기기의 게임 기록, 그리고 이메일(남기지 않고 로그인 직후 소식 받기 칸에만 — openNews).
+ * 로그인 자리 — 안 했으면 로그인 단추(만 14세 체크 하나 + 안내 한 줄), 했으면 「함께하고 있어요」 와 끊기·지우기.
+ * 말은 「지키기」 가 아니라 「함께」(사용자 10-19 「지키기 이런 표현보다 함께한다는 표현으로 하는게 맞지 않나?」).
+ * 동의 칸은 [필수] 만 14세 하나(사용자 10-19 「해봐」) — 계정 확인은 서비스에 꼭 필요한 처리라 체크 칸 대신 안내 한 줄(개인정보처리방침 링크).
+ * [선택] 소식 받기는 로그인 조건으로 묶지 않는다(정보통신망법 50조·개인정보보호법 22조) — 연락처 칸이 켜진 판(opts.news)에서만 보인다.
+ * back = 로그인하고 돌아오면 다시 열 판(login.ts Intent). verb — '함께' 시민센터, '불러오기' 시작 화면·소개 페이지, '로그인' 그 자리에서(쪽지·우리 동네, 제목 없이).
  */
-function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그인') {
+export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로그인', back?: string) {
   const box = el('section', 't-login');
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const draw = () => {
@@ -237,38 +248,35 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
           draw(); status.textContent = ok ? '서버 기록을 지웠어요.' : '지금은 지울 수 없어요. 조금 뒤에 다시 해 주세요.';
         }),
       );
-      box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 지키는 중이에요${opts.admin() ? ' · 관리자 계정' : ''}. 다른 폰·브라우저에서 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 이 시민증이 이어져요.`), links, status);
+      box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 함께하고 있어요${opts.admin() ? ' · 관리자 계정' : ''}. 다른 기기에서도 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 기록이 이어져요.`), links, status);
       return;
     }
-    if (verb !== '로그인') box.append(el('p', 't-login-title', verb === '지키기' ? '시민증 지키기' : '전에 해 봤다면'),
-      el('p', 't-small', verb === '지키기' ? '로그인해 두면 다른 폰·브라우저에서도 이 시민증과 도장이 이어져요. 안 해도 괜찮아요.' : '전에 로그인해 둔 시민증과 도장을 불러와요.'));
-    // 필수 동의 둘을 체크해야 로그인 단추가 켜진다(사용자 10-16 「다 선택해야 로그인되게 하면 되지」, 10-17 「그럼 만들어」).
-    // 「활동·후원 소식」 은 여기 묶지 않는다 — 선택 동의를 거부했다고 서비스를 막으면 안 된다(정보통신망법 50조·개인정보보호법 22조). 소식은 로그인 뒤 따로.
+    if (verb === '함께') {
+      const can = el('ul', 't-small t-login-can');
+      can.append(...['우리 동네 사람들과 함께해요', '쪽지로 한마디 남길 수 있어요', '기록이 남아 다른 기기에서도 이어 할 수 있어요'].map(text => el('li', '', text)));
+      box.append(el('p', 't-login-title', '로그인하고 함께해요'), can);
+    } else if (verb === '불러오기') box.append(el('p', 't-login-title', '전에 해 봤다면'), el('p', 't-small', '전에 로그인해 둔 시민증과 도장을 불러와요.'));
     const agree = el('div', 't-agree'), buttons: HTMLButtonElement[] = [];
-    const checks = ['[필수] 만 14세 이상이에요', '[필수] 아래처럼 회원번호·이메일을 받아 내 기록을 잇는 데 동의해요'].map(text => {
-      const label = el('label', 't-check'), box = el('input');
-      box.type = 'checkbox';
-      box.onchange = () => { const ok = checks.every(c => c.checked); buttons.forEach(b => { b.disabled = !ok; }); hint.hidden = ok; };
-      label.append(box, el('span', '', text));
-      agree.append(label);
-      return box;
-    });
-    const hint = el('p', 't-small t-agree-hint', '두 칸에 체크하면 로그인 단추가 켜져요.');
+    const check = (text: string) => { const label = el('label', 't-check'), input = el('input'); input.type = 'checkbox'; label.append(input, el('span', '', text)); agree.append(label); return input; };
+    const age = check('[필수] 만 14세 이상이에요');
+    const news = opts.news ? check('[선택] 시민행동이 하는 일 소식도 받아 볼래요') : undefined;
+    const hint = el('p', 't-small t-agree-hint', '만 14세 칸에 체크하면 로그인 단추가 켜져요.');
+    age.onchange = () => { buttons.forEach(b => { b.disabled = !age.checked; }); hint.hidden = age.checked; };
     box.append(agree, hint);
     for (const provider of opts.providers) {
       const button = btn(`t-login-btn t-${provider}`, '', () => {
-        if (!opts.start(provider)) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
+        if (!opts.start(provider, { back, news: news?.checked })) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
       });
       const symbol = el('span', 't-login-symbol'); symbol.setAttribute('aria-hidden', 'true');
       // 공식 배포 SVG의 기호만. 사용자 입력은 이 HTML에 넣지 않는다.
       symbol.innerHTML = provider === 'kakao' ? kakaoSymbol : googleSymbol;
-      button.append(symbol, el('span', 't-login-label', `${PROVIDER_NAME[provider]}로 ${verb}`));
+      button.append(symbol, el('span', 't-login-label', `${PROVIDER_NAME[provider]}로 ${verb === '불러오기' ? '불러오기' : '로그인'}`));
       button.disabled = true;
       buttons.push(button);
       box.append(button);
     }
-    const note = el('p', 't-small t-login-note',
-      `받는 건 ${opts.providers.map(p => PROVIDER_NAME[p]).join('·')} 회원번호와 이메일이에요. 서버에는 회원번호만 알아볼 수 없게 바꿔서, 게임 기록(별명·모습·유형·도장·내 이웃·지역)과 함께 둬요. 이메일은 로그인 뒤 「소식 받기」에 동의할 때만 남기고, 이름·사진은 받지 않아요. `);
+    // 받는 것 그대로(server/gas.ts): 회원번호는 소금 친 해시로만, 이메일은 남기지 않는다(소식 받기에 따로 동의할 때만 연락처로).
+    const note = el('p', 't-small t-login-note', '로그인하면 카카오·구글 계정을 알아볼 수 없게 바꿔 기록을 이어요. ');
     const policy = el('a', '', '개인정보처리방침'); policy.href = PRIVACY_URL; policy.target = '_blank'; policy.rel = 'noopener';
     note.append(policy);
     box.append(status, note); // 알림(「곧 열려요」)은 단추 바로 밑에
@@ -277,7 +285,18 @@ function loginBox(opts: LoginOpts, verb: '지키기' | '불러오기' | '로그�
   return box;
 }
 
-/** 시작 화면 「전에 해 봤어요」 — 다른 기기에서 지켜 둔 시민증 불러오기. */
+/**
+ * 「로그인하면 ~할 수 있어요」(사용자 10-19 「뭔가 기록하려고 하거나 그러면 로그인하시면 기록할 수 있어요 이런 뉘앙스로」) — 막는 말이 아니라 할 수 있는 것.
+ * 누르면 그 자리에 로그인 칸이 펼쳐진다. 다녀오면 back 판을 다시 연다.
+ */
+export function loginInvite(text: string, opts: LoginOpts, back: string) {
+  const wrap = el('div', 't-invite');
+  const open = btn('g-ghost', text, () => { wrap.replaceChildren(loginBox(opts, '로그인', back)); });
+  wrap.append(open);
+  return wrap;
+}
+
+/** 시작 화면 「전에 해 봤어요」 — 다른 기기에서 로그인해 둔 시민증 불러오기. */
 export function openLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => void) {
   const { panel } = panelShell(shell, onClose, '← 처음 화면으로');
   panel.append(el('h2', '', '내 시민증 불러오기'), loginBox(opts, '불러오기'));
@@ -293,7 +312,7 @@ export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: bo
   panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `✓ ${PROVIDER_NAME[provider]}로 로그인했어요`),
     el('p', 't-lead', unsaved
       ? '로그인은 됐지만 기록을 서버에 아직 못 올렸어요. 이 기기에는 그대로 있고, 다음에 열 때 다시 올려요.'
-      : `내 시민증과 도장을 ${PROVIDER_NAME[provider]} 계정에 지켜 뒀어요. 다른 폰·브라우저에서 같은 계정으로 들어오면 그대로 이어져요.`),
+      : `이제 기록이 남아요. 다른 기기에서도 같은 ${PROVIDER_NAME[provider]} 계정으로 들어오면 그대로 이어 할 수 있어요.`),
     btn('g-primary', '확인', close));
 }
 
@@ -304,7 +323,7 @@ export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: bo
 export function openNews(shell: HTMLElement, provider: Provider, email: string, send: (form: ContactForm) => Promise<{ ok: boolean; text: string }>, onClose: () => void) {
   const { panel, close } = panelShell(shell, onClose, '닫기');
   panel.classList.add('t-gate');
-  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `${PROVIDER_NAME[provider]}로 시민증을 지켰어요`),
+  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `${PROVIDER_NAME[provider]}로 로그인했어요`),
     el('p', 't-lead', '이 이메일로 소식도 받아 볼래요? 안 받아도 기록은 그대로 이어져요.'),
     contactForm(send, '이메일로 소식 받기', email).form, btn('g-ghost', '괜찮아요', close));
 }
@@ -365,11 +384,19 @@ export function placeChooser(all: FinancePlace[], show: (place?: FinancePlace) =
   return [ask, picker, head];
 }
 
-/** 우리 동네 — 내 동네(시·군·구)에 이번 판 집을 한 채 세우고, 그 동네 사람들이 고른 것을 본다. 다른 동네는 보기만. */
+/**
+ * 우리 동네 — 내 동네(시·군·구)를 고른 로그인한 사람들이 무엇을 골랐는지, 어떤 한마디를 남겼는지(사용자 10-19, 지금은 구경거리로 — 「나중에 디테일은 챙겨야 할듯」).
+ * 차례(사용자 10-19): 제목·설명 → 내 동네·다른 동네 보기 → 「주민 N명이 함께해요」 → 모습 줄 → 동네 한마디(새것부터 다섯 + 더 보기) → 자리별 막대.
+ * 로그인 안 한 사람은 보기만 + 「로그인하면 나도 내 동네에 함께해요」(api.ts regionView 는 로그인한 사람만, 한 사람 한 번).
+ */
 function regionSection(data: HubData) {
   const box = el('section', 't-region'), view = el('div');
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
-  box.append(el('h2', '', '우리 동네 사람들'), status);
+  const logged = Boolean(data.login?.current());
+  box.append(el('h2', '', '우리 동네 사람들'),
+    el('p', 't-small', '내 동네(시·군·구)를 고른 사람들이 무엇을 골랐는지, 어떤 한마디를 남겼는지 모아 보는 곳이에요. 이름은 안 보이고 모습만 보여요.'));
+  if (!logged && data.login?.providers.length) box.append(loginInvite('로그인하면 나도 내 동네에 함께해요.', data.login, 'hub:region'));
+  box.append(status);
   status.textContent = '불러오는 중…';
   let asked = 0; // 빨리 여러 곳을 누르면 마지막 것만 그린다
   const show = async (place?: FinancePlace) => {
@@ -378,29 +405,63 @@ function regionSection(data: HubData) {
     if (!place) { status.textContent = ''; return; }
     const mineNow = place.c === loadRegion();
     status.textContent = '불러오는 중…';
-    const got = mineNow ? await data.buildRegion!(place.c) : await data.regionView!(place.c);
+    const got = mineNow && logged && data.joinRegion ? await data.joinRegion(place.c) : await data.regionView!(place.c);
     if (n !== asked) return;
     status.textContent = got ? '' : '지금은 불러올 수 없어요. 조금 뒤에 다시 해 주세요.';
-    if (got) { if (mineNow) addStamp('region'); view.replaceChildren(regionView(got, data.me.town)); }
+    if (got) { if (mineNow) addStamp('region'); view.replaceChildren(regionView(got, data, place, mineNow, () => void show(place))); }
   };
   void loadPlaces().then(({ places }) => {
     status.textContent = '';
-    box.append(...placeChooser(places, place => void show(place), place => void show(place)), view,
-      el('p', 't-small', '내 동네에는 이번 판 집이 한 채 서요. 다른 사람에게는 모습만 보이고 이름은 안 보여요.'));
+    box.append(...placeChooser(places, place => void show(place), place => void show(place)), view);
   }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
   return box;
 }
 
-function regionView(view: RegionView, mine: Town) {
+/** 한 줄 남기기 — 마을 쪽지판과 우리 동네의 동네 한마디가 같이 쓴다. 글 규칙은 village.ts checkNote(서버도 같은 규칙으로 다시 본다). 됐으면 done. */
+export function noteForm(post: (text: string) => Promise<{ ok: boolean; text: string }>, done?: () => void) {
+  const form = el('form', 'v-write');
+  const input = el('input', 'g-input'); input.maxLength = NOTE_MAX; input.placeholder = `한 줄 남기기 (${NOTE_MAX}자까지)`; input.enterKeyHint = 'send';
+  input.title = '링크·연락처는 못 남겨요.';
+  const send = el('button', 'g-primary', '남기기'); send.type = 'submit';
+  const result = el('p', 't-small'); result.setAttribute('role', 'status');
+  form.append(input, send, result);
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const checked = checkNote(input.value);
+    if (!checked.ok) { result.textContent = NOTE_WHY[checked.why]; return; }
+    send.disabled = true; result.textContent = '남기는 중…';
+    const got = await post(checked.text);
+    send.disabled = false; result.textContent = got.text;
+    if (got.ok) { input.value = ''; done?.(); }
+  };
+  return form;
+}
+
+const NOTES_FIRST = 5;
+function regionView(view: RegionView, data: HubData, place: FinancePlace, mineNow: boolean, again: () => void) {
   const wrap = el('div');
   const crowd = el('div', 't-crowd');
   view.crowd.forEach(pick => crowd.append(avatar(toLook(pick))));
-  wrap.append(el('p', 't-lead', view.total ? `주민 ${view.total}명이 한 채씩 지었어요.` : '아직 이 동네에 집을 지은 사람이 없어요.'), crowd);
+  wrap.append(el('p', 't-lead', view.total ? `주민 ${view.total}명이 함께해요.` : '아직 함께하는 사람이 없어요.'), ...(view.crowd.length ? [crowd] : []));
+  // 동네 한마디 — 그 동네 사람이 남긴 쪽지(마을 쪽지판에도 같이 뜬다). 쓰기는 내 동네를 볼 때·로그인한 사람만.
+  if (data.notes) {
+    const talk = el('section', 't-talk'), list = el('div', 'v-notes');
+    const notes = view.notes ?? [];
+    const draw = (all: boolean) => {
+      list.replaceChildren(...(notes.length ? (all ? notes : notes.slice(0, NOTES_FIRST)).map(n => data.notes!.item(n)) : [el('p', 't-small', '아직 한마디가 없어요.')]));
+      if (!all && notes.length > NOTES_FIRST) list.append(btn('g-link', `더 보기 (${notes.length - NOTES_FIRST})`, () => draw(true)));
+    };
+    draw(false);
+    talk.append(el('h3', 'v-head', '동네 한마디'), list);
+    if (mineNow && data.login?.current()) talk.append(noteForm(text => data.notes!.post(text, place.c), again));
+    else if (mineNow && data.login?.providers.length) talk.append(loginInvite('로그인하면 쪽지를 남길 수 있어요', data.login, 'hub:region'));
+    wrap.append(talk);
+  }
   if (!view.questions || !view.total) return wrap;
   wrap.append(el('p', 't-small', '자리마다 이 동네 사람들 생각이 어떻게 갈렸는지예요. 굵은 쪽이 내가 고른 쪽이에요.'));
   const list = el('ol', 'g-split');
   for (const id of TOWN_IDS) {
-    const q = byId.get(id)!, count = view.questions[id], key = mine[TOWN_IDS.indexOf(id)];
+    const q = byId.get(id)!, count = view.questions[id], key = data.me.town[TOWN_IDS.indexOf(id)];
     const sum = count.a + count.b || 1, a = Math.round((count.a / sum) * 100);
     const bar = el('div', 'g-bar');
     bar.style.setProperty('--a', `${a}%`);
@@ -434,12 +495,13 @@ function letterSection(data: HubData, closeHub: () => void) {
 
 // ───────────────────────── 답장(?with= 에 r 이 있을 때) ─────────────────────────
 /** 처음에 친구를 부른 사람이 친구의 답장을 열었을 때 — 걷지 않고 바로 두 동네를 나란히. */
+const who = (pick: Pick, name: string) => { const f = el('span', 't-who'); f.append(avatar(toLook(pick)), el('small', '', name)); return f; };
+const pairOf = (me: Friend, friend: Friend) => { const pair = el('div', 't-pair'); pair.append(who(me.pick, me.name ? `${me.name}(나)` : '나'), who(friend.pick, nim(friend.name))); return pair; };
+
 export function openReply(shell: HTMLElement, me: Friend, friend: Friend, onWalk: () => void) {
   addStamp('guest');
   const { panel, close } = panelShell(shell, onWalk, '← 처음 화면으로');
-  const who = (pick: Pick, name: string) => { const f = el('span', 't-who'); f.append(avatar(toLook(pick)), el('small', '', name)); return f; };
-  const pair = el('div', 't-pair');
-  pair.append(who(me.pick, me.name ? `${me.name}(나)` : '나'), who(friend.pick, nim(friend.name)));
+  const pair = pairOf(me, friend);
   panel.append(
     el('p', 't-kicker', '답장이 왔어요'),
     el('h2', '', `${friend.name}님이 답장을 보냈어요`),
@@ -450,6 +512,21 @@ export function openReply(shell: HTMLElement, me: Friend, friend: Friend, onWalk
   panel.append(
     btn('g-primary', `${friend.name}님이랑 한 바퀴 더 걷기`, close),
     el('p', 't-small', '답장 링크에는 두 사람이 지은 동네가 담겨 있어요. 둘 사이에서만 나눠 주세요.'),
+  );
+}
+
+/**
+ * 링크 받은 친구의 끝 화면 「○○님과 고른 것」(사용자 10-19 「뭐 그렇게 하자」) — 전엔 답장 판에만 있던 나란히 보기.
+ * 초대 링크에 이미 실려 온 보낸 사람의 열다섯 가지와 이번에 내가 고른 것. 서버는 안 쓴다.
+ */
+export function openCompare(shell: HTMLElement, me: Friend & { town: Town }, friend: Friend & { town: Town }, onClose: () => void) {
+  const { panel } = panelShell(shell, onClose, '닫기');
+  panel.append(
+    el('p', 't-kicker', '서로 고른 것'),
+    el('h2', '', `${nim(friend.name)}과 고른 것`),
+    pairOf(me, friend),
+    el('p', 't-small', `열다섯 자리마다 내가 고른 것이에요. ${nim(friend.name)}도 같은 걸 골랐으면 「${friend.name}님도」, 다르면 ${nim(friend.name)} 것을 옆에 적었어요.`),
+    lotsView(me.town, { name: friend.name, town: friend.town }),
   );
 }
 

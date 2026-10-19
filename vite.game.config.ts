@@ -42,9 +42,10 @@ function devGameApi(): Plugin {
           const proof = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
           const fake = String(proof.code ?? proof.idToken ?? '');
           // 가짜 확인 — 「fake-쪽-번호」 만 통과. 계정은 진짜처럼 해시로.
+          const email = proof.provider === 'google' ? 'staff-tester@action.or.kr' : 'kakao-tester@example.com';
           const result = path === '/login' && req.method === 'POST'
             ? (/^fake-(kakao|google)-[a-z0-9]+$/.test(fake) && fake.startsWith(`fake-${proof.provider}-`)
-              ? withEmail(login(store, `${proof.provider}:${createHash('sha256').update(fake).digest('hex')}`, Date.now(), () => randomInt(2 ** 32) / 2 ** 32), proof.provider === 'google' ? 'staff-tester@action.or.kr' : 'kakao-tester@example.com')
+              ? withEmail(login(store, `${proof.provider}:${createHash('sha256').update(fake).digest('hex')}`, Date.now(), () => randomInt(2 ** 32) / 2 ** 32, isAdmin(email)), email)
               : { status: 401, body: { error: 'login-failed' } })
             : handle(store, req.method ?? 'GET', path, body, Date.now());
           res.statusCode = result.status;

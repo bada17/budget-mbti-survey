@@ -46,13 +46,13 @@ export const net = {
   newHome: () => call<{ id: string; key: string }>('POST', '/homes', {}),
   visit: (home: string, visitor: { sessionId: string; name: string; pick: Pick }) => call<{ ok: true }>('POST', `/homes/${home}/visits`, visitor),
   book: (home: string, key: string) => call<{ visits: Omit<Visit, 'sessionId'>[] }>('POST', `/homes/${home}/book`, { key }),
-  region: (sessionId: string, region: Region, pick: Pick) => call<RegionView>('POST', '/region', { sessionId, region, pick }),
   regionView: (region: Region) => call<RegionView>('GET', `/regions/${encodeURIComponent(region)}`),
   contact: (payload: ContactPayload, extra: { neighbor?: Neighbor; type?: string }) => call<{ ok: true }>('POST', '/contact', { payload, ...extra }),
-  // 마을(기획 4차) — 들르기(끝낸 판만, 보기와 같은 값을 돌려준다)·쪽지·나도·신고
+  // 마을(기획 4차) — 들르기(끝낸 판만, 보기와 같은 값을 돌려준다)·쪽지(로그인 열쇠로, 10-19)·나도·신고·숨기기(관리자)
   village: (sessionId?: string) => call<VillageView>('GET', sessionId ? `/village/${sessionId}` : '/village'),
   here: (sessionId: string, pick: Pick) => call<VillageView>('POST', '/village/here', { sessionId, pick }),
-  note: (sessionId: string, name: string, pick: Pick, text: string) => call<{ note: PublicNote; view: VillageView }>('POST', '/village/notes', { sessionId, name, pick, text }),
+  note: (key: string, note: { sessionId?: string; name: string; pick: Pick; text: string; region?: Region }) => call<{ note: PublicNote; view: VillageView }>('POST', '/village/notes', { key, ...note }),
+  hide: (key: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/hide`, { key }),
   like: (sessionId: string, id: string) => call<{ likes: number }>('POST', `/village/notes/${id}/like`, { sessionId }),
   report: (sessionId: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/report`, { sessionId }),
   cards: () => call<{ cards: PublicCard[] }>('GET', '/cards'),

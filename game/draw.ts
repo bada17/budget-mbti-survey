@@ -440,7 +440,10 @@ export function skyAt(hour: number) {
 function worksArt(scene: Scene, dpr: number) {
   const site = PLACES.find(p => p.id === 'works')!.box;
   const root = scene.add.container(site.x, site.y).setDepth(site.y + site.h);
-  const bridge = scene.add.container(POND.x + POND.w / 2, POND.y + POND.h / 2 + 4).setDepth(POND.y + POND.h / 2 + 12).setVisible(false);
+  // 정자 지붕은 따로 — 평상에 앉은 나보다 앞에(처마 밑에 앉은 것처럼). 바닥·기둥·평상(root)은 나보다 뒤에(10-19 「쉴 수 있게」).
+  const roof = scene.add.container(site.x, site.y).setDepth(site.y + site.h + 60);
+  // 다리는 그 위를 걷는 나보다 뒤에 깐다(village.ts 가 다 지으면 판자 길을 걸을 수 있게 연다).
+  const bridge = scene.add.container(POND.x + POND.w / 2, POND.y + POND.h / 2 + 4).setDepth(POND.y + POND.h / 2 - 12).setVisible(false);
   { // 연못 다리 — 나무 판자 아치, 양 끝 기둥
     const g = scene.add.graphics(), half = POND.w / 2 + 14;
     g.fillStyle(0x756956, 0.18).fillEllipse(0, 14, half * 2, 12);
@@ -452,7 +455,7 @@ function worksArt(scene: Scene, dpr: number) {
   }
   const name = (id: WorkId) => WORKS.find(w => w.id === id)!.name;
   return {
-    objs: [root, bridge],
+    objs: [root, roof, bridge],
     /** 다 지은 것이 서는 자리 — 장면이 카메라를 여기로 옮긴다. */
     builtAt: (id: WorkId): Point => (id === 'bridge' ? { x: bridge.x, y: bridge.y } : { x: site.x + site.w / 2, y: site.y + site.h - 40 }),
     /**
@@ -466,8 +469,8 @@ function worksArt(scene: Scene, dpr: number) {
         bridge.setScale(0.03, 1);
         scene.tweens.add({ targets: bridge, scaleX: 1, duration: 1000, delay: 520, ease: 'Cubic.easeOut' });
       } else {
-        root.setAlpha(0).setY(site.y - 70);
-        scene.tweens.add({ targets: root, y: site.y, alpha: 1, duration: 760, delay: 520, ease: 'Bounce.easeOut' });
+        for (const part of [root, roof]) part.setAlpha(0).setY(site.y - 70);
+        scene.tweens.add({ targets: [root, roof], y: site.y, alpha: 1, duration: 760, delay: 520, ease: 'Bounce.easeOut' });
       }
       scene.time.delayedCall(1560, () => {
         sfx.fanfare(); sparkle(scene, at.x, at.y - 20, false); confetti(scene, 260, at.y - 60, false, at.x - 130);
@@ -477,17 +480,21 @@ function worksArt(scene: Scene, dpr: number) {
       });
     },
     set(state: WorksState) {
-      root.removeAll(true);
+      root.removeAll(true); roof.removeAll(true);
       bridge.setVisible(state.done.includes('bridge'));
       const g = scene.add.graphics(), { w, h } = site;
-      if (state.done.includes('pavilion')) { // 쉼터 정자 — 기와 지붕, 기둥 넷, 가운데 평상
+      const open = state.done.includes('pavilion');
+      root.setDepth(open ? site.y + 30 : site.y + site.h);
+      if (open) { // 쉼터 정자 — 기와 지붕, 기둥 넷, 가운데 평상
         g.fillStyle(0x756956, 0.16).fillEllipse(w / 2, h + 2, w + 10, 16);
         g.fillStyle(0xd8c6a2).fillRoundedRect(14, h - 24, w - 28, 22, 6);
         for (const x of [22, w - 28, 48, w - 54]) g.fillStyle(0x9a6a48).fillRoundedRect(x, h - 70, 6, 50, 2);
-        g.fillStyle(0x6f8a7e).fillTriangle(-6, h - 66, w / 2, h - 110, w + 6, h - 66).fillRoundedRect(-10, h - 72, w + 20, 12, 6);
-        g.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 70, w, 4, 2);
         g.fillStyle(0xb07a52).fillRoundedRect(w / 2 - 22, h - 34, 44, 8, 3);
-        root.add([g, label(scene, w / 2, h - 86, '쉼터 정자', 12, dpr, '#ffffff')]);
+        const top = scene.add.graphics();
+        top.fillStyle(0x6f8a7e).fillTriangle(-6, h - 66, w / 2, h - 110, w + 6, h - 66).fillRoundedRect(-10, h - 72, w + 20, 12, 6);
+        top.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 70, w, 4, 2);
+        root.add(g);
+        roof.add([top, label(scene, w / 2, h - 86, '쉼터 정자', 12, dpr, '#ffffff')]);
         return;
       }
       // 공사 중 — 바닥, 울타리, 벽돌 더미, 간판(곳 이름 · 지금 공사와 모인 만큼). 이름을 늘 보이게(사용자 10-15 「직관적으로」)

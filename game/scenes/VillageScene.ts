@@ -8,7 +8,7 @@
   · 내 이웃(언덕에서 이름 지어 준 주민)이 있으면 내 뒤를 따라온다.
   · 동물의 숲에서 빌린 것(사용자 10-14) — 실제 시각·철로 빛과 나무 색이 바뀌고 밤엔 가로등이 켜진다(ⓒ). 나무 밑동에 부딪히면 흔들리고,
     그날 정해진 나무에선 동전·열매가 떨어진다 — 걸어가 주우면 주머니에(ⓕ). 동전은 공사터에 넣어 모두의 공사를 채운다(ⓑ, places.ts openWorks).
-    공사가 끝나면 카메라가 그곳에 갔다가(뚝딱 서는 연출) 돌아온다(10-15).
+    공사가 끝나면 카메라가 그곳에 갔다가(뚝딱 서는 연출) 돌아온다(10-15). 다 지은 다리는 건너고, 정자 평상에선 앉는다(10-19, rest).
   · 남동쪽 구석 작은 운동장 — 공을 차서 골대에 넣는다(10-15, 걷기 판의 골 놀이를 옮겨 옴).
   · 마을 부탁(10-17) — 필드에 선 주민 머리 위 「!」. 곁에 가면 부탁을 듣는다(runtime.errand). 규칙은 quests.ts.
   배치·부딪힘은 village.ts, 그림은 draw.ts 의 drawVillage. 여기서는 위치·연출만.
@@ -16,7 +16,7 @@
 import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, rollBall, type Point } from '../room';
-import { PLACES, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
+import { PLACES, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
 import { Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
@@ -85,6 +85,8 @@ export class VillageScene extends Phaser.Scene {
   private works?: WorksState;
   private pendingBuilt?: WorkId;
   private showing = false;
+  /** 정자 평상에 앉아 있나(사용자 10-19 「쉴 수 있게」) — 움직이면 일어난다. */
+  private sitting = false;
 
   constructor(private runtime: VillageRuntime) { super('village'); }
 
@@ -99,8 +101,9 @@ export class VillageScene extends Phaser.Scene {
     this.pos = { ...SPAWN[this.runtime.start()] };
     this.player = new Dude(this, toLook(this.runtime.pick()), this.pos.x, this.pos.y).place(this.pos);
     this.trail = [{ x: this.pos.x, y: this.pos.y + 60 }, { ...this.pos }];
-    const neighbor = this.runtime.neighbor();
-    if (neighbor) this.buddy = new Dude(this, lookFrom(neighbor.seed), this.pos.x, this.pos.y + 30, FEEL.followerScale).place({ x: this.pos.x, y: this.pos.y + 30 });
+    // [나중에 살림: 내 이웃] 사용자 10-19 「따라다니게 하지말고」 — 숨긴 동안엔 지난번에 정한 이웃도 안 따라온다
+    // const neighbor = this.runtime.neighbor();
+    // if (neighbor) this.buddy = new Dude(this, lookFrom(neighbor.seed), this.pos.x, this.pos.y + 30, FEEL.followerScale).place({ x: this.pos.x, y: this.pos.y + 30 });
     // 문 앞 주민 — 문 오른쪽에 서서 나를 본다(쪽지판엔 없다). 판 안의 한마디와 같은 생김새(npc:<id>).
     for (const place of PLACES) if (place.id !== 'board') {
       const at = { x: place.door.x + 38, y: place.door.y - 6 };
@@ -206,7 +209,8 @@ export class VillageScene extends Phaser.Scene {
     if (!this.paused && !this.showing) this.walk(dt);
     const moving = distance(before, this.pos) > 0.05;
     if (moving) this.player.look(this.pos.x - before.x, this.pos.y - before.y);
-    this.player.place(this.pos).walk(dt, moving, this.reduced);
+    this.rest(moving);
+    this.player.place(this.sitting ? { x: this.pos.x, y: this.pos.y + 4 } : this.pos).walk(dt, moving, this.reduced); // 앉으면 평상에 내려앉게 조금 아래로
     if (moving && !this.reduced && (this.dustClock += dt) > FEEL.dustEveryMs) { this.dustClock = 0; dust(this, this.pos.x - 6, this.pos.y); }
     this.follow(dt);
     this.wander(dt);
@@ -240,6 +244,25 @@ export class VillageScene extends Phaser.Scene {
     const next = walkVillage(this.pos, dir, Math.min(this.speed * dt / 1000, cap));
     if (distance(next, this.pos) < 0.05 && !c.holding) { this.goal = undefined; this.route = []; } // 그래도 막혔다 — 선다
     this.pos = next;
+  }
+
+  /**
+   * 쉼터 정자 — 다 지었으면 평상 자리에 멈춰 서면 앉고, 움직이면 일어난다. 앉는 모습은 장면에서만 — 몸을 낮추고 살짝 눌러
+   * (사람 그림 draw.ts Dude 는 GPT 몫이라 손대지 않는다. 진짜 앉은 자세는 GPT 넘김 목록).
+   */
+  private rest(moving: boolean) {
+    const can = Boolean(this.works?.done.includes('pavilion')) && !this.paused;
+    const want = can && !moving && distance(this.pos, PAVILION_SEAT) < 12;
+    if (want === this.sitting) return;
+    this.sitting = want;
+    const body = this.player.root;
+    this.tweens.killTweensOf(body);
+    if (want) {
+      this.player.look(0, 1);
+      if (!this.reduced) { this.tweens.add({ targets: body, scaleY: 0.9, scaleX: 1.04, duration: 180, ease: 'Quad.easeOut' }); hearts(this, this.pos.x, this.pos.y - 52, 1, false); }
+      else body.setScale(1.04, 0.9);
+      sfx.meet();
+    } else body.setScale(1);
   }
 
   /** 화면(+여유) 밖의 그림·사람은 숨긴다. 걷기·서성이기는 그대로 돈다(보이기만 끈다). */
@@ -335,6 +358,7 @@ export class VillageScene extends Phaser.Scene {
   /** 받은 액세서리를 쓰면 — 내 모습을 다시 그리고 폴짝, 반짝. */
   setLook(pick: Pick) {
     this.player.destroy();
+    this.sitting = false; // 새 모습은 서 있는 모습으로 — 평상 위면 다음 장면에서 다시 앉는다
     this.player = new Dude(this, toLook(pick), this.pos.x, this.pos.y).place(this.pos);
     if (!this.showing) this.cameras.main.startFollow(this.player.root, true, 0.14, 0.14);
     this.player.hop(12, 2, this.reduced);
@@ -419,7 +443,7 @@ export class VillageScene extends Phaser.Scene {
     const next = worksAt(total), was = this.works;
     this.works = next;
     const fresh = was ? next.done.filter(id => !was.done.includes(id)) : [];
-    if (!fresh.length || this.reduced || !this.art) { this.art?.setWorks(next); return; }
+    if (!fresh.length || this.reduced || !this.art) { this.art?.setWorks(next); setBuilt(next.done); return; }
     this.pendingBuilt = fresh[fresh.length - 1];
     if (!this.paused) this.showBuilt();
   }
@@ -431,7 +455,7 @@ export class VillageScene extends Phaser.Scene {
     this.pendingBuilt = undefined; this.showing = true;
     this.runtime.controls.clear(); this.goal = undefined; this.route = [];
     const at = this.art.builtAt(id);
-    this.tour(at.x, at.y - 20, 2700, () => { this.art.setWorks(this.works!); this.art.built(id, this.runtime.view().dpr); });
+    this.tour(at.x, at.y - 20, 2700, () => { this.art.setWorks(this.works!); setBuilt(this.works!.done); this.art.built(id, this.runtime.view().dpr); });
   }
 
   /** 마을에 처음 들어온 사람에게 그 건물을 보여 준다(10-16 주민센터 안내) — 카메라가 문 앞에 갔다가 나에게 돌아온다. 움직임 줄이기면 안 간다. */

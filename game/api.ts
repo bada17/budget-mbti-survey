@@ -15,6 +15,9 @@
   로그인(10-14) — 「주민」 기록. 카카오·구글이 「이 사람 맞다」고 확인하는 일은 서버 입구가 한다(그쪽에 물어야 해서 —
   server/gas.ts 의 verify, 개발 서버는 가짜). 여기는 그 뒤 — 확인된 계정(account, 회원번호를 해시로 바꾼 값)에 열쇠를 주고,
   열쇠로 기록 묶음(Save, profile.ts)을 읽고 쓰고 지운다. 회원번호 그 자체는 어디에도 남기지 않는다.
+
+  로그인한 사람만 센다(사용자 10-19 「로그인한 기록만 보자」「같은 사람이 여러번 되면 안되지」) — 다른 사람들 마음·우리 동네·마을 누계는
+  로그인한 주민마다 가장 최근에 끝낸 판 하나(residentRuns). 쪽지 쓰기도 로그인한 사람만(「쪽지 쓰기도 로그인한 사람만 하게 해야지」).
 */
 import { ROUTE, CONTENT_VERSION, TYPES, type TypeCode } from './content';
 import { scoreAnswers, typeCode } from './score';
@@ -22,16 +25,19 @@ import { orderedQuestions } from './response';
 import { cleanName, cleanTableCode, cleanNeighbor, cleanSave, isRegion, townFrom, TABLE_CHARS, type Neighbor, type Region, type Save } from './profile';
 import { validPayload, type ContactPayload } from './contact';
 import { isPick, DEFAULT_PICK, type Pick } from './look';
-import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW, COIN_DAY_MAX } from './village';
+import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW, CROWD_DAYS_MS, COIN_DAY_MAX } from './village';
 
 export type Member = { id: string; name: string; pick: Pick; stage: number; type?: TypeCode; at: number };
 export type Finished = {
-  answers: Record<string, number>; type: TypeCode; at: number; region?: Region; pick?: Pick; /** 마을에 마지막으로 들른 시각 */ seenAt?: number;
+  answers: Record<string, number>; type: TypeCode; at: number; pick?: Pick; /** 마을에 마지막으로 들른 시각 */ seenAt?: number;
   /** 마을 공사터에 넣은 동전 — 모두의 합이 공사를 채운다. coinDay 는 마지막으로 넣은 날(한국 날짜 시작 시각), coinsDay 는 그날 넣은 수. */
   coins?: number; coinDay?: number; coinsDay?: number;
 };
-/** 쪽지 한 장. likes·reports 는 누른 판(세션)들 — 한 판에 한 번. hidden 은 시트의 「숨김」 칸(사람이 적는다)에서만 온다. */
-export type Note = { id: string; at: number; name: string; text: string; pick: Pick; sessionId: string; likes: string[]; reports: string[]; hidden?: boolean };
+/**
+ * 쪽지 한 장. likes·reports 는 누른 판(세션)들 — 한 판에 한 번. hidden 은 시트의 「숨김」 칸에서 온다(사람이 적거나, 관리자가 「숨기기」 — hiddenBy).
+ * account = 쓴 주민(해시, 밖으로 안 낸다 — 하루 몇 장 셀 때만), region = 쓸 때 그 사람의 내 동네(우리 동네 탭의 「동네 한마디」). 옛 쪽지엔 sessionId 만 있다.
+ */
+export type Note = { id: string; at: number; name: string; text: string; pick: Pick; sessionId?: string; account?: string; region?: Region; likes: string[]; reports: string[]; hidden?: boolean; hiddenBy?: string };
 /** 방명록 한 줄 — 내 링크로 들어와 끝까지 걸은 사람. 동네·유형은 그 사람이 끝낸 답에서 서버가 만든다. */
 export type Visit = { sessionId: string; name: string; pick: Pick; type: TypeCode; town: string; at: number };
 /** 연락처 한 줄 — 동의 화면의 항목(주소, 내 이웃·유형 결과)만. 지역은 항목에 없어 받지 않는다. */
@@ -52,7 +58,8 @@ export type Store = {
   /** 문제 카드 — 번호 → 카드(시트 「문제 카드」 탭). */
   cards: Map<string, Card>;
 };
-export type Resident = { key: string; save: Save; at: number };
+/** admin = 로그인 때 서버가 확인된 이메일로 가린 관리자(isAdmin) — 이메일은 안 남기고 이 표시만. 쪽지 숨기기를 열쇠로 다시 확인한다. */
+export type Resident = { key: string; save: Save; at: number; admin?: true };
 /**
  * 문제 카드(사용자 10-15 「활동가가 매주 혹은 매달 업데이트」) — 시트에 사람이 적는 사업 한 건. 판단(「낭비」)은 카드에 안 쓰고 보는 사람이 반응한다.
  * votes = 기기(투표 번호) → 반응. 기기마다 하나, 바꿀 수 있다. shown 은 시트 「보이기」 칸에 O 를 적었을 때만.
@@ -76,7 +83,7 @@ export const createStore = (): Store => ({ finished: new Map(), tables: new Map(
 /**
  * 관리자 — 로그인으로 확인된 이메일이 단체 주소(@action.or.kr)이거나 따로 적은 메일(extra, 쉼표로)이면(사용자 10-15 「@action.or.kr 메일은 다 관리자로 하고 내 개인 계정도」).
  * 따로 적는 메일은 공개 저장소에 두지 않는다 — 앱스 스크립트 속성 또는 깃 무시 Secret.js 의 ADMIN_EMAILS.
- * ⚠️ 지금 관리자가 하는 일은 화면 쪽뿐이다. 서버가 들어줄 관리자 일(쪽지 숨기기·카드 올리기 같은)을 만들면 그때 서버가 다시 확인해야 한다.
+ * 서버 입구가 로그인 때 이걸로 가려 주민 기록에 admin 을 남긴다(login) — 관리자 일(쪽지 숨기기)은 그 표시를 열쇠로 다시 본다.
  */
 export const ADMIN_DOMAIN = 'action.or.kr';
 export function isAdmin(email: string | undefined, extra = '') {
@@ -92,11 +99,11 @@ const LOGIN_KEY = /^[A-Za-z0-9]{32}$/;
  * 확인된 계정에 열쇠를 준다 — 처음이면 새로 만들고, 다시 오면 같은 열쇠(기기마다 같은 기록을 본다).
  * random 은 서버 입구가 넣는다 — 시트는 Utilities.getUuid, 개발 서버는 crypto(이 열쇠로 기록을 읽으니 Math.random 은 안 쓴다).
  */
-export function login(store: Store, account: string, now: number, random: () => number) {
+export function login(store: Store, account: string, now: number, random: () => number, admin = false) {
   if (!ACCOUNT.test(account)) return { status: 400, body: { error: 'bad-account' } };
   const known = store.residents.get(account);
-  const resident = known?.key ? known : { key: randomText(32, KEY_CHARS, random), save: {}, at: now }; // 지운 계정(열쇠 빈칸)은 새로
-  store.residents.set(account, { ...resident, at: now });
+  const { admin: _was, ...resident } = known?.key ? known : { key: randomText(32, KEY_CHARS, random), save: {}, at: now }; // 지운 계정(열쇠 빈칸)은 새로
+  store.residents.set(account, { ...resident, at: now, ...(admin ? { admin: true as const } : {}) }); // 관리자 표시는 로그인할 때마다 다시 가린다
   return { status: 200, body: { key: resident.key, save: resident.save } };
 }
 // ponytail: 열쇠로 찾을 때 주민 전부를 훑는다 — 수천 명을 넘으면 열쇠 → 계정 표를 따로 둔다.
@@ -113,43 +120,53 @@ export type PublicCard = ReturnType<typeof publicCard>;
 export const shownCards = (store: Store) => [...store.cards.values()].filter(c => c.shown).reverse()
   .sort((a, b) => b.date.localeCompare(a.date)).slice(0, CARDS_SHOW).map(publicCard);
 
-/** 문항마다 a·b 쪽을 고른 사람 수, 유형별 사람 수. 답 1~3 은 a, 4~6 은 b. */
-export function stats(store: Store) {
+/** 로그인한 주민마다 가장 최근에 끝낸 판 하나(기록 묶음의 지난번 판) — 서버가 받은 판(finished)만. 지운 계정(열쇠 빈칸)은 뺀다. */
+function residentRuns(store: Store) {
+  const runs: { save: Save; done: Finished }[] = [];
+  for (const { key, save } of store.residents.values()) {
+    const done = key && save.last?.sessionId ? store.finished.get(save.last.sessionId) : undefined;
+    if (done) runs.push({ save, done });
+  }
+  return runs;
+}
+const tally = (runs: { done: Finished }[]) => {
   const questions: Record<string, { a: number; b: number }> = {};
   for (const q of orderedQuestions) questions[q.id] = { a: 0, b: 0 };
+  for (const { done } of runs) for (const [id, value] of Object.entries(done.answers)) if (questions[id]) questions[id][value <= 3 ? 'a' : 'b']++;
+  return questions;
+};
+
+/** 다른 사람들 마음 — 로그인한 사람 한 사람 한 번(가장 최근 판). 문항마다 a·b 쪽 사람 수, 유형별 사람 수. 답 1~3 은 a, 4~6 은 b. */
+export function stats(store: Store) {
+  const runs = residentRuns(store);
   const types = Object.fromEntries(Object.keys(TYPES).map(code => [code, 0])) as Record<TypeCode, number>;
-  for (const { answers, type } of store.finished.values()) {
-    for (const [id, value] of Object.entries(answers)) questions[id][value <= 3 ? 'a' : 'b']++;
-    types[type]++;
-  }
-  return { total: store.finished.size, questions, types };
+  for (const { done } of runs) types[done.type]++;
+  return { total: runs.length, questions: tally(runs), types };
 }
 
 /**
- * 우리 동네(시·군·구) — 그 곳에 한 채 지은 사람 수, 최근 주민 모습(CROWD_MAX), 문항마다 두 쪽 사람 수.
- * 한 사람부터 바로 보인다(사용자 10-15 「다섯 명 채워지면 보여지는 거 별로, 바로」 — 전엔 다섯 명부터). 이름은 안 낸다.
+ * 우리 동네(시·군·구) — 로그인한 주민 중 내 동네가 여기인 사람, 한 사람 한 번(가장 최근 판 — 다시 걸으면 갈아 끼우고, 내 동네를 바꾸면 옮겨 간다).
+ * 사람 수·최근 주민 모습(CROWD_MAX)·문항마다 두 쪽 사람 수, 그리고 그 동네 사람이 남긴 쪽지(동네 한마디, 새것부터). 한 사람부터 바로 보인다. 이름은 안 낸다.
  * **유형 분포는 내지 않는다** — 「○○는 수리공 동네」 처럼 지역에 딱지가 붙는다(지자체에 유형 딱지를 안 붙이기로 한 것과 같은 이유).
  */
 export function regionView(store: Store, region: Region) {
-  const people = [...store.finished.values()].filter(f => f.region === region).sort((x, y) => x.at - y.at);
-  const questions: Record<string, { a: number; b: number }> = {};
-  for (const q of orderedQuestions) questions[q.id] = { a: 0, b: 0 };
-  for (const { answers } of people) for (const [id, value] of Object.entries(answers)) if (questions[id]) questions[id][value <= 3 ? 'a' : 'b']++;
-  return { region, total: people.length, crowd: people.slice(-CROWD_MAX).map(f => f.pick ?? [0, 0, 0, 0]) as Pick[], questions };
+  const people = residentRuns(store).filter(r => r.save.region === region).sort((x, y) => x.done.at - y.done.at);
+  const notes = [...store.notes.values()].filter(n => shown(n) && n.region === region).sort((x, y) => y.at - x.at).slice(0, NOTES_SHOW).map(publicNote);
+  return { region, total: people.length, crowd: people.slice(-CROWD_MAX).map(r => r.save.me?.pick ?? r.done.pick ?? DEFAULT_PICK) as Pick[], questions: tally(people), notes };
 }
 
 /**
- * 마을 — 오늘(한국 날짜) 들른 판 수, 최근에 들른 주민 모습(CROWD_SHOW, 이름 없이), 보이는 쪽지(NOTES_SHOW, 새것부터).
+ * 마을 — 지금까지 다녀간 사람(로그인한 사람 한 사람 한 번, 사용자 10-19 「그렇게 저장하고 로그인한 수로 하자」),
+ * 최근 CROWD_DAYS 안에 마을에 들른 주민 모습(CROWD_SHOW, 이름 없이 — 사용자 10-19 「최근 7일·많아도 6명」), 보이는 쪽지(NOTES_SHOW, 새것부터).
  * exclude = 보는 사람 자신의 판(자기 모습이 광장에 하나 더 서지 않게).
  */
 export function villageView(store: Store, now: number, exclude?: string) {
-  const seen = [...store.finished].filter(([, f]) => f.seenAt).sort((x, y) => y[1].seenAt! - x[1].seenAt!);
-  const today = seen.filter(([, f]) => f.seenAt! >= kstDayStart(now)).length;
+  const seen = [...store.finished].filter(([, f]) => f.seenAt && now - f.seenAt < CROWD_DAYS_MS).sort((x, y) => y[1].seenAt! - x[1].seenAt!);
   const crowd = seen.filter(([id]) => id !== exclude).slice(0, CROWD_SHOW).map(([, f]) => f.pick ?? DEFAULT_PICK) as Pick[];
   const notes = [...store.notes.values()].filter(shown).sort((x, y) => y.at - x.at).slice(0, NOTES_SHOW).map(publicNote);
   let coins = 0;
   for (const f of store.finished.values()) coins += f.coins ?? 0;
-  return { today, crowd, notes, coins };
+  return { people: residentRuns(store).length, crowd, notes, coins };
 }
 const shown = (note: Note) => !note.hidden && note.reports.length < REPORT_HIDE;
 const publicNote = ({ id, at, name, text, pick, likes }: Note) => ({ id, at, name, text, pick, likes: likes.length });
@@ -237,23 +254,41 @@ export function handle(store: Store, method: string, path: string, body: unknown
     return { status: 404, body: { error: 'not-found' } };
   }
 
-  // ── 우리 지역 동네 ──
-  if (method === 'POST' && path === '/region') {
-    const done = typeof input.sessionId === 'string' ? store.finished.get(input.sessionId) : undefined;
-    if (!done || !isRegion(input.region) || !isPick(input.pick)) return { status: 400, body: { error: 'bad-region' } };
-    // 한 판은 한 지역에 한 채(먼저 지은 곳). 다시 걸으면 새 판이라 새로 짓는다.
-    if (!done.region) store.finished.set(input.sessionId as string, { ...done, region: input.region, pick: input.pick });
-    return { status: 200, body: regionView(store, store.finished.get(input.sessionId as string)!.region!) };
-  }
+  // ── 우리 동네 — 보기만(누구나). 함께하는 건 로그인한 주민의 기록 묶음(내 동네·지난번 판)이 한다(/me/save) ──
   if (method === 'GET' && parts[0] === 'regions' && parts.length === 2) {
     const region = decode(parts[1]);
     return isRegion(region) ? { status: 200, body: regionView(store, region) } : { status: 404, body: { error: 'no-region' } };
   }
 
-  // ── 마을 — 들르기·쪽지·나도·신고(끝낸 판만), 보기(누구나) ──
+  // ── 마을 — 쪽지 쓰기·숨기기(로그인한 주민), 들르기·동전·나도·신고(끝낸 판), 보기(누구나) ──
   if (parts[0] === 'village') {
     if (method === 'GET' && parts.length <= 2) return { status: 200, body: villageView(store, now, parts[1]) };
     if (method !== 'POST') return { status: 404, body: { error: 'not-found' } };
+    if (path === '/village/notes') {
+      const found = byKey(store, input.key);
+      if (!found) return { status: 403, body: { error: 'login' } };
+      const account = found[0];
+      const checked = checkNote(input.text);
+      if (!checked.ok || !isPick(input.pick)) return { status: 400, body: { error: 'bad-note', why: checked.ok ? 'pick' : checked.why } };
+      const mine = [...store.notes.values()].filter(n => n.account === account);
+      if (mine.some(n => now - n.at < NOTE_GAP_MS)) return { status: 429, body: { error: 'note-wait' } };
+      if (mine.filter(n => n.at >= kstDayStart(now)).length >= NOTE_DAY_MAX) return { status: 429, body: { error: 'note-day' } };
+      const name = cleanName(input.name);
+      let id = '';
+      for (let tries = 0; tries < 5 && (!id || store.notes.has(id)); tries++) id = randomText(10, KEY_CHARS, random);
+      const note: Note = { id, at: now, name: rude(name) ? '' : name, text: checked.text, pick: input.pick, account, ...(isRegion(input.region) ? { region: input.region } : {}), likes: [], reports: [] };
+      store.notes.set(id, note);
+      return { status: 201, body: { note: publicNote(note), view: villageView(store, now, typeof input.sessionId === 'string' ? input.sessionId : undefined) } };
+    }
+    // 관리자 「숨기기」(사용자 10-19 「관리자 = 쪽지 숨기기 하나만」) — 열쇠로 주민을 찾아 서버가 다시 관리자인지 본다(화면의 표시는 믿지 않는다).
+    // 시트 「숨김」 칸에 「관리자」 가 적힌다(server/gas.ts). 되살리기는 시트에서 그 칸을 지우면 된다.
+    if (parts[1] === 'notes' && parts.length === 4 && parts[3] === 'hide') {
+      if (!byKey(store, input.key)?.[1].admin) return { status: 403, body: { error: 'not-admin' } };
+      const note = store.notes.get(parts[2]);
+      if (!note || !shown(note)) return { status: 404, body: { error: 'no-note' } };
+      store.notes.set(note.id, { ...note, hidden: true, hiddenBy: '관리자' });
+      return { status: 200, body: { ok: true } };
+    }
     const sessionId = typeof input.sessionId === 'string' ? input.sessionId : '';
     const done = store.finished.get(sessionId);
     if (!done) return { status: 400, body: { error: 'not-finished' } };
@@ -271,19 +306,6 @@ export function handle(store: Store, method: string, path: string, body: unknown
       if (take <= 0) return { status: 429, body: { error: 'coin-day' } };
       store.finished.set(sessionId, { ...done, coins: (done.coins ?? 0) + take, coinDay: day, coinsDay: already + take });
       return { status: 200, body: { took: take, view: villageView(store, now, sessionId) } };
-    }
-    if (path === '/village/notes') {
-      const checked = checkNote(input.text);
-      if (!checked.ok || !isPick(input.pick)) return { status: 400, body: { error: 'bad-note', why: checked.ok ? 'pick' : checked.why } };
-      const mine = [...store.notes.values()].filter(n => n.sessionId === sessionId);
-      if (mine.some(n => now - n.at < NOTE_GAP_MS)) return { status: 429, body: { error: 'note-wait' } };
-      if (mine.filter(n => n.at >= kstDayStart(now)).length >= NOTE_DAY_MAX) return { status: 429, body: { error: 'note-day' } };
-      const name = cleanName(input.name);
-      let id = '';
-      for (let tries = 0; tries < 5 && (!id || store.notes.has(id)); tries++) id = randomText(10, KEY_CHARS, random);
-      const note: Note = { id, at: now, name: rude(name) ? '' : name, text: checked.text, pick: input.pick, sessionId, likes: [], reports: [] };
-      store.notes.set(id, note);
-      return { status: 201, body: { note: publicNote(note), view: villageView(store, now, sessionId) } };
     }
     const note = parts[1] === 'notes' && parts.length === 4 ? store.notes.get(parts[2]) : undefined;
     if (!note || !shown(note)) return { status: 404, body: { error: 'no-note' } };

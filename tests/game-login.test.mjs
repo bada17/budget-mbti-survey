@@ -8,7 +8,7 @@ import { verifyLogin, accountOf, serve } from '../server/gas.ts';
 // 기록 묶음은 localStorage 를 읽고 쓴다 — 시험에선 가짜로.
 const memory = new Map();
 globalThis.localStorage = { getItem: k => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, String(v)), removeItem: k => memory.delete(k) };
-const { cleanSave, clearSave, exportSave, importSave, saveMe, addStamp, loadStamps, loadLast, saveTown, TOWN_IDS } = await import('../game/profile.ts');
+const { cleanSave, clearSave, exportSave, importSave, saveMe, addStamp, loadStamps, loadLast, saveTown, loadOwned, saveOwned, POCKET_KEY, TOWN_IDS } = await import('../game/profile.ts');
 
 const ACCOUNT = `kakao:${'a'.repeat(64)}`;
 let n = 0;
@@ -157,4 +157,30 @@ test('카톡 밖으로 실어 보내는 기록: 한글 이름까지 그대로 �
   assert.deepEqual(unpackCarry(packCarry(save)), cleanSave(save));
   assert.equal(unpackCarry('%%%'), undefined);
   assert.equal(unpackCarry(btoa('{"me":{"name":1}}'))?.me, undefined);
+});
+
+test('기록 묶음의 동전·산 액세서리(10-19): 동전은 더 나중에 바뀐 쪽, 산 것은 둘 다, 로그아웃하면 비운다', () => {
+  memory.clear();
+  assert.deepEqual(cleanSave({ coins: { n: -1, at: 5, day: 1, taken: [] }, owned: [0, 99] }), { owned: [0] }, '이상한 동전·번호는 버린다');
+  localStorage.setItem(POCKET_KEY, JSON.stringify({ day: 7, taken: [3], coins: 40, fruits: 2, given: 5, told: true, arcade: [], at: 100 }));
+  saveOwned([1]);
+  assert.deepEqual(exportSave().coins, { n: 40, at: 100, day: 7, taken: [3] });
+  assert.deepEqual(exportSave().owned, [1]);
+  importSave({ coins: { n: 10, at: 50, day: 7, taken: [] }, owned: [0] });
+  assert.equal(exportSave().coins.n, 40, '이 기기가 더 나중이면 그대로');
+  assert.deepEqual(loadOwned(), [0, 1], '산 것은 둘 다');
+  importSave({ coins: { n: 120, at: 300, day: 8, taken: [1, 2] } });
+  const pocket = JSON.parse(localStorage.getItem(POCKET_KEY));
+  assert.deepEqual([pocket.coins, pocket.day, pocket.taken, pocket.fruits, pocket.given], [120, 8, [1, 2], 2, 5], '다른 기기에서 더 모았으면 서버 것 — 열매·넣은 동전은 이 기기 것');
+  clearSave();
+  assert.equal(localStorage.getItem(POCKET_KEY), null);
+  assert.deepEqual(loadOwned(), []);
+});
+
+test('새 주소(forest.action.or.kr, 10-19): 옛 주소와 새 주소 둘 다 로그인 돌아오는 곳으로 받는다', () => {
+  const both = { LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/,https://forest.action.or.kr/game/' };
+  for (const uri of ['https://bada17.github.io/budget-mbti-survey/game/', 'https://forest.action.or.kr/game/']) {
+    assert.deepEqual(verifyLogin({ provider: 'kakao', code: 'good', redirectUri: uri }, fakeDeps(kakaoOk, both), 0), { provider: 'kakao', subject: '4242' }, uri);
+  }
+  assert.equal(verifyLogin({ provider: 'kakao', code: 'good', redirectUri: 'https://forest.action.or.kr/' }, fakeDeps(kakaoOk, both), 0), undefined, '게임 주소만');
 });

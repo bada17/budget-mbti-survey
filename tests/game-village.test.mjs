@@ -6,7 +6,7 @@ import {
   PLACES, SPAWN, VILLAGE_W, VILLAGE_H, blocked, walkVillage, findPath, placeAt, wanderSpot, checkNote, kstDayStart,
   NOTE_MAX, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, CROWD_SHOW,
 } from '../game/village.ts';
-import { createStore, handle } from '../game/api.ts';
+import { createStore, handle, login } from '../game/api.ts';
 import { serve } from '../server/gas.ts';
 import { orderedQuestions } from '../game/response.ts';
 import { CONTENT_VERSION } from '../game/content.ts';
@@ -111,40 +111,52 @@ test('한국 날짜 0시', () => {
   assert.equal(kstDayStart(Date.UTC(2026, 9, 14, 15, 0)), Date.UTC(2026, 9, 14, 15));
 });
 
-test('마을 서버: 끝낸 판만 들르고 쓰고, 보는 사람 자신은 광장에 안 세우고, 세션 id 는 안 돌려준다', () => {
+test('마을 서버: 끝낸 판만 들르고, 최근 이레 안에 들른 사람만 많아도 여섯, 보는 사람 자신은 광장에 안 세우고, 세션 id 는 안 돌려준다', () => {
   const store = createStore();
   const now = Date.UTC(2026, 9, 14, 3);
+  assert.equal(CROWD_SHOW, 6, '사용자 10-19 「많아도 6명」');
   assert.equal(handle(store, 'POST', '/village/here', { sessionId: 'session-none', pick: [0, 0, 0, 0] }, now).status, 400);
-  finish(store, 'session-aaaa'); finish(store, 'session-bbbb');
+  finish(store, 'session-aaaa'); finish(store, 'session-bbbb'); finish(store, 'session-old0');
   assert.equal(handle(store, 'POST', '/village/here', { sessionId: 'session-aaaa', pick: [9, 9, 9, 9] }, now).status, 400);
   handle(store, 'POST', '/village/here', { sessionId: 'session-aaaa', pick: [1, 1, 1, 1] }, now - 86_400_000); // 어제
+  handle(store, 'POST', '/village/here', { sessionId: 'session-old0', pick: [3, 3, 3, 3] }, now - 8 * 86_400_000); // 여드레 전 — 안 선다
   const view = handle(store, 'POST', '/village/here', { sessionId: 'session-bbbb', pick: [2, 2, 2, 2] }, now).body;
-  assert.equal(view.today, 1, '어제 들른 사람은 오늘 수에 안 든다');
-  assert.deepEqual(view.crowd, [[1, 1, 1, 1]], '나(bbbb)는 빼고');
+  assert.equal(view.people, 0, '위 띠 누계는 로그인한 사람만');
+  assert.deepEqual(view.crowd, [[1, 1, 1, 1]], '나(bbbb)는 빼고, 이레 넘은 사람도 빼고');
   assert.deepEqual(handle(store, 'GET', '/village', null, now).body.crowd, [[2, 2, 2, 2], [1, 1, 1, 1]], '최근 들른 순');
   for (let i = 0; i < CROWD_SHOW + 4; i++) { finish(store, `session-c${String(i).padStart(4, '0')}`); handle(store, 'POST', '/village/here', { sessionId: `session-c${String(i).padStart(4, '0')}`, pick: [0, 0, 0, 0] }, now + i); }
   assert.equal(handle(store, 'GET', '/village', null, now).body.crowd.length, CROWD_SHOW);
   assert.ok(!JSON.stringify(handle(store, 'GET', '/village', null, now).body).includes('session-'));
 });
 
-test('쪽지: 끝낸 판만, 10분에 하나·하루 셋, 나도·신고는 한 판에 한 번, 신고가 모이면 숨는다', () => {
+/** 로그인한 주민 — 열쇠. admin 이면 관리자(로그인 때 서버가 확인된 이메일로 가린다). */
+const keyOf = (store, n, admin = false) => login(store, `kakao:${String(n).padStart(64, '0')}`, 0, Math.random, admin).body.key;
+
+test('쪽지: 로그인한 사람만 쓰고, 10분에 하나·하루 셋(계정마다), 나도·신고는 한 판에 한 번, 신고가 모이면 숨는다', () => {
   const store = createStore();
   let now = Date.UTC(2026, 9, 14, 3);
-  const post = (sessionId, text, extra = {}) => handle(store, 'POST', '/village/notes', { sessionId, name: '민지', pick: [1, 2, 3, 4], text, ...extra }, now);
-  assert.equal(post('session-none', '안녕하세요').status, 400);
+  const key = keyOf(store, 1);
+  const post = (text, extra = {}) => handle(store, 'POST', '/village/notes', { key, name: '민지', pick: [1, 2, 3, 4], text, ...extra }, now);
+  assert.equal(handle(store, 'POST', '/village/notes', { sessionId: 'session-aaaa', name: '민지', pick: [1, 2, 3, 4], text: '안녕하세요' }, now).status, 403, '로그인 안 하면 못 쓴다(사용자 10-19)');
+  assert.equal(post('안녕하세요', { key: 'x'.repeat(32) }).status, 403, '모르는 열쇠');
   finish(store, 'session-aaaa');
-  assert.equal(post('session-aaaa', 'http://spam.kr').body.why, 'link');
-  assert.equal(post('session-aaaa', '안녕하세요', { pick: [9, 9, 9, 9] }).status, 400);
-  const made = post('session-aaaa', '  처음 와 봤어요  ');
+  assert.equal(post('http://spam.kr').body.why, 'link');
+  assert.equal(post('안녕하세요', { pick: [9, 9, 9, 9] }).status, 400);
+  const made = post('  처음 와 봤어요  ', { region: '1144000' });
   assert.equal(made.status, 201);
-  assert.deepEqual(Object.keys(made.body.note).sort(), ['at', 'id', 'likes', 'name', 'pick', 'text']);
+  assert.deepEqual(Object.keys(made.body.note).sort(), ['at', 'id', 'likes', 'name', 'pick', 'text'], '쓴 계정·동네는 밖으로 안 낸다');
   assert.equal(made.body.note.text, '처음 와 봤어요');
   assert.equal(made.body.view.notes[0].id, made.body.note.id);
-  assert.equal(post('session-aaaa', '또 왔어요').status, 429, '10분 안');
-  now += NOTE_GAP_MS; assert.equal(post('session-aaaa', '두 번째').status, 201);
-  now += NOTE_GAP_MS; assert.equal(post('session-aaaa', '세 번째').status, 201);
-  now += NOTE_GAP_MS; assert.equal(post('session-aaaa', '네 번째').status, 429, `하루 ${NOTE_DAY_MAX}개`);
-  assert.equal(handle(store, 'POST', '/village/notes', { sessionId: 'session-aaaa', name: '씨발', pick: [0, 0, 0, 0], text: '내일 또' }, now + 86_400_000).body.note.name, '', '거친 별명은 비운다');
+  assert.equal(post('또 왔어요').status, 429, '10분 안');
+  now += NOTE_GAP_MS; assert.equal(post('두 번째').status, 201);
+  now += NOTE_GAP_MS; assert.equal(post('세 번째').status, 201);
+  now += NOTE_GAP_MS; assert.equal(post('네 번째').status, 429, `하루 ${NOTE_DAY_MAX}개`);
+  assert.equal(handle(store, 'POST', '/village/notes', { key: keyOf(store, 2), name: '다른 사람', pick: [0, 0, 0, 0], text: '저는 처음' }, now).status, 201, '하루 몇 장은 계정마다');
+  assert.equal(handle(store, 'POST', '/village/notes', { key, name: '씨발', pick: [0, 0, 0, 0], text: '내일 또' }, now + 86_400_000).body.note.name, '', '거친 별명은 비운다');
+  // 동네 한마디 — 그 동네 쪽지만, 우리 동네 판에
+  const region = handle(store, 'GET', '/regions/1144000', null, now).body;
+  assert.deepEqual(region.notes.map(n => n.text), ['처음 와 봤어요']);
+  assert.equal(handle(store, 'GET', '/regions/2600000', null, now).body.notes.length, 0);
 
   const id = made.body.note.id;
   const like = sessionId => handle(store, 'POST', `/village/notes/${id}/like`, { sessionId }, now);
@@ -162,25 +174,35 @@ test('쪽지: 끝낸 판만, 10분에 하나·하루 셋, 나도·신고는 한 
   assert.equal(handle(store, 'POST', '/village/notes/NOPE/like', { sessionId: 'session-r0000' }, now).status, 404);
 });
 
+/** 시트 「주민」 탭에 로그인한 주민 한 줄을 미리 넣는다(로그인 확인은 game-login 시험이 따로 본다). */
+const KEY = 'K'.repeat(32), ADMIN_KEY = 'A'.repeat(32);
+function seedResidents(book) {
+  serve('GET', { parameter: { p: '/stats' } }, book, 0); // 탭을 만든다
+  const rows = book.sheets.get('주민').rows;
+  rows.push([`kakao:${'1'.padStart(64, '0')}`, JSON.stringify({ key: KEY, save: {}, at: 0 }), '']);
+  rows.push([`google:${'2'.padStart(64, '0')}`, JSON.stringify({ key: ADMIN_KEY, save: {}, at: 0, admin: true }), '']);
+}
+
 test('시트의 쪽지 탭: 사람이 읽는 칸, 숨김 칸에 적으면 숨고, 서버는 숨김 칸을 덮어쓰지 않는다', () => {
   const book = fakeBook();
+  seedResidents(book);
   const post = (p, body, now) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, now);
   const now = Date.UTC(2026, 9, 14, 3);
   post('/finish', { sessionId: 'session-aaaa', contentVersion: CONTENT_VERSION, answers }, now);
   post('/finish', { sessionId: 'session-bbbb', contentVersion: CONTENT_VERSION, answers }, now);
   post('/village/here', { sessionId: 'session-aaaa', pick: [1, 1, 1, 1] }, now);
-  const { id } = post('/village/notes', { sessionId: 'session-aaaa', name: '민지', pick: [1, 1, 1, 1], text: '반가워요' }, now).body.note;
+  const { id } = post('/village/notes', { key: KEY, sessionId: 'session-aaaa', name: '민지', pick: [1, 1, 1, 1], text: '반가워요', region: '1144000' }, now).body.note;
   const rows = book.sheets.get('쪽지').rows;
   assert.deepEqual(rows[0], ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록']);
   assert.deepEqual(rows[1].slice(0, 6), [id, new Date(now).toISOString(), "'민지", "'반가워요", 0, 0], "사람이 쓴 칸은 ' 를 붙여 글자로만");
-  assert.equal(JSON.parse(rows[1][7]).sessionId, 'session-aaaa');
+  assert.equal(JSON.parse(rows[1][7]).region, '1144000', '쓴 사람의 동네는 기록 칸에');
   assert.equal(post(`/village/notes/${id}/like`, { sessionId: 'session-bbbb' }, now).body.likes, 1);
   assert.equal(rows.length, 2, '고친 쪽지는 제자리');
   assert.equal(rows[1][4], 1);
   const get = () => serve('GET', { parameter: { p: '/village' } }, book, now).body;
   assert.equal(get().notes.length, 1);
   assert.equal(get().notes[0].text, '반가워요', "읽을 땐 ' 없이");
-  assert.equal(get().today, 1);
+  assert.equal(serve('GET', { parameter: { p: '/regions/1144000' } }, book, now).body.notes.length, 1, '다음 요청이 시트에서 동네를 다시 읽는다');
   rows[1][6] = '광고'; // 지우는 사람이 시트에 적는다
   assert.equal(get().notes.length, 0);
   post(`/village/notes/${id}/report`, { sessionId: 'session-bbbb' }, now); // 숨은 쪽지 — 404, 아무것도 안 쓴다
@@ -192,13 +214,33 @@ test('시트의 쪽지 탭: 사람이 읽는 칸, 숨김 칸에 적으면 숨고
   assert.equal(rows[1][5], 1);
 });
 
+test('관리자 「숨기기」: 서버가 열쇠로 관리자인지 다시 보고, 시트 숨김 칸에 「관리자」, 칸을 지우면 되살아난다', () => {
+  const book = fakeBook();
+  seedResidents(book);
+  const post = (p, body, now = 1000) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, now);
+  const { id } = post('/village/notes', { key: KEY, name: '민지', pick: [1, 1, 1, 1], text: '반가워요' }).body.note;
+  assert.equal(post(`/village/notes/${id}/hide`, { key: KEY }).status, 403, '보통 주민은 못 숨긴다');
+  assert.equal(post(`/village/notes/${id}/hide`, {}).status, 403);
+  assert.equal(post(`/village/notes/${id}/hide`, { key: ADMIN_KEY }).status, 200);
+  const rows = book.sheets.get('쪽지').rows, get = () => serve('GET', { parameter: { p: '/village' } }, book, 1000).body;
+  assert.equal(rows[1][6], '관리자');
+  assert.equal(get().notes.length, 0);
+  assert.equal(post(`/village/notes/${id}/hide`, { key: ADMIN_KEY }).status, 404, '숨은 쪽지는 또 못 숨긴다');
+  rows[1][6] = ''; // 되살리기 — 시트에서 칸을 지운다
+  assert.equal(get().notes.length, 1);
+  // 관리자 표시는 로그인할 때마다 다시 가린다
+  const store = createStore();
+  assert.equal(handle(store, 'POST', '/village/notes/x/hide', { key: keyOf(store, 9, true) }, 0).status, 404, '관리자면 통과(없는 쪽지라 404)');
+  keyOf(store, 9, false);
+  assert.equal(handle(store, 'POST', '/village/notes/x/hide', { key: keyOf(store, 9, false) }, 0).status, 403, '다음 로그인에 관리자가 아니면 표시가 지워진다');
+});
+
 test("시트의 쪽지 탭: 「=」 로 시작하는 쪽지도 수식이 아니라 글자로 쓴다(10-16 — 다른 탭 값을 읽어 오지 않게)", () => {
   const book = fakeBook();
+  seedResidents(book);
   const post = (p, body, now) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, now);
   const now = Date.UTC(2026, 9, 14, 3);
-  post('/finish', { sessionId: 'session-aaaa', contentVersion: CONTENT_VERSION, answers }, now);
-  post('/village/here', { sessionId: 'session-aaaa', pick: [1, 1, 1, 1] }, now);
-  post('/village/notes', { sessionId: 'session-aaaa', name: '민지', pick: [1, 1, 1, 1], text: '=연락처!C2' }, now);
+  post('/village/notes', { key: KEY, name: '민지', pick: [1, 1, 1, 1], text: '=연락처!C2' }, now);
   const cell = book.sheets.get('쪽지').rows[1][3];
   assert.equal(cell, "'=연락처!C2");
 });
@@ -425,4 +467,28 @@ test('문제 카드: 시트에 사람이 적은 줄(보이기 O)만 뜨고, 반�
   assert.ok(!JSON.stringify(get()).includes('voter-'), '누가 눌렀는지는 안 나간다');
   rows.splice(rows.indexOf(rows.find(r => r[1] === '지난달 카드')), 1); // 사람이 줄을 지워도
   assert.deepEqual(get()[0].counts, { problem: 1, unsure: 0, fine: 1 }, '번호가 그대로라 반응이 남는다');
+});
+
+test('다 지은 것은 쓸 수 있다: 다리를 지으면 연못을 건너고, 정자를 지으면 평상까지 걸어 들어간다(사용자 10-19)', async () => {
+  const { POND, BRIDGE_Y, PAVILION_SEAT, setBuilt, blocked, findPath, walkVillage } = await import('../game/village.ts');
+  const left = { x: POND.x - 20, y: BRIDGE_Y }, right = { x: POND.x + POND.w + 20, y: BRIDGE_Y }, middle = { x: POND.x + POND.w / 2, y: BRIDGE_Y };
+  const door = PLACES.find(p => p.id === 'works').door;
+  const walk = (from, dir, steps = 120) => { let p = from; for (let i = 0; i < steps; i++) p = walkVillage(p, dir, 3); return p; };
+  try {
+    setBuilt([]);
+    assert.equal(blocked(middle), true, '짓기 전엔 연못');
+    assert.ok(walk(left, { x: 1, y: 0 }).x < POND.x, '연못 앞에서 멈춘다');
+    assert.equal(blocked(PAVILION_SEAT), true, '공사 울타리 안');
+    setBuilt(['bridge']);
+    assert.equal(blocked(middle), false, '다리 위');
+    assert.equal(blocked({ x: middle.x, y: POND.y + 20 }), true, '다리 밖은 그대로 연못');
+    assert.ok(walk(left, { x: 1, y: 0 }).x > POND.x + POND.w, '건너간다');
+    assert.ok(findPath(left, right).every(p => !blocked(p)), '길찾기도 다리로');
+    assert.equal(blocked(PAVILION_SEAT), true, '정자는 아직');
+    setBuilt(['bridge', 'pavilion']);
+    assert.equal(blocked(PAVILION_SEAT), false, '평상 자리');
+    const route = findPath(door, PAVILION_SEAT);
+    assert.deepEqual(route[route.length - 1], PAVILION_SEAT, '문 앞에서 평상까지');
+    assert.equal(blocked({ x: PAVILION_SEAT.x, y: PAVILION_SEAT.y - 40 }), true, '지붕 밑 뒤쪽은 막혀 있다');
+  } finally { setBuilt([]); }
 });

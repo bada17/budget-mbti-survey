@@ -11,7 +11,7 @@
     카톡 안 브라우저와 크롬은 저장소가 따로라, 로그인 없이는 같은 사람이 다시 와도 처음 온 사람이 된다. 규칙은 login.ts·api.ts.
 */
 import { TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, ROUTE, type TypeCode } from './content';
-import { isPick, fullPick, randomPick, DEFAULT_PICK, type Pick } from './look';
+import { isPick, fullPick, randomPick, DEFAULT_PICK, REWARDS, type Pick } from './look';
 
 /** at = 사람이 직접 고르거나 이름을 쓴 때 — 로그인해 합칠 때 더 나중에 고른 쪽이 이긴다(importSave). 손 안 댄 기본 모습엔 없다. */
 export type Me = { name: string; pick: Pick; at?: number };
@@ -118,10 +118,22 @@ function read(key: string): unknown {
 const writeHooks = new Set<() => void>();
 /** 기록이 바뀔 때마다 — 로그인했으면 main.ts 가 이걸로 서버에 다시 올린다. */
 export const onWrite = (hook: () => void) => { writeHooks.add(hook); };
+/** 다른 파일이 기록 묶음에 실리는 칸(주머니 — places.ts savePocket)을 고쳤을 때 알린다. */
+export const touched = () => writeHooks.forEach(hook => hook());
 function write(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* 저장소가 막힌 창 — 이번 판만 기억 */ }
-  writeHooks.forEach(hook => hook());
+  touched();
 }
+
+/** 주머니(동전·주운 나무, places.ts loadPocket) — 칸 이름만 여기. 로그인 묶음에 동전이 실린다(Save.coins). */
+export const POCKET_KEY = 'budget-game-pocket';
+const OWNED_KEY = 'budget-game-owned';
+/** 동전으로 산 액세서리(look.ts REWARDS 번호) — 사용자 10-19 「동전 100개 = 액세서리 하나」. 지금 쓰는 것과 따로 남겨, 벗었다 다시 끼게(모습 판은 GPT 몫). */
+export function loadOwned(): number[] {
+  const raw = read(OWNED_KEY);
+  return Array.isArray(raw) ? [...new Set(raw.filter((i): i is number => Number.isInteger(i) && i >= 0 && i < REWARDS.length))] : [];
+}
+export const saveOwned = (owned: number[]) => write(OWNED_KEY, [...new Set(owned)].sort());
 
 /**
  * 처음 온 사람(남긴 게 없으면)은 첫 모습을 무작위로 — 다들 고르지 않고 「이 모습으로 걷기」 를 누르면 마을 광장이 같은 모습으로 찬다(기획 4차).
@@ -196,7 +208,9 @@ export function cleanTableCode(value: unknown) {
 }
 
 // ── 로그인하면 서버에 두는 한 묶음(Save) — 이 기기의 기록 그대로. 서버도 받을 때 이걸로 검사한다(api.ts). ──
-export type Save = { me?: Me; neighbor?: Neighbor; last?: Last & { at: number }; home?: Home; stamps?: Record<string, number>; region?: Region };
+/** 주머니 동전(사용자 10-19 「동전 로그인 저장」) — n 남은 동전, at 마지막으로 바뀐 때(더 나중 것이 이긴다), day·taken 그날 주운 나무(두 기기로 같은 나무를 두 번 줍지 않게). */
+export type Coins = { n: number; at: number; day: number; taken: number[] };
+export type Save = { me?: Me; neighbor?: Neighbor; last?: Last & { at: number }; home?: Home; stamps?: Record<string, number>; region?: Region; coins?: Coins; owned?: number[] };
 export const SAVE_MAX = 4000; // JSON 글자 수 — 이보다 크면 이상한 값
 
 /** 남이 보낸(또는 서버에서 온) 묶음 검사 — 이상한 칸은 그 칸만 버린다. */
@@ -216,16 +230,21 @@ export function cleanSave(raw: unknown): Save | undefined {
     if (Object.keys(stamps).length) save.stamps = stamps;
   }
   if (isRegion(r.region)) save.region = r.region;
+  const c = r.coins, whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
+  if (c && whole(c.n, 1e6) && Number.isFinite(c.at) && c.at > 0 && whole(c.day, 1e7) && Array.isArray(c.taken)) save.coins = { n: c.n, at: c.at, day: c.day, taken: c.taken.filter((t: unknown) => whole(t, 999)).slice(0, 200) };
+  if (Array.isArray(r.owned)) { const owned = r.owned.filter((i: unknown) => whole(i, REWARDS.length - 1)); if (owned.length) save.owned = [...new Set<number>(owned)]; }
   return save;
 }
 
 /** 이 기기의 기록을 한 묶음으로. */
 export function exportSave(): Save {
   const rawTown = read(TOWN_KEY) as { at?: unknown } | null, last = loadLast();
+  const pocket = read(POCKET_KEY) as Partial<Coins> & { coins?: unknown } | null;
   return cleanSave({
     me: read(ME_KEY) ? loadMe() : undefined, neighbor: loadNeighbor(),
     last: last ? { ...last, at: Number(rawTown?.at) || 0 } : undefined,
     home: loadHome(), stamps: loadStamps(), region: loadRegion(),
+    coins: pocket?.at ? { n: pocket.coins, at: pocket.at, day: pocket.day, taken: pocket.taken ?? [] } : undefined, owned: loadOwned(),
   }) ?? {};
 }
 
@@ -244,6 +263,12 @@ export function importSave(remote: Save) {
   if (remote.last && (!here.last || remote.last.at > here.last.at)) write(TOWN_KEY, remote.last);
   if (remote.home) saveHome(remote.home);
   if (remote.region) saveRegion(remote.region);
+  // 동전은 더 나중에 바뀐 쪽(at) — 열매·넣은 동전 같은 이 기기 칸은 그대로 두고 동전·오늘 주운 나무만 갈아 끼운다.
+  if (remote.coins && remote.coins.at > (here.coins?.at ?? 0)) {
+    const pocket = (read(POCKET_KEY) as Record<string, unknown> | null) ?? {};
+    write(POCKET_KEY, { ...pocket, coins: remote.coins.n, at: remote.coins.at, day: remote.coins.day, taken: remote.coins.taken });
+  }
+  if (remote.owned?.some(i => !here.owned?.includes(i))) saveOwned([...(here.owned ?? []), ...remote.owned]); // 산 것은 둘 다
   if (remote.stamps) {
     const mine = loadStamps(), merged = { ...remote.stamps, ...mine };
     for (const [id, at] of Object.entries(remote.stamps)) if (mine[id]) merged[id] = Math.min(mine[id], at);
@@ -261,4 +286,4 @@ export function loadLogin(): Login | undefined {
 export const saveLogin = (login: Login) => { try { localStorage.setItem(LOGIN_KEY, JSON.stringify(login)); } catch { /* 막힌 창 */ } };
 export const clearLogin = () => { try { localStorage.removeItem(LOGIN_KEY); } catch { /* 막힌 창 */ } };
 /** 로그아웃 때 — 이 기기의 Save 칸(서버에 올린 그 기록)을 비운다. 안 비우면 다음에 이 기기로 로그인한 다른 사람 계정에 섞인다(10-16). */
-export const clearSave = () => { for (const key of [ME_KEY, NEIGHBOR_KEY, TOWN_KEY, HOME_KEY, STAMP_KEY, REGION_KEY]) try { localStorage.removeItem(key); } catch { /* 막힌 창 */ } };
+export const clearSave = () => { for (const key of [ME_KEY, NEIGHBOR_KEY, TOWN_KEY, HOME_KEY, STAMP_KEY, REGION_KEY, POCKET_KEY, OWNED_KEY]) try { localStorage.removeItem(key); } catch { /* 막힌 창 */ } };

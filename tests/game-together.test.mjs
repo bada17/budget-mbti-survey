@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { encodeInvite, decodeInvite, cleanName, cleanTableCode, josa, townFrom, isTown, TOWN_IDS } from '../game/profile.ts';
 import { checkContact } from '../game/contact.ts';
-import { createStore, handle, TABLE_TTL_MS, TABLE_MAX } from '../game/api.ts';
+import { createStore, handle, login, TABLE_TTL_MS, TABLE_MAX } from '../game/api.ts';
 import { orderedQuestions } from '../game/response.ts';
 import { CONTENT_VERSION } from '../game/content.ts';
 
@@ -44,12 +44,17 @@ test('연락처: 필수 동의·형식·봇 막이를 지키고, 선택 동의�
 
 const answersFor = value => Object.fromEntries(orderedQuestions.map(q => [q.id, value]));
 
-test('다른 사람들 마음: 끝낸 판만 세고, 같은 판은 한 번, 유형은 서버가 다시 계산한다', () => {
+test('다른 사람들 마음: 끝낸 판 중 로그인한 사람의 것만 세고, 같은 판은 한 번, 유형은 서버가 다시 계산한다', () => {
   const store = createStore();
   const finish = (sessionId, answers) => handle(store, 'POST', '/finish', { sessionId, contentVersion: CONTENT_VERSION, answers }, 1000);
   assert.equal(finish('session-aaaa', answersFor(1)).status, 200);
   assert.equal(finish('session-aaaa', answersFor(6)).status, 200); // 두 번째는 무시
   finish('session-bbbb', answersFor(6));
+  // 로그인한 두 사람이 그 판을 지난번 판으로 올렸다(사용자 10-19 「로그인한 기록만 보자」)
+  ['aaaa', 'bbbb'].forEach((s, i) => {
+    const { key } = login(store, `google:${String(i).padStart(64, '0')}`, 0, Math.random).body;
+    handle(store, 'POST', '/me/save', { key, save: { last: { town: 'a'.repeat(15), at: 1, sessionId: `session-${s}` } } }, 0);
+  });
   const { body } = handle(store, 'GET', '/stats', null, 2000);
   assert.equal(body.total, 2);
   assert.deepEqual(body.questions[orderedQuestions[0].id], { a: 1, b: 1 });
@@ -97,4 +102,25 @@ test('내 동네: 답에서 열다섯 자로, 친구 링크에 실려 오가고,
   assert.deepEqual(decodeInvite(odd), { name: 'a', pick: [0, 0, 0, 0], type: '101' });
   assert.equal(isTown('a'.repeat(15)), true);
   assert.equal(isTown('a'.repeat(14) + 'c'), false);
+});
+
+test('왜 이 유형일까(10-19): 축마다 다섯, 쪽·세기는 답 그대로, 판정과 같은 쪽, 한 칸 차이면 반반 근처', async () => {
+  const { pullsOf } = await import('../game/response.ts');
+  const { scoreAnswers, typeCode } = await import('../game/score.ts');
+  const { AXES } = await import('../game/content.ts');
+  for (let round = 0; round < 200; round++) {
+    const answers = Object.fromEntries(orderedQuestions.map(q => [q.id, 1 + Math.floor(Math.random() * 6)]));
+    const scores = scoreAnswers(orderedQuestions, answers), code = typeCode(scores);
+    const pulls = pullsOf(answers, scores);
+    assert.equal(pulls.map(p => (p.right ? '1' : '0')).join(''), code, '고른 쪽이 유형 글자와 같다');
+    for (const { axis, pulls: five, close } of pulls) {
+      assert.equal(five.length, 5);
+      // 줄다리기 칸(조금 1·많이 3·훨씬 5)을 더한 쪽이 판정과 같고, 한 칸 차이(±1)일 때만 반반 근처
+      const sum = five.reduce((s, p) => s + (p.key === 'b' ? 1 : -1) * (1 + 2 * p.level), 0);
+      assert.equal(sum > 0, scores[axis.key] > 0);
+      assert.equal(close, Math.abs(sum) === 1, `${axis.key} ${sum}`);
+      for (const p of five) assert.equal(answers[p.question.id], p.key === 'a' ? 3 - p.level : 4 + p.level);
+    }
+    assert.equal(pulls.length, AXES.length);
+  }
 });

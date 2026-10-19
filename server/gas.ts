@@ -81,7 +81,7 @@ function readNotes(sheet: Sheet) {
   sheet.getRange(2, 1, last - 1, NOTE_HEAD.length).getValues().forEach((row, i) => {
     try {
       const [id, , name, text, , , hide, json] = row;
-      const rest = JSON.parse(String(json)) as Pick<Note, 'at' | 'pick' | 'sessionId' | 'likes' | 'reports'>;
+      const rest = JSON.parse(String(json)) as Pick<Note, 'at' | 'pick' | 'sessionId' | 'account' | 'region' | 'likes' | 'reports'>;
       if (id) map.load(String(id), { ...rest, id: String(id), name: String(name ?? ''), text: String(text ?? ''), hidden: String(hide ?? '').trim() !== '' }, i + 2);
     } catch { /* 사람이 손으로 망친 줄은 건너뛴다 */ }
   });
@@ -91,9 +91,10 @@ function writeNotes(sheet: Sheet, map: Tracked<Note>) {
   for (const id of map.dirty) {
     const n = map.get(id)!;
     const shown = [n.id, new Date(n.at).toISOString(), plain(n.name), plain(n.text), n.likes.length, n.reports.length];
-    const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, likes: n.likes, reports: n.reports });
+    const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, account: n.account, region: n.region, likes: n.likes, reports: n.reports });
     const at = map.rows.get(id) ?? sheet.getLastRow() + 1;
-    sheet.getRange(at, 1, 1, shown.length).setValues([shown]); // 숨김 칸(7)은 건드리지 않는다
+    sheet.getRange(at, 1, 1, shown.length).setValues([shown]); // 숨김 칸(7)은 사람 몫 — 관리자 「숨기기」 일 때만 「관리자」 를 적는다(그땐 칸이 비어 있었다 — 숨은 쪽지는 숨길 수 없다)
+    if (n.hiddenBy) sheet.getRange(at, 7, 1, 1).setValues([[n.hiddenBy]]);
     sheet.getRange(at, 8, 1, 1).setValues([[record]]);
     map.rows.set(id, at);
   }
@@ -221,9 +222,11 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   if (method === 'POST' && path === '/login') {
     const who = deps ? verifyLogin((body ?? {}) as Record<string, unknown>, deps, now) : undefined;
     const account = who && deps ? accountOf(who, deps) : undefined;
-    result = account ? login(store, account, now, deps!.random) : { status: 401, body: { error: 'login-failed' } };
-    // 이메일은 돌려주기만(저장 안 함). 관리자인지도 여기서 가린다 — 단체 주소 또는 ADMIN_EMAILS(속성·Secret.js).
-    if (who?.email && result.status === 200) result = { ...result, body: { ...result.body, email: who.email, ...(isAdmin(who.email, deps!.prop('ADMIN_EMAILS') ?? '') ? { admin: true } : {}) } };
+    // 관리자인지 여기서 가린다 — 단체 주소 또는 ADMIN_EMAILS(속성·Secret.js). 주민 기록엔 표시만 남는다(쪽지 숨기기를 서버가 다시 확인할 때).
+    const admin = Boolean(who?.email && isAdmin(who.email, deps!.prop('ADMIN_EMAILS') ?? ''));
+    result = account ? login(store, account, now, deps!.random, admin) : { status: 401, body: { error: 'login-failed' } };
+    // 이메일은 돌려주기만(저장 안 함).
+    if (who?.email && result.status === 200) result = { ...result, body: { ...result.body, email: who.email, ...(admin ? { admin: true } : {}) } };
   } else result = handle(store, method, path, body, now);
   if (method === 'POST' && result.status < 400) {
     for (const name of ['finished', 'homes', 'books', 'residents'] as const) writeKV(sheets[name], store[name] as Tracked<unknown>, now);

@@ -4,9 +4,11 @@
   · 왜 — 카톡 안 브라우저와 크롬은 저장소가 따로라, 로그인 없이는 같은 사람이 다시 와도 처음 온 사람이 된다.
   · 카톡 안 브라우저에서 구글을 누르면 카톡 밖 브라우저(크롬·사파리·삼성)로 같은 주소를 열고 거기서 구글로 간다 — 구글이 앱 속 브라우저 로그인을 막는다
     (사용자 10-16 「단톡방에서 열어도 구글로그인되게」). 카톡 안과 밖은 저장소가 따로라 이 기기 기록을 주소 # 에 실어 보낸다. 카카오는 카톡 안에서 그대로.
-  · 처음엔 묻지 않는다 — 끝 공터 도장 주민 판(「시민증 지키기」)과 시작 화면(「전에 해 봤어요」)에서만. 안 해도 끝까지 한다.
+  · 처음엔 묻지 않는다 — 시민센터 시민증 탭(「로그인하고 함께해요」)·시작 화면과 소개 페이지(「전에 해 봤어요」)·로그인해야 하는 자리
+    (쪽지 쓰기·우리 동네 함께 — 「로그인하면 ~할 수 있어요」, 사용자 10-19)에서만. 안 해도 끝까지 한다. 그 자리에서 갔으면 돌아와 그 판을 다시 연다(Intent.back).
   · 받는 것 = 회원번호(서버가 소금 친 해시로 바꿔 둔다) + 확인된 이메일(사용자 10-15 「이메일 정도는 받을 수 있잖아」).
-    이메일은 서버가 돌려주기만 하고 남기지 않는다 — 로그인 직후 「소식 받기」 칸을 채우는 데만 쓰고, 동의해야 /contact 로 간다(main.ts offerNews).
+    이메일은 서버가 돌려주기만 하고 남기지 않는다 — 로그인 칸의 [선택] 소식 받기를 켰을 때만 로그인 직후 「소식 받기」 칸을 채우는 데 쓰고,
+    동의해야 /contact 로 간다(main.ts offerNews). 그 [선택] 칸과 소식 받기 판은 연락처 칸이 켜진 판에서만 보인다(contactReady).
     구글은 scope 에 email, 카카오는 scope 없이 — 콘솔 「동의 항목」 에 켠 것만 묻는다(이메일을 안 켜면 회원번호만). 이름·사진은 안 받는다.
   · 단추는 키가 없어도 늘 보인다(사용자 10-15 「안 되더라도 집어넣어 놓으라니까」) — 키가 없을 때 누르면 start() 가 false 를 돌려주고 판이 「준비 중」 이라 알린다.
     키는 VITE_KAKAO_REST_KEY · VITE_GOOGLE_CLIENT_ID(빌드). 개발판(npm run dev:game)은 키가 없으면 가짜 카카오·구글(vite.game.config.ts 의 /fake-login)로 끝까지 돈다.
@@ -25,6 +27,12 @@ const PENDING = 'budget-game-login-pending';
 const DONE = 'budget-game-login-done';
 const EMAIL = 'budget-game-login-email';
 const UNSAVED = 'budget-game-login-unsaved';
+const BACK = 'budget-game-login-back';
+/**
+ * 로그인하러 가며 남기는 것 — back = 돌아오면 다시 열 판(사용자 10-19 「로그인하면 ~할 수 있어요」 자리에서 로그인했으면 그 판으로 — 'board'·'hub'·'hub:region'),
+ * news = 로그인 칸의 [선택] 소식 받기를 켰나(연락처 칸이 켜진 판에서만 보인다).
+ */
+export type Intent = { back?: string; news?: boolean };
 export const PROVIDER_NAME: Record<Provider, string> = { kakao: '카카오', google: '구글' };
 
 /** 카톡 안 브라우저 — 구글 로그인이 막혀서 밖으로 내보낸다(escapeKakao). */
@@ -39,9 +47,9 @@ export function unpackCarry(text: string): Save | undefined {
   try { return cleanSave(JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(text), c => c.charCodeAt(0))))); } catch { return undefined; }
 }
 
-/** 카톡 안에서 구글 — 카톡 밖 브라우저로 이 주소를 연다. 이 기기 기록과 「구글로 가라」 를 # 에 싣는다. */
-function escapeKakao() {
-  const url = `${here()}#${query({ carry: packCarry(exportSave()), go: 'google' })}`;
+/** 카톡 안에서 구글 — 카톡 밖 브라우저로 이 주소를 연다. 이 기기 기록과 「구글로 가라」(와 돌아와 열 판)를 # 에 싣는다. */
+function escapeKakao(intent: Intent) {
+  const url = `${here()}#${query({ carry: packCarry(exportSave()), go: 'google', ...(intent.back ? { back: intent.back } : {}), ...(intent.news ? { news: '1' } : {}) })}`;
   location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`;
   return true;
 }
@@ -53,7 +61,7 @@ export function arrivedFromKakao(): boolean {
   history.replaceState(null, '', `${location.pathname}${location.search}`);
   const carried = unpackCarry(hash.get('carry') ?? '');
   if (carried) importSave(carried);
-  return start('google');
+  return start('google', { back: hash.get('back') ?? undefined, news: hash.get('news') === '1' });
 }
 
 /** 이 빌드에서 실제로 되나 — 키가 들어갔거나 개발판(가짜 로그인). */
@@ -64,11 +72,11 @@ const randomHex = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b
 const query = (o: Record<string, string>) => new URLSearchParams(o).toString();
 
 /** 카카오·구글 화면으로 간다. 돌아오면 finish(). 아직 못 가면(키 없음·저장소 막힘) false. */
-export function start(provider: Provider): boolean {
+export function start(provider: Provider, intent: Intent = {}): boolean {
   if (!ready(provider)) return false;
-  if (provider === 'google' && inKakao()) return escapeKakao();
+  if (provider === 'google' && inKakao()) return escapeKakao(intent);
   const state = randomHex();
-  try { sessionStorage.setItem(PENDING, JSON.stringify({ provider, state })); } catch { return false; }
+  try { sessionStorage.setItem(PENDING, JSON.stringify({ provider, state, back: intent.back, news: intent.news === true })); } catch { return false; }
   const back = here();
   const real = provider === 'kakao' ? KAKAO : GOOGLE;
   location.href = !real
@@ -91,9 +99,9 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   // 주소에서 code·토큰을 지운다 — 새로고침·공유에 남지 않게.
   for (const name of ['code', 'state', 'error', 'error_description', 'error_code']) search.delete(name);
   history.replaceState(null, '', `${location.pathname}${search.toString() ? `?${search}` : ''}`);
-  let pending: { provider?: Provider; state?: string } | null = null;
+  let pending: { provider?: Provider; state?: string; back?: unknown; news?: unknown } | null = null;
   try { pending = JSON.parse(sessionStorage.getItem(PENDING) ?? 'null'); sessionStorage.removeItem(PENDING); } catch { pending = null; }
-  if (!pending?.provider || pending.state !== state) { failure = pending ? '표식 다름' : '표식 없음'; return 'failed'; } // 내가 보낸 길이 아니다
+  if (!pending?.provider || pending.state !== state) return 'failed'; // 내가 보낸 길이 아니다
   if (error) return 'cancelled';
   const proof = pending.provider === 'kakao' ? { code: code ?? '' } : { idToken: idToken ?? '', nonce: state };
   const result = await net.login({ provider: pending.provider, redirectUri: here(), ...proof });
@@ -104,15 +112,26 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   const saved = Boolean(await net.saveMe(result.key, exportSave()));
   try {
     sessionStorage.setItem(DONE, pending.provider);
-    if (result.email) sessionStorage.setItem(EMAIL, result.email);
+    if (result.email && pending.news === true) sessionStorage.setItem(EMAIL, result.email); // 소식 받기를 켰을 때만 그 판에 채운다
     if (!saved) sessionStorage.setItem(UNSAVED, '1');
+    if (typeof pending.back === 'string' && /^[a-z:]{2,20}$/.test(pending.back)) sessionStorage.setItem(BACK, pending.back);
   } catch { /* 알림만 못 띄운다 */ }
   location.reload();
   return 'done';
 }
 
-/** 로그인 실패 까닭 한 마디 — 폰에서만 생기는 실패를 사용자 화면으로 가려내려고(10-16). */
-export let failure = '';
+/** 다시 연 뒤 한 번 — 로그인하러 가기 전에 보던 판('board'·'hub'·'hub:region'). 꺼내면 지운다. */
+export function takeBack(): string | undefined {
+  try { const b = sessionStorage.getItem(BACK); sessionStorage.removeItem(BACK); return b ?? undefined; } catch { return undefined; }
+}
+
+/** 지금 이 기기 기록을 바로 올린다(1.5초 기다리지 않고) — 우리 동네에 함께한 직후 그 동네 판에 내가 바로 보이게. 로그인 안 했으면 아무것도. */
+export async function syncNow() {
+  const login = loadLogin();
+  return login ? Boolean(await net.saveMe(login.key, exportSave())) : false;
+}
+/** 로그인 열쇠(서버에 쪽지를 쓸 때) — 로그인 안 했으면 undefined. */
+export const loginKey = () => loadLogin()?.key;
 
 /** 다시 연 뒤 한 번 — 방금 로그인했으면 그 쪽 이름. */
 export function justLoggedIn(): Provider | undefined {

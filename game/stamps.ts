@@ -15,14 +15,16 @@ export type StampDef = { id: string; name: string; how: string };
 
 export const STAMPS: StampDef[] = [
   { id: 'walk', name: '한 바퀴', how: '언덕까지 걸으면' },
-  { id: 'neighbor', name: '내 이웃', how: '언덕에서 이웃을 정하면' },
+  // [나중에 살림: 내 이웃] 끝 화면 「내 이웃 정하기」 를 숨긴 동안(10-19) — 살리면 ISSUE_AT 도 4 로
+  // { id: 'neighbor', name: '내 이웃', how: '언덕에서 이웃을 정하면' },
   { id: 'invite', name: '친구 부름', how: '친구에게 보내거나 답장하면' },
   { id: 'guest', name: '손님 맞이', how: '친구가 답장하거나 내 동네에 다녀가면' },
   // [나중에 살림: 도장 셋] 테이블이 켜지면(net.ts TABLES)
   // { id: 'table', name: '한 테이블', how: '테이블에서 같이 걸으면' },
   { id: 'region', name: '내 동네', how: '내 동네(시·군·구)를 정하면' },
-  { id: 'season', name: '철 도장', how: '예산철(9월·12월)에 걸으면' },
-  { id: 'event', name: '현장 도장', how: '시민행동 행사에서 QR 을 찍으면' },
+  // [나중에 살림: 철·현장 도장] 사용자 10-19 「일단 빼봐」 — 받을 수 없는 달이 많아 빈 칸으로 보였다. 찍는 기록(main.ts ?stamp=·철)은 그대로라 살리면 받은 게 보인다. 12월에 철 도장 살릴지 그때.
+  // { id: 'season', name: '철 도장', how: '예산철(9월·12월)에 걸으면' },
+  // { id: 'event', name: '현장 도장', how: '시민행동 행사에서 QR 을 찍으면' },
   // [나중에 살림: 도장 셋] 연락처 칸이 공개판에 켜지면(main.ts contactReady) · 회원 확인 길이 생기면
   // { id: 'news', name: '소식 받는 주민', how: '이웃 소식을 받으면' },
   // { id: 'member', name: '정주민', how: '함께하는 시민행동 회원이 되면' },
@@ -30,10 +32,10 @@ export const STAMPS: StampDef[] = [
 
 /**
  * 시민증 발급 — 도장을 이만큼 모으면(사용자 10-15 「도장 찍어야 시민증이 발급되게」).
- * 넷 = 혼자 한 번에 다 받을 수 있는 한 바퀴·내 이웃·내 동네·친구 부름. 일곱을 다 요구하면 철 도장(9·12월)·현장 도장(행사 QR) 때문에
- * 그 밖의 달엔 아무도 발급받지 못한다. 손님 맞이·철·현장은 발급 뒤에 더 모으는 칸.
+ * 셋 = 혼자 한 번에 다 받을 수 있는 한 바퀴·내 동네·친구 부름([나중에 살림: 내 이웃] 동안 내 이웃이 빠져 넷 → 셋). 판은 넷(10-19 철·현장 도장을 뺌) —
+ * 손님 맞이는 발급 뒤에 더 모으는 칸.
  */
-export const ISSUE_AT = 4;
+export const ISSUE_AT = 3;
 /** 처음 발급된 때를 적어 두는 표(도장판 칸은 아니다 — STAMPS 에 없어 판에는 안 보인다). */
 export const ISSUED = 'card';
 

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { encodeInvite, decodeInvite, neighborParam, readNeighborParam, TOWN_IDS, REGIONS } from '../game/profile.ts';
-import { createStore, handle, BOOK_MAX } from '../game/api.ts';
+import { createStore, handle, login, BOOK_MAX } from '../game/api.ts';
 import { serve } from '../server/gas.ts';
 import { seasonAt, nextSeason, seasonById, letterFor } from '../game/seasons.ts';
 import { board, eventStamp, seasonStamp, STAMPS, ISSUE_AT } from '../game/stamps.ts';
@@ -58,15 +58,14 @@ test('예산철: 9월·12월(한국 날짜)만 철이고, 다음 철과 편지�
   assert.ok(!/전달|반영|제출|모아서/.test(letter.lines.join(' ')));
 });
 
-test('도장판: 일곱 칸, 철·현장 도장은 한 칸에 모여 세고, 목록에 없는 현장 코드는 안 찍힌다', () => {
-  assert.equal(STAMPS.length, 7, '10-15 「6~7개만」');
-  assert.equal(new Set(STAMPS.map(s => s.id)).size, 7);
-  // 시민증 발급 — 혼자 한 번에 받을 수 있는 도장만으로 발급까지 닿는다(철·현장·손님은 혼자 못 받는다)
-  const solo = STAMPS.filter(s => !['season', 'event', 'guest'].includes(s.id));
+test('도장판: 네 칸(철·현장은 숨김), 숨긴 도장은 기록만 남고 판에 안 보이고, 목록에 없는 현장 코드는 안 찍힌다', () => {
+  assert.deepEqual(STAMPS.map(s => s.id), ['walk', 'invite', 'guest', 'region'], '10-19 내 이웃 숨김 · 철·현장 도장 빼기');
+  // 시민증 발급 — 혼자 한 번에 받을 수 있는 도장만으로 발급까지 닿는다(손님은 혼자 못 받는다)
+  const solo = STAMPS.filter(s => s.id !== 'guest');
   assert.ok(solo.length >= ISSUE_AT && ISSUE_AT <= STAMPS.length);
   assert.equal(board(Object.fromEntries(solo.map(s => [s.id, 1]))).filter(c => c.on).length >= ISSUE_AT, true);
   const cells = board({ walk: 1, [seasonStamp('2026-dec')]: 2, [seasonStamp('2027-sep')]: 3, 'event:pub-2026': 4 });
-  assert.deepEqual(cells.filter(c => c.on).map(c => [c.id, c.count]), [['walk', 1], ['season', 2], ['event', 1]]);
+  assert.deepEqual(cells.filter(c => c.on).map(c => [c.id, c.count]), [['walk', 1]], '철·현장 도장은 찍혀 있어도 판엔 안 보인다([나중에 살림: 철·현장 도장])');
   assert.equal(eventStamp('pub-2026'), 'event:pub-2026');
   assert.equal(eventStamp('toString'), undefined);
   assert.equal(eventStamp(null), undefined);
@@ -93,26 +92,56 @@ test('방명록: 끝낸 사람만, 한 판에 한 번, 동네·유형은 서버�
   assert.equal(handle(store, 'POST', `/homes/${id}/book`, { key }, 3000).body.visits.length, BOOK_MAX);
 });
 
-test('우리 동네(시·군·구 코드): 끝낸 판만 한 번 짓고, 한 명부터 갈림을 보이고, 유형 분포는 안 낸다', () => {
+/** 로그인한 주민 하나 — 열쇠를 받고 기록 묶음(내 동네·지난번 판·모습)을 올린다. */
+const resident = (store, n, save) => {
+  const { key } = login(store, `kakao:${String(n).padStart(64, '0')}`, 0, Math.random).body;
+  if (save) assert.equal(handle(store, 'POST', '/me/save', { key, save }, 0).status, 200);
+  return key;
+};
+const lastRun = (sessionId, at = 1) => ({ town: 'a'.repeat(TOWN_IDS.length), at, sessionId });
+
+test('우리 동네(시·군·구 코드): 로그인한 사람만 한 사람 한 번(가장 최근 판), 내 동네를 바꾸면 옮겨 가고, 유형 분포는 안 낸다', () => {
   const store = createStore();
-  const build = (sessionId, region = '1124000') => handle(store, 'POST', '/region', { sessionId, region, pick: [0, 1, 2, 3] }, 5000);
-  assert.equal(build('session-none').status, 400);
+  const view = region => handle(store, 'GET', `/regions/${region}`, null, 0).body;
   finish(store, 'session-0001', 1);
-  assert.equal(build('session-0001', '서울').status, 400, '시·도 이름은 이제 안 받는다');
-  assert.equal(build('session-0001', '112400').status, 400);
-  let view = build('session-0001').body;
-  assert.equal(view.total, 1);
-  assert.deepEqual(view.questions[orderedQuestions[0].id], { a: 1, b: 0 }, '한 명이어도 바로 보인다');
-  assert.equal(view.types, undefined);
-  assert.deepEqual(view.crowd, [[0, 1, 2, 3]]);
-  build('session-0001', '2600000'); // 다시 지어도 처음 지은 곳
-  assert.equal(handle(store, 'GET', `/regions/2600000`, null, 0).body.total, 0);
-  for (let i = 2; i <= 3; i++) { finish(store, `session-000${i}`, 6); build(`session-000${i}`); }
-  view = handle(store, 'GET', `/regions/1124000`, null, 0).body;
-  assert.equal(view.total, 3);
-  assert.deepEqual(view.questions[orderedQuestions[0].id], { a: 1, b: 2 });
+  finish(store, 'session-0002', 6);
+  assert.equal(view('1124000').total, 0, '끝낸 판만으로는 안 센다 — 로그인한 사람만(사용자 10-19)');
+  const key = resident(store, 1, { region: '1124000', last: lastRun('session-0001'), me: { name: '', pick: [0, 1, 2, 3] } });
+  let got = view('1124000');
+  assert.equal(got.total, 1);
+  assert.deepEqual(got.questions[orderedQuestions[0].id], { a: 1, b: 0 }, '한 명이어도 바로 보인다');
+  assert.equal(got.types, undefined);
+  assert.deepEqual(got.crowd, [[0, 1, 2, 3]]);
+  // 다시 걸으면 그 사람의 가장 최근 판으로 갈아 끼운다(두 번 세지 않는다)
+  handle(store, 'POST', '/me/save', { key, save: { region: '1124000', last: lastRun('session-0002', 2) } }, 0);
+  got = view('1124000');
+  assert.equal(got.total, 1);
+  assert.deepEqual(got.questions[orderedQuestions[0].id], { a: 0, b: 1 });
+  // 내 동네를 바꾸면 옮겨 간다
+  handle(store, 'POST', '/me/save', { key, save: { region: '2600000', last: lastRun('session-0002', 2) } }, 0);
+  assert.equal(view('1124000').total, 0);
+  assert.equal(view('2600000').total, 1);
+  // 서버가 받지 않은 판·지운 계정은 안 센다
+  resident(store, 2, { region: '2600000', last: lastRun('session-none') });
+  handle(store, 'POST', '/me/forget', { key }, 0);
+  assert.equal(view('2600000').total, 0);
+  assert.equal(handle(store, 'POST', '/region', { sessionId: 'session-0001', region: '1124000', pick: [0, 0, 0, 0] }, 0).status, 404, '판으로 짓던 옛 길은 없다');
   assert.equal(handle(store, 'GET', '/regions/%E0%A4%A', null, 0).status, 404, '깨진 주소');
   assert.equal(REGIONS.length, 17);
+});
+
+test('다른 사람들 마음·마을 누계: 로그인한 사람만, 한 사람 한 번(가장 최근 판)', () => {
+  const store = createStore();
+  finish(store, 'session-0001', 1); finish(store, 'session-0002', 6); finish(store, 'session-0003', 6);
+  assert.equal(handle(store, 'GET', '/stats', null, 0).body.total, 0);
+  const key = resident(store, 1, { last: lastRun('session-0001') });
+  resident(store, 2, { last: lastRun('session-0003') });
+  handle(store, 'POST', '/me/save', { key, save: { last: lastRun('session-0002', 2) } }, 0); // 다시 걸었다 — 옛 판은 빠진다
+  const stats = handle(store, 'GET', '/stats', null, 0).body;
+  assert.equal(stats.total, 2);
+  assert.deepEqual(stats.questions[orderedQuestions[0].id], { a: 0, b: 2 });
+  assert.equal(stats.types['111'], 2);
+  assert.equal(handle(store, 'GET', '/village', null, 0).body.people, 2, '위 띠 「지금까지 ○명」');
 });
 
 test('연락처: 동의·형식을 서버가 다시 보고, 이웃·유형은 깨끗한 것만, 지역은 받지 않는다(동의 항목에 없음)', () => {
@@ -138,11 +167,11 @@ test('구글 시트 저장소: 요청마다 읽고 바뀐 줄만 쓴다, 연락�
   assert.equal(post('/finish', { sessionId: 'session-aaaa', contentVersion: CONTENT_VERSION, answers: answersFor(1) }).status, 200);
   assert.equal(post('/finish', { sessionId: 'session-bbbb', contentVersion: CONTENT_VERSION, answers: answersFor(6) }).status, 200);
   assert.equal(book.sheets.get('응답').rows.length, 3, '머리 줄 + 두 판');
-  assert.equal(get('/stats').body.total, 2, '다음 요청이 시트에서 다시 읽는다');
-  // 고친 줄은 제자리에서 고친다(줄이 늘지 않는다)
-  post('/region', { sessionId: 'session-aaaa', region: '1100000', pick: [0, 0, 0, 0] }, 3000);
+  // 고친 줄은 제자리에서 고친다(줄이 늘지 않는다), 다음 요청이 시트에서 다시 읽는다
+  post('/village/here', { sessionId: 'session-aaaa', pick: [0, 0, 0, 0] }, 1500);
   assert.equal(book.sheets.get('응답').rows.length, 3);
-  assert.equal(JSON.parse(book.sheets.get('응답').rows[1][1]).region, '1100000');
+  assert.equal(JSON.parse(book.sheets.get('응답').rows[1][1]).seenAt, 1500);
+  assert.deepEqual(get('/village').body.crowd, [[0, 0, 0, 0]]);
   // 방명록
   const { id, key } = post('/homes', {}).body;
   post(`/homes/${id}/visits`, { sessionId: 'session-bbbb', name: '하늘', pick: [1, 1, 1, 1] });
@@ -161,5 +190,5 @@ test('구글 시트 저장소: 요청마다 읽고 바뀐 줄만 쓴다, 연락�
   assert.equal(get('nope').status, 404);
   // 사람이 손으로 망친 줄은 건너뛴다
   book.sheets.get('응답').rows.push(['session-hand', '{망침']);
-  assert.equal(get('/stats').body.total, 2);
+  assert.equal(get('/village').body.crowd.length, 1);
 });

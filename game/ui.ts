@@ -7,7 +7,7 @@
 import { AXES, ROUTE, REPLIES, TYPES, DESTINATION, type Question, type TypeCode } from './content';
 import type { AxisScores } from './score';
 import { currentQuestion, type JourneyState } from './flow';
-import { displayOptions, orderedQuestions, type DisplaySide } from './response';
+import { displayOptions, orderedQuestions, pullsOf, type DisplaySide } from './response';
 import { COATS, HAIRS, SKINS, FACES, faceOf, HAIR_MENU, HAIR_STYLES, TOPS, PATTERNS, fullPick, randomPick, nameFrom, type Pick } from './look';
 import { sfx } from './sfx';
 import { cleanName, josa, type Me } from './profile';
@@ -77,8 +77,12 @@ export function backCloses(close: () => void) {
   };
 }
 
-/** 도너스 정기후원. utm 은 도너스 약정에 남아 「게임에서 온 후원」을 가를 수 있다. */
-export const DONATE_URL = 'https://secure.donus.org/withaction0909/pay/step1?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
+/**
+ * 후원 — 결제(도너스 step1)로 바로 보내지 않고 홈페이지 「정기후원 안내」(/74)로(사용자 10-19 「웅」). 상담소 하단 「후원 안내」 도 여기로 간다.
+ * utm 은 붙여 둔다 — /74 에서 도너스로 넘어갈 때 이어지는지는 모른다[신뢰도 중간]. 게임발 후원 가르기는 유입 재기 때.
+ * 뒤에 &utm_content=… 를 덧붙여 쓰니 주소에 ? 가 있어야 한다.
+ */
+export const DONATE_URL = 'https://action.or.kr/74?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
 
 /**
  * 소식 받기 칸(연락처) — 내 이웃 판(neighborSheet)과 로그인 직후 판(town.ts openNews)이 같이 쓴다.
@@ -165,7 +169,7 @@ export function createUI(root: HTMLElement, actions: {
   talk.onclick = () => finishTyping(quote);
   replies.append(replyList, talk);
   const intro = el('section', 'g-intro');
-  intro.innerHTML = `<div class="g-intro-card"><span class="g-kicker">함께하는 시민행동 · 예산 성향 게임 · 3분</span>
+  intro.innerHTML = `<div class="g-intro-card"><span class="g-kicker">함께하는 시민행동 · 예산 성향 게임</span>
     <h1>함께해요<br>시민의 숲</h1>
     <p>주민 열다섯 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
     <ul class="g-notes"></ul>
@@ -457,7 +461,7 @@ export function createUI(root: HTMLElement, actions: {
      * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들.
      * 시민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차). 마을로는 언덕의 빛 아치를 걸어서 지난다(10-14).
      */
-    end(info: { code: TypeCode; scores: AxisScores; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; village(): void }) {
+    end(info: { code: TypeCode; scores: AxisScores; answers: Record<string, number>; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; compare?: { label: string; run(): void }; village(): void }) {
       const card = el('div', 'g-end-card');
       // 세 축 — 왜 이 유형인지. 점은 -100~+100 을 막대 위 자리로, 가운데 금이 갈림길.
       const axes = el('ul', 'g-axes');
@@ -469,13 +473,15 @@ export function createUI(root: HTMLElement, actions: {
         row.append(el('span', `g-ax-l${right ? '' : ' on'}`, axis.left), track, el('span', `g-ax-r${right ? ' on' : ''}`, axis.right), el('span', 'g-sr', ` — ${right ? axis.right : axis.left} 쪽`));
         axes.append(row);
       }
-      card.append(el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes);
+      // 「왜 이 유형일까?」 — 누르면 축마다 내 선택 다섯이 어느 쪽으로 당겼는지(화면에만 — 공유 그림에선 뺀다, picture)
+      const why = button('g-link g-why', '왜 이 유형일까?', () => this.why(info.answers, info.scores));
+      card.append(el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes, why);
       const give = el('a', 'g-link g-give', '함께하는 시민행동 후원하기');
       give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
       const row = el('div', 'g-end-row'), links = el('div', 'g-end-links');
-      row.append(button('g-primary', '친구에게 보내기', on.share), button('g-ghost', '내 이웃 정하기', on.neighbor));
-      links.append(...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : []));
+      row.append(button('g-primary', '친구에게 보내기', on.share)); // [나중에 살림: 내 이웃] 사용자 10-19 「일단 숨기기로」 — 살리면 , button('g-ghost', '내 이웃 정하기', on.neighbor)
+      links.append(...(on.compare ? [button('g-link', on.compare.label, on.compare.run)] : []), ...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : []));
       bar.append(
         row,
         ...(on.reply ? [button('g-ghost', on.reply.label, on.reply.run)] : []), // 나를 부른 친구에게 답장(기획 3차 ①)
@@ -495,7 +501,7 @@ export function createUI(root: HTMLElement, actions: {
     async picture(scene: string) {
       const { toBlob } = await import('html-to-image');
       await document.fonts?.ready;
-      const skip = new Set<Node | null>([stage, bubbles, hud, sheet, panel, toast, hint, end.querySelector('.g-end-actions')]);
+      const skip = new Set<Node | null>([stage, bubbles, hud, sheet, panel, toast, hint, end.querySelector('.g-end-actions'), end.querySelector('.g-why')]);
       shell.classList.add('shooting'); // 움직임을 멈춰야 복사본이 첫 장면(투명)으로 찍히지 않는다
       try {
         return await toBlob(shell, { pixelRatio: 2, filter: node => !skip.has(node), style: { backgroundImage: `url(${scene})`, backgroundSize: '100% 100%' } });
@@ -536,14 +542,14 @@ export function createUI(root: HTMLElement, actions: {
       if (!hud.querySelector('.g-map')) hud.insertBefore(icon(button('g-map', '', on.phone), ICONS.phone, '주민 폰 — 지도와 건물'), sound);
       live.textContent = `${VILLAGE_NAME}에 들어왔어요. 주민 폰 단추로 건물을 고를 수 있어요.`;
     },
-    /** 위 띠 이름 옆 — 사람 그림 + 오늘 들른 수. 서버가 없으면 비운다. */
-    villageToday(count?: number) {
-      where.querySelector('.g-today')?.remove();
+    /** 위 띠 이름 옆 — 사람 그림 + 지금까지 다녀간 수(로그인한 사람 한 사람 한 번, 사용자 10-19). 서버가 없으면 비운다. */
+    villagePeople(count?: number) {
+      where.querySelector('.g-today:not(.g-pocket)')?.remove();
       if (count === undefined) return;
-      const today = icon(el('small', 'g-today'), ICONS.people, `오늘 ${count}명이 들렀어요`);
-      today.setAttribute('role', 'img');
-      today.append(String(count));
-      where.append(today);
+      const people = icon(el('small', 'g-today'), ICONS.people, `지금까지 ${count}명이 다녀갔어요`);
+      people.setAttribute('role', 'img'); people.title = `지금까지 ${count}명이 다녀갔어요(로그인한 사람)`;
+      people.append(String(count));
+      where.insertBefore(people, where.querySelector('.g-pocket')); // 동전보다 앞에(전엔 동전 칩을 지울 때가 있었다 — 둘 다 g-today)
     },
     /** 위 띠 — 주머니 동전(0이면 숨김). 늘면 톡 튄다. */
     villagePocket(coins: number, open?: () => void) {
@@ -604,7 +610,33 @@ export function createUI(root: HTMLElement, actions: {
       );
     },
 
-    /** 다른 사람들은 어떻게 골랐을까 — 문항마다 두 쪽 비율. 편 수가 아니라 생각이 갈린 모양을 보여 준다. */
+    /**
+     * 왜 이 유형일까(사용자 10-19, 확정: 「숫자 없이 방향만 · 반반 근처 솔직히 · 좋고 나쁨 아니라 방향」) — 축마다 내 선택 다섯이 당긴 쪽과 세기.
+     * 식(점수·칸)은 보이지 않는다 — 사용자도 줄다리기로 알아들었다(10-15). 어느 선택이 어느 쪽인지는 사람이 매긴 것이라 보여 주되 다듬어서.
+     */
+    why(answers: Record<string, number>, scores: AxisScores) {
+      const list = el('ol', 'g-split');
+      for (const { axis, right, close, pulls } of pullsOf(answers, scores)) {
+        const side = right ? axis.right : axis.left, other = right ? axis.left : axis.right;
+        const box = el('li'), rows = el('ul', 'g-why-rows');
+        for (const { question, key, level } of pulls) rows.append(el('li', key === (right ? 'b' : 'a') ? 'on' : '',
+          `${question.place} · ${question[key].short} → ${key === 'a' ? axis.left : axis.right} 쪽으로 ${REPLIES[level].level}`));
+        box.append(el('h3', '', `${axis.question} — ${axis.left} · ${axis.right}`),
+          el('p', 'g-small', close ? `거의 반반이에요. 하나만 반대쪽으로 골랐어도 「${other}」 쪽이었어요.` : `「${side}」 쪽으로 기울었어요.`), rows);
+        list.append(box);
+      }
+      panel.replaceChildren(
+        el('h2', '', '왜 이 유형일까?'),
+        el('p', 'g-small', '세 갈림길마다 내가 고른 다섯 가지가 한쪽으로 당겼어요. 더 세게 당긴 쪽이 내 유형이 됐어요.'),
+        el('p', 'g-small', '유형은 좋고 나쁨이 아니라 방향이에요.'),
+        list,
+        button('g-primary', '닫기', () => { panel.hidden = true; }),
+      );
+      panel.hidden = false;
+      panel.scrollTop = 0;
+    },
+
+    /** 다른 사람들은 어떻게 골랐을까 — 문항마다 두 쪽 비율. 편 수가 아니라 생각이 갈린 모양을 보여 준다. 로그인한 사람만, 한 사람 한 번(api.ts stats). */
     others(stats: Stats | undefined, mine: Record<string, 'a' | 'b'>) {
       const list = el('ol', 'g-split');
       const enough = (stats?.total ?? 0) >= 5;
@@ -623,8 +655,8 @@ export function createUI(root: HTMLElement, actions: {
       }
       panel.replaceChildren(
         el('h2', '', '다른 사람들은 어떻게 골랐을까?'),
-        el('p', 'g-small', stats ? `이 길을 걸은 사람 ${stats.total}명` : '지금은 다른 사람들 답을 불러올 수 없어요.'),
-        el('p', 'g-small', enough ? '굵은 쪽이 내가 고른 쪽이에요. 사람마다 생각이 달라요.' : '다섯 명이 넘으면 비율을 보여 줘요. 굵은 쪽이 내가 고른 쪽이에요.'),
+        el('p', 'g-small', stats ? `로그인해 함께한 사람 ${stats.total}명 · 한 사람의 가장 최근 한 바퀴만 세요` : '지금은 다른 사람들 답을 불러올 수 없어요.'),
+        el('p', 'g-small', enough ? '굵은 쪽이 내가 고른 쪽이에요. 사람마다 생각이 달라요.' : '아직 로그인해 함께한 사람이 적어요. 다섯 명이 넘으면 비율을 보여 줘요. 굵은 쪽이 내가 고른 쪽이에요.'),
         list,
         button('g-primary', '닫기', () => { panel.hidden = true; }),
       );

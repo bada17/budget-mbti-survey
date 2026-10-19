@@ -7,6 +7,8 @@
     쪽지는 답글이 없고, 「나도」 와 「신고」 만 있다.
   · 이름 「시민마을」(사용자 10-15). 건물 이름은 하는 일 그대로(사용자 10-15 「이쁘게 말고 직관적으로 — 지방정부 예산, 세금 보는 곳 이런 식」).
     상담소·독상은 실제 사업 이름이라 그대로. 주민 한마디는 Claude 임시.
+    10-19 간판 넷을 바꿨다(사용자 「웅 그럼 그렇게 확정해」) — 시민행동의 집·시민센터·마을 곳간·한 바퀴 다시 걷기.
+    **화면 글에 건물 이름을 박아 쓰지 않는다** — placeName(id) 로 가져다 쓴다(사용자 「다른 글에도 안 들어가게 해」 — 이름이 바뀌면 글이 따로 놀았다).
 */
 import type { Point } from './room';
 import { rng, nameFrom } from './look';
@@ -27,24 +29,23 @@ export const PLAZA = { x: 520, y: 800, r: 150 };
 export const FOUNTAIN: Box = { x: 486, y: 770, w: 68, h: 52 };
 
 // [나중에 살림: 쪽지판·문제 카드] 사용자 10-15 「문제카드, 쪽지판은 주석처리해줘. 지금 할 수 없어. 나중에 코드 살려서 할 수 있게」.
-// 두 건물 줄을 주석으로 막았다 — 건물·문·판이 다 사라진다. 코드(판·서버·시험)는 그대로 두었다.
-// 살릴 땐 저장소에서 「[나중에 살림: 쪽지판·문제 카드]」 를 찾아 그 자리를 다 푼다(README 「숨겨 둔 것」).
+// 10-19 쪽지판은 살렸다(사용자 「쪽지판에 내용 적는거 살리고 거기에 적힌 내용 중 우리동네 내용을 우리 동네에서 확인할 수 있게」) — 쓰기는 로그인한 사람만.
+// 문제 카드 줄은 아직 막혀 있다 — 살릴 땐 저장소에서 「[나중에 살림: 쪽지판·문제 카드]」 를 찾아 그 자리를 다 푼다(README 「숨겨 둔 것」).
 export const PLACES: Place[] = [
-  { id: 'hub', name: '내 기록 보는 곳', line: '시민증과 도장, 방명록은 여기서 봐요.', box: { x: 420, y: 230, w: 200, h: 100 }, door: { x: 520, y: 352 } },
-  // 세금 보는 곳 — 비워 둔 「빈 터」 에 세웠다(사용자 10-14 「내 동네가 어떻게 돈을 걷고, 나는 어떻게 세금을 내는지 알 수 있는 곳」). 판은 places.ts openTax.
-  // 이름은 사용자 10-14 「세금 보는 곳이라고 바꾸고 나머지 상세 이름은 나중에」(처음엔 Claude 임시 「마을 금고」).
-  { id: 'tax', name: '세금 보는 곳', line: '우리가 낸 세금이 어디로 가는지 보여 줄게요.', box: { x: 790, y: 232, w: 160, h: 96 }, door: { x: 870, y: 350 } },
+  { id: 'hub', name: '시민센터', line: '시민증과 도장, 방명록은 여기서 봐요.', box: { x: 420, y: 230, w: 200, h: 100 }, door: { x: 520, y: 352 } },
+  // 마을 곳간 — 비워 둔 「빈 터」 에 세웠다(사용자 10-14 「내 동네가 어떻게 돈을 걷고, 나는 어떻게 세금을 내는지 알 수 있는 곳」). 판은 places.ts openTax.
+  { id: 'tax', name: '마을 곳간', line: '우리가 낸 세금이 어디로 가는지 보여 줄게요.', box: { x: 790, y: 232, w: 160, h: 96 }, door: { x: 870, y: 350 } },
   // 시민행동 사람이 문 앞을 지킨다(사용자 10-15 「밑빠진독상은 정남진, 시민참여 상담소는 김민철, 시민행동의 집은 채연하, 지방정부예산은 유종웅」).
-  { id: 'house', name: '시민행동 소개', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 }, keeper: '채연하' },
+  { id: 'house', name: '시민행동의 집', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 }, keeper: '채연하' },
   { id: 'counsel', name: '시민참여 상담소', line: '참여예산이 궁금하면 여기 물어보세요.', box: { x: 84, y: 500, w: 190, h: 96 }, door: { x: 179, y: 618 }, keeper: '김민철' },
   { id: 'finance', name: '지방정부 예산', line: '우리 지역 지방정부의 한 해 예산을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 }, keeper: '유종웅' },
-  // { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
+  { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
   { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 }, keeper: '정남진' },
   // 마을 공사터 — 나무에서 주운 동전을 넣으면 모두의 동전이 모여 다리·정자가 선다(사용자 10-14 동물의 숲 ⓑ). 판은 places.ts openWorks.
   { id: 'works', name: '동전 모으는 곳', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 } },
   // 문제 카드 — 활동가가 매주·매달 올리는 사업 한 건에 반응하기(사용자 10-15 「한 달에 한 번이라도 들어올 명분」). 남쪽 문에서 광장 가는 큰길 옆이라 들어오자마자 보인다.
   // { id: 'cards', name: '문제 카드', line: '활동가가 고른 우리 세금 이야기예요. 어떻게 보세요?', box: { x: 586, y: 1150, w: 92, h: 22 }, door: { x: 632, y: 1196 } },
-  { id: 'bus', name: '게임 다시 하기', line: '버스 타고 열다섯 동네를 다시 걸어요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
+  { id: 'bus', name: '한 바퀴 다시 걷기', line: '버스 타고 열다섯 동네를 다시 걸어요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
   // [나중에 살림: 오락실·부탁] 사용자 10-19 「오락실도 주석처리해놔. 지금하긴 애매해」 — 놀이 셋이 재미없어 다시 짤 때까지 건물째 숨긴다(판 arcade.ts·규칙·시험은 그대로).
   // 예산 오락실 — 사는 집이 아니라 들어가서 짧은 예산 놀이를 하는 집(사용자 10-17 「게임을 하는 집」). 동서 큰길을 따라 동쪽 끝. 판은 arcade.ts.
   // { id: 'arcade', name: '예산 오락실', line: '한 판에 30초, 예산 놀이 셋이 있어요.', box: { x: 1080, y: 640, w: 180, h: 96 }, door: { x: 1170, y: 758 } },
@@ -52,6 +53,8 @@ export const PLACES: Place[] = [
 
 /** 문 앞 주민 이름 — 맡은 사람이 있으면 그 이름, 없으면 건물마다 정해진 순우리말 이름. 판의 이름표·말 상자·부탁 목록이 같이 쓴다. */
 export const keeperName = (id: PlaceId) => PLACES.find(p => p.id === id)?.keeper ?? nameFrom(`npc:${id}`);
+/** 건물 이름 — 화면 글은 이걸 쓴다(간판이 바뀌면 글도 같이). 숨겨 둔 건물이면 빈 글자. */
+export const placeName = (id: PlaceId) => PLACES.find(p => p.id === id)?.name ?? '';
 
 export const POND: Box = { x: 740, y: 1210, w: 170, h: 100 };
 /**
@@ -75,9 +78,31 @@ export const ROADS: Box[] = [
 export const SPAWN = { gate: { x: 520, y: 1372 }, plaza: { x: 520, y: 900 } }; // 문 안쪽 — 문 간판이 얼굴을 가리지 않게
 export const GATE_Y = 1462;
 
-const SOLID: Box[] = [...PLACES.map(p => p.box), POND, FOUNTAIN];
 const EDGE = 16, TOP = 120; // 맨 위 띠는 하늘·지붕 자리
 const BODY_X = 10, BODY_UP = 4, BODY_DOWN = 8; // 발 둘레 — 앞벽 바로 밑에 설 수 있고, 옆으로는 몸 반쯤 떨어진다
+
+/**
+ * 다 지은 것은 쓸 수 있다(사용자 10-19 「다리랑 정자 지어지면 건널 수 있고 쉴 수 있게」).
+ * 다리 — 연못 가운데를 가로지르는 판자 길(그림 draw.ts worksArt 의 다리와 같은 높이)만 걸을 수 있게 연못을 위·아래 둘로 나눈다.
+ * 정자 — 공사 울타리가 걷혀 뒤쪽(지붕 밑)만 막고 평상 앞까지 걸어 들어간다. 평상 자리(PAVILION_SEAT)에 서면 앉는다(VillageScene).
+ */
+export const BRIDGE_Y = POND.y + POND.h / 2 + 6; // 다리 판자 가운데 — 발이 여기서 ±6 이면 다리 위
+const POND_N: Box = { x: POND.x, y: POND.y, w: POND.w, h: BRIDGE_Y - BODY_DOWN - 6 - POND.y };
+const POND_S: Box = { x: POND.x, y: BRIDGE_Y + BODY_UP + 6, w: POND.w, h: POND.y + POND.h - (BRIDGE_Y + BODY_UP + 6) };
+const SITE = PLACES.find(p => p.id === 'works')!.box;
+export const PAVILION_SEAT: Point = { x: SITE.x + SITE.w / 2, y: SITE.y + SITE.h - 18 };
+let built = { bridge: false, pavilion: false };
+const solids = (): Box[] => [
+  ...PLACES.map(p => (p.id === 'works' && built.pavilion ? { ...p.box, h: PAVILION_SEAT.y - BODY_DOWN - 10 - p.box.y } : p.box)),
+  ...(built.bridge ? [POND_N, POND_S] : [POND]), FOUNTAIN,
+];
+let SOLID: Box[] = solids();
+/** 다 지은 것이 바뀌면 부딪히는 곳을 다시 잰다(길찾기 칸도 다시). */
+export function setBuilt(done: readonly WorkId[]) {
+  const next = { bridge: done.includes('bridge'), pavilion: done.includes('pavilion') };
+  if (next.bridge === built.bridge && next.pavilion === built.pavilion) return;
+  built = next; SOLID = solids(); open = undefined;
+}
 
 /** 이 자리에 발을 디딜 수 없나 — 지도 밖이거나 벽·울타리·연못·분수 안. */
 export function blocked(p: Point, solid: Box[] = SOLID) {
@@ -181,7 +206,12 @@ export const NOTE_DAY_MAX = 3;
 /** 신고가 이만큼 모이면 사람이 보기 전이라도 숨긴다. 시트의 「숨김」 칸에 무엇이든 적으면 바로 숨는다. */
 export const REPORT_HIDE = 3;
 export const NOTES_SHOW = 30;
-export const CROWD_SHOW = 16;
+/**
+ * 광장에 서성이는 사람 — 최근 CROWD_DAYS_MS 안에 마을에 들른 사람만, 많아도 CROWD_SHOW 명(사용자 10-19 「웅 그렇게 기억해놔」).
+ * 16명일 땐 광장(폰 한 화면)에 열 명쯤 몰려 붐볐고, 기간이 없어 시험한 판이 그대로 서성였다. 6명이면 광장 화면에 서넛.
+ */
+export const CROWD_SHOW = 6;
+export const CROWD_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * 거친 말 — 띄어쓰기·기호를 빼고 찾는다. 단체가 고칠 목록(한 줄 더하면 된다).
