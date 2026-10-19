@@ -1,7 +1,8 @@
 /*
   조작 — 한 손 엄지로(사용자 10-14 「엄지손가락만으로 움직일 수 있게, 지금은 화면 전체를 눌러야 해」 → 떠다니는 조이스틱).
   · 화면 아무 데나 엄지를 대고 밀면, 댄 자리에 손잡이가 생기고 미는 쪽으로 걷는다. 조금 밀면 천천히, 끝까지 밀면 제 걸음.
-    너무 멀리 끌면 손잡이 바탕이 엄지를 따라온다(방향을 바꾸기 쉽게). 떼면 선다. 엄지를 아래쪽에 둔 채로 위로 갈 수 있다.
+    바탕은 댄 자리에 그대로 있고 손잡이만 테두리까지 간다. 떼면 선다.
+    (예전엔 멀리 끌면 바탕이 따라왔는데, 아이패드에서 캐릭터에서 목적지까지 길게 끌면 바탕이 화면을 가로질러 날아다녔다 — 10-19) 엄지를 아래쪽에 둔 채로 위로 갈 수 있다.
   · 톡 치면 그 자리까지 걸어간다(그대로).
   · 예전 「꾹 누르면 손가락 쪽으로」 는 뺐다 — 조이스틱과 겹친다(누른 채 가만있으면 선다).
   · 컴퓨터에서는 방향키·WASD, 마우스로 끌어도 같다.
@@ -23,7 +24,7 @@ export class Controls {
   /** 방금 톡 친 자리 — 장면이 동그라미를 한 번 그리고 비운다. */
   tapped?: Point;
   private keys = new Set<string>();
-  /** start = 손잡이 바탕 자리(멀리 끌면 따라온다), stick = 바탕에서 엄지까지(STICK 안으로 자른 것). */
+  /** start = 손잡이 바탕 자리(댄 자리에 고정), stick = 바탕에서 엄지까지(STICK 안으로 자른 것). */
   private touch?: { id: number; start: Point; down: Point; at: number; moved: boolean; stick: Point };
   private abort = new AbortController();
   private pad?: HTMLElement;
@@ -54,7 +55,7 @@ export class Controls {
       if (!t.moved) return;
       let dx = p.x - t.start.x, dy = p.y - t.start.y;
       const len = Math.hypot(dx, dy);
-      if (len > STICK) { t.start = { x: p.x - dx / len * STICK, y: p.y - dy / len * STICK }; dx = dx / len * STICK; dy = dy / len * STICK; } // 바탕이 엄지를 따라온다
+      if (len > STICK) { dx = dx / len * STICK; dy = dy / len * STICK; } // 손잡이만 테두리에서 멈춘다
       t.stick = { x: dx, y: dy };
       this.drawPad();
     }, on);

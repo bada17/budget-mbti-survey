@@ -59,13 +59,15 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 
 /* ── 주민 머리 위 말풍선 ── */
 .g-bubbles,.g-marks{position:absolute;inset:0;pointer-events:none}
-.g-bubble{position:absolute;pointer-events:auto;max-width:calc(50% - 12px);width:max-content;padding:9px 13px 8px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #cdb79570;font-family:var(--body);font-weight:650;font-size:15px;line-height:1.38;color:#57422f;text-align:center;overflow-wrap:anywhere;text-wrap:balance;transform:translate(-50%,calc(-100% - 12px));animation:bubble-pop .3s cubic-bezier(.3,1.5,.5,1) both;transition:opacity .2s,filter .2s}
+.g-bubble{position:absolute;pointer-events:auto;max-width:calc(50% - 12px);width:max-content;padding:9px 13px 8px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #cdb79570;font-family:var(--body);font-weight:650;font-size:15px;line-height:1.38;color:#57422f;text-align:center;overflow-wrap:anywhere;text-wrap:balance;translate:-50% calc(-100% - 12px);animation:bubble-pop .3s cubic-bezier(.3,1.5,.5,1) both;transition:opacity .2s,filter .2s}
 .g-bubble::after{content:"";position:absolute;left:50%;bottom:-8px;width:16px;height:10px;background:var(--card);clip-path:polygon(0 0,100% 0,50% 100%);transform:translateX(-50%)}
 .g-bubble::before{content:"";position:absolute;left:50%;bottom:-11px;width:20px;height:12px;background:var(--line);clip-path:polygon(0 0,100% 0,50% 100%);transform:translateX(-50%)}
 .g-bubble.chosen{background:#fff3e2;box-shadow:inset 0 0 0 2.5px var(--accent),0 3px 0 #cdb79570}.g-bubble.chosen::after{background:#fff3e2}.g-bubble.chosen::before{background:var(--accent)}
 .g-bubble.dim{opacity:.5}.g-bubble.bye{animation:bubble-out .25s ease-in forwards}.g-bubble.thanks{animation:bubble-out .22s ease-in .08s forwards}
-@keyframes bubble-pop{from{opacity:0;transform:translate(-50%,calc(-100% - 2px)) scale(.4)}to{opacity:1;transform:translate(-50%,calc(-100% - 12px)) scale(1)}}
-@keyframes bubble-out{to{opacity:0;transform:translate(-50%,calc(-100% - 22px)) scale(.85)}}
+/* 아이패드 사파리는 @keyframes 안 translate(…calc(% ± px)) 를 안 돌린다(10-19 녹화) — 자리는 translate 속성, 움직임은 transform px 만.
+   한 규칙에 translate 와 transform 을 같이 쓰지 말 것 — 빌드 압축(lightningcss)이 translate 를 지운다. */
+@keyframes bubble-pop{from{opacity:0;transform:translateY(10px) scale(.4)}to{opacity:1;transform:none}}
+@keyframes bubble-out{to{opacity:0;transform:translateY(-10px) scale(.85)}}
 
 /* ── 말 상자 — 주민 앞에 서면. 위엔 내 대답(말이 다 나온 뒤), 아래엔 이름표 얹은 둥근 상자 ── */
 .g-replies{position:absolute;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));transform:translateY(130%);transition:transform .26s cubic-bezier(.25,1.25,.5,1)}
@@ -83,9 +85,9 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-dots{flex:none;font-size:8px;letter-spacing:1px;color:var(--accent)}
 
 /* ── 문 위 화살표·첫 방 손·고른 자리 팻말·이름표 ── */
-.g-door{position:absolute;display:grid;place-items:center;width:46px;height:46px;transform:translate(-50%,-50%);border-radius:50%;background:var(--leaf);box-shadow:0 4px 0 var(--leaf-dark),0 0 0 4px #fffaf0b0;animation:door-bob 1s ease-in-out infinite}
+.g-door{position:absolute;display:grid;place-items:center;width:46px;height:46px;translate:-50% -50%;border-radius:50%;background:var(--leaf);box-shadow:0 4px 0 var(--leaf-dark),0 0 0 4px #fffaf0b0;animation:door-bob 1s ease-in-out infinite}
 .g-door svg{width:24px;height:24px;fill:none;stroke:#fffdf3;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
-@keyframes door-bob{50%{transform:translate(-50%,calc(-50% - 6px))}}
+@keyframes door-bob{50%{transform:translateY(-6px)}}
 .g-hint{position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);margin:0;padding:8px 16px 7px;border-radius:999px;background:#fffaf0f0;color:#6c5240;font-family:var(--body);font-weight:600;font-size:14px;white-space:nowrap;box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #cdb79570;pointer-events:none;animation:ask-in .3s both}
 .g-hint-hand{left:calc(50% + 74px);bottom:calc(max(18px,env(safe-area-inset-bottom)) + 30px);width:64px;height:64px;padding:0;display:grid;place-items:center;border-radius:50%}
 .g-hint-hand svg{width:30px;height:30px;fill:#fffaf0;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;animation:push 1.6s ease-in-out infinite}
