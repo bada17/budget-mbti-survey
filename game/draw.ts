@@ -154,11 +154,17 @@ function figure(scene: Scene, look: Look) {
   if (pattern === 'temples') for (const sign of [-1, 1])
     fringe.fillStyle(accent).fillPoints(path(sign * 14.5, -48).lineTo(sign * 12, -47).cubicBezierTo(sign * 13, -41, sign * 12, -44, sign * 12, -42)
       .lineTo(sign * 15, -43).closePath().getPoints(10), true);
-  const eyes = [-4.8, 4.8].map(x => s.circle(x, -41.5, 1.75, 0x39313b));
+  const eyes = [-4.8, 4.8].map(x => f.smileEyes
+    ? s.arc(x, -41.5, 2.5, 200, 340).setClosePath(false).setStrokeStyle(1.6, 0x39313b)
+    : s.circle(x, -41.5, 1.75, 0x39313b));
   const face = s.graphics();
   face.fillStyle(0xee9b90, 0.7).fillEllipse(-9.5, -37.4, 6, 4.5).fillEllipse(9.5, -37.4, 6, 4.5);
   face.fillStyle(0xe7a384, 0.7).fillCircle(0, -38.8, 1);
-  face.lineStyle(1.1, 0x85554b).beginPath().arc(0, -36.2, 2.3, 0.15, Math.PI - 0.15).strokePath();
+  if (f.wideSmile) {
+    face.fillStyle(0x85554b).fillPoints(path(-4.2, -36.5).lineTo(4.2, -36.5)
+      .cubicBezierTo(-4.2, -36.5, 3.8, -29.8, -3.8, -29.8).closePath().getPoints(12), true);
+    face.fillStyle(0xfff8e8).fillRoundedRect(-3.1, -36.3, 6.2, 1.8, 0.7);
+  } else face.lineStyle(1.1, 0x85554b).beginPath().arc(0, -36.2, 2.3, 0.15, Math.PI - 0.15).strokePath();
   // 눈썹·수염은 늘 같은 색(BROW) — 머리색을 바꿔도 따라 바뀌지 않는다(승인 기준).
   if (f.brows) face.lineStyle(1.25, BROW, 0.8).lineBetween(-8, -46, -3.5, -46.4).lineBetween(3.5, -46.4, 8, -46);
   // 폰에서도 눈썹만 있는 얼굴과 구별되도록 미소선을 또렷하게(10-19).

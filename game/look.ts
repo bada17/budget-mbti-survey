@@ -58,7 +58,7 @@ export const ACCESSORIES: { value: Accessory; name: string }[] = [
 ];
 export const GLASSES = ['없음', '둥근 안경'];
 
-export type Form = { name: string; hair: HairStyle; top: Top; pants: number; shoes?: number; glasses?: boolean; brows?: boolean; beard?: boolean; smileLines?: boolean };
+export type Form = { name: string; hair: HairStyle; top: Top; pants: number; shoes?: number; glasses?: boolean; brows?: boolean; beard?: boolean; smileLines?: boolean; smileEyes?: boolean; wideSmile?: boolean };
 export const FORMS: Form[] = [
   { name: '단발·가디건', hair: 'bob', top: 'cardigan', pants: 0x9e8574 },
   { name: '웨이브·줄무늬', hair: 'wave', top: 'stripes', pants: 0x718397 },
@@ -72,16 +72,21 @@ export const FORMS: Form[] = [
   { name: '짧은 수염·점퍼', hair: 'crop', top: 'jacket', pants: 0x737987, brows: true, beard: true },
   { name: '낮은 묶음·앞치마', hair: 'lowTie', top: 'apron', pants: 0x8e8074, brows: true, smileLines: true },
   { name: '짧은 파마·가디건', hair: 'curls', top: 'cardigan', pants: 0x81766c, glasses: true, brows: true, smileLines: true },
+  // 새 표정은 끝에만 덧붙인다 — 앞 열두 번호와 옛 기록은 그대로(10-19).
+  { name: '웃는 눈', hair: 'bob', top: 'cardigan', pants: 0x9e8574, smileEyes: true },
+  { name: '활짝 미소', hair: 'bob', top: 'cardigan', pants: 0x9e8574, wideSmile: true },
 ];
+/** 무작위·주민은 기존 열두 조합에서만 골라 같은 씨앗의 생김새를 유지한다. */
+const BASE_FORM_COUNT = 12;
 
-/** 얼굴 단추 — 저장에는 기존 기본 모습 번호만 쓴다. 머리·옷·안경·장식과는 독립(10-19). */
+/** 얼굴 단추 — 저장에는 기본 모습 번호만 쓴다. 머리·옷·안경·장식과는 독립(10-19). */
 export const FACES = [
-  { i: 0, name: '기본' }, { i: 5, name: '또렷한 눈썹' }, { i: 6, name: '웃음 주름' }, { i: 9, name: '짧은 수염' },
+  { i: 0, name: '기본' }, { i: 12, name: '웃는 눈' }, { i: 13, name: '활짝 미소' }, { i: 5, name: '또렷한 눈썹' }, { i: 6, name: '웃음 주름' }, { i: 9, name: '짧은 수염' },
 ];
 /** 옛 기본 모습도 눈썹·미소선·수염으로 같은 얼굴 단추를 켠다. */
 export function faceOf(form: number): number {
   const f = FORMS[form];
-  return f.beard ? 9 : f.smileLines ? 6 : f.brows ? 5 : 0;
+  return f.smileEyes ? 12 : f.wideSmile ? 13 : f.beard ? 9 : f.smileLines ? 6 : f.brows ? 5 : 0;
 }
 
 export type Look = {
@@ -132,7 +137,7 @@ export const toLook = (pick: Pick): Look => {
 /** 「어떤 모습이 나올까?」 — 기본 조합 하나에 색·색 넣기를 무작위로(머리 모양·옷은 그 조합대로). 안경·장식은 keep 것 그대로(보상으로 받은 것이라). */
 export function randomPick(random = Math.random, keep?: Pick): Required<Pick> {
   const at = (n: number) => Math.floor(random() * n);
-  const p = withForm([0, 0, 0, 0], at(FORMS.length)), kept = keep ? fullPick(keep) : undefined;
+  const p = withForm([0, 0, 0, 0], at(BASE_FORM_COUNT)), kept = keep ? fullPick(keep) : undefined;
   p[1] = HAIR_MENU[at(HAIR_MENU.length)].i; p[2] = at(COATS.length); p[3] = at(SKINS.length);
   p[4] = random() < 0.65 ? 0 : 1 + at(PATTERNS.length - 1); p[9] = HAIR_MENU[at(HAIR_MENU.length)].i;
   p[7] = kept?.[7] ?? 0; p[8] = kept?.[8] ?? 0;
@@ -158,7 +163,7 @@ export function wearing(pick: Pick, reward: (typeof REWARDS)[number]): Required<
 export function lookFrom(seed: string): Look {
   const r = rng(seed);
   const at = <T>(list: readonly T[], from = 0) => list[from + Math.floor(r() * (list.length - from))];
-  const form = Math.floor(r() * FORMS.length), coat = Math.floor(1 + r() * (COATS.length - 1)), skin = Math.floor(r() * SKINS.length);
+  const form = Math.floor(r() * BASE_FORM_COUNT), coat = Math.floor(1 + r() * (COATS.length - 1)), skin = Math.floor(r() * SKINS.length);
   const p = withForm([form, 0, coat, skin], form);
   p[7] = FORMS[form].glasses ? 1 : 0; // 주민은 기본 조합대로 안경을 쓴다 — 받을 수 있는 걸 마을에서 미리 보게
   p[1] = at(HAIR_MENU.slice(0, 6)).i;

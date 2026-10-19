@@ -329,7 +329,7 @@ export function createUI(root: HTMLElement, actions: {
       // 줄마다 [이름, 고른 번호의 자리(Pick), 글 단추면 이름들 · 색 단추면 색들, 단추 → 넣을 번호(없으면 차례 그대로), 색 이름].
       type Line = [string, number, string[] | number[], number[]?, string[]?];
       const tabs: [string, Line[]][] = [
-        ['얼굴', [['피부', 3, SKINS], ['얼굴', 0, FACES.map(f => f.name), FACES.map(f => f.i)]]],
+        ['얼굴', [['피부', 3, SKINS], [`얼굴 · ${FACES.length}가지`, 0, FACES.map(f => f.name), FACES.map(f => f.i)]]],
         ['머리', [['머리 모양', 5, HAIR_STYLES.map(h => h.name)], ['머리색', 1, menuColors, menu, menuNames], ['색 넣기', 4, PATTERNS.map(p => p.name)], ['섞는 색', 9, menuColors, menu, menuNames]]],
         ['옷', [['옷', 6, TOPS.map(t => t.name)], ['옷 색', 2, COATS]]],
       ];

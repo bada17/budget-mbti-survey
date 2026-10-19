@@ -1,7 +1,7 @@
 // 모습 값(10-15 저녁, GPT 승인 기준 본편 반영) — 열 칸 고른 번호, 옛 넷·다섯 칸 읽기, 기본 모습 고르기, 무작위·주민 모습. 화면 없이 돈다.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isPick, fullPick, withForm, faceOf, toLook, randomPick, lookFrom, hairColor, wearing, PICK_SIZES, FORMS, HAIRS, HAIR_MENU, TOPS, REWARDS } from '../game/look.ts';
+import { isPick, fullPick, withForm, faceOf, toLook, randomPick, lookFrom, hairColor, wearing, PICK_SIZES, FORMS, FACES, HAIRS, HAIR_MENU, TOPS, REWARDS } from '../game/look.ts';
 
 test('고른 번호: 열 칸과 옛 넷·다섯 칸만 받고, 칸마다 범위 안이어야 한다', () => {
   assert.equal(PICK_SIZES.length, 10);
@@ -45,5 +45,21 @@ test('무작위·주민 모습: 늘 받을 수 있는 열 칸, 주민은 같은 
 });
 
 test('옛 열두 기본 모습은 얼굴 특징이 같은 대표 단추로 켜진다', () => {
-  assert.deepEqual(FORMS.map((_, i) => faceOf(i)), [0, 0, 0, 0, 0, 5, 6, 6, 6, 9, 6, 6]);
+  assert.deepEqual(FORMS.slice(0, 12).map((_, i) => faceOf(i)), [0, 0, 0, 0, 0, 5, 6, 6, 6, 9, 6, 6]);
+});
+
+test('웃는 눈·활짝 미소를 더한 여섯 얼굴은 기존 열 칸으로 저장된다', () => {
+  assert.equal(FACES.length, 6);
+  for (const [form, feature] of [[12, 'smileEyes'], [13, 'wideSmile']]) {
+    const pick = [form, 9, 4, 3, 1, 8, 8, 1, 3, 13];
+    assert.ok(isPick(pick), `새 얼굴 ${form} 저장 허용`);
+    assert.deepEqual(fullPick(pick), pick);
+    assert.equal(faceOf(form), form);
+    assert.equal(toLook(pick).form[feature], true);
+  }
+});
+
+test('얼굴을 추가해도 무작위와 같은 씨앗의 주민은 원래 열두 조합을 쓴다', () => {
+  assert.equal(randomPick(() => 0.999999)[0], 11);
+  assert.deepEqual(['q1:left', 'q1:right', 'q2:left'].map(seed => lookFrom(seed).form.name), ['짧은 수염·점퍼', '둥근 파마·조끼', '짧은 수염·점퍼']);
 });
