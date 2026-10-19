@@ -338,6 +338,9 @@ export function createUI(root: HTMLElement, actions: {
       const current = { name: me.name, pick: fullPick(me.pick), at: me.at }; // at = 직접 고른 때(손대면 지금으로)
       const name = el('input', 'g-input'); name.maxLength = 10; name.value = me.name; name.placeholder = '이름이나 별명 (안 써도 돼요)';
       name.oninput = () => { current.name = cleanName(name.value); current.at = Date.now(); };
+      // 이름 치고 엔터 — 키보드를 닫는다(사용자 10-19 아이패드 「이름 치고 엔터 가능하게」). 폼이 아니라 iOS 에선 엔터가 아무 일도 안 했다.
+      name.enterKeyHint = 'done';
+      name.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); name.blur(); } };
       const menu = HAIR_MENU.map(c => c.i), menuColors = HAIR_MENU.map(c => HAIRS[c.i]), menuNames = HAIR_MENU.map(c => c.name);
       // 줄마다 [이름, 고른 번호의 자리(Pick), 글 단추면 이름들 · 색 단추면 색들, 단추 → 넣을 번호(없으면 차례 그대로), 색 이름].
       type Line = [string, number, string[] | number[], number[]?, string[]?];
