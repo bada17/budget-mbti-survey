@@ -628,7 +628,8 @@ export type WorksOpts = {
   /** 로그인했나 — 안 했으면 「동전은 이 기기에만」 한 줄. */
   loggedIn: boolean;
   /** 넣기 — 서버가 받은 수와 새 합계. 못 넣었으면 undefined(하루 한도 등). */
-  give(n: number): Promise<{ took: number; total: number } | undefined>;
+  /** 넣었으면 넣은 수와 모인 수, 못 넣었으면 그 까닭(net.ts lastFailure — 「not-finished」·「coin-day」…). */
+  give(n: number): Promise<{ took: number; total: number } | { failed: string }>;
   /** 액세서리 — 이미 가진 것(REWARDS 번호)·지금 쓰는 모습, 사기(동전 ACCESSORY_PRICE 개, 산 것은 바로 쓴다). */
   owned(): number[];
   pick(): Pick;
@@ -641,6 +642,11 @@ export type WorksOpts = {
  * 액세서리를 받을 길이 마을 부탁(숨김)뿐이던 것을 이걸로 연다. 벗고 끼기(모습 판)는 GPT 몫 — 산 것은 지금은 바로 쓰기만.
  */
 export const ACCESSORY_PRICE = 100;
+/** 동전을 못 넣은 까닭마다 한 줄(api.ts /village/coins). 서버에 판이 없는 사람 = 10-16 서버를 옮기기 전에 걸었거나 끝낼 때 서버에 못 닿은 사람. */
+const COIN_FAILED: Record<string, string> = {
+  'coin-day': `동전은 하루에 ${COIN_DAY_MAX}개까지 넣을 수 있어요. 내일 또 와요.`,
+  'not-finished': '지난 한 바퀴가 서버에 남아 있지 않아요. 한 바퀴 다시 걸으면 동전을 넣을 수 있어요.',
+};
 
 /**
  * 마을 공사터 — 지금 공사·모인 동전·다 지은 것, 내 주머니 동전 넣기, 액세서리 사기, 그리고 진짜 마을의 세금과 잇는 한마디.
@@ -657,7 +663,7 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
     give.disabled = true; status.textContent = '넣는 중…';
     const before = worksAt(opts.total).done.length;
     const done = await opts.give(n);
-    if (!done) { status.textContent = `동전은 하루에 ${COIN_DAY_MAX}개까지 넣을 수 있어요. 내일 또 와요.`; draw(); return; }
+    if ('failed' in done) { status.textContent = COIN_FAILED[done.failed] ?? '지금은 넣지 못했어요. 조금 뒤에 다시 해 주세요.'; draw(); return; }
     opts.total = done.total;
     const after = worksAt(opts.total).done;
     if (after.length > before) justBuilt = WORKS.find(w => w.id === after[after.length - 1])!.name;

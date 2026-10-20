@@ -27,7 +27,7 @@ import { checkContact, type ContactForm } from './contact';
 // import { quizFor } from './quiz'; // [나중에 살림: 버스 퀴즈]
 import { ERRANDS, ERRAND_COIN, errandDay, errandsShown, finishErrand, loadErrands, saveErrands, type Choice } from './quests';
 import { REWARDS, wearing, nameFrom } from './look';
-import { net, TABLES } from './net';
+import { net, TABLES, lastFailure } from './net';
 import type { Stats, TableView, VillageView } from './api';
 import type { JourneyScene, SceneCommand, Guest } from './scenes/JourneyScene';
 import type { VillageScene } from './scenes/VillageScene';
@@ -222,7 +222,9 @@ bus.subscribe(event => {
     if (tableCode) addStamp('table');
     const season = seasonAt(Date.now());
     if (season) addStamp(seasonStamp(season.id));
-    finishing = statsReady.then(() => (online ? afterFinish() : undefined));
+    // 처음 서버 부르기(/stats)가 실패했어도 끝낸 판은 다시 알린다 — 안 그러면 서버에 판이 없어 마을에서 동전·쪽지가 막힌다(10-20).
+    // 그때는 마을 들어가기를 붙잡지 않고 뒤에서 — 닿으면 그때부터 온라인.
+    finishing = statsReady.then(() => (online ? afterFinish() : void afterFinish()));
     if (tableCode) void net.progress(tableCode, state.sessionId, { stage: ROUTE.length, type: event.typeCode }).then(view => { table = view ?? table; });
   }
 });
@@ -234,7 +236,8 @@ bus.subscribe(event => {
 async function afterFinish() {
   const result = await net.finish(state.sessionId, state.answers);
   stats = result ?? stats;
-  if (!result) return; // 응답이 없으면 방명록도 못 남긴다(서버가 끝낸 답으로 동네를 만든다)
+  if (!result) return;
+  online = true; // 응답이 없으면 방명록도 못 남긴다(서버가 끝낸 답으로 동네를 만든다)
   if (invite?.home) void net.visit(invite.home, { sessionId: state.sessionId, name: me.name, pick: me.pick });
   if (!home) { const made = await net.newHome(); if (made) { home = made; saveHome(made); } }
 }
@@ -599,7 +602,7 @@ function openPlace(id: PlaceId, tab?: 'region') {
         let took = n, total: number;
         if (online) {
           const done = sid ? await net.coins(sid, n) : undefined;
-          if (!done) return undefined;
+          if (!done) return { failed: sid ? lastFailure() : 'not-finished' };
           took = done.took; total = done.view.coins; showVillage(done.view);
         } else total = fresh.given + n;
         fresh.coins -= took; fresh.given += took; savePocket(fresh);

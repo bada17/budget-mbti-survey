@@ -19,7 +19,15 @@ const GAS: string | undefined = import.meta.env?.VITE_GAME_API || undefined;
 /** 테이블(같이 걷기)이 되는 서버인가. */
 export const TABLES = !GAS;
 
+/**
+ * 마지막 요청이 실패한 까닭 — 서버가 준 error(「not-finished」·「coin-day」…), 닿지 못했으면 'network'. 실패를 그 까닭대로 알리려고(10-20 동전 —
+ * 무슨 까닭이든 「하루 10개까지」 라고 떠서 서버에 판이 없는 사람이 헤맸다). ponytail: 하나뿐이라 겹친 요청이 덮을 수 있다 — 기다린 바로 뒤에 읽을 것.
+ */
+let failed = '';
+export const lastFailure = () => failed;
+
 async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T | undefined> {
+  failed = '';
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), GAS ? 12000 : 4000); // 앱스 스크립트는 처음 깨어날 때 몇 초 걸린다
   try {
@@ -28,11 +36,18 @@ async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pr
       headers: body === undefined ? undefined : { 'content-type': GAS ? 'text/plain;charset=utf-8' : 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (!response.ok) return undefined;
-    if (!GAS) return await response.json() as T;
+    if (!GAS) {
+      const json = await response.json().catch(() => undefined);
+      if (response.ok) return json as T;
+      failed = String((json as { error?: unknown } | undefined)?.error ?? response.status);
+      return undefined;
+    }
+    if (!response.ok) { failed = String(response.status); return undefined; }
     const wrapped = await response.json() as { status: number; body: T };
-    return wrapped.status < 400 ? wrapped.body : undefined;
-  } catch { return undefined; } finally { clearTimeout(timer); }
+    if (wrapped.status < 400) return wrapped.body;
+    failed = String((wrapped.body as { error?: unknown } | undefined)?.error ?? wrapped.status);
+    return undefined;
+  } catch { failed = 'network'; return undefined; } finally { clearTimeout(timer); }
 }
 
 export const net = {
