@@ -326,7 +326,8 @@ export type CardsOpts = {
   load(): Promise<PublicCard[] | undefined>;
   react(id: string, kind: CardKind): Promise<PublicCard | undefined>;
   mine(): Record<string, string>;
-  share(card: PublicCard, copy: boolean): void;
+  /** file = 카드 그림(미리 찍어 둔 것, 없으면 링크만). */
+  share(card: PublicCard, copy: boolean, file?: File): void;
   /** 링크(?card=)로 온 카드 — 이걸 맨 위에 크게. */
   focus?: string;
 };
@@ -344,12 +345,15 @@ export function openCards(shell: HTMLElement, opts: CardsOpts, onClose: () => vo
     const myPlace = places?.places.find(p => p.c === loadRegion());
     const ours = (card: PublicCard) => Boolean(myPlace && !myPlace.n.endsWith('(시·도)') && squash(card.region).includes(squash(placeTitle(myPlace))));
     const first = cards.find(c => c.id === opts.focus) ?? cards[0], rest = cards.filter(c => c !== first);
-    panel.append(el('p', 'c-kicker', first === cards[0] ? '이번 문제 카드' : '친구가 보낸 문제 카드'), cardView(first, ours(first), opts));
+    const top = cardView(first, ours(first), opts);
+    panel.append(el('p', 'c-kicker', first === cards[0] ? '이번 문제 카드' : '친구가 보낸 문제 카드'), top.box);
+    setTimeout(top.prepare, 600); // 판이 열리는 움직임이 끝난 뒤
     if (!rest.length) return;
     panel.append(el('h3', 'x-h', '지난 문제 카드'));
     for (const card of rest) {
-      const fold = el('details', 'c-fold'), mine = opts.mine()[card.id] as CardKind | undefined;
-      fold.append(el('summary', '', `${dayLabel(card.date)} · ${card.title}${mine ? ` — 내 반응: ${CARD_KIND_NAME[mine]}` : ''}`), cardView(card, ours(card), opts));
+      const fold = el('details', 'c-fold'), mine = opts.mine()[card.id] as CardKind | undefined, view = cardView(card, ours(card), opts);
+      fold.append(el('summary', '', `${dayLabel(card.date)} · ${card.title}${mine ? ` — 내 반응: ${CARD_KIND_NAME[mine]}` : ''}`), view.box);
+      fold.addEventListener('toggle', () => { if (fold.open) setTimeout(view.prepare, 300); }); // 접힌 카드는 크기가 없어 펼친 뒤에 찍는다
       panel.append(fold);
     }
   });
@@ -385,10 +389,24 @@ function cardView(card: PublicCard, ours: boolean, opts: CardsOpts) {
   const mine = opts.mine()[card.id] as CardKind | undefined;
   if (mine && CARD_KINDS.includes(mine)) result(mine); else ask();
   const more = el('div', 'c-more');
-  more.append(...shareButtons('g-ghost', copy => opts.share(card, copy)), link('밑 빠진 독상 보기', out(DOK_URL), 'g-link'));
+  more.append(...shareButtons('g-ghost', copy => opts.share(card, copy, file)), link('밑 빠진 독상 보기', out(DOK_URL), 'g-link'));
   if (card.link) more.append(link('출처 보기', card.link, 'g-link'));
   box.append(area, more);
-  return box;
+  /*
+    공유 그림(10-21 유입 2번 — 단톡방에선 링크만 가면 안 보이고, 카톡 미리보기는 깃허브 페이지라 늘 같은 og.jpg) — 카드 위쪽(날짜·제목·금액·설명)만 찍는다.
+    미리 찍어 둔다 — 누른 뒤에 찍으면 아이폰이 공유창을 막는다(main.ts·town.ts 와 같은 까닭). 못 찍었으면 링크만.
+  */
+  let file: File | undefined;
+  const prepare = async () => {
+    if (file || !box.getClientRects().length) return;
+    try {
+      const { toBlob } = await import('html-to-image');
+      await document.fonts?.ready;
+      const blob = await toBlob(box, { pixelRatio: 2, backgroundColor: '#fffaf0', filter: node => node !== area && node !== more });
+      if (blob) file = new File([blob], `forest-card-${card.id}.png`, { type: 'image/png' });
+    } catch (error) { console.warn(error); }
+  };
+  return { box, prepare };
 }
 
 // ───────────────────────── 쪽지 — 쪽지판·광장에서 마주친 쪽지 카드 ─────────────────────────

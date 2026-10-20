@@ -462,9 +462,9 @@ const cardOpts = (focus?: string): CardsOpts => ({
     if (got) { const memo = loadCardMemo(); memo.mine[id] = kind; saveCardMemo(memo); }
     return got?.card;
   },
-  share: (card, copy) => {
+  share: (card, copy, file) => {
     const url = `${shareAt()}?card=${encodeURIComponent(card.id)}`, text = `문제 카드 — ${card.title}. 이 돈, 어떻게 보세요?`;
-    sendLink(copy, '함께해요 시민의 숲 — 문제 카드', text, url);
+    sendLink(copy, '함께해요 시민의 숲 — 문제 카드', text, url, file && navigator.canShare?.({ files: [file] }) ? [file] : undefined);
   },
 });
 /** 판을 열면 지금 있는 카드는 다 본 것으로(「!」·알림이 꺼진다). */
