@@ -13,7 +13,7 @@ import { DONATE_URL, typeOut } from './ui';
 import { PLACES, keeperName, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
 import { toLook, lookFrom, REWARDS, fullPick, type Pick } from './look';
 import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile';
-import { PRIVACY_URL } from './contact';
+import { PRIVACY_URL, CONTACT } from './contact';
 import type { PublicNote, VillageView, PublicCard, CardKind } from './api';
 import { gameStorage, isInspectionMode } from './storage';
 
@@ -185,8 +185,25 @@ export function openDok(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'dok', onClose);
   const status = el('p', 't-small', '독상 소식을 불러오는 중…'); status.setAttribute('role', 'status');
   const body = el('div');
-  panel.append(body, status, link('밑 빠진 독상 보러 가기', out(DOK_URL)));
+  const away = link('밑 빠진 독상 보러 가기', out(DOK_URL));
+  panel.append(body, status, away);
   let camps: Campaign[] = [], awards: Award[] = [];
+  /*
+    서명 칸은 판 안 창으로(10-20 사용자 「독상 서명 칸을 게임 안 창으로」) — 독상 ?embed#join-<id> 가 서명 칸만 창을 꽉 채워 연다.
+    서명 칸은 독상 한 벌(도너스 연동·동의·서명 수) — 게임은 이름·전화번호를 받지 않는다. 독상 서명 칸을 닫으면(독상이 postMessage) 목록으로.
+  */
+  const join = (c: Campaign) => {
+    const frame = el('iframe', 't-frame');
+    frame.title = `${c.title} — 이 감시에 참여하기`;
+    frame.src = `${DOK_URL}?embed&${UTM}#join-${c.id}`;
+    const back = () => { removeEventListener('message', onMessage); frame.remove(); backBtn.remove(); body.hidden = false; away.hidden = false; };
+    const onMessage = (e: MessageEvent) => { if (e.source === frame.contentWindow && e.data?.dok === 'join-closed') back(); };
+    const backBtn = btn('g-ghost', '← 사업 목록으로', back);
+    addEventListener('message', onMessage);
+    body.hidden = true; away.hidden = true;
+    panel.append(backBtn, frame);
+    panel.scrollTo({ top: 0 });
+  };
   const paint = () => {
     const live = camps.filter(c => c.status === 'ongoing' && c.id && c.title);
     if (!live.length && !awards.length) return;
@@ -202,8 +219,8 @@ export function openDok(shell: HTMLElement, onClose: () => void) {
         const a = link(c.title, out(DOK_URL, `camp-${c.id}`), 'v-item'); // 독상이 #camp-<id> 로 그 사업 팝업을 연다
         if (c.summary) a.append(el('span', 'v-sum', c.summary));
         if (c.period) a.append(el('small', '', c.period));
-        // 서명 칸 바로 열기(10-20 사용자 「서명은 왜 바로 안되게」) — 독상이 #join-<id> 로 그 사업의 「이 감시에 참여하기」 서명 칸을 연다(전엔 팝업을 거쳐 한 번 더 눌렀다).
-        const li = el('li'); li.append(a, link('이 감시에 참여하기', out(DOK_URL, `join-${c.id}`), 'g-ghost v-join')); items.append(li);
+        // 서명 칸 바로 열기(10-20 사용자 「서명은 왜 바로 안되게」) — 위 join 이 판 안 창으로 독상 서명 칸을 연다.
+        const li = el('li'); li.append(a, btn('g-ghost v-join', '이 감시에 참여하기', () => join(c))); items.append(li);
       }
       body.append(items);
     }
@@ -274,7 +291,6 @@ export function openTax(shell: HTMLElement, onClose: () => void) {
 }
 
 // ───────────────────────── 시민행동의 집 ─────────────────────────
-const CONTACT = { mail: 'action@action.or.kr', tel: '02-921-4709' }; // 홈페이지 하단과 같은 것(landing-footer.html)
 /**
  * 시민행동의 집 — 마을의 세 건물이 다 시민행동 일이라는 걸 보여 주고, 누르면 그 문 앞으로(사용자 10-19 ⓐ, 소식·행사는 안 함).
  * 후원은 판의 첫 단추(사용자 10-19 「시민센터, 시민행동의 집을 좀 키우자」), 결제 대신 정기후원 안내(/74).
@@ -289,7 +305,7 @@ export function openHouse(shell: HTMLElement, go: (id: PlaceId) => void, onClose
   mail.removeAttribute('target'); tel.removeAttribute('target'); // 메일 앱·전화는 새 창이 아니라 그대로
   ask.append(el('h3', 'v-head', '문의하기'), mail, tel);
   panel.append(
-    el('p', 't-lead', '함께하는 시민행동은 「함께해요 시민의 숲」과 시민마을을 만든 시민단체예요.'),
+    el('p', 't-lead', '함께하는 시민행동은 「함께해요 시민의 숲」을 만든 시민단체예요.'),
     link('정기후원 안내', `${DONATE_URL}&utm_content=village-house`),
     el('p', 't-lead', '상담소·독상·지방정부 예산, 다 시민행동이 하는 일이에요.'),
     ...ours,
@@ -546,6 +562,8 @@ export type WorksOpts = {
   owned(): number[];
   pick(): Pick;
   buy(i: number): boolean;
+  /** 그 모습을 쓴 내 얼굴 그림(시민증 사진과 같은 것) — 사기 전에 미리 보기. 장면이 없으면 undefined. */
+  preview?(pick: Pick): Promise<string | undefined>;
 };
 
 /**
@@ -617,11 +635,25 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
     give.disabled = busy || !opts.pocket.coins || !state.now;
   };
   // 액세서리 사기 — 가진 것은 「갖고 있어요」, 지금 쓰는 것은 「쓰는 중」.
+  // 살 것 옆엔 그걸 쓴 내 얼굴(10-20 사용자 「100개 옆에 모습 그려 줘」). 그림 판 하나를 같이 써서 한 장씩 차례로 그린다.
   const shop = el('section', 'v-sec'), wares = el('ul', 'v-list');
+  const looks = new Map<string, Promise<string | undefined>>();
+  let queue: Promise<unknown> = Promise.resolve();
+  const lookOf = (pick: Pick) => {
+    const key = pick.join();
+    if (!looks.has(key)) { const next = queue.then(() => opts.preview!(pick)).catch(() => undefined); queue = next; looks.set(key, next); }
+    return looks.get(key)!;
+  };
   const drawShop = () => {
     const owned = opts.owned(), pick = fullPick(opts.pick());
     wares.replaceChildren(...REWARDS.map((reward, i) => {
       const li = el('li', 'v-ware'), wearing = pick[reward.slot] === reward.value;
+      if (opts.preview && !wearing && !owned.includes(i)) {
+        const img = el('img', 'v-ware-look'); img.alt = `${josa(reward.name, '을', '를')} 쓴 내 모습`; img.hidden = true;
+        const worn = [...pick] as Pick; worn[reward.slot] = reward.value;
+        void lookOf(worn).then(src => { if (src) { img.src = src; img.hidden = false; } });
+        li.append(img);
+      }
       li.append(el('b', '', reward.name));
       if (wearing) li.append(el('span', 't-small', '쓰는 중'));
       else if (owned.includes(i)) li.append(el('span', 't-small', '갖고 있어요'));

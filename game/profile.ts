@@ -229,7 +229,7 @@ export const SAVE_MAX = 4000; // JSON 글자 수 — 이보다 크면 이상한 
 /** 남이 보낸(또는 서버에서 온) 묶음 검사 — 이상한 칸은 그 칸만 버린다. */
 export function cleanSave(raw: unknown): Save | undefined {
   if (!raw || typeof raw !== 'object' || JSON.stringify(raw).length > SAVE_MAX) return undefined;
-  const r = raw as Record<string, any>;
+  const r = raw as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- 남이 보낸 묶음, 칸마다 아래서 검사
   const save: Save = {};
   if (r.me && isPick(r.me.pick)) save.me = { name: cleanName(r.me.name), pick: r.me.pick, ...(Number(r.me.at) > 0 ? { at: Number(r.me.at) } : {}) };
   const neighbor = cleanNeighbor(r.neighbor);

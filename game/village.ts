@@ -5,7 +5,7 @@
     (그림은 draw.ts 의 drawVillage, 판은 places.ts, 들어갔을 때 무엇을 여는지는 main.ts 의 openPlace.)
   · 사용자 「커뮤니티 기능보다는 혼자가 아니다는 느낌」 — 그래서 대화방이 아니라 쪽지(한 줄)와 다녀간 사람들의 모습이다.
     쪽지는 답글이 없고, 「나도」 와 「신고」 만 있다.
-  · 이름 「시민마을」(사용자 10-15). 건물 이름은 하는 일 그대로(사용자 10-15 「이쁘게 말고 직관적으로 — 지방정부 예산, 세금 보는 곳 이런 식」).
+  · 이름 「시민의 숲」(사용자 10-20 「다 시민의 숲으로 일단 바꿔」 — 10-15 엔 「시민마을」). 건물 이름은 하는 일 그대로(사용자 10-15 「이쁘게 말고 직관적으로 — 지방정부 예산, 세금 보는 곳 이런 식」).
     상담소·독상은 실제 사업 이름이라 그대로. 주민 한마디는 Claude 임시.
     10-19 간판 넷을 바꿨다(사용자 「웅 그럼 그렇게 확정해」) — 시민행동의 집·시민센터·마을 곳간·한 바퀴 다시 걷기.
     **화면 글에 건물 이름을 박아 쓰지 않는다** — placeName(id) 로 가져다 쓴다(사용자 「다른 글에도 안 들어가게 해」 — 이름이 바뀌면 글이 따로 놀았다).
@@ -21,7 +21,7 @@ export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 
  */
 export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point; keeper?: string };
 
-export const VILLAGE_NAME = '시민마을';
+export const VILLAGE_NAME = '시민의 숲';
 export const VILLAGE_W = 1300; // 10-17 동쪽으로 넓힘(1040 →) — 큰길 동쪽 끝 예산 오락실 자리(사용자 「마을 확장해봐도 되고」)
 export const VILLAGE_H = 1500;
 /** 광장 — 가운데 분수. 다녀간 주민들이 여기서 서성인다. */

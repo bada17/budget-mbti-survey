@@ -3,8 +3,8 @@ import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './ui.css';
 import { createJourney, transition, currentQuestion, type Command } from './flow';
 import { buildGameResponse, orderedQuestions, displayOptions, type GameResponse } from './response';
-import { scoreAnswers } from './score';
-import { ROUTE, TYPES, REPLIES } from './content';
+import { scoreAnswers, typeCode } from './score';
+import { ROUTE, TYPES, REPLIES, AXES, type TypeCode } from './content';
 import { createEvents, type GameEvent } from './events';
 import { Controls } from './input';
 import { createUI, GAME_URL } from './ui';
@@ -555,6 +555,7 @@ function dayDone(who: string, day: number) {
   ui.villageNotice(who, `오늘 부탁을 다 들어줬어요! ${reward ? `선물로 ${josa(reward.name, '을', '를')} 드려요. 지금 쓰고 있어요. ` : ''}${next}`, [{ label: '고마워요' }]);
 }
 /** 주민 폰 「오늘의 부탁」 — 오늘 셋과 들어줬는지. 누르면 그 주민 곁으로. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- [나중에 살림: 오락실·부탁]
 function openErrandList() {
   const memo = loadErrands(), { day, list, wait } = errandDay(memo, kstDay(Date.now()));
   if (!list.length) { ui.placeList([], wait === 'tomorrow' ? '오늘 부탁은 다 했어요 — 내일 셋이 더 열려요' : wait === 'all' ? '부탁 열다섯을 다 들어줬어요' : '다음 부탁은 준비 중이에요'); return; }
@@ -611,6 +612,7 @@ function openPlace(id: PlaceId, tab?: 'region') {
       // 지금 쓰는 액세서리도 가진 것으로(부탁 보상으로 받았던 것 — 다시 사지 않게)
       owned: () => [...new Set([...loadOwned(), ...REWARDS.flatMap((r, i) => (me.pick[r.slot] === r.value ? [i] : []))])],
       pick: () => me.pick,
+      preview: village ? pick => village!.portrait(pick, 120) : undefined,
       buy: i => {
         if (pocketBusy) return false;
         const fresh = loadPocket(kstDay(Date.now()));
@@ -713,23 +715,34 @@ function skipToEnd() {
   언덕 안내하는 사람(사용자 10-19 「이 게임이 무엇이고 예산이 어려운 이유를 알려주고, 마을로 가 보라고」).
   아치 옆에 서 있다가 다가가면(아치로 가는 길목이라 마을로 가는 사람은 다 지난다) 말 상자. 쪽마다 「다음」, 마지막 쪽은 「마을로 가기」·「조금 더 있을게요」.
   이름은 안 단다(10-20 사용자 「안내 하는 사람 이름 삭제해」) — 말 상자도 이름표 없이.
-  ⚠️ 세 쪽 글은 Claude 초안(10-20) — 사용자가 고친다. 쪽은 늘리고 줄여도 된다(마지막 쪽이 늘 마을로 가라는 말).
+  글은 사용자 최종안(10-20 「웅 그렇게하자」) 여섯 쪽. 셋째 쪽 두 유형은 그 사람 결과로 — 가까운 유형 = 0 에 가장 가까운 축 하나만 뒤집은 것(score.ts 는 읽기만).
 */
 const HILL_GUIDE = {
-  pages: [
-    '방금 열다섯 곳에서 둘 중 하나를 골랐죠? 그게 다 우리 세금을 어디에 먼저 쓸지 정하는 일, 예산이에요.',
-    '어려운 건 둘 다 필요한 일이라서예요. 돈은 늘 모자라서 하나를 고르면 다른 하나는 미뤄야 하고, 정답도 없어요. 그래서 여럿이 같이 따져 봐야 해요.',
-    '저 빛 아치를 지나면 시민마을이에요. 우리 동네 진짜 예산도 보고, 다른 주민들이 남긴 한마디도 읽어 보세요.',
+  pages: (mine: string, near: string) => [
+    '여기까지 오신 걸 축하해요! 걸어오면서 몇 번이나 멈칫했나요?',
+    '둘 다 필요한 것 중에 하나만 고르라니, 질문이 얄궂었죠? 이 게임은 줄다리기 같아요. 고른 것들을 모아 어느 쪽으로 기울었는지 봐요.',
+    `그래서 몇 번만 달리 골랐어도 「${mine}」 대신 ${josa(`「${near}」`, '이', '가')} 나왔을 수 있어요. 예산에는 딱 떨어지는 정답이 없거든요. (물론 새는 돈은 있어요 😊)`,
+    '함께 사는 바탕을 만드는 예산에는 많은 논쟁과 깊은 숙의가 필요해요. 그 시작이 오늘 당신이 멈칫한 그 순간이라고 생각해요.',
+    '그리고 그 멈칫을 혼자만 갖고 있지 말고 마을에서 사람들과 나눠 보세요.',
+    '이제 저 아치를 지나면 시민의 숲이에요. 천천히 둘러보시길 바라요. 그럼 안녕~',
   ],
   next: '다음', go: '마을로 가기', stay: '조금 더 있을게요',
 };
+/** 내 유형과 가까운 유형 이름 — 가장 덜 기운 축(0 에 가장 가까운 것) 하나만 뒤집는다. */
+function guideTypes(): [string, string] {
+  const scores = scoreAnswers(orderedQuestions, state.answers), code = typeCode(scores);
+  const i = AXES.reduce((best, { key }, k) => (Math.abs(scores[key]) < Math.abs(scores[AXES[best].key]) ? k : best), 0);
+  const near = (code.slice(0, i) + (code[i] === '1' ? '0' : '1') + code.slice(i + 1)) as TypeCode;
+  return [TYPES[code].name, TYPES[near].name];
+}
 let guideOpen = false;
 function guideTalk(page = 0) {
   if (where === 'village') return;
   guideOpen = true;
   ui.endActions(false); // 말 상자가 아래 단추 자리에 뜬다
-  const back = () => { guideOpen = false; ui.endActions(true); }, last = page >= HILL_GUIDE.pages.length - 1;
-  ui.villageNotice('', HILL_GUIDE.pages[page], last
+  const pages = HILL_GUIDE.pages(...guideTypes());
+  const back = () => { guideOpen = false; ui.endActions(true); }, last = page >= pages.length - 1;
+  ui.villageNotice('', pages[page], last
     ? [{ label: HILL_GUIDE.go, run: () => { back(); scene?.toArch(); } }, { label: HILL_GUIDE.stay, run: back }]
     : [{ label: HILL_GUIDE.next, run: () => guideTalk(page + 1) }]);
 }

@@ -33,7 +33,7 @@ a.g-link{text-align:center}
 .v-head{margin:4px 2px 2px;font-family:var(--display);font-size:19px;color:#5b402e}
 .v-by{margin:8px 0 0;text-align:right;font-size:13px;color:var(--soft)}
 .v-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}
-a.v-join.g-ghost{display:flex;align-items:center;justify-content:center;min-height:42px;margin:6px 0 0;text-decoration:none} /* 독상 사업 밑 서명 바로가기(10-20) — 겉모습은 GPT */
+.v-join.g-ghost{width:100%;display:flex;align-items:center;justify-content:center;min-height:42px;margin:6px 0 0;text-decoration:none} /* 독상 사업 밑 서명 바로가기(10-20) — 겉모습은 GPT */
 a.v-item{display:grid;gap:4px;padding:12px 14px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #e2cfab;color:#5b402e;font-family:var(--body);font-weight:700;font-size:16px;line-height:1.4;text-decoration:none;transition:transform .08s}
 a.v-item:active{transform:translateY(2px)}
 a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
@@ -109,7 +109,8 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .t-talk{margin:16px 0;padding:14px;border-radius:18px;background:#f7efdf;box-shadow:inset 0 0 0 1px #ead9bc}
 .t-talk :is(input,textarea){max-width:100%}
 .v-ware{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px 10px;padding:11px 12px;border-radius:15px;background:#fffaf0;box-shadow:inset 0 0 0 1.5px #e9d5b6}
-.v-ware b{min-width:0;color:#5b402e;font-family:var(--display);font-size:16px;font-weight:400}
+.v-ware-look{width:48px;height:48px;border-radius:12px;background:#f3e6cf}
+.v-ware b{flex:1;min-width:0;color:#5b402e;font-family:var(--display);font-size:16px;font-weight:400}
 .v-ware .t-small{margin:0;color:#6b7960;font-weight:700}
 .v-ware .g-ghost{margin:0;min-height:40px;width:auto;max-width:100%;padding:0 12px;font-size:13px;white-space:nowrap}
 

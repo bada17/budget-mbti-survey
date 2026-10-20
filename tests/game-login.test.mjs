@@ -81,7 +81,7 @@ test('카카오·구글 확인: 맞는 길만 통과, 주소·키·aud·nonce·�
   const good = { aud: 'gid', iss: 'https://accounts.google.com', exp: '2000', sub: 'g-1', nonce: 'n1' };
   assert.deepEqual(verifyLogin({ provider: 'google', idToken: 'x', nonce: 'n1', redirectUri }, fakeDeps(google(good)), 1000), { provider: 'google', subject: 'g-1' });
   for (const bad of [{ aud: 'other' }, { nonce: 'n2' }, { exp: '1' }, { iss: 'evil' }]) {
-    assert.equal(verifyLogin({ provider: 'google', idToken: 'x', nonce: 'n1', redirectUri }, fakeDeps(google({ ...good, ...bad })), 1000 * 1000 + 1 > 0 ? 1000 : 0), undefined, JSON.stringify(bad));
+    assert.equal(verifyLogin({ provider: 'google', idToken: 'x', nonce: 'n1', redirectUri }, fakeDeps(google({ ...good, ...bad })), 1000), undefined, JSON.stringify(bad));
   }
   assert.equal(accountOf({ provider: 'kakao', subject: '4242' }, fakeDeps([], { ACCOUNT_SALT: null })), undefined, '소금이 없으면 로그인하지 않는다');
 });

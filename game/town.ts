@@ -117,7 +117,7 @@ export function panelShell(shell: HTMLElement, onClose: () => void, backText = '
 
 // ───────────────────────── 주민센터 — 시민증·도장판, 그리고 방명록·우리 지역·이웃의 편지 ─────────────────────────
 export function openTown(shell: HTMLElement, data: HubData, onClose: () => void, backText?: string) {
-  const { panel, close } = panelShell(shell, onClose, backText);
+  const { panel } = panelShell(shell, onClose, backText); // 이웃 편지를 살리면 close 도 꺼낸다
   const { me } = data;
 
   // 위 갈래(탭)로 한 번에 하나만 — 사용자 10-14 「주민 도장 받기 보여주는 게 난잡해, 깔끔하게」. 처음엔 시민증.
@@ -507,6 +507,7 @@ function regionView(view: RegionView, data: HubData, place: FinancePlace, mineNo
 }
 
 /** 이웃의 편지 — 다음 철에 올 편지 미리 보기와 받기. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- [나중에 살림: 내 이웃]
 function letterSection(data: HubData, closeHub: () => void) {
   const box = el('section', 't-letter-box');
   if (data.season) box.append(el('p', 't-season', `지금은 ${data.season.name}이에요. 이번 철에 걸어서 철 도장을 받았어요.`));

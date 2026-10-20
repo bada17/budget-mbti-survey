@@ -130,8 +130,8 @@ export class VillageScene extends Phaser.Scene {
     if (!paused && this.pendingBuilt) this.time.delayedCall(250, () => this.showBuilt()); // 동전을 넣은 판을 닫으면
   }
 
-  /** 시민증 사진 — 내 모습 얼굴(draw.ts facePhoto). */
-  portrait() { return facePhoto(this, toLook(this.runtime.pick()), 240); }
+  /** 시민증 사진 — 내 모습 얼굴(draw.ts facePhoto). pick 을 주면 그 모습(액세서리 미리 보기). 그림 판 하나를 같이 쓰니 한 번에 하나씩 부를 것. */
+  portrait(pick = this.runtime.pick(), size = 240) { return facePhoto(this, toLook(pick), size); }
 
   /** 지도에서 고른 곳 — 잠깐 어두워졌다가 그 문 앞에 선다. 문이 열리는 건 다음 판이 한다(main 이 연다). */
   jump(id: PlaceId, done: () => void) {

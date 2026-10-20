@@ -161,6 +161,7 @@ export type Deps = {
   cache?: { get(key: string): string | null; put(key: string, value: string, seconds: number): void };
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 받은 JSON, 쓰는 곳에서 검사
 const json = (text: string): any => { try { return JSON.parse(text); } catch { return undefined; } };
 
 /** 카카오·구글이 「이 사람 맞다」 고 하면 그 회원번호(subject). 아니면 undefined. */

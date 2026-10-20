@@ -19,9 +19,8 @@ import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, rollBall, 
 import { OUTCOMES, THANKS } from '../outcomes';
 import { nameFrom } from '../look';
 import { TWISTS, streamOf, keepDry, catOf, CAT_WAKE, type TwistKind } from '../twists';
-import { textRes, Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, ball as makeBall, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt, type Cat } from '../draw';
+import { textRes, Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt, type Cat } from '../draw';
 import type { Pick } from '../look';
-import type { Neighbor } from '../profile';
 import { sfx } from '../sfx';
 import type { Controls } from '../input';
 import type { GameUI } from '../ui';

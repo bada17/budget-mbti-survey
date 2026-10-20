@@ -8,6 +8,7 @@
 */
 export const CONSENT_VERSION = 'game-contact-draft-2026-10-13';
 export const PRIVACY_URL = 'https://action.or.kr/8';
+export const CONTACT = { mail: 'action@action.or.kr', tel: '02-921-4709' }; // 홈페이지 하단과 같은 것(landing-footer.html)
 
 export type Channel = 'email' | 'sms';
 export type ContactForm = {
