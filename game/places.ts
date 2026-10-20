@@ -9,7 +9,7 @@
   모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
 import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, loginInvite, noteForm, type LoginOpts } from './town';
-import { DONATE_URL, typeOut } from './ui';
+import { DONATE_URL, typeOut, shareButtons } from './ui';
 import { PLACES, keeperName, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
 import { toLook, lookFrom, REWARDS, fullPick, type Pick } from './look';
 import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile';
@@ -326,7 +326,7 @@ export type CardsOpts = {
   load(): Promise<PublicCard[] | undefined>;
   react(id: string, kind: CardKind): Promise<PublicCard | undefined>;
   mine(): Record<string, string>;
-  share(card: PublicCard): void;
+  share(card: PublicCard, copy: boolean): void;
   /** 링크(?card=)로 온 카드 — 이걸 맨 위에 크게. */
   focus?: string;
 };
@@ -385,7 +385,7 @@ function cardView(card: PublicCard, ours: boolean, opts: CardsOpts) {
   const mine = opts.mine()[card.id] as CardKind | undefined;
   if (mine && CARD_KINDS.includes(mine)) result(mine); else ask();
   const more = el('div', 'c-more');
-  more.append(btn('g-ghost', '친구에게 보내기', () => opts.share(card)), link('밑 빠진 독상 보기', out(DOK_URL), 'g-link'));
+  more.append(...shareButtons('g-ghost', copy => opts.share(card, copy)), link('밑 빠진 독상 보기', out(DOK_URL), 'g-link'));
   if (card.link) more.append(link('출처 보기', card.link, 'g-link'));
   box.append(area, more);
   return box;

@@ -298,7 +298,7 @@ async function prepareCard() {
  * 답장(reply)이면 나를 부른 친구(invite)도 같이 담는다 — 그 친구가 열면 걷지 않고 두 동네를 바로 본다(town.ts 의 openReply).
  * 카톡 안 브라우저는 저장 칸이 따로라 「지난번 내 동네」 를 못 읽을 수 있어서, 친구 동네를 링크에 다시 싣는다.
  */
-function share(reply = false) {
+function share(reply = false, copy = false) {
   if (inspecting) { ui.toast('점검 중에는 실제 공유를 보내지 않아요.'); return; }
   // 방금 걸었으면 이번 판, 마을(시민센터 방명록, 10-20)에서 다시 온 사람이면 지난번 판(villageMe)
   const mine = villageMe()?.person;
@@ -315,9 +315,13 @@ function share(reply = false) {
     : `함께해요 시민의 숲 — 나는 ${josa(`「${TYPES[mine.type].name}」`, '이래요', '래요')}. 너도 걸어 봐!`;
   // 그림이 준비됐고 받는 쪽이 파일을 받으면 그림 + 글(링크 포함), 아니면 지금처럼 링크만.
   const files = card && navigator.canShare?.({ files: [card] }) ? [card] : undefined;
-  if (navigator.share) navigator.share(files ? { files, text: `${text}\n${url}` } : { title: '함께해요 시민의 숲', text, url }).catch(() => {});
-  else if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
-  else ui.toast(url); // 공유·복사가 다 없는 곳(https 가 아닌 주소) — 주소라도 보인다
+  sendLink(copy, '함께해요 시민의 숲', text, url, files);
+}
+/** 공유 창(폰 — 카톡이 그 안에) 또는 링크 복사(ui.ts shareButtons). 공유·복사가 다 없는 곳(https 가 아닌 주소)은 주소라도 보인다. */
+function sendLink(copy: boolean, title: string, text: string, url: string, files?: File[]) {
+  if (!copy && typeof navigator.share === 'function') { navigator.share(files ? { files, text: `${text}\n${url}` } : { title, text, url }).catch(() => {}); return; }
+  if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
+  else ui.toast(url);
 }
 
 /**
@@ -363,7 +367,7 @@ function openHub(person: Person, extra: { photo?: string; tab?: 'region' } = {},
     joinRegion: online ? async region => { saveRegion(region); await syncNow(); return net.regionView(region); } : undefined,
     notes: online ? { item: note => noteView(note, noteActions()), post: (text, region) => postNote(text, region) } : undefined,
     subscribe: contactReady ? () => { const n = loadNeighbor(); if (n) { ui.endActions(false); neighborSheet(n, n.name); } } : undefined,
-    share: () => share(),
+    share: copy => share(false, copy),
     login: loginOpts,
   }, onClose, backText);
 }
@@ -453,11 +457,9 @@ const cardOpts = (focus?: string): CardsOpts => ({
     if (got) { const memo = loadCardMemo(); memo.mine[id] = kind; saveCardMemo(memo); }
     return got?.card;
   },
-  share: card => {
+  share: (card, copy) => {
     const url = `${shareAt()}?card=${encodeURIComponent(card.id)}`, text = `문제 카드 — ${card.title}. 이 돈, 어떻게 보세요?`;
-    if (navigator.share) navigator.share({ title: '함께해요 시민의 숲 — 문제 카드', text, url }).catch(() => {});
-    else if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
-    else ui.toast(url);
+    sendLink(copy, '함께해요 시민의 숲 — 문제 카드', text, url);
   },
 });
 /** 판을 열면 지금 있는 카드는 다 본 것으로(「!」·알림이 꺼진다). */
@@ -768,7 +770,7 @@ function showEnd() {
       scene?.pickNeighbor(follower => { ui.hint(); neighborSheet(follower); });
     },
     others: online ? async () => ui.others((await net.stats()) ?? stats, mine()) : undefined,
-    share: () => share(),
+    share: copy => share(false, copy),
     reply: invite ? { label: `${invite.name}님에게 답장`, run: () => share(true) } : undefined,
     // 링크 받은 친구도 서로 고른 것을 나란히(사용자 10-19) — 초대 링크에 실려 온 그 친구의 열다섯 가지
     compare: invite && friendTown && myTown ? { label: `${invite.name}님과 고른 것 보기`, run: () => openCompare(shell, { name: me.name, pick: me.pick, type: state.result!, town: myTown }, { ...invite, town: friendTown }, () => {}) } : undefined,

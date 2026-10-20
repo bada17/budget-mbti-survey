@@ -21,7 +21,7 @@ type Words = { title: string; text: string };
 const PAGE = {
   top: { logo: '', line: '혼자 읽는 예산서 말고, 함께 걷는 우리 동네 살림' },
   hero: { title: '함께해요 시민의 숲', text: '우리 동네 살림, 같이 들여다볼 이웃을 찾아요', photo: 'landing/hero.jpg' },
-  intro: { title: '시민의 숲은', text: '우리가 낸 세금이 어디에 쓰이면 좋을지, 걸으며 고르는 작은 게임이에요. 다 걸으면 시민의 숲에서 우리 동네 예산과 세금을 볼 수 있어요.', photo: 'landing/intro.jpg' },
+  intro: { title: '시민의 숲은', text: '우리 동네 살림을 이웃과 함께 들여다보는 마을이에요. 걷기 게임으로 예산 고민을 먼저 해 보고, 마을에서 우리 동네 돈이 어디서 와서 어디에 쓰이는지 같이 따져 봐요.', photo: 'landing/intro.jpg' },
   what: { title: '시민의 숲에서는 무엇을 하나요?', items: [
     { title: '걸으며 고민해요', text: '둘 다 필요한데 하나만 골라야 한다면? 숲길에서 주민들의 바람을 듣고 열다섯 번 골라요. 다 걸으면 나의 예산 성향이 나와요.', shot: 'landing/phone-room.jpg', icon: '' },
     { title: '우리 동네 살림을 펼쳐 봐요', text: `시·군·구를 고르면 우리 동네 돈이 어디서 와서 어디에 쓰이는지 보여요. ${placeName('tax')}과 ${placeName('finance')}에서 전국 243개 지방정부를 다 볼 수 있어요.`, shot: 'landing/phone-village.jpg', icon: '' },

@@ -25,6 +25,15 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text 
 const button = (className: string, text: string, onClick: () => void) => {
   const b = el('button', className, text); b.type = 'button'; b.onclick = onClick; return b;
 };
+/**
+ * 친구에게 보내기 = 「공유하기」·「링크 복사」 두 단추(10-20 사용자 — 카톡 단추를 따로 두는 대신, 폰 공유 창 안에 카톡이 있다).
+ * 공유 창이 없는 곳(PC 대부분)은 「링크 복사」 하나. 받는 쪽 on(copy) — copy 면 복사, 아니면 공유 창.
+ */
+export function shareButtons(className: string, on: (copy: boolean) => void): HTMLButtonElement[] {
+  const can = typeof navigator.share === 'function';
+  const copy = button(can ? 'g-ghost' : className, '링크 복사', () => on(true));
+  return can ? [button(className, '공유하기', () => on(false)), copy] : [copy];
+}
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 const icon = (node: HTMLElement, svg: string, label: string) => { node.innerHTML = svg; node.setAttribute('aria-label', label); return node; };
 export const ICONS = {
@@ -517,7 +526,7 @@ export function createUI(root: HTMLElement, actions: {
      * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들.
      * 시민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차). 마을로는 언덕의 빛 아치를 걸어서 지난다(10-14).
      */
-    end(info: { code: TypeCode; scores: AxisScores; answers: Record<string, number>; lines: string[] }, on: { neighbor(): void; others?: () => void; share(): void; reply?: { label: string; run(): void }; compare?: { label: string; run(): void }; village(): void }) {
+    end(info: { code: TypeCode; scores: AxisScores; answers: Record<string, number>; lines: string[] }, on: { neighbor(): void; others?: () => void; share(copy: boolean): void; reply?: { label: string; run(): void }; compare?: { label: string; run(): void }; village(): void }) {
       const card = el('div', 'g-end-card');
       // 세 축 — 왜 이 유형인지. 점은 -100~+100 을 막대 위 자리로, 가운데 금이 갈림길.
       const axes = el('ul', 'g-axes');
@@ -541,7 +550,7 @@ export function createUI(root: HTMLElement, actions: {
       // give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
       const row = el('div', 'g-end-row'), links = el('div', 'g-end-links');
-      row.append(button('g-primary', '친구에게 보내기', on.share)); // [나중에 살림: 내 이웃] 사용자 10-19 「일단 숨기기로」 — 살리면 , button('g-ghost', '내 이웃 정하기', on.neighbor)
+      row.append(...shareButtons('g-primary', on.share)); // [나중에 살림: 내 이웃] 사용자 10-19 「일단 숨기기로」 — 살리면 , button('g-ghost', '내 이웃 정하기', on.neighbor)
       links.append(...(on.compare ? [button('g-link', on.compare.label, on.compare.run)] : [])); // [나중에 살림: 끝 화면 셋] , ...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : [])
       bar.append(
         row,

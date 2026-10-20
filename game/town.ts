@@ -19,7 +19,7 @@ import { TOWN_IDS, REGIONS, josa, loadStamps, addStamp, loadRegion, saveRegion, 
 import { toLook, lookFrom, hairColor, type Look, type Pick } from './look';
 import { board, ISSUE_AT, ISSUED } from './stamps';
 import { letterFor, type Season } from './seasons';
-import { DONATE_URL, GAME_URL, backCloses, ICONS, contactForm } from './ui';
+import { DONATE_URL, GAME_URL, backCloses, ICONS, contactForm, shareButtons } from './ui';
 import { PRIVACY_URL, type ContactForm } from './contact';
 import { PROVIDER_NAME, current as loginNow, type Provider, type Intent } from './login';
 import type { PublicNote, RegionView, Visit } from './api';
@@ -44,7 +44,7 @@ export type HubData = {
   /** 이웃 편지 받기(= 소식 받기 판 열기). 연락처 칸이 켜진 판에서만. */
   subscribe?: () => void;
   /** 친구에게 보내기(끝 화면과 같은 링크 — 내 방명록 집 번호가 실린다). 방명록 칸 아래 단추(10-20). */
-  share?: () => void;
+  share?: (copy: boolean) => void;
   /** 로그인(login.ts) — 단추가 없는 판(키를 넣기 전)엔 안 보인다. */
   login?: LoginOpts;
 };
@@ -188,11 +188,11 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     // 무슨 칸인지 늘 맨 위에 한 줄(사용자 10-19 「방명록을 들어가면 어떤 기능인지 설명하는 한 줄」 — 문구 확정)
     book.append(el('p', 't-small', '내가 보낸 링크로 들어와 한 바퀴를 끝까지 걸은 친구가 여기 남아요. 나만 볼 수 있어요.'), status, list);
     // 링크 보내기 단추를 그 자리에(10-20 사용자 「여기에 친구에게 링크보내는 버튼이 있어야 할거 같아」) — 친구가 있어도 더 부를 수 있게 늘 맨 아래.
-    if (data.share) book.append(btn('g-primary', '친구에게 보내기', data.share));
+    if (data.share) book.append(...shareButtons('g-primary', data.share));
     tab('방명록', book);
     void data.book().then(guests => {
       if (!guests) { status.textContent = '지금은 방명록을 불러올 수 없어요.'; return; }
-      if (!guests.length) { status.textContent = data.share ? '아직 없어요. 아래 「친구에게 보내기」로 링크를 보내 보세요.' : '아직 없어요.'; return; }
+      if (!guests.length) { status.textContent = data.share ? '아직 없어요. 아래 단추로 친구에게 링크를 보내 보세요.' : '아직 없어요.'; return; }
       if (addStamp('guest')) { refreshStamps(); void prepare(); }
       status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요.`;
       for (const g of guests) {
