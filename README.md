@@ -871,6 +871,7 @@ Claude 가 이해한 것과 질문을 몰아 드리고 답(1ⓐⓑⓒⓕⓖ · 2
 
 **고칠 때 걸리는 것**
 - **`@keyframes` 안에 `calc(%…)` 를 쓰지 말 것**(아이패드 사파리가 안 돌림) — `%` 는 `translate` 속성으로 빼고 `@keyframes` 는 px 만. **한 규칙에 `translate` 와 `transform` 을 같이 두지 말 것** — 빌드 압축(lightningcss)이 `translate` 를 지운다(개발판은 멀쩡, 공개판에서만 깨짐).
+- 마우스로 하는 PC(`pointer: fine`)는 화면이 1배여도 2배로 그린다(`main.ts` measure) — 그림·글씨·공유 그림 바탕이 또렷. 폰은 기기 배수 그대로.
 - **캔버스 글씨는 `resolution: textRes(…)`**(`draw.ts`, 적어도 2배) — dpr 그대로면 PC 1배·윈도 125% 에서 뭉갠다. 시험 game-village 「캔버스 글씨」 가 막는다.
 - 간판은 건물 그림에 구워 넣는다 — 주아가 늦게 오면 `draw.ts` 가 글씨 든 그림을 다시 굽는다. 간판에 새 글자를 쓰면 `CANVAS_TEXT` 에도 넣는다(개발판 콘솔이 알림).
 - 플레이라이트 `screenshot` 은 글꼴을 기다렸다 찍는다 — 「글꼴 오기 전」 은 CDP `Page.captureScreenshot` 으로.

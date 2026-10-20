@@ -738,7 +738,10 @@ function measure() {
   const rect = ui.surface.getBoundingClientRect();
   view.w = Math.max(1, Math.round(rect.width));
   view.h = Math.max(1, Math.round(rect.height));
-  view.dpr = Math.min(3, window.devicePixelRatio || 1);
+  // 마우스로 하는 PC 는 화면이 1배여도 2배로 그린다 — 그림·글씨가 또렷하고, 공유 그림 바탕(장면 스냅숏)도 2배로 찍힌다(10-20, 전엔 PC 에서 보낸 그림이 흐렸다).
+  // 폰(손가락)은 기기 배수 그대로 — 느린 폰에 화소를 더 지우지 않는다.
+  const pc = window.matchMedia?.('(pointer: fine)').matches ?? false;
+  view.dpr = Math.min(3, Math.max(window.devicePixelRatio || 1, pc ? 2 : 1));
 }
 
 async function boot() {
