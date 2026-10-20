@@ -1,5 +1,5 @@
 import { AXES, COMMON_QUESTIONS, FIELD_QUESTIONS, ROUTE, REPLIES, CONTENT_VERSION, type Question } from './content';
-import { buildResponseMeta, shouldSwapSurveyOptions, type SurveyTiming } from '../app/survey-response';
+import { buildResponseMeta, shouldSwapSurveyOptions, type SurveyTiming } from './survey-response';
 import type { Answers } from './score';
 
 export type DisplaySide = 'left' | 'right';

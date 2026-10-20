@@ -48,18 +48,14 @@ npx tsc --noEmit
 
 ## 정적판 (깃허브 페이지)
 
-한 `gh-pages` 갈래에 둘이 같이 올라갑니다. 주소는 **forest.action.or.kr**(10-19 — 깃허브 Settings → Pages 에 도메인을 넣기 전까진 옛 bada17.github.io/budget-mbti-survey/).
-- **https://forest.action.or.kr/** — 설문(후원주점 QR 용). 저장·서버 없이 돕니다.
-  `static/` 이 입구이고 `app/SurveyApp.tsx` 를 그대로 씁니다. `static/public/CNAME` 이 같이 구워져 주소를 지킨다.
-- **https://forest.action.or.kr/game/** — 게임(시트 서버 붙은 판 — `game/.env.production`). 테이블은 꺼져 있고, 연락처 칸은 개발판(`npm run dev:game`)에서만 보입니다.
-
-올리는 법 — ⚠️ **둘을 같이 구워 올립니다.** 하나만 강제로 올리면 다른 하나가 사라집니다.
+**10-20 옛 「예산 성향 테스트」 설문(app·static·worker·db·Next)을 지우고 게임을 첫 주소로 옮겼다**(사용자 「지워버려. 저 도메인으로 쓰고 싶어」).
+- https://forest.action.or.kr/ — 게임. `game/public/CNAME` 이 같이 구워져 주소를 지킨다.
+- 옛 /game/ 은 `game/public/game/index.html` 이 첫 주소로 넘긴다(?·# 그대로 — 퍼진 친구 링크·홈페이지 링크).
+- ⚠️ 올리기 전에: 카카오·구글 콘솔 리디렉션 URI 에 `https://forest.action.or.kr/` 더하기(사용자) → 시트 서버 다시 올리기(Code.js LOGIN_REDIRECTS 에 첫 주소 더함). 안 하면 첫 주소에서 로그인이 막힌다.
 
 ```bash
-npx vite build -c vite.static.config.ts   # 설문 → dist-static/
-npm run build:game                        # 게임 → dist-game/
-cp -r dist-game dist-static/game
-cd dist-static && git init -q -b gh-pages && git add -A && git commit -qm "정적판"   && git push -f https://github.com/bada17/budget-mbti-survey.git gh-pages && rm -rf .git
+npm run build:game   # 게임 → dist-game/ (CNAME·/game/ 넘김 포함)
+cd dist-game && git init -q -b gh-pages && git add -A && git commit -qm "정적판" && git push -f https://github.com/bada17/budget-mbti-survey.git gh-pages && rm -rf .git
 ```
 
 ## 남은 일

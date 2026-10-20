@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   buildResponseMeta,
   shouldSwapSurveyOptions,
-} from "../app/survey-response.ts";
+} from "../game/survey-response.ts";
 
 /*
   선택지 좌우 뒤집기는 저장 API와 짝을 이룹니다.
@@ -87,32 +87,4 @@ test("응답 시간은 문항이 보인 뒤 답하기까지로 잰다", () => {
   });
   assert.equal(meta["ANC-F1"].responseTimeMs, 3_500);
   assert.equal(meta["ANC-F2"].responseTimeMs, 0);
-});
-
-test("축이 얼마나 기울었는지 세 단계로 가른다", async () => {
-  const { readAxisStrength, CLEAR_SCORE, LEANING_SCORE } = await import(
-    "../app/survey-response.ts"
-  );
-
-  assert.equal(readAxisStrength(0), "even");
-  assert.equal(readAxisStrength(LEANING_SCORE - 0.1), "even");
-  assert.equal(readAxisStrength(LEANING_SCORE), "leaning");
-  assert.equal(readAxisStrength(CLEAR_SCORE), "clear");
-  assert.equal(readAxisStrength(100), "clear");
-
-  // 어느 쪽으로 기울었는지는 여기서 보지 않습니다. 거리만 봅니다.
-  assert.equal(readAxisStrength(-CLEAR_SCORE), "clear");
-  assert.equal(readAxisStrength(-LEANING_SCORE), "leaning");
-});
-
-/*
-  기준을 올려 두면 화면이 사실상 한 가지 말만 하게 됩니다. 옛 기준(65)에서는
-  무작위로 답한 응답 중 0.1%만 "선명하다"에 닿았습니다.
-*/
-test("한쪽으로 꾸준히 답한 사람은 뚜렷하다고 나온다", async () => {
-  const { readAxisStrength } = await import("../app/survey-response.ts");
-  // 6점 척도에서 5~6쪽으로만 답하면 축 점수가 60~100 사이에 놓입니다.
-  assert.equal(readAxisStrength(60), "clear");
-  // 반대로 3~4를 오가면 가운데에 머뭅니다.
-  assert.equal(readAxisStrength(10), "even");
 });

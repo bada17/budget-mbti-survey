@@ -1,7 +1,7 @@
 import { ROUTE, CONTENT_VERSION, REPLIES, type TypeCode } from './content';
 import { scoreAnswers, typeCode, type Answers } from './score';
 import { orderedQuestions, answerFor, type DisplaySide } from './response';
-import type { SurveyTiming } from '../app/survey-response';
+import type { SurveyTiming } from './survey-response';
 import type { GameEvent } from './events';
 
 export type JourneyState = {

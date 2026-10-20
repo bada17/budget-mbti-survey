@@ -10,7 +10,7 @@
   구조·움직임은 Claude, 겉모습(landing.css)은 GPT(README 「GPT 에게 — 겉모습」).
 
   언제 보이나 — main.ts: 처음 온 사람이 아무것도 안 붙은 주소로 왔을 때만. 친구 초대·테이블·로그인 돌아옴·
-  다시 온 사람(바로 마을)은 건너뛴다. ?about 이면 늘 보인다(보기용). 주소는 /game/ 그대로 — 로그인 돌아오는 주소를 안 바꾸려고.
+  다시 온 사람(바로 마을)은 건너뛴다. ?about 이면 늘 보인다(보기용). 주소는 10-20 부터 첫 주소(forest.action.or.kr/) — 옛 /game/ 은 첫 주소로 넘어온다.
 */
 import footerHtml from './landing-footer.html?raw'; // 홈페이지 하단 — scripts/port-footer.mjs 가 만든다
 import { placeName } from './village'; // 건물 이름은 간판에서(글에 박아 두지 않는다)

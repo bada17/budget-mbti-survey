@@ -1,8 +1,9 @@
-import type {
-  SurveyAnswers,
-  SurveyQuestion,
-  SurveyResponseMeta,
-} from "./survey-v3-data";
+/*
+  응답에 같이 싣는 값 — 좌우 뒤집기와 응답 시간(옛 설문 app/survey-response.ts 에서 게임이 쓰던 것만 옮김, 10-20 옛 설문을 지우며).
+  계산은 그대로다(저장 쪽이 화면 순서를 되짚어 보므로 바뀌면 안 된다).
+*/
+type Answers = Record<string, number>;
+type ResponseMeta = Record<string, { displayResponse: number; displayOrder: 'AB' | 'BA'; responseTimeMs: number }>;
 
 /**
  * 선택지 좌우를 세션마다 뒤집습니다.
@@ -29,30 +30,6 @@ export type SurveyTiming = Record<
   { firstVisibleAt: number; firstAnsweredAt?: number }
 >;
 
-/*
-  "얼마나 뚜렷한가"를 말하는 기준입니다.
-
-  원래 기준은 65 이상이면 "선명합니다", 35 미만이면 "경계에 있습니다"였는데,
-  실제로는 65에 닿는 사람이 거의 없었습니다. 20만 건을 돌려보니 무작위로 답한
-  경우 65 이상은 0.1%, 35 미만이 82%였습니다. 유형 이름을 크게 띄워 놓고 바로
-  밑에서 "당신은 경계에 있습니다"라고 말하는 화면이 됐던 것입니다. 문항 수를
-  줄여서 생긴 일이 아니라 옛 방식(분야별 15~21문항)에서도 똑같았습니다.
-
-  그래서 답하는 사람이 얼마나 한쪽으로 기우는지에 따라 점수가 어떻게 나오는지
-  다시 재고 기준을 잡았습니다. 한 방향으로 60%쯤 일관되게 답하면 중앙값이 55,
-  거의 찍듯이 답하면 24가 나옵니다. 45와 20은 그 사이를 가르는 자리입니다.
-*/
-export const CLEAR_SCORE = 45;
-export const LEANING_SCORE = 20;
-
-/** 축 하나가 얼마나 한쪽으로 기울었는지. 화면 문구가 여기서 나옵니다. */
-export function readAxisStrength(score: number) {
-  const distance = Math.abs(score);
-  if (distance >= CLEAR_SCORE) return "clear" as const;
-  if (distance >= LEANING_SCORE) return "leaning" as const;
-  return "even" as const;
-}
-
 /**
  * 저장할 때 응답과 함께 보낼 값입니다.
  *
@@ -70,11 +47,11 @@ export function buildResponseMeta({
   timing,
   sessionId,
 }: {
-  questions: SurveyQuestion[];
-  answers: SurveyAnswers;
+  questions: { id: string }[];
+  answers: Answers;
   timing: SurveyTiming;
   sessionId: string;
-}): SurveyResponseMeta {
+}): ResponseMeta {
   return Object.fromEntries(
     questions
       .filter((question) => answers[question.id] !== undefined)

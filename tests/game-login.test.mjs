@@ -178,10 +178,10 @@ test('기록 묶음의 동전·산 액세서리(10-19): 동전은 더 나중에 
   assert.deepEqual(loadOwned(), []);
 });
 
-test('새 주소(forest.action.or.kr, 10-19): 옛 주소와 새 주소 둘 다 로그인 돌아오는 곳으로 받는다', () => {
-  const both = { LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/,https://forest.action.or.kr/game/' };
-  for (const uri of ['https://bada17.github.io/budget-mbti-survey/game/', 'https://forest.action.or.kr/game/']) {
-    assert.deepEqual(verifyLogin({ provider: 'kakao', code: 'good', redirectUri: uri }, fakeDeps(kakaoOk, both), 0), { provider: 'kakao', subject: '4242' }, uri);
+test('주소(10-19 forest.action.or.kr, 10-20 첫 주소로 옮김): 첫 주소와 옛 /game/ 둘 다 로그인 돌아오는 곳으로 받는다', () => {
+  const all = { LOGIN_REDIRECTS: 'https://forest.action.or.kr/,https://bada17.github.io/budget-mbti-survey/game/,https://forest.action.or.kr/game/' };
+  for (const uri of ['https://forest.action.or.kr/', 'https://bada17.github.io/budget-mbti-survey/game/', 'https://forest.action.or.kr/game/']) {
+    assert.deepEqual(verifyLogin({ provider: 'kakao', code: 'good', redirectUri: uri }, fakeDeps(kakaoOk, all), 0), { provider: 'kakao', subject: '4242' }, uri);
   }
-  assert.equal(verifyLogin({ provider: 'kakao', code: 'good', redirectUri: 'https://forest.action.or.kr/' }, fakeDeps(kakaoOk, both), 0), undefined, '게임 주소만');
+  assert.equal(verifyLogin({ provider: 'kakao', code: 'good', redirectUri: 'https://forest.action.or.kr/other/' }, fakeDeps(kakaoOk, all), 0), undefined, '게임 주소만');
 });

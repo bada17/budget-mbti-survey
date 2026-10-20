@@ -38,7 +38,8 @@ var LOGIN_ = {
   KAKAO_REST_KEY: '2c211b5e7341b2e654b07178f8c4a2e0',
   GOOGLE_CLIENT_ID: '923895140266-9s542791ibsnb8d8j0iouirhocovbi1f.apps.googleusercontent.com',
   // 새 주소(10-19 forest.action.or.kr)를 더했다 — 옛 주소는 깃허브가 새 주소로 넘겨주지만 지우지 않는다(카카오·구글 콘솔도 둘 다).
-  LOGIN_REDIRECTS: 'https://bada17.github.io/budget-mbti-survey/game/,https://forest.action.or.kr/game/',
+  // 10-20 게임을 첫 주소(forest.action.or.kr/)로 옮겼다 — 첫 주소를 더하고, 옮기기 전에 로그인하러 간 사람이 /game/ 으로 돌아오니 옛 둘도 둔다.
+  LOGIN_REDIRECTS: 'https://forest.action.or.kr/,https://bada17.github.io/budget-mbti-survey/game/,https://forest.action.or.kr/game/',
 };
 
 /** 로그인 확인에 쓰는 바깥 것들(server/gas.ts 의 Deps). */

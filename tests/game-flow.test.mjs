@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createJourney, transition, currentQuestion } from '../game/flow.ts';
 import { displayOptions, answerFor, buildGameResponse, orderedQuestions } from '../game/response.ts';
-import { buildResponseMeta } from '../app/survey-response.ts';
+import { buildResponseMeta } from '../game/survey-response.ts';
 import { scoreAnswers, typeCode } from '../game/score.ts';
 
 function play(code, sessionId) {

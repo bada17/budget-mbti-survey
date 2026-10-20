@@ -84,7 +84,7 @@ export function backCloses(close: () => void) {
  */
 export const DONATE_URL = 'https://action.or.kr/74?utm_source=dongne-game&utm_medium=game&utm_campaign=budget-game';
 /** 공유 링크가 가리키는 게임 주소 — 카톡·문자로 나가는 링크는 늘 이 주소(사용자 10-19 「포레스트 링크로」). 개발판은 제 주소. */
-export const GAME_URL = 'https://forest.action.or.kr/game/';
+export const GAME_URL = 'https://forest.action.or.kr/'; // 10-20 첫 주소로 옮김(옛 /game/ 은 public/game/index.html 이 넘겨줌)
 /** 끝 화면 「우리 세금을 ○, ○, ○ 쓰자는 쪽이에요」 — 축마다 [left, right]. content.ts AXES 의 leftMeans·rightMeans 를 해요체 한 토막으로(초안, 사용자 확인 전). */
 const SPEND = {
   hands: ['모두가 함께 쓰는 시설·제도에', '사람에게 바로 닿게'],
