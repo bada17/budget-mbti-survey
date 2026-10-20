@@ -258,16 +258,6 @@ test('지방재정 자료(구운 것): 243곳, 시·도 열일곱, 숫자 넷이
   assert.equal(data.places.find(p => p.n === '마포구').b, 992_099_535_000, '망원동 시험 자료와 같은 숫자');
 });
 
-test('마을 금고: 세금 도감은 금고 넷 안에서만', async () => {
-  const { SCENES, FLOWS, VAULTS } = await import('../game/taxes.ts');
-  for (const scene of SCENES) for (const tax of scene.taxes) {
-    assert.ok(tax.to.length, `${scene.title} ${tax.name}`);
-    for (const to of tax.to) assert.ok(VAULTS[to.vault], `${tax.name} → ${to.vault}`);
-  }
-  for (const flow of FLOWS) for (const v of [flow.from, ...flow.to]) assert.ok(VAULTS[v]);
-  assert.ok(PLACES.some(p => p.id === 'tax'), '빈 터에 마을 금고');
-});
-
 test('마을 공사·나무: 동전이 앞 공사부터 채우고, 하루 떨어지는 동전은 정해진 수, 서버는 하루 한도까지만 받는다', async () => {
   const { worksAt, dropsOn, COIN_DAY_MAX, COIN_HIDDEN, WORKS } = await import('../game/village.ts');
   assert.ok(COIN_DAY_MAX >= WORKS[0].goal, '하루에 다리 하나를 혼자 채울 수 있다(10-15)');

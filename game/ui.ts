@@ -522,24 +522,26 @@ export function createUI(root: HTMLElement, actions: {
         row.append(el('span', `g-ax-l${right ? '' : ' on'}`, axis.left), track, el('span', `g-ax-r${right ? ' on' : ''}`, axis.right), el('span', 'g-sr', ` — ${right ? axis.right : axis.left} 쪽`));
         axes.append(row);
       }
+      // [나중에 살림: 끝 화면 셋] 사용자 10-20 「다른 사람들은?·후원하기·왜 이 유형일까는 삭제하자」·「일단 주석처리해놔」 — 살리면 아래 셋을 풀고 card·bar 에 다시 붙인다.
       // 「왜 이 유형일까?」 — 누르면 축마다 내 선택 다섯이 어느 쪽으로 당겼는지(화면에만 — 공유 그림에선 뺀다, picture)
-      const why = button('g-link g-why', '왜 이 유형일까?', () => this.why(info.answers, info.scores));
+      // const why = button('g-link g-why', '왜 이 유형일까?', () => this.why(info.answers, info.scores));
       // 이 게임이 무엇이고 이 유형이 무슨 뜻인지(사용자 10-19 「알려줘야지」) — 위에 「나의 예산 성향」, 막대 밑에 세금을 어떻게 쓰자는 쪽인지 한 줄(코드 자리 1 = right 쪽).
       const spend = AXES.map((axis, i) => SPEND[axis.key][info.code[i] === '1' ? 1 : 0]).join(', ');
       card.append(el('p', 'g-kicker', '나의 예산 성향'), el('h1', '', TYPES[info.code].name), el('p', 'g-line', TYPES[info.code].line), axes,
-        el('p', 'g-small g-mean', `우리 세금을 ${spend} 쓰자는 쪽이에요.`), why);
-      const give = el('a', 'g-link g-give', '함께하는 시민행동 후원하기');
-      give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
+        el('p', 'g-small g-mean', `우리 세금을 ${spend} 쓰자는 쪽이에요.`)); // [나중에 살림: 끝 화면 셋] , why
+      // [나중에 살림: 끝 화면 셋] 후원 — 지금은 시민행동의 집·시민센터에만
+      // const give = el('a', 'g-link g-give', '함께하는 시민행동 후원하기');
+      // give.href = DONATE_URL; give.target = '_blank'; give.rel = 'noopener';
       const bar = el('div', 'g-end-actions');
       const row = el('div', 'g-end-row'), links = el('div', 'g-end-links');
       row.append(button('g-primary', '친구에게 보내기', on.share)); // [나중에 살림: 내 이웃] 사용자 10-19 「일단 숨기기로」 — 살리면 , button('g-ghost', '내 이웃 정하기', on.neighbor)
-      links.append(...(on.compare ? [button('g-link', on.compare.label, on.compare.run)] : []), ...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : []));
+      links.append(...(on.compare ? [button('g-link', on.compare.label, on.compare.run)] : [])); // [나중에 살림: 끝 화면 셋] , ...(on.others ? [button('g-link', '다른 사람들은?', on.others)] : [])
       bar.append(
         row,
         ...(on.reply ? [button('g-ghost', on.reply.label, on.reply.run)] : []), // 나를 부른 친구에게 답장(기획 3차 ①)
         button('g-sr', `${VILLAGE_NAME}로 들어가기`, on.village), // 눈으로는 빛 아치를 걸어서 지난다 — 화면 읽기 도구·키보드만 쓰는 사람의 길
         links,
-        give,
+        // give, // [나중에 살림: 끝 화면 셋]
       );
       end.replaceChildren(card, bar);
       end.hidden = false;
@@ -630,9 +632,9 @@ export function createUI(root: HTMLElement, actions: {
      */
     villageNotice(who?: string, text = '', acts: { label: string; run?(): void }[] = [], even = false) {
       shell.querySelector('.g-notice')?.remove();
-      if (!who) return;
+      if (who === undefined) return; // 빈 이름('')은 이름표 없이 말만(언덕 안내하는 사람, 10-20)
       const box = el('section', 'g-notice'), talk = el('div', 'g-talk'), said = el('p', 'g-quote'), row = el('div', 'g-notice-acts');
-      talk.append(el('span', 'g-name', who), said);
+      talk.append(...(who ? [el('span', 'g-name', who)] : []), said);
       talk.onclick = () => finishTyping(said);
       // even — 고르기(부탁의 보기)는 단추를 다 같은 모양으로(첫 단추만 눈에 띄면 그쪽으로 기운다)
       row.append(...acts.map((act, i) => button(even ? 'g-ghost g-choice' : i ? 'g-ghost' : 'g-primary', act.label, () => { box.remove(); act.run?.(); })));
@@ -640,7 +642,7 @@ export function createUI(root: HTMLElement, actions: {
       box.append(talk, row);
       shell.append(box);
       typeOut(said, text);
-      live.textContent = `${who}: ${text}`;
+      live.textContent = who ? `${who}: ${text}` : text;
     },
     /** 짧은 한마디 — 이름표 얹은 말 상자가 아래에 잠깐 떴다 사라진다(누를 것 없음, 조작을 막지 않는다). */
     say(who: string, text: string, ms = 1900) {

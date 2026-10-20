@@ -21,9 +21,9 @@ import { board, ISSUE_AT, ISSUED } from './stamps';
 import { letterFor, type Season } from './seasons';
 import { DONATE_URL, GAME_URL, backCloses, ICONS, contactForm } from './ui';
 import { PRIVACY_URL, type ContactForm } from './contact';
-import { PROVIDER_NAME, type Provider, type Intent } from './login';
+import { PROVIDER_NAME, current as loginNow, type Provider, type Intent } from './login';
 import type { PublicNote, RegionView, Visit } from './api';
-import { VILLAGE_NAME, NOTE_MAX, NOTE_WHY, checkNote } from './village';
+import { VILLAGE_NAME, NOTE_MAX, NOTE_WHY, checkNote, placeName } from './village';
 
 export type Person = { name: string; pick: Pick; type: TypeCode; town: Town };
 type Guest = Omit<Visit, 'sessionId'>;
@@ -42,6 +42,8 @@ export type HubData = {
   notes?: { item(note: PublicNote): HTMLElement; post(text: string, region: Region): Promise<{ ok: boolean; text: string }> };
   /** 이웃 편지 받기(= 소식 받기 판 열기). 연락처 칸이 켜진 판에서만. */
   subscribe?: () => void;
+  /** 친구에게 보내기(끝 화면과 같은 링크 — 내 방명록 집 번호가 실린다). 방명록 칸 아래 단추(10-20). */
+  share?: () => void;
   /** 로그인(login.ts) — 단추가 없는 판(키를 넣기 전)엔 안 보인다. */
   login?: LoginOpts;
 };
@@ -177,10 +179,12 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     const status = el('p', 't-small', '불러오는 중…');
     // 무슨 칸인지 늘 맨 위에 한 줄(사용자 10-19 「방명록을 들어가면 어떤 기능인지 설명하는 한 줄」 — 문구 확정)
     book.append(el('p', 't-small', '내가 보낸 링크로 들어와 한 바퀴를 끝까지 걸은 친구가 여기 남아요. 나만 볼 수 있어요.'), status, list);
+    // 링크 보내기 단추를 그 자리에(10-20 사용자 「여기에 친구에게 링크보내는 버튼이 있어야 할거 같아」) — 친구가 있어도 더 부를 수 있게 늘 맨 아래.
+    if (data.share) book.append(btn('g-primary', '친구에게 보내기', data.share));
     tab('방명록', book);
     void data.book().then(guests => {
       if (!guests) { status.textContent = '지금은 방명록을 불러올 수 없어요.'; return; }
-      if (!guests.length) { status.textContent = '아직 없어요. 끝 화면의 「친구에게 보내기」로 링크를 보내 보세요.'; return; }
+      if (!guests.length) { status.textContent = data.share ? '아직 없어요. 아래 「친구에게 보내기」로 링크를 보내 보세요.' : '아직 없어요.'; return; }
       addStamp('guest');
       status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요.`;
       for (const g of guests) {
@@ -315,8 +319,18 @@ export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: bo
   panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `✓ ${PROVIDER_NAME[provider]}로 로그인했어요`),
     el('p', 't-lead', unsaved
       ? '로그인은 됐지만 기록을 서버에 아직 못 올렸어요. 이 기기에는 그대로 있고, 다음에 열 때 다시 올려요.'
-      : `이제 기록이 남아요. 다른 기기에서도 같은 ${PROVIDER_NAME[provider]} 계정으로 들어오면 그대로 이어 할 수 있어요.`),
-    btn('g-primary', '확인', close));
+      : `이제 기록이 남아요. 다른 기기에서도 같은 ${PROVIDER_NAME[provider]} 계정으로 들어오면 그대로 이어 할 수 있어요.`));
+  // 내 동네가 아직 없으면 여기서 묻는다(10-20 사용자 「로그인하면 우리동네 설정을 하시겠어요? 물어보고 설정하게」) — 내 동네는 로그인한 사람만 정하니, 로그인한 그 자리가 맞다.
+  // 다른 기기에서 정해 둔 사람은 로그인하며 서버 것을 받아(importSave) 이미 있다 — 묻지 않는다.
+  if (!loadRegion()) {
+    const mine = el('section', 't-login-region'), go = btn('g-ghost', '내 동네 정하기', () => {
+      go.disabled = true;
+      void loadPlaces().then(({ places }) => { go.remove(); mine.append(...placeChooser(places, () => {})); }, () => { go.disabled = false; });
+    });
+    mine.append(el('p', 't-mine-q', '내 동네를 정할까요?'), el('p', 't-small', `우리 동네 사람들과 함께 서고, ${placeName('finance')}·${placeName('tax')}이 바로 내 동네를 보여 줘요. 나중에 정해도 돼요.`), go);
+    panel.append(mine);
+  }
+  panel.append(btn('g-primary', '확인', close));
 }
 
 /**
@@ -344,17 +358,23 @@ export const placeTitle = (place: FinancePlace) => (place.n.endsWith('(시·도)
  * 저장한 곳이 있으면 고르는 칸은 접고 그 곳을 바로 연다(머리 줄에 「다른 동네 보기」). 없으면 시·도 → 시·군·구 고르기.
  * 고른 곳이 내 동네가 아니면 「여기를 내 동네로 저장」. show(곳) 가 내용을 그리고(곳이 없으면 비움), 저장하면 onSave.
  * 돌려주는 둘(고르는 칸, 머리 줄)을 내용 칸 앞에 붙인다.
+ * 저장은 로그인한 사람만(10-20 사용자 「로그인하지 않은 사람은 아예 동네 선택을 못해. 보기만」 → ⓐ) — 안 했으면 골라서 보기만, 들어올 때마다 다시 고른다.
+ * 그 전에(로그인 없이) 저장해 둔 내 동네는 그대로 읽는다 — 로그인하면 그대로 올라간다.
  */
 export function placeChooser(all: FinancePlace[], show: (place?: FinancePlace) => void, onSave?: (place: FinancePlace) => void) {
   const picker = el('div', 't-picker'), sidos = el('div', 't-regions'), towns = el('div', 't-regions'), head = el('div', 't-mine');
+  const logged = Boolean(loginNow());
   // 내 동네가 없으면 맨 위에서 묻고, 처음 고른 곳을 바로 내 동네로(사용자 10-16 「설정하는 것을 쉽게 해야 볼 수 있지」 — 작은 저장 단추는 눈에 안 띄었다).
   const ask = el('div', 't-mine-ask');
-  ask.append(el('p', 't-mine-q', '내 동네는 어디예요?'), el('p', 't-small', '시·도를 누르고 사는 시·군·구를 고르면 내 동네로 저장되고 「내 동네」 도장이 찍혀요. 나중에 바꿀 수 있어요.'));
+  ask.append(...(logged
+    ? [el('p', 't-mine-q', '내 동네는 어디예요?'), el('p', 't-small', '시·도를 누르고 사는 시·군·구를 고르면 내 동네로 저장되고 「내 동네」 도장이 찍혀요. 나중에 바꿀 수 있어요.')]
+    : [el('p', 't-mine-q', '어느 동네를 볼까요?'), el('p', 't-small', `시·도를 누르고 시·군·구를 골라 보세요. 내 동네로 저장하는 건 ${placeName('hub')}에서 로그인한 뒤에 할 수 있어요.`)]));
   picker.append(sidos, towns);
   const mine = () => all.find(p => p.c === loadRegion());
   const showSido = (sido: string) => {
     sidos.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.textContent === sido));
-    towns.replaceChildren(...all.filter(p => p.s === sido).map(p => { const b = btn('t-chip', p.n, () => open(p)); b.dataset.c = p.c; return b; }));
+    // 제주는 제주시·서귀포시가 자치단체가 아니라(행정시) 예산이 도 하나 — 그 둘을 찾는 사람이 알아보게(10-20 사용자 「제주는 제주시랑 서귀포시로 나눠져있지 않아?」)
+    towns.replaceChildren(...all.filter(p => p.s === sido).map(p => { const b = btn('t-chip', p.s === '제주' ? '제주 (제주시·서귀포시)' : p.n, () => open(p)); b.dataset.c = p.c; return b; }));
   };
   /** 내 동네로 — 어디서 정하든 「내 동네」 도장(10-16, 예전엔 주민센터 우리 동네 탭을 열어야만). */
   const save = (place: FinancePlace) => {
@@ -365,7 +385,7 @@ export function placeChooser(all: FinancePlace[], show: (place?: FinancePlace) =
   };
   const open = (place: FinancePlace) => {
     towns.querySelectorAll<HTMLElement>('button').forEach(b => b.classList.toggle('on', b.dataset.c === place.c));
-    if (!loadRegion()) save(place); else drawHead(place);
+    if (logged && !loadRegion()) save(place); else drawHead(place);
     show(place);
   };
   const drawHead = (place?: FinancePlace, note?: string) => {
@@ -378,7 +398,7 @@ export function placeChooser(all: FinancePlace[], show: (place?: FinancePlace) =
       if (note) { const done = el('p', 't-mine-done', note); done.setAttribute('role', 'status'); head.append(done); }
       return;
     }
-    head.append(el('b', '', placeTitle(place)), btn('t-chip t-save', '여기를 내 동네로 저장', () => { save(place); onSave?.(place); }));
+    head.append(el('b', '', placeTitle(place)), ...(logged ? [btn('t-chip t-save', '여기를 내 동네로 저장', () => { save(place); onSave?.(place); })] : []));
     if (my) head.append(btn('g-link', '내 동네로', () => { picker.hidden = true; showSido(my.s); open(my); }));
   };
   sidos.append(...REGIONS.map(sido => btn('t-chip', sido, () => { showSido(sido); drawHead(); show(); })));

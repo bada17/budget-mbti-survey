@@ -11,7 +11,6 @@
 import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, loginInvite, noteForm, type LoginOpts } from './town';
 import { DONATE_URL, typeOut } from './ui';
 import { PLACES, keeperName, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
-import { SCENES, FLOWS, VAULTS, type Vault } from './taxes';
 import { toLook, lookFrom, REWARDS, fullPick, type Pick } from './look';
 import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile';
 import { PRIVACY_URL } from './contact';
@@ -53,8 +52,6 @@ export function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void)
   typeOut(said, line);
   return { panel, close };
 }
-/** 출처·기준 — 접어 둔다(사용자 10-14). */
-const source = (text: string) => { const d = el('details', 't-source'); d.append(el('summary', '', '출처'), el('p', '', text)); return d; };
 
 // ───────────────────────── 버스 정류장 — 한 바퀴 다시 ─────────────────────────
 export function openBus(shell: HTMLElement, neighbor: Neighbor | undefined, walk: () => void, onClose: () => void) {
@@ -146,7 +143,7 @@ export function openCounsel(shell: HTMLElement, onClose: () => void) {
   const pick = Math.random(); // 문답은 하나만 — 시트 것으로 갈아 끼워도 같은 자리를 고른다
   const paint = () => {
     const ready = qas.filter(x => x.q && x.a), qa = ready[Math.floor(pick * ready.length)];
-    const shown = posts.filter(p => p.id && p.title).slice(0, 3);
+    const shown = posts.filter(p => p.id && p.title); // 다(10-20 사용자 「전체가 4개인데 왜 3개만」 — 처음 만들 때 셋으로 자른 까닭은 없었다)
     if (!qa && !shown.length) return;
     status.remove();
     body.replaceChildren();
@@ -203,7 +200,8 @@ export function openDok(shell: HTMLElement, onClose: () => void) {
         const a = link(c.title, out(DOK_URL, `camp-${c.id}`), 'v-item'); // 독상이 #camp-<id> 로 그 사업 팝업을 연다
         if (c.summary) a.append(el('span', 'v-sum', c.summary));
         if (c.period) a.append(el('small', '', c.period));
-        const li = el('li'); li.append(a); items.append(li);
+        // 서명 칸 바로 열기(10-20 사용자 「서명은 왜 바로 안되게」) — 독상이 #join-<id> 로 그 사업의 「이 감시에 참여하기」 서명 칸을 연다(전엔 팝업을 거쳐 한 번 더 눌렀다).
+        const li = el('li'); li.append(a, link('이 감시에 참여하기', out(DOK_URL, `join-${c.id}`), 'g-ghost v-join')); items.append(li);
       }
       body.append(items);
     }
@@ -265,58 +263,12 @@ export function openFinance(shell: HTMLElement, onClose: () => void) {
   townPane(placePanel(shell, 'finance', onClose).panel, '쓰나');
 }
 
-// ───────────────────────── 세금 보는 곳 — 세금 도감 · 우리 동네 금고 ─────────────────────────
-const vaultChip = (vault: Vault, extra = '', name = VAULTS[vault].name) => {
-  const chip = el('span', 'x-vault', `${name} 금고${extra}`);
-  chip.style.setProperty('--c', VAULTS[vault].color);
-  return chip;
-};
 /**
- * 세금 보는 곳(사용자 10-14) — 갈래 둘. ① 세금 도감: 생활 장면을 누르면 붙는 세금과 들어가는 금고, 아래엔 나라·시·도 금고에서 다시 내려오는 길.
- * ② 우리 지역 수입: 우리 동네 페이지의 「돈이 어디서 오나」 쪽을 띄운다(townPane, 10-20 — 예전엔 금고 자료를 따로 구웠다).
- * 금액은 묻지 않는다. ② 는 처음 열 때 불러온다.
+ * 마을 곳간 — 우리 동네 페이지의 「돈이 어디서 오나」 쪽(townPane). 지방정부 예산(쓰나) 바로 옆 집이다.
+ * 10-20 사용자 「마을 곳간에서 세금 종류 부분은 빼자」 — 세금 도감 탭(생활 장면 → 세금 → 금고, taxes.ts)을 걷었다. 되살리려면 커밋 6b9d043 의 openTax·taxes.ts.
  */
 export function openTax(shell: HTMLElement, onClose: () => void) {
-  const { panel } = placePanel(shell, 'tax', onClose);
-  const tabs = el('div', 't-tabs'); tabs.setAttribute('role', 'tablist');
-  const book = el('div', 't-pane'), vault = el('div', 't-pane');
-  let loaded = false;
-  const show = (i: number) => {
-    [book, vault].forEach((pane, j) => { pane.hidden = i !== j; tabs.children[j].classList.toggle('on', i === j); tabs.children[j].setAttribute('aria-selected', String(i === j)); });
-    if (i === 1 && !loaded) { loaded = true; townPane(vault, '오나'); }
-  };
-  ['세금 종류', '우리 지역 수입'].forEach((label, i) => { const b = btn('t-tab', label, () => show(i)); b.setAttribute('role', 'tab'); tabs.append(b); });
-  panel.append(tabs, book, vault);
-
-  // ① 세금 도감 — 장면 타일(넷씩 두 줄), 고른 장면의 세금, 다시 내려오는 길
-  const grid = el('div', 'x-scenes'), detail = el('div', 'x-detail');
-  const pick = (i: number) => {
-    grid.querySelectorAll('button').forEach((b, j) => { b.classList.toggle('on', i === j); b.setAttribute('aria-pressed', String(i === j)); });
-    const scene = SCENES[i];
-    detail.replaceChildren(el('h3', '', `${scene.icon} ${scene.title}`), ...scene.taxes.map(tax => {
-      const row = el('div', 'x-tax');
-      const to = el('div', 'x-to');
-      for (const { vault: v, share, note } of tax.to) {
-        const line = el('p', 'x-flow');
-        line.append(el('span', 'x-arrow', '→'), vaultChip(v, share ? ` ${share}` : ''), ...(note ? [el('small', '', note)] : []));
-        to.append(line);
-      }
-      row.append(el('b', '', tax.name), el('p', 'x-line', tax.line), to);
-      return row;
-    }));
-  };
-  grid.append(...SCENES.map((scene, i) => { const b = btn('x-scene', '', () => pick(i)); b.append(el('span', 'x-icon', scene.icon), el('span', '', scene.title)); return b; }));
-  const flows = el('ul', 'x-flows');
-  for (const flow of FLOWS) {
-    const li = el('li'), head = el('p', 'x-flow');
-    head.append(vaultChip(flow.from), el('span', 'x-arrow', '→'), ...flow.to.map(v => vaultChip(v)));
-    li.append(el('b', '', flow.name), head, el('p', 'x-line', flow.line));
-    flows.append(li);
-  }
-  book.append(grid, detail, el('h3', 'x-h', '나라·시·도 금고에서 다시 내려와요'), flows,
-    source('지방세기본법 제8·9·11조의2, 지방세법(부가가치세의 25.3%·담배소비세 1,007원 등), 지방교부세법 제4조, 지방교육재정교부금법 제3조. 특별·광역시와 도는 시·군·구 몫이 달라요 — 세종·제주는 한 금고로 모여요.'));
-  pick(0);
-  show(0);
+  townPane(placePanel(shell, 'tax', onClose).panel, '오나');
 }
 
 // ───────────────────────── 시민행동의 집 ─────────────────────────
@@ -324,12 +276,13 @@ const CONTACT = { mail: 'action@action.or.kr', tel: '02-921-4709' }; // 홈페�
 /**
  * 시민행동의 집 — 마을의 세 건물이 다 시민행동 일이라는 걸 보여 주고, 누르면 그 문 앞으로(사용자 10-19 ⓐ, 소식·행사는 안 함).
  * 후원은 판의 첫 단추(사용자 10-19 「시민센터, 시민행동의 집을 좀 키우자」), 결제 대신 정기후원 안내(/74).
- * 맨 아래 문의하기 — 메일·전화 두 줄, 폼은 안 만든다(사용자 10-19 「웅」 — 새 개인정보를 받지 않게).
+ * 맨 아래 문의하기 — 메일·전화 두 줄, 폼은 안 만든다(사용자 10-19 「웅」 — 새 개인정보를 받지 않게). 판 바닥에 붙여 가운데로(10-20, town.css .v-house).
  */
 export function openHouse(shell: HTMLElement, go: (id: PlaceId) => void, onClose: () => void) {
   const { panel, close } = placePanel(shell, 'house', onClose);
+  panel.classList.add('v-house');
   const ours = (['counsel', 'dok', 'finance'] as const).map(id => btn('g-ghost', placeName(id), () => { close(); go(id); }));
-  const ask = el('section', 'v-sec');
+  const ask = el('section', 'v-sec v-ask');
   const mail = link(`메일 ${CONTACT.mail}`, `mailto:${CONTACT.mail}`, 'g-link'), tel = link(`전화 ${CONTACT.tel}`, `tel:${CONTACT.tel.replace(/-/g, '')}`, 'g-link');
   mail.removeAttribute('target'); tel.removeAttribute('target'); // 메일 앱·전화는 새 창이 아니라 그대로
   ask.append(el('h3', 'v-head', '문의하기'), mail, tel);
@@ -368,7 +321,7 @@ export function openCards(shell: HTMLElement, opts: CardsOpts, onClose: () => vo
   panel.append(status);
   void Promise.all([opts.load(), loadPlaces().catch(() => undefined)]).then(([cards, places]) => {
     if (!cards) { status.textContent = opts.online ? '지금은 카드를 불러올 수 없어요. 조금 뒤에 다시 와 주세요.' : '시험판이라 아직 카드가 없어요. 활동가가 올리면 여기에 떠요.'; return; }
-    if (!cards.length) { status.textContent = '아직 올라온 카드가 없어요. 곧 올라와요.'; return; }
+    if (!cards.length) { status.textContent = '첫 문제 카드를 준비하고 있어요. 곧 올라와요.'; return; } // 0장일 때(10-20 사용자 「아직 준비중이라는 문구 띄우고」)
     status.remove();
     const myPlace = places?.places.find(p => p.c === loadRegion());
     const ours = (card: PublicCard) => Boolean(myPlace && !myPlace.n.endsWith('(시·도)') && squash(card.region).includes(squash(placeTitle(myPlace))));
@@ -502,8 +455,10 @@ export type BoardOpts = NoteActions & {
   online: boolean;
   /** 쓰기는 로그인한 사람만(사용자 10-19) — 안 했으면 그 자리에 「로그인하면 쪽지를 남길 수 있어요」. */
   login: LoginOpts;
-  /** 붙이기 — 됐나와 알릴 말(main 이 우리 동네 탭과 같이 쓴다). */
-  post(text: string): Promise<{ ok: boolean; text: string }>;
+  /** 붙이기 — 됐나와 알릴 말, 됐으면 서버가 같이 돌려준 마을 모습(main 이 우리 동네 탭과 같이 쓴다). */
+  post(text: string): Promise<{ ok: boolean; text: string; view?: VillageView }>;
+  /** 붙이는 동안 먼저 그려 둘 내 모습·이름. */
+  me(): { name: string; pick: Pick };
 };
 
 /** 쪽지판(10-19 살림) — 다녀간 사람들의 한 줄, 새것부터. 내 동네를 정한 사람의 쪽지는 우리 동네 탭 「동네 한마디」 에도 뜬다. */
@@ -516,7 +471,20 @@ export function openBoard(shell: HTMLElement, opts: BoardOpts, onClose: () => vo
     list.replaceChildren(...(view?.notes.length ? view.notes.map(n => noteView(n, opts)) : [el('p', 't-small', view ? '아직 쪽지가 없어요. 첫 쪽지를 붙여 보세요.' : '지금은 쪽지를 불러오지 못했어요.')]));
   };
   const refresh = () => opts.refresh().then(fresh => { if (fresh) { view = fresh; draw(); } });
-  panel.append(opts.login.current() ? noteForm(opts.post, () => void refresh()) : loginInvite('로그인하면 쪽지를 남길 수 있어요', opts.login, 'board'), list);
+  // 붙이기 — 누르는 순간 내 쪽지를 맨 위에 먼저 그리고(「붙이는 중」), 서버 답에 실려 온 마을 모습으로 갈아 끼운다.
+  // 10-20 사용자 「쪽지판에 글 남길 때 느려」 — 전엔 붙인 뒤 마을 모습을 한 번 더 받아(서버 두 번, 3~4초) 그제야 보였다.
+  const post = async (text: string) => {
+    const me = opts.me(), mine = el('div', 'v-note v-pending'), who = el('div', 'v-who');
+    who.append(avatar(toLook(me.pick)), el('b', '', me.name || '이름 없는 주민'), el('small', '', '붙이는 중…'));
+    mine.append(who, el('p', 'v-text', text));
+    list.querySelector(':scope > p.t-small')?.remove(); // 「아직 쪽지가 없어요」
+    list.prepend(mine);
+    const got = await opts.post(text);
+    if (got.ok && got.view) view = got.view;
+    draw(); // 못 붙였으면 먼저 그린 것을 거둔다
+    return got;
+  };
+  panel.append(opts.login.current() ? noteForm(post) : loginInvite('로그인하면 쪽지를 남길 수 있어요', opts.login, 'board'), list);
   draw();
   void refresh();
 }
@@ -576,7 +544,6 @@ export type WorksOpts = {
   owned(): number[];
   pick(): Pick;
   buy(i: number): boolean;
-  toTax(): void;
 };
 
 /**
@@ -591,7 +558,7 @@ const COIN_FAILED: Record<string, string> = {
 };
 
 /**
- * 마을 공사터 — 지금 공사·모인 동전·다 지은 것, 내 주머니 동전 넣기, 액세서리 사기, 그리고 진짜 마을의 세금과 잇는 한마디.
+ * 마을 공사터 — 지금 공사·모인 동전·다 지은 것, 내 주머니 동전 넣기, 액세서리 사기.
  * 다 채우는 순간 판에서 「○○ 완성!」 과 「보러 가기」(사용자 10-19 「동전 넣었는데 변화가 없는데?」 — 전엔 바로 다음 공사 0/10 으로 넘어갔다).
  * 보러 가기 = 판을 닫는 것 — 판이 닫히면 장면이 카메라를 그리로 보내 뚝딱 서는 걸 보여 준다(VillageScene showBuilt). 다음 공사는 그 뒤.
  */
@@ -602,10 +569,15 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
   const give = btn('g-primary', '', async () => {
     const n = Math.min(opts.pocket.coins, COIN_DAY_MAX);
     if (!n) return;
-    give.disabled = true; status.textContent = '넣는 중…';
-    const before = worksAt(opts.total).done.length;
+    const total = opts.total, coins = opts.pocket.coins, before = worksAt(total).done.length;
+    // 누르는 순간 막대·주머니를 먼저 채운다(10-20 사용자 「동전을 넣을 때 느려」 — 서버 한 번 1.5~2초). 못 넣었으면 되돌린다.
+    // 공사 하나를 다 채우는 동전이면 먼저 채우지 않는다 — 다음 공사 0칸이 먼저 보였다가 「완성!」 이 뜨게 된다.
+    const early = worksAt(total + n).done.length === before;
+    if (early) { opts.total = total + n; opts.pocket.coins = coins - n; status.textContent = `동전 ${n}개를 넣었어요.`; draw(); }
+    else status.textContent = '넣는 중…';
+    give.disabled = true;
     const done = await opts.give(n);
-    if ('failed' in done) { status.textContent = COIN_FAILED[done.failed] ?? '지금은 넣지 못했어요. 조금 뒤에 다시 해 주세요.'; draw(); return; }
+    if ('failed' in done) { opts.total = total; opts.pocket.coins = coins; status.textContent = COIN_FAILED[done.failed] ?? '지금은 넣지 못했어요. 조금 뒤에 다시 해 주세요.'; draw(); return; }
     opts.total = done.total;
     const after = worksAt(opts.total).done;
     if (after.length > before) justBuilt = WORKS.find(w => w.id === after[after.length - 1])!.name;
@@ -660,9 +632,8 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
     }));
   };
   shop.append(el('h3', 'v-head', '액세서리 사기'), el('p', 't-small', `동전 ${ACCESSORY_PRICE}개에 하나씩 살 수 있어요. 산 것은 바로 써요.`), wares);
-  const real = el('div', 'v-qa'), tax = placeName('tax');
-  real.append(el('p', 'v-q', '진짜 마을도 이렇게 지어요'), el('p', 'v-a', `주민이 낸 세금이 금고에 모여 길·다리·쉼터가 돼요. 어떤 세금이 어느 금고로 가는지 「${tax}」에서 볼 수 있어요.`));
+  // 「진짜 마을도 이렇게 지어요」 한마디와 「마을 곳간에 가 보기」 단추는 걷었다(10-20 사용자 「그 버튼은 삭제해도 되지 않아?」 — 곳간에서 세금 종류도 빠져 그 말이 틀리게 됐다).
   panel.append(card, give, status, el('p', 't-small x-hint', `나무 밑동에 부딪혀 보세요. 날마다 몇 그루에서 동전이 떨어져요.${opts.loggedIn ? '' : ' 동전은 이 기기에만 모여요 — 로그인하면 다른 기기에서도 이어져요.'}`),
-    shop, real, btn('g-ghost', `${tax}에 가 보기`, () => { close(); opts.toTax(); }));
+    shop);
   draw(); drawShop();
 }

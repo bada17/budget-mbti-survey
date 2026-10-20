@@ -279,17 +279,19 @@ async function prepareCard() {
  * 카톡 안 브라우저는 저장 칸이 따로라 「지난번 내 동네」 를 못 읽을 수 있어서, 친구 동네를 링크에 다시 싣는다.
  */
 function share(reply = false) {
-  if (!state.result) return;
+  // 방금 걸었으면 이번 판, 마을(시민센터 방명록, 10-20)에서 다시 온 사람이면 지난번 판(villageMe)
+  const mine = villageMe()?.person;
+  if (!mine) return;
   const to = reply ? invite : undefined;
   const url = `${shareAt()}?with=${encodeInvite({
-    name: me.name, pick: me.pick, type: state.result, town, home: home?.id,
+    name: me.name, pick: me.pick, type: mine.type, town: mine.town, home: home?.id,
     ...(to ? { replyTo: { name: to.name, pick: to.pick, type: to.type, town: to.town } } : {}),
   })}`;
   addStamp('invite');
   ui.toast(to ? `답장 링크에는 ${to.name}님과 내가 지은 동네가 담겨요` : '보내는 링크에 내가 지은 동네(고른 열다섯 가지)가 담겨요');
   const text = to
-    ? `${to.name}님, 답장이에요! 나는 ${josa(`「${TYPES[state.result].name}」`, '이래요', '래요')}. 우리 동네 나란히 놓고 봐요.`
-    : `함께해요 시민의 숲 — 나는 ${josa(`「${TYPES[state.result].name}」`, '이래요', '래요')}. 너도 걸어 봐!`;
+    ? `${to.name}님, 답장이에요! 나는 ${josa(`「${TYPES[mine.type].name}」`, '이래요', '래요')}. 우리 동네 나란히 놓고 봐요.`
+    : `함께해요 시민의 숲 — 나는 ${josa(`「${TYPES[mine.type].name}」`, '이래요', '래요')}. 너도 걸어 봐!`;
   // 그림이 준비됐고 받는 쪽이 파일을 받으면 그림 + 글(링크 포함), 아니면 지금처럼 링크만.
   const files = card && navigator.canShare?.({ files: [card] }) ? [card] : undefined;
   if (navigator.share) navigator.share(files ? { files, text: `${text}\n${url}` } : { title: '함께해요 시민의 숲', text, url }).catch(() => {});
@@ -340,6 +342,7 @@ function openHub(person: Person, extra: { photo?: string; tab?: 'region' } = {},
     joinRegion: online ? async region => { saveRegion(region); await syncNow(); return net.regionView(region); } : undefined,
     notes: online ? { item: note => noteView(note, noteActions()), post: (text, region) => postNote(text, region) } : undefined,
     subscribe: contactReady ? () => { const n = loadNeighbor(); if (n) { ui.endActions(false); neighborSheet(n, n.name); } } : undefined,
+    share: () => share(),
     login: loginOpts,
   }, onClose, backText);
 }
@@ -372,7 +375,7 @@ async function postNote(text: string, region: Region | undefined = loadRegion())
   const made = await net.note(key, { sessionId: villageMe()?.sessionId, name: me.name, pick: me.pick, text, region });
   if (!made) return { ok: false, text: '지금은 남길 수 없어요. 조금 뒤에 다시 해 주세요(하루에 세 장까지예요).' };
   rememberMine(made.note.id); showVillage(made.view);
-  return { ok: true, text: '남겼어요. 쪽지판을 지나는 사람들이 읽어요.' };
+  return { ok: true, text: '남겼어요. 쪽지판을 지나는 사람들이 읽어요.', view: made.view };
 }
 
 /** 언덕의 빛 아치를 지났다(화면 읽기 도구는 숨은 단추로) — 언덕이 하얗게 바래고, 마을 남쪽 문에서 나타난다. */
@@ -410,7 +413,7 @@ function enteredVillage() {
 function hubGuide() {
   if (villageStart !== 'gate' || loginNow() || loggedIn || shell.querySelector('.t-panel')) return;
   try { if (localStorage.getItem(HUB_GUIDE)) return; localStorage.setItem(HUB_GUIDE, '1'); } catch { /* 못 적으면 들어올 때마다 보인다 */ }
-  ui.villageNotice(keeperName('hub'), `저 위 ${placeName('hub')}에서 로그인하면 지금 한 기록이 남고, 다른 기기에서도 이어 할 수 있어요.`, [{ label: '알겠어요' }]);
+  ui.villageNotice(keeperName('hub'), `${placeName('hub')}에서 로그인하면 기록이 남고 다른 기기에서도 이어할 수 있어요.`, [{ label: '알겠어요' }]); // 문구 사용자 10-20
   village?.showPlace('hub');
 }
 const HUB_GUIDE = 'budget-game-hub-guide';
@@ -454,7 +457,7 @@ async function tellNewCard() {
 async function meetVillage() {
   await statsReady; await finishing;
   if (!online) return;
-  // void tellNewCard(); // [나중에 살림: 쪽지판·문제 카드] 새 문제 카드 알림·「!」
+  void tellNewCard(); // 새 문제 카드 알림·「!」(10-20 살림)
   const sid = villageMe()?.sessionId;
   const view = (sid ? await net.here(sid, me.pick) : undefined) ?? (await net.village(sid || undefined));
   if (view) showVillage(view);
@@ -556,8 +559,7 @@ function openPhone() {
     // { icon: '📝', name: '오늘의 부탁', run: openErrandList },
     // { icon: '🕹️', name: '오락실', run: go('arcade') },
     app('🪪', 'hub'), app('💰', 'tax'), app('🏗️', 'works'), app('📌', 'board'),
-    // [나중에 살림: 쪽지판·문제 카드] 문제 카드
-    // { icon: '📢', name: '문제 카드', run: go('cards') },
+    app('📢', 'cards'), // 10-20 살림
     app('🚌', 'bus'),
   ]);
 }
@@ -610,7 +612,6 @@ function openPlace(id: PlaceId, tab?: 'region') {
         if (!online) village?.setWorks(fresh.given);
         return { took, total };
       },
-      toTax: () => village?.jump('tax', () => openPlace('tax')),
     }, done);
   }
   else if (id === 'house') openHouse(shell, to => village?.jump(to, () => openPlace(to)), done);
@@ -626,7 +627,7 @@ function openPlace(id: PlaceId, tab?: 'region') {
   }, done);
   else if (id === 'cards') { openCards(shell, cardOpts(), done); void loadCards().then(sawCards); }
   else openBoard(shell, {
-    ...noteActions(), view: villageView, online, login: loginOpts, post: text => postNote(text),
+    ...noteActions(), view: villageView, online, login: loginOpts, post: text => postNote(text), me: () => me,
     refresh: async () => { const fresh = await net.village(who?.sessionId || undefined); if (fresh) showVillage(fresh); return fresh; },
   }, done);
 }
@@ -678,16 +679,16 @@ function skipToEnd() {
 }
 
 /*
-  언덕 안내하는 사람(사용자 10-19 「이 게임이 무엇이고 예산이 어려운 이유를 알려주고, 마을로 가 보라고」 — 「구체적인 내용은 적지 마, 구조만」).
-  아치 옆에 서 있다가 다가가면 말 상자. 쪽마다 「다음」, 마지막 쪽은 「마을로 가기」(아치로 걸어 들어간다)·「조금 더 있을게요」.
-  ⚠️ 글은 사용자가 채운다 — 대괄호 칸을 갈아 끼우면 된다. 쪽은 늘리고 줄여도 된다(마지막 쪽이 늘 마을로 가라는 말).
+  언덕 안내하는 사람(사용자 10-19 「이 게임이 무엇이고 예산이 어려운 이유를 알려주고, 마을로 가 보라고」).
+  아치 옆에 서 있다가 다가가면(아치로 가는 길목이라 마을로 가는 사람은 다 지난다) 말 상자. 쪽마다 「다음」, 마지막 쪽은 「마을로 가기」·「조금 더 있을게요」.
+  이름은 안 단다(10-20 사용자 「안내 하는 사람 이름 삭제해」) — 말 상자도 이름표 없이.
+  ⚠️ 세 쪽 글은 Claude 초안(10-20) — 사용자가 고친다. 쪽은 늘리고 줄여도 된다(마지막 쪽이 늘 마을로 가라는 말).
 */
 const HILL_GUIDE = {
-  name: '[안내하는 사람 이름]',
   pages: [
-    '[① 이 게임은 무엇인지]',
-    '[② 예산이 어려운 이유]',
-    '[③ 이제 마을로 가 보라는 말]',
+    '방금 열다섯 곳에서 둘 중 하나를 골랐죠? 그게 다 우리 세금을 어디에 먼저 쓸지 정하는 일, 예산이에요.',
+    '어려운 건 둘 다 필요한 일이라서예요. 돈은 늘 모자라서 하나를 고르면 다른 하나는 미뤄야 하고, 정답도 없어요. 그래서 여럿이 같이 따져 봐야 해요.',
+    '저 빛 아치를 지나면 시민마을이에요. 우리 동네 진짜 예산도 보고, 다른 주민들이 남긴 한마디도 읽어 보세요.',
   ],
   next: '다음', go: '마을로 가기', stay: '조금 더 있을게요',
 };
@@ -697,7 +698,7 @@ function guideTalk(page = 0) {
   guideOpen = true;
   ui.endActions(false); // 말 상자가 아래 단추 자리에 뜬다
   const back = () => { guideOpen = false; ui.endActions(true); }, last = page >= HILL_GUIDE.pages.length - 1;
-  ui.villageNotice(HILL_GUIDE.name, HILL_GUIDE.pages[page], last
+  ui.villageNotice('', HILL_GUIDE.pages[page], last
     ? [{ label: HILL_GUIDE.go, run: () => { back(); scene?.toArch(); } }, { label: HILL_GUIDE.stay, run: back }]
     : [{ label: HILL_GUIDE.next, run: () => guideTalk(page + 1) }]);
 }
@@ -756,7 +757,7 @@ async function boot() {
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
       view: () => view, controls, ui, ready: () => { ui.ready(); walkReady = true; if (walkOnReady) startWalk(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); else if (import.meta.env.DEV && params.has('room')) skipToRoom(Number(params.get('room'))); },
-      pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage, guide: { name: HILL_GUIDE.name, meet: () => guideTalk(), leave: guideBye },
+      pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage, guide: { meet: () => guideTalk(), leave: guideBye },
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
         ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);
@@ -811,7 +812,7 @@ if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unl
 else if (lastPlay?.type) ui.homeOpen(() => { location.href = here(); }); // 걸으러 왔지만 마을로 갈 수도
 // 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.
 if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
-// else if (cardLink) void statsReady.then(() => openCards(shell, cardOpts(cardLink), () => {})); // [나중에 살림: 쪽지판·문제 카드] 친구가 보낸 ?card= 링크
+else if (cardLink) void statsReady.then(() => openCards(shell, cardOpts(cardLink), () => {})); // 친구가 보낸 ?card= 링크(10-20 살림)
 else if (letterSeason) openLetter(shell, letterSeason, returning, me.name, () => {}, startInVillage ? () => { location.href = `${here()}?walk`; } : undefined);
 if (signingIn) void loginResult.then(result => { if (result !== 'done') void boot(); }); // 로그인 확인 중엔 게임을 안 받는다 — 망을 서버 확인에 양보
 else void boot();
