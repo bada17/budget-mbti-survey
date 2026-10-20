@@ -87,6 +87,12 @@ export function start(provider: Provider, intent: Intent = {}): boolean {
   return true;
 }
 
+/** 카카오·구글에서 막 돌아왔으면 그 쪽 — finish() 가 주소를 지우기 전에 본다. main 이 확인하는 동안 기다림 판을 띄운다(10-20). */
+export function returning(): Provider | undefined {
+  if (!new URLSearchParams(location.search).has('state') && !new URLSearchParams(location.hash.slice(1)).has('state')) return undefined;
+  try { return (JSON.parse(sessionStorage.getItem(PENDING) ?? 'null') as { provider?: Provider } | null)?.provider; } catch { return undefined; }
+}
+
 /**
  * 돌아왔을 때 — 주소에 state 가 있으면 로그인 길이다. 서버에 확인하고 기록을 합친 뒤 다시 연다.
  * 결과: undefined = 로그인 길 아님, 'failed' · 'cancelled' 는 main 이 한 줄 알린다. 'done' 이면 이미 다시 여는 중.
@@ -109,7 +115,9 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   saveLogin({ key: result.key, provider: pending.provider, ...(result.admin ? { admin: true as const } : {}) });
   importSave(result.save);
   // 못 올렸으면 알린다(다음에 열 때 keepSynced 가 다시 올린다) — 예전엔 실패해도 「지켰어요」 였다(10-16).
-  const saved = Boolean(await net.saveMe(result.key, exportSave()));
+  // 이 기기에 보탤 게 없으면(새 기기에서 「전에 해 봤어요」 — 대개 이 길) 올리지 않는다. 서버 한 번이 3~5초라(10-20 사용자 「너무 늦어」).
+  const mine = exportSave();
+  const saved = JSON.stringify(mine) === JSON.stringify(cleanSave(result.save) ?? {}) || Boolean(await net.saveMe(result.key, mine));
   try {
     sessionStorage.setItem(DONE, pending.provider);
     if (result.email && pending.news === true) sessionStorage.setItem(EMAIL, result.email); // 소식 받기를 켰을 때만 그 판에 채운다

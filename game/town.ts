@@ -265,7 +265,10 @@ export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로
     box.append(agree, hint);
     for (const provider of opts.providers) {
       const button = btn(`t-login-btn t-${provider}`, '', () => {
-        if (!opts.start(provider, { back, news: news?.checked })) status.textContent = `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
+        // 눌렀다는 표시 — 카카오·구글 화면이 뜨기까지 느린 망에선 몇 초 걸린다(10-20)
+        status.textContent = opts.start(provider, { back, news: news?.checked })
+          ? `${PROVIDER_NAME[provider]}로 가는 중이에요…`
+          : `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
       });
       const symbol = el('span', 't-login-symbol'); symbol.setAttribute('aria-hidden', 'true');
       // 공식 배포 SVG의 기호만. 사용자 입력은 이 HTML에 넣지 않는다.

@@ -492,3 +492,18 @@ test('다 지은 것은 쓸 수 있다: 다리를 지으면 연못을 건너고,
     assert.equal(blocked({ x: PAVILION_SEAT.x, y: PAVILION_SEAT.y - 40 }), true, '지붕 밑 뒤쪽은 막혀 있다');
   } finally { setBuilt([]); }
 });
+
+test('캔버스 글씨: 다 textRes 로 적어도 2배 촘촘하게 — PC 1배·윈도 125% 화면에서 뭉개지지 않게(사용자 10-20 「글씨체가 또렷하지 않으면 안 돼」)', async () => {
+  const { readdirSync } = await import('node:fs');
+  const files = [...readdirSync('game').filter(f => f.endsWith('.ts')).map(f => `game/${f}`), ...readdirSync('game/scenes').map(f => `game/scenes/${f}`)];
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+    const texts = src.match(/\.add\.text\([^\n]*/g) ?? [];
+    for (const line of texts) assert.match(line, /resolution: textRes\(/, `${file}: 캔버스 글씨는 resolution: textRes(…) 로 — ${line.slice(0, 80)}`);
+  }
+  // draw.ts 는 Phaser 를 불러 node 에서 못 연다 — 식을 그대로 꺼내 돌린다.
+  const body = readFileSync('game/draw.ts', 'utf8').match(/export const textRes = \(dpr: number\) => ([^;]+);/)?.[1];
+  assert.ok(body, 'draw.ts 에 textRes 가 있다');
+  const textRes = new Function('dpr', `return ${body}`);
+  for (const [dpr, want] of [[1, 2], [1.25, 2], [1.5, 2], [2, 2], [2.625, 3], [3, 3]]) assert.equal(textRes(dpr), want, `dpr ${dpr}`);
+});

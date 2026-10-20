@@ -20,7 +20,7 @@ import { openArcade } from './arcade';
 import type { PublicCard } from './api';
 import { PLACES, keeperName, placeName, dropsOn, kstDay, worksAt, NOTE_GAP_MS, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
-import { providers, start as startLogin, finish as finishLogin, arrivedFromKakao, justLoggedIn, takeLoginEmail, takeUnsaved, takeBack, keepSynced, syncNow, loginKey, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
+import { providers, start as startLogin, finish as finishLogin, returning as returningFromLogin, arrivedFromKakao, justLoggedIn, takeLoginEmail, takeUnsaved, takeBack, keepSynced, syncNow, loginKey, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp } from './stamps';
 import { checkContact, type ContactForm } from './contact';
@@ -81,17 +81,22 @@ let villageView: VillageView | undefined;
 let panelOpen = false;
 /** 끝낸 판을 서버에 알린 뒤에야 마을에 들를 수 있다(서버는 끝낸 판만 받는다). */
 let finishing: Promise<void> = Promise.resolve();
+/** 소개 페이지 「게임 하러 가기」 는 시작 화면 「출발」 을 건너뛴다(사용자 10-20 「이중으로 시작하기를 누르게 돼」). 아직 준비 중이면 준비되자마자 출발. */
+let walkReady = false, walkOnReady = false;
+const walkFromLanding = () => { unlockAudio(); if (walkReady) startWalk(); else walkOnReady = true; };
+function startWalk() {
+  walkOnReady = false;
+  unlockAudio();
+  ui.hideIntro();
+  ui.dresser(me, {
+    change: next => { me = next; scene?.setLook(next.pick); },
+    done: next => { me = next; saveMe(next); send({ type: 'start' }); void joinTable(); },
+  });
+  scene?.dress(); // 판을 먼저 열어야 판 위에 남은 자리를 잴 수 있다
+}
 
 const ui = createUI(root, {
-  start: () => {
-    unlockAudio();
-    ui.hideIntro();
-    ui.dresser(me, {
-      change: next => { me = next; scene?.setLook(next.pick); },
-      done: next => { me = next; saveMe(next); send({ type: 'start' }); void joinTable(); },
-    });
-    scene?.dress(); // 판을 먼저 열어야 판 위에 남은 자리를 잴 수 있다
-  },
+  start: startWalk,
   retry: () => location.reload(),
   sound: () => { setMuted(!isMuted()); ui.setSound(isMuted()); if (!isMuted()) unlockAudio(); },
   openTable: () => ui.tablePanel(tableCode, {
@@ -139,9 +144,14 @@ const shell = root.querySelector<HTMLElement>('.g')!;
 const loginOpts: LoginOpts = { providers: providers(), current: loginNow, admin: loginAdmin, start: startLogin, logout, forget, news: contactReady };
 keepSynced();
 arrivedFromKakao(); // 카톡 안에서 구글을 눌러 밖 브라우저로 나왔으면 실어 온 기록을 합치고 바로 구글로
-void finishLogin().then(result => {
+// 카카오·구글에서 돌아왔으면 확인이 끝날 때까지(서버 한 번 3~5초) 기다림 판으로 덮고 게임은 안 띄운다 — 끝나면 어차피 다시 연다(10-20 사용자 「작동했는지 모르겠어」).
+const signingIn = returningFromLogin();
+const unwait = signingIn ? ui.wait(`${PROVIDER_NAME[signingIn]}로 로그인하는 중이에요`, '시민증을 가져오고 있어요. 잠깐만 기다려 주세요.') : undefined;
+const loginResult = finishLogin().then(result => {
+  if (result !== 'done') unwait?.();
   if (result === 'failed') ui.toast('로그인하지 못했어요. 조금 뒤에 다시 해 주세요'); // 진단용 괄호는 뺐다(사용자 10-19 「실패했다고 뜨는 게 맞다」)
   if (result === 'cancelled') ui.toast('로그인을 그만뒀어요');
+  return result;
 });
 const loggedIn = justLoggedIn();
 // 로그인 칸에서 [선택] 소식 받기를 켰고 확인된 이메일이 있으면 「이 이메일로 소식 받기」 판부터(openNews) — 연락처 칸이 켜진 판에서만.
@@ -739,7 +749,7 @@ async function boot() {
     await Promise.race([fonts, new Promise(r => setTimeout(r, 4000))]);
     const journey = new JourneyScene({
       state: () => state, send, visible, subscribe: listener => bus.subscribe(listener),
-      view: () => view, controls, ui, ready: () => { ui.ready(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); else if (import.meta.env.DEV && params.has('room')) skipToRoom(Number(params.get('room'))); },
+      view: () => view, controls, ui, ready: () => { ui.ready(); walkReady = true; if (walkOnReady) startWalk(); if (import.meta.env.DEV && params.has('end')) skipToEnd(); else if (import.meta.env.DEV && params.has('room')) skipToRoom(Number(params.get('room'))); },
       pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage, guide: { name: HILL_GUIDE.name, meet: () => guideTalk(), leave: guideBye },
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
@@ -789,14 +799,16 @@ const startInVillage = Boolean(lastPlay?.type) && !params.has('walk') && !invite
 // 소개 페이지(landing.ts, 10-16) — 처음 온 사람이 맨 주소로 왔을 때만 게임 위에 덮는다. ?about 이면 늘(보기용). 따로 불러와 첫 화면을 무겁게 하지 않는다.
 // 첫 칸에 「전에 해 봤어요 — 내 시민증 불러오기」(사용자 10-19) — 다른 기기·카톡 브라우저로 다시 온 사람도 이 브라우저에선 처음 온 사람이라 소개 페이지를 본다.
 // 불러오면 로그인 길이 페이지를 새로 열고, 지난번 판이 생겼으니 소개 페이지 없이 마을에서 시작한다(startInVillage).
-if (params.has('about') || (arrivedPlain && !lastPlay?.type)) void Promise.all([import('./landing'), import('./landing.css')]).then(([m]) => m.openLanding(() => {}, () => loginBox(loginOpts, '불러오기')));
+// 한 번도 안 걸은 사람이 불러오면 지난번 판이 없어 걷기부터 — 그때도 소개 페이지는 다시 안 띄운다(10-20, 덮으면 「로그인했어요」 판이 가려졌다).
+if (params.has('about') || (arrivedPlain && !lastPlay?.type && !loggedIn)) void Promise.all([import('./landing'), import('./landing.css')]).then(([m]) => m.openLanding(startInVillage ? () => {} : walkFromLanding, () => loginBox(loginOpts, '불러오기')));
 if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unlockAudio, { once: true }); } // 「출발」 을 안 누르니 첫 손길에 소리를 푼다
 else if (lastPlay?.type) ui.homeOpen(() => { location.href = here(); }); // 걸으러 왔지만 마을로 갈 수도
 // 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.
 if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
 // else if (cardLink) void statsReady.then(() => openCards(shell, cardOpts(cardLink), () => {})); // [나중에 살림: 쪽지판·문제 카드] 친구가 보낸 ?card= 링크
 else if (letterSeason) openLetter(shell, letterSeason, returning, me.name, () => {}, startInVillage ? () => { location.href = `${here()}?walk`; } : undefined);
-void boot();
+if (signingIn) void loginResult.then(result => { if (result !== 'done') void boot(); }); // 로그인 확인 중엔 게임을 안 받는다 — 망을 서버 확인에 양보
+else void boot();
 // 진단 판(game/diag.ts) — 주소에 ?diag 가 있을 때만 받는다. 아이패드 원인 찾으면 지운다(10-19).
 if (params.has('diag')) void import('./diag').then(m => m.startDiag({ surface: ui.surface, scene: () => (game?.scene.isActive('village') ? village : scene), vector: () => controls.keyVector() }));
 

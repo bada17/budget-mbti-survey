@@ -209,15 +209,24 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   let body: unknown = null;
   try { body = event.postData?.contents ? JSON.parse(event.postData.contents) : null; } catch { body = null; }
 
-  const sheets = {
-    finished: tab(book, KV.finished, ['세션', '값', '고친 시각']), homes: tab(book, KV.homes, ['집 번호', '값', '고친 시각']), books: tab(book, KV.books, ['집 번호', '값', '고친 시각']),
-    residents: tab(book, KV.residents, ['계정(해시)', '값', '고친 시각']),
-    notes: tab(book, NOTE_TAB, NOTE_HEAD), cards: cardSheet(book),
+  // 탭은 그 요청이 처음 건드릴 때만 연다 — 예전엔 무엇을 하든 여섯 탭을 다 읽어 한 번에 3~6초(10-20 잼, 사용자 「로그인 너무 늦어」).
+  // 응답 탭은 사람이 할수록 길어지니 특히. 안 읽은 탭은 고친 것도 없으니 쓰지도 않는다.
+  const open = {
+    finished: () => tab(book, KV.finished, ['세션', '값', '고친 시각']), homes: () => tab(book, KV.homes, ['집 번호', '값', '고친 시각']), books: () => tab(book, KV.books, ['집 번호', '값', '고친 시각']),
+    residents: () => tab(book, KV.residents, ['계정(해시)', '값', '고친 시각']),
+    notes: () => tab(book, NOTE_TAB, NOTE_HEAD), cards: () => cardSheet(book),
   };
-  const store: Store = {
-    finished: readKV<Finished>(sheets.finished), homes: readKV<{ key: string; at: number }>(sheets.homes), books: readKV<Visit[]>(sheets.books),
-    residents: readKV<Resident>(sheets.residents), tables: new Map(), contacts: [], notes: readNotes(sheets.notes), cards: readCards(sheets.cards),
+  type Lazy = keyof typeof open;
+  const sheets: Partial<Record<Lazy, Sheet>> = {}, loaded: Partial<Store> = {};
+  const sheet = (name: Lazy) => (sheets[name] ??= open[name]());
+  const read: { [K in Lazy]: () => Store[K] } = {
+    finished: () => readKV<Finished>(sheet('finished')), homes: () => readKV<{ key: string; at: number }>(sheet('homes')), books: () => readKV<Visit[]>(sheet('books')),
+    residents: () => readKV<Resident>(sheet('residents')), notes: () => readNotes(sheet('notes')), cards: () => readCards(sheet('cards')),
   };
+  const store = { tables: new Map(), contacts: [] } as unknown as Store;
+  for (const name of Object.keys(read) as Lazy[]) {
+    Object.defineProperty(store, name, { enumerable: true, get: () => (loaded[name] ??= read[name]() as never) });
+  }
   let result;
   if (method === 'POST' && path === '/login') {
     const who = deps ? verifyLogin((body ?? {}) as Record<string, unknown>, deps, now) : undefined;
@@ -229,9 +238,9 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
     if (who?.email && result.status === 200) result = { ...result, body: { ...result.body, email: who.email, ...(admin ? { admin: true } : {}) } };
   } else result = handle(store, method, path, body, now);
   if (method === 'POST' && result.status < 400) {
-    for (const name of ['finished', 'homes', 'books', 'residents'] as const) writeKV(sheets[name], store[name] as Tracked<unknown>, now);
-    writeNotes(sheets.notes, store.notes as Tracked<Note>);
-    writeCards(sheets.cards, store.cards as Tracked<Card>);
+    for (const name of ['finished', 'homes', 'books', 'residents'] as const) if (loaded[name]) writeKV(sheet(name), loaded[name] as Tracked<unknown>, now);
+    if (loaded.notes) writeNotes(sheet('notes'), loaded.notes as Tracked<Note>);
+    if (loaded.cards) writeCards(sheet('cards'), loaded.cards as Tracked<Card>);
     if (store.contacts.length) {
       const sheet = tab(book, CONTACT_TAB, CONTACT_HEAD);
       store.contacts.forEach(c => sheet.appendRow(contactRow(c)));

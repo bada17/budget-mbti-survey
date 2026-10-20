@@ -213,6 +213,13 @@ export function createUI(root: HTMLElement, actions: {
     ready() { start.disabled = false; start.textContent = '출발'; retry.hidden = true; },
     loadError() { start.disabled = true; start.textContent = '불러오지 못했어요'; retry.hidden = false; },
     hideIntro() { intro.classList.add('gone'); later(400, () => { intro.hidden = true; }); },
+    /** 화면을 덮는 기다림 판(로그인 확인 중 — 서버 한 번이 3~5초, 10-20 사용자 「작동했는지 모르겠어」). 돌려준 함수로 걷는다. */
+    wait(title: string, text: string) {
+      const cover = el('div', 'g-wait'); cover.setAttribute('role', 'status');
+      cover.append(el('span', 'g-wait-dot'), el('h2', '', title), el('p', '', text));
+      shell.append(cover);
+      return () => cover.remove();
+    },
     /** 게임 서버가 있을 때만 「테이블에서 같이 하기」 를 보인다. */
     online(on: boolean) { intro.querySelector<HTMLElement>('.g-table-open')!.hidden = !on; },
     /** 다시 온 사람이 링크로 걷기 화면에 왔을 때 — 걷지 않고 마을로(기획 4차). */

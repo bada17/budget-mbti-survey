@@ -17,7 +17,7 @@ import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, rollBall, type Point } from '../room';
 import { PLACES, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
-import { Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
+import { textRes, Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -426,7 +426,7 @@ export class VillageScene extends Phaser.Scene {
   private bubble(at: Point) {
     const bubble = this.add.container(at.x, at.y, [
       this.add.circle(0, 0, 13, 0xf5c55c).setStrokeStyle(2, 0xcf9b37),
-      this.add.text(0, 1, '!', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: this.runtime.view().dpr }).setOrigin(0.5),
+      this.add.text(0, 1, '!', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: textRes(this.runtime.view().dpr) }).setOrigin(0.5),
     ]).setDepth(at.y + 200);
     if (!this.reduced) this.tweens.add({ targets: bubble, y: at.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     return bubble;

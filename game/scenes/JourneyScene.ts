@@ -19,7 +19,7 @@ import { layoutRoom, step, passedDoor, nearest, distance, alongTrail, rollBall, 
 import { OUTCOMES, THANKS } from '../outcomes';
 import { nameFrom } from '../look';
 import { TWISTS, streamOf, keepDry, catOf, CAT_WAKE, type TwistKind } from '../twists';
-import { Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, ball as makeBall, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt, type Cat } from '../draw';
+import { textRes, Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, ball as makeBall, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt, type Cat } from '../draw';
 import type { Pick } from '../look';
 import type { Neighbor } from '../profile';
 import { sfx } from '../sfx';
@@ -351,7 +351,7 @@ export class JourneyScene extends Phaser.Scene {
     const dots = this.add.container(dotsAt.x, dotsAt.y, [
       this.add.triangle(0, 13, -5, 0, 5, 0, 0, 7, 0xffffff),
       this.add.ellipse(0, 0, 40, 26, 0xffffff).setStrokeStyle(2, 0xd6bf98),
-      this.add.text(0, -4, '...', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: this.runtime.view().dpr }).setOrigin(0.5),
+      this.add.text(0, -4, '...', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: textRes(this.runtime.view().dpr) }).setOrigin(0.5),
     ]).setDepth(spot.y + 200);
     if (!this.reduced) this.tweens.add({ targets: dots, y: dotsAt.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.guide = { dude, tag: { text: this.runtime.guide.name, x: spot.x, y: spot.y - 58 }, near: false, dots };

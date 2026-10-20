@@ -1050,11 +1050,33 @@ export const CANVAS_TEXT = [...PLACES.map(p => p.name + (p.keeper ?? '')), ...WO
 /** 사람 이름표 — 발밑에 작게, 밝은 테두리를 둘러 바닥 위에서도 읽히게(문 앞을 맡은 시민행동 사람, 10-15). */
 export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: number) =>
   label(scene, x, y, text, 11, dpr, '#5b402e').setStroke('#fffaf0', 4).setDepth(y + 2);
-/** 글씨 — 카메라가 기기 화소만큼 키우므로 글자 그림도 그만큼 촘촘하게 만든다. */
+/**
+ * 캔버스 글씨를 그리는 촘촘함 — 기기 화소 배수를 올림하되 2 아래로는 안 내린다. 캔버스 글씨는 다 이걸 쓴다(시험 game-village 「캔버스 글씨」 가 지킨다).
+ * 전엔 dpr 그대로라 PC(1배)·윈도 125%·150% 화면에서 적은 화소로 그린 글씨가 반 칸씩 어긋나 뭉개졌다(10-20 사용자 「글씨체가 또렷하지 않으면 안 돼」).
+ */
+export const textRes = (dpr: number) => Math.max(2, Math.ceil(dpr));
+/** 글씨 — 카메라가 기기 화소만큼 키우므로 글자 그림도 그만큼(적어도 2배) 촘촘하게 만든다. */
 function label(scene: Scene, x: number, y: number, text: string, size: number, dpr: number, color = '#51423e') {
   if (import.meta.env?.DEV) for (const ch of text) if (ch.trim() && !CANVAS_TEXT.includes(ch)) console.warn(`간판 글자 「${ch}」 가 CANVAS_TEXT 에 없다 — 주아 조각을 미리 안 받아 기본 글꼴로 굳을 수 있다`);
-  return scene.add.text(x, y, text, { fontFamily: FONT, fontSize: `${size}px`, color, resolution: dpr }).setOrigin(0.5);
+  const made = scene.add.text(x, y, text, { fontFamily: FONT, fontSize: `${size}px`, color, resolution: textRes(dpr) }).setOrigin(0.5);
+  labelsMade++; labels.add(made); made.once('destroy', () => labels.delete(made));
+  return made;
 }
+/**
+ * 주아 조각이 장면보다 늦게 오면(main 의 4초 기다림을 넘긴 기기) 간판·이름표가 기본 글꼴(윈도는 더 넓은 맑은 고딕)로 굳는다 →
+ * 조각이 올 때마다 다시 굽는다 — 떠 있는 글씨(labels)는 다시 그리고, 건물 그림에 구워 넣은 간판은 그림째(rebakes, bake).
+ * 10-20 사용자 공개판 「폰트 상태가 너무 별로」(간판이 넓은 기본 글꼴) — 이 PC 에선 재현 못 해 주아 파일을 9초 늦춰 흉내 냄.
+ */
+const labels = new Set<Phaser.GameObjects.Text>();
+let labelsMade = 0;
+const rebakes = new Set<() => boolean>();
+const juaReady = () => globalThis.document?.fonts?.check('13px Jua', CANVAS_TEXT) ?? true;
+globalThis.document?.fonts?.addEventListener('loadingdone', () => {
+  // 크롬 캔버스는 같은 font 글자를 다시 넣으면 그냥 넘겨 예전에 고른 기본 글꼴을 계속 쓴다 — 한 번 다른 값을 넣었다가 updateText 가 되돌리게.
+  labels.forEach(t => { t.context.font = '1px serif'; t.updateText(); });
+  rebakes.forEach(again => { if (!again()) rebakes.delete(again); });
+  if (juaReady()) rebakes.clear();
+});
 
 const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {
   hub: { wall: 0xbfd5c6, roof: 0x80aa9d },
@@ -1231,14 +1253,22 @@ type Bakeable = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Tr
  */
 function bake(scene: Scene, key: string, make: () => Bakeable, b: Bounds, res: number, at = { x: b.x0, y: b.y0 }) {
   if (!scene.textures.exists(key)) {
-    const obj = make();
     const tex = scene.textures.addDynamicTexture(key, Math.ceil((b.x1 - b.x0) * res), Math.ceil((b.y1 - b.y0) * res))!;
-    // 자리는 직접 옮기고 draw 엔 자리를 주지 않는다 — Phaser 4 의 draw(x, y) 는 WebGL 에선 원래 자리에 더하고 캔버스에선 덮어써서,
-    // 지도 위 제자리(0,0 이 아닌)에 있던 건물이 그림 밖으로 밀려 빈 그림이 됐다(10-14).
-    obj.setPosition((obj.x - b.x0) * res, (obj.y - b.y0) * res).setScale(res);
-    tex.draw(obj);
-    tex.render();
-    obj.destroy();
+    /** 굽기 — 글씨가 들었으면 true. */
+    const paint = () => {
+      const before = labelsMade, obj = make();
+      // 자리는 직접 옮기고 draw 엔 자리를 주지 않는다 — Phaser 4 의 draw(x, y) 는 WebGL 에선 원래 자리에 더하고 캔버스에선 덮어써서,
+      // 지도 위 제자리(0,0 이 아닌)에 있던 건물이 그림 밖으로 밀려 빈 그림이 됐다(10-14).
+      obj.setPosition((obj.x - b.x0) * res, (obj.y - b.y0) * res).setScale(res);
+      tex.clear();
+      tex.draw(obj);
+      tex.render();
+      obj.destroy();
+      return labelsMade > before;
+    };
+    // 글씨 든 그림을 주아가 오기 전에 구웠으면 조각이 올 때 다시 굽는다(label 아래 loadingdone). 그림이 지워졌으면 그만.
+    // 사람 그림(fig-)은 글씨가 없어 안 걸린다 — make 를 다시 부르면 깨지는 그림이라 다행.
+    if (paint() && !juaReady()) rebakes.add(() => scene.textures.get(key) === tex && paint());
   }
   return scene.add.image(at.x, at.y, key).setOrigin(0).setScale(1 / res);
 }
@@ -1250,7 +1280,7 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
   const W = VILLAGE_W, H = VILLAGE_H;
   // 지난번에 구운 그림이 남아 있으면(장면을 다시 열면) 지우고 다시 굽는다.
   for (const key of scene.textures.getTextureKeys()) if (key.startsWith('village-')) scene.textures.remove(key);
-  const sharp = Math.min(dpr, 3), soft = Math.min(dpr, 2); // 글씨 든 건물은 또렷하게, 넓은 바닥은 메모리를 아껴(바닥 다섯 장 ≈ 25MB)
+  const sharp = textRes(Math.min(dpr, 3)), soft = Math.min(dpr, 2); // 글씨 든 건물은 또렷하게(PC 1배에서도 2배로 굽는다), 넓은 바닥은 메모리를 아껴(바닥 다섯 장 ≈ 25MB)
   const culled: { obj: Phaser.GameObjects.Components.Visible & Phaser.GameObjects.GameObject; b: Bounds }[] = [];
   const keep = <T extends Phaser.GameObjects.Components.Visible & Phaser.GameObjects.GameObject>(obj: T, b: Bounds) => { culled.push({ obj, b }); return obj; };
   // 바닥은 300px 띠마다 따로 굽는다 — 띠를 걸치는 것은 걸친 띠마다 그리고, 구울 때 띠 밖은 잘려서 이음매 없이 이어진다.
@@ -1406,7 +1436,7 @@ type Obj = Phaser.GameObjects.GameObject;
 
 /** 이모지 한 글자 — 카메라가 기기 화소만큼 키우므로 글자 그림도 그만큼 촘촘하게. */
 function emoji(scene: Scene, x: number, y: number, icon: string, size: number, dpr: number) {
-  return scene.add.text(x, y, icon, { fontSize: `${size}px`, resolution: dpr, padding: { x: 4, y: 4 } }).setOrigin(0.5, 1).setDepth(y);
+  return scene.add.text(x, y, icon, { fontSize: `${size}px`, resolution: textRes(dpr), padding: { x: 4, y: 4 } }).setOrigin(0.5, 1).setDepth(y);
 }
 function puff(scene: Scene, x: number, y: number, reduced: boolean) {
   if (reduced) return;
@@ -1535,7 +1565,7 @@ export type TwistArt = {
 /** 놀이 그림 — 개울(물·물결·징검돌), 문 앞 졸린 고양이(Zz). 깊이는 바닥 위·사람 아래. 골대는 마을 작은 운동장으로 옮겼다(drawVillage). */
 export function drawTwist(scene: Scene, kind: TwistKind, room: Room, dpr: number, reduced: boolean): TwistArt {
   const objs: Phaser.GameObjects.GameObject[] = [];
-  const text = (x: number, y: number, t: string, size: number) => scene.add.text(x, y, t, { fontSize: `${size}px`, resolution: dpr, padding: { x: 4, y: 4 } }).setOrigin(0.5, 1);
+  const text = (x: number, y: number, t: string, size: number) => scene.add.text(x, y, t, { fontSize: `${size}px`, resolution: textRes(dpr), padding: { x: 4, y: 4 } }).setOrigin(0.5, 1);
   if (kind === 'stream') {
     const s = streamOf(room), g = scene.add.graphics().setDepth(s.y0 - 200);
     g.fillStyle(0x8fc6d8).fillRoundedRect(-10, s.y0, room.w + 20, s.y1 - s.y0, 18);

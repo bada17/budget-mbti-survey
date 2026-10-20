@@ -145,6 +145,7 @@ test('시트 로그인: 「주민」 탭엔 해시만 — 회원번호는 어디
   const rows = JSON.stringify(sheets.get('주민').rows);
   assert.ok(!rows.includes('4242'), '회원번호가 시트에 없다');
   assert.match(sheets.get('주민').rows[1][0], /^kakao:[0-9a-f]{64}$/);
+  assert.deepEqual([...sheets.keys()], ['주민'], '로그인·저장·불러오기는 주민 탭만 연다 — 여섯 탭을 다 읽어 느렸다(10-20)');
   assert.equal(post('/login', { provider: 'kakao', code: 'good', redirectUri }, fakeDeps(kakaoOk)).body.key, key, '다시 로그인해도 같은 열쇠');
 });
 
