@@ -2,7 +2,7 @@
   소개 페이지(10-16, 사용자 「시티트리클럽처럼 설명과 이야기를 웹에서 보고 게임으로 접속」 — seoulkfem.or.kr/citytreeclub).
   10-19 다시 짬(사용자 「동물의 숲 디자인 말고 웹페이지 디자인으로」「시티트리클럽 흐름으로, 똑같이 말고」「하단은 홈페이지랑 같은 형태」):
     위 띠(로고·한 줄) → ① 첫 화면(마을 그림·제목·게임 단추) → ② 「○○은」 한 줄 → ③ 무엇을 하나요(폰 틀 속 게임 화면)
-    → ④ 왜 만들었나요(사진·글 번갈아) → ⑤ 어떻게 하나요(단계 카드 넷) → 홈페이지 공통 하단(landing-footer.html).
+    → ④ 왜 만들었나요(사진·글 번갈아) → ⑤ 어떻게 하나요(단계 카드 넷) → ⑥ 소식 받기(스티비) → 홈페이지 공통 하단(landing-footer.html).
   ⑥ 함께한 사람들의 시선 · ⑦ 함께해요(회원·후원·수업자료·문의) · ⑧ 지금 일어나는 일들 은 만들지 않는다(사용자 「일단 만들지 말고 기억만」).
   게임과 잇는 고리는 셋뿐 — ① 마을 그림, ③ 폰 속 게임 화면, 「게임 하러 가기」 단추(게임 색·둥근 글꼴). 나머지(글꼴·색 면·여백)는 웹 쪽.
 
@@ -14,7 +14,7 @@
 */
 import footerHtml from './landing-footer.html?raw'; // 홈페이지 하단 — scripts/port-footer.mjs 가 만든다
 import { placeName } from './village'; // 건물 이름은 간판에서(글에 박아 두지 않는다)
-import { CONTACT } from './contact';
+import { CONTACT, PRIVACY_URL } from './contact';
 
 type Words = { title: string; text: string };
 // 10-19 느낌 보기용 초안(사용자 「내용 대충 한 번 만들어봐, 느낌만 보게」) — 글은 Claude 초안, 그림은 게임 화면·action-landing 활동 사진. 정해지면 갈아 끼운다.
@@ -36,8 +36,14 @@ const PAGE = {
     { title: '걷기 게임하기', text: '숲길에서 주민들의 바람을 듣고 열다섯 번 골라요.', shot: '' }, { title: '내 동네 살림 살펴보기', text: '시·군·구를 고르면 그 동네 예산이 열려요.', shot: '' },
     { title: '이웃·활동가와 이야기하기', text: '문제 카드, 쪽지판, 상담소 질문으로 생각을 나눠요.', shot: '' }, { title: '직접 나서기', text: '예산이 새는 사업 감시에 이름을 보태요.', shot: '' },
   ], note: '가입 없이 바로 시작해요. 로그인하면 내 동네를 저장하고 다른 기기에서도 이어 할 수 있어요.' },
+  news: { title: '소식 받기', text: '시민의 숲과 함께하는 시민행동의 예산 감시 소식을 메일로 보내 드려요.' },
   play: '게임 하러 가기',
 };
+/*
+  소식 받기 = 스티비(10-21 사용자 「스티비 둘 다 작동해. 일단 넣어둬」). 예산게임(budget-mbti app/stibee.ts STIBEE_LIST_ACTION) 첫 화면이 쓰는 주소록에 브라우저가 바로 보낸다 — 새 창에 스티비 결과가 뜬다.
+  receiveMarketingMailAgreed 는 스티비 스크립트가 ad_agreement 를 바꿔 보내는 이름(budget-mbti 에서 확인) — 우리는 그 스크립트를 안 써서 직접 싣는다. 두 동의는 필수(브라우저가 막는다).
+*/
+const STIBEE_LIST = 'https://stibee.com/api/v1.0/lists/Iua2ta5S9VZbLfF-KD5oSdBTLiQu2g==/public/subscribers';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
   const node = document.createElement(tag);
@@ -125,6 +131,28 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
   }));
   how.inner.append(steps, el('p', 'lp-text lp-how-note', PAGE.how.note));
 
+  // ⑥ 소식 받기(스티비) — 위 STIBEE_LIST
+  const news = section('lp-news', PAGE.news.title);
+  const form = el('form', 'lp-news-form lp-up'), sent = el('p', 'lp-text lp-news-sent');
+  form.action = STIBEE_LIST; form.method = 'post'; form.target = '_blank'; form.acceptCharset = 'utf-8';
+  const field = (name: string, type: string, label: string, required: boolean) => {
+    const input = el('input'); input.name = name; input.type = type; input.required = required; input.setAttribute('aria-label', label); input.placeholder = label;
+    if (type === 'email') input.autocomplete = 'email'; else input.autocomplete = 'name';
+    return input;
+  };
+  const agree = (text: string, href?: string) => {
+    const label = el('label', 'lp-news-agree'), box = el('input'); box.type = 'checkbox'; box.required = true;
+    label.append(box, ` ${text}`);
+    if (href) { const a = el('a', '', '처리방침 보기'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; label.append(' ', a); }
+    return label;
+  };
+  const agreed = el('input'); agreed.type = 'hidden'; agreed.name = 'receiveMarketingMailAgreed'; agreed.value = 'true';
+  const submit = el('button', 'lp-news-go', '구독하기'); submit.type = 'submit';
+  form.append(field('email', 'email', '이메일 주소', true), field('name', 'text', '이름(선택)', false), agreed,
+    agree('(필수) 이메일·이름을 소식 보내는 데 쓰는 것에 동의해요.', PRIVACY_URL), agree('(필수) 시민행동의 활동·후원 소식을 받는 데 동의해요.'), submit);
+  form.addEventListener('submit', () => { sent.textContent = '새 창에서 구독을 마무리해 주세요. 메일함도 한 번 봐 주세요.'; });
+  news.inner.append(el('p', 'lp-text lp-up', PAGE.news.text), form, sent);
+
   // 홈페이지 공통 하단(손으로 고치지 않는다 — scripts/port-footer.mjs)
   const foot = el('div', 'lp-foot');
   foot.innerHTML = footerHtml;
@@ -148,7 +176,7 @@ ${location.href}`;
   // 첫 화면을 지나면 아래에 늘 떠 있는 게임 단추
   const bar = el('div', 'lp-bar'); bar.append(go('lp-play'));
 
-  page.append(top, hero, intro, ...what, why.sec, how.sec, foot, bar);
+  page.append(top, hero, intro, ...what, why.sec, how.sec, news.sec, foot, bar);
   document.body.append(page);
   page.focus({ preventScroll: true });
 
