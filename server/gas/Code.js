@@ -47,6 +47,7 @@ function deps_() {
   // 소금이 없으면 처음 로그인 때 만든다(setup 을 다시 안 돌려도 되게). 쓰는 요청은 doPost 가 잠금을 잡고 부른다.
   if (!props.getProperty('ACCOUNT_SALT')) props.setProperty('ACCOUNT_SALT', Utilities.getUuid() + Utilities.getUuid());
   return {
+    cache: CacheService.getScriptCache(),
     fetch: function (url, options) {
       var o = options || {};
       var r = UrlFetchApp.fetch(url, { method: o.method || 'get', payload: o.payload, headers: o.headers, muteHttpExceptions: true });
@@ -59,6 +60,15 @@ function deps_() {
         .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
     },
     random: function () { return parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) / Math.pow(16, 12); },
+    quota: function (bucket, limit, seconds) {
+      // ponytail: ScriptCache는 일찍 비워질 수 있다. 지속적인 남용이면 영구 카운터/서버 이전으로 바꾼다.
+      var cache = CacheService.getScriptCache();
+      var key = 'game-quota:' + bucket;
+      var count = Number(cache.get(key) || 0);
+      if (count >= limit) return false;
+      cache.put(key, String(count + 1), seconds);
+      return true;
+    },
   };
 }
 

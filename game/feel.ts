@@ -14,8 +14,6 @@ export const FEEL = {
   meetRadius: 48, // 주민 발밑에서 이 안이면 대답 창이 열린다
   leaveRadius: 70, // 대답 창이 열린 뒤 이만큼 멀어져야 닫힌다(경계에서 깜빡이지 않게)
   talkGap: 34, // 말풍선을 눌러 다가갈 때 주민 아래 이만큼에 선다
-  bubbleStaggerMs: 140,
-  bubblePopMs: 260,
 
   // 문
   doorAssist: 1.1, // 문이 열렸을 때 벽에 붙어 위로 밀면 문 쪽으로 미끄러지는 세기

@@ -162,7 +162,8 @@ test('연락처: 동의·형식을 서버가 다시 보고, 이웃·유형은 �
 // ── 구글 시트 저장소 — 앱스 스크립트의 시트를 흉내 낸 가짜로(fake-sheet.mjs) ──
 test('구글 시트 저장소: 요청마다 읽고 바뀐 줄만 쓴다, 연락처는 사람이 읽는 칸으로, 테이블은 없다', () => {
   const book = fakeBook();
-  const post = (p, body, now = 1000) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, now);
+  const contactDeps = { prop: name => name === 'CONTACT_ENABLED' ? 'true' : null, sha256: text => text, random: Math.random };
+  const post = (p, body, now = 1000) => serve('POST', { parameter: { p }, postData: { contents: JSON.stringify(body) } }, book, now, contactDeps);
   const get = p => serve('GET', { parameter: { p } }, book, 2000);
   assert.equal(post('/finish', { sessionId: 'session-aaaa', contentVersion: CONTENT_VERSION, answers: answersFor(1) }).status, 200);
   assert.equal(post('/finish', { sessionId: 'session-bbbb', contentVersion: CONTENT_VERSION, answers: answersFor(6) }).status, 200);
@@ -181,8 +182,8 @@ test('구글 시트 저장소: 요청마다 읽고 바뀐 줄만 쓴다, 연락�
   post('/contact', { payload, type: '101', region: '서울' }, Date.UTC(2026, 9, 14));
   const contacts = book.sheets.get('연락처').rows;
   assert.equal(contacts[0][0], '받은 시각');
-  assert.deepEqual(contacts[1].slice(1, 7), ['문자', "'01012345678", '예', '예', '예', CONSENT_VERSION], "번호는 ' 를 붙여 글자로 — 안 그러면 숫자가 돼 0 이 빠진다");
-  assert.equal(contacts[1][11], '101 밥 짓는 이웃');
+  assert.deepEqual(contacts[1].slice(1, 7), ['문자', '01012345678', '예', '예', '예', CONSENT_VERSION].map(x => `'${x}`), "시트 문자열은 모두 글자로 — 번호의 0과 수식 문자가 보존된다");
+  assert.equal(book.sheets.get('연락처').getRange(2, 12).getValues()[0][0], '101 밥 짓는 이웃');
   assert.equal(contacts[1].length, 12, '지역 칸 없음');
   // 테이블·이상한 길은 없다, 깨진 몸통은 400
   assert.equal(post('/tables', {}).status, 404);
