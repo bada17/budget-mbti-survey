@@ -89,27 +89,3 @@ export const FLOWS: { from: Vault; to: Vault[]; name: string; line: string }[] =
   { from: 'sido', to: ['sigungu'], name: '조정교부금', line: '시·도가 걷은 세금 일부를 시·군·구에 나눠요.' },
   { from: 'nara', to: ['edu'], name: '교육재정교부금', line: '나라 세금(내국세)의 20.79%와 교육세 일부. 학교 살림이 돼요.' },
 ];
-
-/**
- * 동네 금고 칸(지방재정365 재원 이름) → 쉬운 말·색·어디서 오나. 이름이 바뀌어 모르는 칸이 오면 원래 이름 그대로 「그 밖」 색으로.
- */
-export const KIND: Record<string, { label: string; color: string; from: string }> = {
-  지방세수입: { label: '우리 지방세', color: '#e07a5f', from: '이 금고 몫인 지방세 — 어떤 세금이 어디로 가는지는 세금 도감에' },
-  세외수입: { label: '세금 아닌 수입', color: '#f2b48f', from: '사용료·수수료·과태료 같은 것' },
-  '지방교부세 등': { label: '나라가 나눠 준 돈', color: '#6a9fc9', from: '지방교부세 — 부가세·소득세 같은 나라 세금에서' },
-  조정교부금등: { label: '시·도가 나눠 준 돈', color: '#79a96a', from: '조정교부금 — 취득세 같은 시·도 세금에서' },
-  보조금: { label: '일을 맡기며 받은 돈', color: '#a9c8e3', from: '보조금 — 나라·시·도가 쓰임을 정해 줌' },
-  지방채: { label: '빌린 돈', color: '#b9aea0', from: '지방채 — 나중에 갚아요' },
-  보전수입등및내부거래: { label: '남은 돈·옮긴 돈', color: '#e6d8bd', from: '작년에 쓰고 남은 돈, 기금에서 옮긴 돈' },
-};
-export const kindOf = (name: string) => KIND[name] ?? { label: name, color: '#d9cdb8', from: '' };
-
-/**
- * 걷힌 지방세 한 줄(「시세·취득세」) → 세목 이름과 어느 금고로. 우리 곳 이름 끝 글자(구·시·군)로 우리 몫을 가른다 —
- * 자치구는 구세가 우리 것·시세는 특별·광역시 것, 도 안의 시·군은 시세·군세가 우리 것·도세는 도 것.
- */
-export function splitTax(row: string, placeName: string) {
-  const [kind, name = row] = row.split('·');
-  const own = kind === `${placeName.trim().slice(-1)}세`;
-  return { name: name.replace('특별시재산세', '재산세(서울시가 모아 구에 나눔)'), own };
-}

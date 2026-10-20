@@ -45,14 +45,8 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-chip:disabled{opacity:.5}
 .t-chip .t-ava{transform:scale(.7);margin:-6px -4px}
 
-/* 나라살림 창고 — 한 해 살림 카드 */
-.t-bigcard{margin:12px 0;padding:16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 4px 0 #e2cfab}
-.t-bigcard>.t-small{margin:0}
-.t-big{margin:2px 0 4px;font-family:var(--display);font-size:38px;letter-spacing:-.5px;color:#5b402e}
-.t-share{display:flex;margin:12px 0 10px;border-radius:12px;overflow:hidden;font-family:var(--body);font-weight:700;font-size:13px}
-.t-share span{padding:7px 10px 6px;white-space:nowrap}
-.t-share span:first-child{flex:0 0 var(--a);background:#f4dcc4;color:#8a4f35}
-.t-share span:last-child{flex:1;background:#efe6d4;color:var(--soft);text-align:right}
+/* 지방정부 예산·마을 곳간 — 우리 동네 페이지를 띄운 창(높이는 그 페이지가 알려 줌) */
+.t-frame{display:block;width:100%;height:70vh;margin:10px 0;border:0;border-radius:18px;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
 
 /* 작은 사람(avatar) — 머리·몸 동그라미 셋. data-style 은 머리 모양(9 모자 · 0~3) */
 .t-ava{position:relative;isolation:isolate;display:inline-block;flex:none;width:26px;height:34px;vertical-align:middle}
@@ -173,15 +167,6 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .x-flows li{padding:12px 14px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line)}
 .x-flows b{display:block;margin-bottom:6px;font-family:var(--body);font-weight:800;font-size:16px;color:#5b402e}
 .x-flows .x-line{margin:6px 0 0}
-.x-stack{display:flex;height:18px;margin:10px 0 12px;border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 1.5px #0000000d}
-.x-stack i{display:block;min-width:3px}
-.x-kinds{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.x-kinds li{display:grid;grid-template-columns:12px 1fr auto;align-items:baseline;gap:2px 8px}
-.x-kinds li>i{width:12px;height:12px;border-radius:4px;align-self:center}
-.x-kinds b{font-family:var(--body);font-weight:700;font-size:15px;color:#5b402e}
-.x-num{font-size:13px;color:#6a5646;font-variant-numeric:tabular-nums;white-space:nowrap}
-.x-kinds small{grid-column:2/4;font-size:12px;line-height:1.5;color:var(--soft)}
-.t-bigcard .x-flow{margin:-4px 0 10px}
 .t-mine{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:6px 0 10px}
 .t-mine b{font-family:var(--display);font-size:18px;font-weight:400;color:#5b402e}
 /* 내 동네: 질문과 고르는 곳을 잇고, 저장·도장은 초록 안내로 마무리한다. */

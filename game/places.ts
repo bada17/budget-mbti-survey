@@ -1,17 +1,17 @@
 /*
   마을 건물 안 판(기획 4차, 2026-10-14) — 버스 정류장·상담소·독상·나라살림 창고·쪽지판·시민행동 집. 주민센터는 town.ts 의 openTown.
   사용자(5ⓐ) 「주민이 한마디 하고, 그 사이트의 최신 것 하나를 보여 주고, 들어가기 링크」. 자료는 각 사이트가 이미 내놓은 것을 읽어 오기만 한다 —
-  상담소 첫 화면에 담긴 글 목록(#pb-post-data)·오간 질문, 독상 data/campaigns.json·awards.json, 지방재정은 구워 둔 data/local-finance.json.
+  상담소 첫 화면에 담긴 글 목록(#pb-post-data)·오간 질문, 독상 data/campaigns.json·awards.json, 지방재정은 우리 동네 페이지를 그대로 띄운다(townFrame).
   상담소·독상은 사이트처럼 그 사본을 먼저 펴고, 두 사이트가 읽는 구글 시트 접수처의 최신 것이 오면 갈아 끼운다(사용자 10-15 「새 업데이트가 되어도 잘 연계되게」) —
   그래서 시트에 새 글·새 사업을 올리면 그쪽 사이트를 다시 굽지 않아도 마을에 뜬다.
   못 불러오면 링크만 남는다 — 남의 사이트가 바뀌어도 마을은 멈추지 않게.
   쪽지판·쪽지 카드 — 사용자 「커뮤니티 기능보다는 혼자가 아니다는 느낌」: 답글 없이 한 줄, 「나도」·「신고」 만.
   모양은 town.css(꾸미기는 GPT, 클래스 이름은 지킴).
 */
-import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, loginInvite, noteForm, type FinancePlace, type LoginOpts } from './town';
+import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, loginInvite, noteForm, type LoginOpts } from './town';
 import { DONATE_URL, typeOut } from './ui';
 import { PLACES, keeperName, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
-import { SCENES, FLOWS, VAULTS, kindOf, splitTax, type Vault } from './taxes';
+import { SCENES, FLOWS, VAULTS, type Vault } from './taxes';
 import { toLook, lookFrom, REWARDS, fullPick, type Pick } from './look';
 import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile';
 import { PRIVACY_URL } from './contact';
@@ -229,33 +229,40 @@ export function won(n: number) {
   return `${Math.round(n / 1e4).toLocaleString('ko-KR')}만 원`;
 }
 
-/** 내 동네(시·군·구) 한 해 예산 카드 — 저장한 곳이 있으면 바로 그 곳(town.ts placeChooser). 판정·순위는 내지 않는다(지자체에 딱지를 안 붙이기로 함, README 「기획 2차」). */
-export function openFinance(shell: HTMLElement, onClose: () => void) {
-  const { panel } = placePanel(shell, 'finance', onClose);
-  const status = el('p', 't-small', '불러오는 중…');
-  const card = el('div');
-  panel.append(card, status);
-  void loadPlaces().then(data => {
+/**
+ * 우리 동네 페이지(local-finance site/index.html)의 한 쪽을 판 안에 띄운다 — 「오나」 들어오는 쪽(마을 곳간), 「쓰나」 쓰는 쪽(지방정부 예산).
+ * 마을은 플랫폼 것을 그대로 보여 주는 창이다(사용자 10-19) — 숫자를 여기서 따로 굽지 않는다. ?part= 면 그 페이지가 머리·하단·다른 쪽을 감춘다.
+ * 높이는 그 페이지가 postMessage 로 알려 준다(주소가 달라 직접 못 잰다). 소식이 안 오면 판 높이만큼 두고 창 안에서 내린다.
+ */
+function townFrame(code: string, part: '오나' | '쓰나') {
+  const frame = el('iframe', 't-frame');
+  frame.title = part === '오나' ? '우리 동네 돈이 어디서 오나' : '우리 동네 돈을 어디에 쓰나';
+  frame.src = `${FINANCE_URL}?cd=${code}&part=${encodeURIComponent(part)}&${UTM}`;
+  const onMessage = (e: MessageEvent) => {
+    if (!frame.isConnected) { removeEventListener('message', onMessage); return; }
+    if (e.source === frame.contentWindow && typeof e.data?.lfHeight === 'number') frame.style.height = `${Math.ceil(e.data.lfHeight)}px`;
+  };
+  addEventListener('message', onMessage);
+  return [frame, link('우리 동네 살림 전체 보기', `${FINANCE_URL}?cd=${code}&${UTM}`, 'g-link')];
+}
+
+/** 동네를 고르면(저장한 곳이 있으면 바로 그 곳, town.ts placeChooser) 그 동네 페이지의 한 쪽을 띄운다. */
+function townPane(pane: HTMLElement, part: '오나' | '쓰나') {
+  const status = el('p', 't-small', '불러오는 중…'), card = el('div');
+  pane.append(card, status);
+  void loadPlaces().then(({ places }) => {
     status.remove();
-    const showTown = (place?: FinancePlace) => {
-      if (!place) { card.replaceChildren(); return; }
-      const share = el('div', 't-share'); share.style.setProperty('--a', `${place.w}%`);
-      share.append(el('span', '', `사회복지 ${place.w}%`), el('span', '', '그 밖'));
-      const box = el('div', 't-bigcard');
-      box.append(
-        el('p', 't-small', `${place.s === place.n.replace(' (시·도)', '') ? '' : `${place.s} `}${place.n}의 ${data.year}년 살림(당초 예산)`),
-        el('p', 't-big', won(place.b)),
-        el('p', 't-small', `주민 ${place.p.toLocaleString('ko-KR')}명 · 한 사람에 ${Math.round(place.pp / 10).toLocaleString('ko-KR')}만 원꼴`),
-        share,
-        el('p', 't-small', `스스로 거두는 돈(지방세·세외수입)이 살림의 ${place.i}%`),
-      );
-      card.replaceChildren(box, link('지방재정 감시 사이트에서 더 보기', out(FINANCE_URL, place.c)),
-        source('지방재정365(2026년 당초 예산). 한 사람 몫과 스스로 거두는 돈은 일반회계 기준이에요.'));
-      // 칩 목록이 길어 카드가 화면 밖에 생긴다 — 판만 내린다(scrollIntoView 는 게임 화면까지 밀어 숨겨 둔 판이 삐져나왔다).
-      panel.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
-    };
-    card.before(...placeChooser(data.places, showTown));
+    card.before(...placeChooser(places, place => {
+      card.replaceChildren(...(place ? townFrame(place.c, part) : []));
+      // 칩 목록이 길어 창이 화면 밖에 생긴다 — 판만 내린다(scrollIntoView 는 게임 화면까지 밀어 숨겨 둔 판이 삐져나왔다).
+      if (place) pane.closest('.t-panel')?.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
+    }));
   }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
+}
+
+/** 지방정부 예산 — 우리 동네 페이지의 「돈을 어디에 쓰나」 쪽. */
+export function openFinance(shell: HTMLElement, onClose: () => void) {
+  townPane(placePanel(shell, 'finance', onClose).panel, '쓰나');
 }
 
 // ───────────────────────── 세금 보는 곳 — 세금 도감 · 우리 동네 금고 ─────────────────────────
@@ -264,21 +271,10 @@ const vaultChip = (vault: Vault, extra = '', name = VAULTS[vault].name) => {
   chip.style.setProperty('--c', VAULTS[vault].color);
   return chip;
 };
-/** 몫만큼 칸을 나란히 — 칸마다 색. */
-function stack(parts: { share: number; color: string; label: string }[]) {
-  const bar = el('div', 'x-stack');
-  for (const part of parts) {
-    const seg = el('i'); seg.style.flex = `${Math.max(part.share, 0.4)} 0 0`; seg.style.background = part.color; seg.title = `${part.label} ${part.share}%`;
-    bar.append(seg);
-  }
-  bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', parts.map(p => `${p.label} ${p.share}%`).join(', '));
-  return bar;
-}
-
 /**
  * 세금 보는 곳(사용자 10-14) — 갈래 둘. ① 세금 도감: 생활 장면을 누르면 붙는 세금과 들어가는 금고, 아래엔 나라·시·도 금고에서 다시 내려오는 길.
- * ② 우리 동네 금고: 곳을 고르면 그 금고가 무엇으로 채워지는지(2026 예산)와, 그 동네에서 걷힌 지방세가 어느 금고로 갔는지(2024).
- * 금액은 묻지 않는다. 자료(140KB)는 ② 를 처음 열 때 불러온다.
+ * ② 우리 지역 수입: 우리 동네 페이지의 「돈이 어디서 오나」 쪽을 띄운다(townPane, 10-20 — 예전엔 금고 자료를 따로 구웠다).
+ * 금액은 묻지 않는다. ② 는 처음 열 때 불러온다.
  */
 export function openTax(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'tax', onClose);
@@ -287,7 +283,7 @@ export function openTax(shell: HTMLElement, onClose: () => void) {
   let loaded = false;
   const show = (i: number) => {
     [book, vault].forEach((pane, j) => { pane.hidden = i !== j; tabs.children[j].classList.toggle('on', i === j); tabs.children[j].setAttribute('aria-selected', String(i === j)); });
-    if (i === 1 && !loaded) { loaded = true; fillVault(vault); }
+    if (i === 1 && !loaded) { loaded = true; townPane(vault, '오나'); }
   };
   ['세금 종류', '우리 지역 수입'].forEach((label, i) => { const b = btn('t-tab', label, () => show(i)); b.setAttribute('role', 'tab'); tabs.append(b); });
   panel.append(tabs, book, vault);
@@ -321,60 +317,6 @@ export function openTax(shell: HTMLElement, onClose: () => void) {
     source('지방세기본법 제8·9·11조의2, 지방세법(부가가치세의 25.3%·담배소비세 1,007원 등), 지방교부세법 제4조, 지방교육재정교부금법 제3조. 특별·광역시와 도는 시·군·구 몫이 달라요 — 세종·제주는 한 금고로 모여요.'));
   pick(0);
   show(0);
-}
-
-type RevenuePlace = { f: [string, number, number][]; t?: [string, number, number][] };
-/** 억 원 → 「1,844억 원」·「1.2조 원」 */
-const eokWon = (eok: number) => (eok >= 10000 ? `${(Math.round(eok / 1000) / 10).toLocaleString('ko-KR')}조 원` : `${Math.round(eok).toLocaleString('ko-KR')}억 원`);
-
-function fillVault(pane: HTMLElement) {
-  const status = el('p', 't-small', '불러오는 중…'), card = el('div');
-  pane.append(card, status);
-  void Promise.all([loadPlaces(), import('./data/local-revenue.json')]).then(([finance, { default: revenue }]) => {
-    status.remove();
-    const data = revenue.places as unknown as Record<string, RevenuePlace>; // JSON 이라 튜플 모양을 못 읽는다
-    const showPlace = (place?: FinancePlace) => {
-      if (!place) { card.replaceChildren(); return; }
-      const rev = data[place.c];
-      if (!rev) { card.replaceChildren(el('p', 't-small', '이 곳 자료는 아직 없어요.')); return; }
-      const total = rev.f.reduce((a, [, eok]) => a + eok, 0);
-      const fund = el('div', 't-bigcard');
-      const list = el('ul', 'x-kinds');
-      for (const [name, eok, share] of rev.f) {
-        const kind = kindOf(name), li = el('li'), dot = el('i');
-        dot.style.background = kind.color;
-        li.append(dot, el('b', '', kind.label), el('span', 'x-num', `${eokWon(eok)} · ${share}%`), ...(kind.from ? [el('small', '', kind.from)] : []));
-        list.append(li);
-      }
-      fund.append(el('p', 't-small', `${placeTitle(place)} 금고, ${revenue.fy}년에 채울 돈`), el('p', 't-big', eokWon(total)),
-        stack(rev.f.map(([name, , share]) => ({ share, color: kindOf(name).color, label: kindOf(name).label }))), list);
-      const parts: Node[] = [fund];
-      if (rev.t) {
-        const rows = rev.t.map(([row, eok, share]) => ({ ...splitTax(row, place.n), eok, share }));
-        const own = rows.filter(r => r.own), up = rows.filter(r => !r.own);
-        const sum = (list: typeof rows) => list.reduce((a, r) => a + r.eok, 0);
-        const ownShare = Math.round(own.reduce((a, r) => a + r.share, 0));
-        const upper: Vault = 'sido', mine: Vault = 'sigungu';
-        const taxes = el('div', 't-bigcard');
-        const items = el('ul', 'x-kinds');
-        for (const r of rows) {
-          const li = el('li'), dot = el('i');
-          dot.style.background = VAULTS[r.own ? mine : upper].color;
-          li.append(dot, el('b', '', r.name), el('span', 'x-num', `${eokWon(r.eok)} · ${r.share}%`));
-          items.append(li);
-        }
-        taxes.append(el('p', 't-small', `${revenue.ty}년 ${place.n}에서 걷힌 지방세`), el('p', 't-big', eokWon(sum(rows))),
-          stack([{ share: ownShare, color: VAULTS[mine].color, label: `${place.n} 금고` }, { share: 100 - ownShare, color: VAULTS[upper].color, label: `${place.s} 금고` }]),
-          (() => { const legend = el('p', 'x-flow'); legend.append(vaultChip(mine, ` ${ownShare}%`, place.n), vaultChip(upper, ` ${100 - ownShare}%`, place.s)); return legend; })(),
-          items,
-          el('p', 't-small', `${place.s} 금고로 간 것도 조정교부금·보조금이 되어 일부가 다시 ${place.n}에 내려와요.`));
-        parts.push(taxes);
-      } else if (!place.n.endsWith('(시·도)')) parts.push(el('p', 't-small', '이 곳은 세목별로 걷힌 자료가 없어요.'));
-      card.replaceChildren(...parts, source(revenue._출처));
-      pane.closest('.t-panel')?.scrollTo({ top: card.offsetTop - 12, behavior: 'smooth' });
-    };
-    card.before(...placeChooser(finance.places, showPlace));
-  }, () => { status.textContent = '자료를 불러오지 못했어요.'; });
 }
 
 // ───────────────────────── 시민행동의 집 ─────────────────────────
