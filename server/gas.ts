@@ -17,8 +17,9 @@
 
   ponytail: 요청마다 탭 전체를 읽는다 — 응답이 수천 건을 넘어 느려지면 진짜 서버(README 정할 것 10)로 옮긴다.
 */
-import { handle, login, isAdmin, type Store, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
+import { handle, login, isAdmin, BODY_MAX, type Store, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
 import { TYPES } from '../game/content';
+import { validPayload } from '../game/contact';
 
 /** 쓰는 곳(set)을 기억하는 Map — 시트에는 이것만 다시 쓴다. */
 class Tracked<V> extends Map<string, V> {
@@ -142,9 +143,9 @@ function writeCards(sheet: Sheet, map: Tracked<Card>) {
 }
 
 const contactRow = (c: Contact) => [
-  new Date(c.receivedAt).toISOString(), c.channel === 'sms' ? '문자' : '이메일', plain(c.address), '예', '예', c.consents.marketing ? '예' : '아니오', c.consentVersion,
-  plain(c.neighbor?.name ?? ''), c.neighbor?.questionId ?? '', c.neighbor?.key ?? '', c.neighbor?.seed ?? '', c.type ? `${c.type} ${TYPES[c.type].name}` : '',
-];
+  new Date(c.receivedAt).toISOString(), c.channel === 'sms' ? '문자' : '이메일', c.address, '예', '예', c.consents.marketing ? '예' : '아니오', c.consentVersion,
+  c.neighbor?.name ?? '', c.neighbor?.questionId ?? '', c.neighbor?.key ?? '', c.neighbor?.seed ?? '', c.type ? `${c.type} ${TYPES[c.type].name}` : '',
+].map(plain);
 
 export type GasEvent = { parameter?: Record<string, string>; postData?: { contents: string } };
 
@@ -155,6 +156,9 @@ export type Deps = {
   sha256(text: string): string;
   /** 0~1, 안전한 난수(Utilities.getUuid 에서) */
   random(): number;
+  /** Code.js의 ScriptCache. doPost 잠금 안에서만 읽고 쓴다. 테스트·로컬 저장소에는 없어도 된다. */
+  quota?(bucket: string, limit: number, seconds: number): boolean;
+  cache?: { get(key: string): string | null; put(key: string, value: string, seconds: number): void };
 };
 
 const json = (text: string): any => { try { return JSON.parse(text); } catch { return undefined; } };
@@ -206,8 +210,24 @@ export function accountOf(who: { provider: 'kakao' | 'google'; subject: string }
 export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now = Date.now(), deps?: Deps) {
   const path = String(event.parameter?.p ?? '/');
   if (!path.startsWith('/') || path.startsWith('/tables')) return { status: 404, body: { error: 'not-found' } };
+  const contents = event.postData?.contents ?? '';
+  if (contents.length > BODY_MAX) return { status: 413, body: { error: 'body-too-large' } };
+  if (method === 'POST' && path === '/contact' && deps?.prop('CONTACT_ENABLED') !== 'true') return { status: 403, body: { error: 'contact-disabled' } };
   let body: unknown = null;
-  try { body = event.postData?.contents ? JSON.parse(event.postData.contents) : null; } catch { body = null; }
+  try { body = contents ? JSON.parse(contents) : null; } catch { return { status: 400, body: { error: 'bad-json' } }; }
+  let contactCacheKey: string | undefined;
+  if (method === 'POST') {
+    const minute = Math.floor(now / 60000);
+    const reading = path === '/me' || /^\/homes\/[A-Za-z0-9]{12,32}\/book$/.test(path);
+    if (!reading && deps?.quota && !deps.quota(`writes:${minute}`, 90, 60)) return { status: 429, body: { error: 'request-limit' } };
+    if (path === '/contact') {
+      const payload = validPayload((body as { payload?: unknown } | null)?.payload);
+      if (!payload) return { status: 400, body: { error: 'bad-contact' } };
+      if (deps?.quota && !deps.quota(`contact:${minute}`, 10, 60)) return { status: 429, body: { error: 'contact-limit' } };
+      contactCacheKey = `game-contact:${deps!.sha256(`${payload.channel}:${payload.address}`)}`;
+      if (deps?.cache?.get(contactCacheKey)) return { status: 200, body: { ok: true } };
+    }
+  }
 
   // 탭은 그 요청이 처음 건드릴 때만 연다 — 예전엔 무엇을 하든 여섯 탭을 다 읽어 한 번에 3~6초(10-20 잼, 사용자 「로그인 너무 늦어」).
   // 응답 탭은 사람이 할수록 길어지니 특히. 안 읽은 탭은 고친 것도 없으니 쓰지도 않는다.
@@ -244,6 +264,8 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
     if (store.contacts.length) {
       const sheet = tab(book, CONTACT_TAB, CONTACT_HEAD);
       store.contacts.forEach(c => sheet.appendRow(contactRow(c)));
+      // 실제로 저장한 주소만 기억한다. 쓰기가 실패한 신청은 다음 시도에서 다시 저장할 수 있어야 한다.
+      if (contactCacheKey) deps?.cache?.put(contactCacheKey, '1', 21600);
     }
   }
   return result;

@@ -34,7 +34,7 @@ export type Finished = {
   coins?: number; coinDay?: number; coinsDay?: number;
 };
 /**
- * 쪽지 한 장. likes·reports 는 누른 판(세션)들 — 한 판에 한 번. hidden 은 시트의 「숨김」 칸에서 온다(사람이 적거나, 관리자가 「숨기기」 — hiddenBy).
+ * 쪽지 한 장. likes 는 누른 판(세션), reports 는 신고한 주민(계정 해시) — 각각 한 번. hidden 은 시트의 「숨김」 칸에서 온다(사람이 적거나, 관리자가 「숨기기」 — hiddenBy).
  * account = 쓴 주민(해시, 밖으로 안 낸다 — 하루 몇 장 셀 때만), region = 쓸 때 그 사람의 내 동네(우리 동네 탭의 「동네 한마디」). 옛 쪽지엔 sessionId 만 있다.
  */
 export type Note = { id: string; at: number; name: string; text: string; pick: Pick; sessionId?: string; account?: string; region?: Region; likes: string[]; reports: string[]; hidden?: boolean; hiddenBy?: string };
@@ -73,6 +73,10 @@ export type ApiResult = { status: number; body: unknown };
 export const TABLE_TTL_MS = 6 * 60 * 60 * 1000;
 export const TABLE_MAX = 12;
 export const BOOK_MAX = 50;
+/** 기존 기록은 지우지 않는다. 한도에 닿으면 신규 생성만 멈추고 저장소 용량을 먼저 점검한다. */
+export const FINISHED_MAX = 10000;
+export const HOMES_MAX = 5000;
+export const BODY_MAX = 16384; // JSON 원문 UTF-16 글자 수(GAS도 파싱 전에 검사).
 /** 비율을 보여 주는 최소 인원 — 두세 명 비율은 뜻이 없고, 지역은 적으면 누가 무엇을 골랐는지 드러난다. */
 export const CROWD_MAX = 30;
 const ID = /^[A-Za-z0-9-]{8,64}$/;
@@ -203,6 +207,7 @@ const decode = (part: string | undefined) => { try { return decodeURIComponent(p
 
 /** path 는 /api/game 뒤쪽(예: /stats, /tables/ABCD/members). body 는 이미 JSON 으로 읽은 값. */
 export function handle(store: Store, method: string, path: string, body: unknown, now: number, random = Math.random): ApiResult {
+  if (method === 'POST' && JSON.stringify(body ?? null).length > BODY_MAX) return { status: 413, body: { error: 'body-too-large' } };
   const parts = path.split('/').filter(Boolean);
   const input = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
 
@@ -215,6 +220,7 @@ export function handle(store: Store, method: string, path: string, body: unknown
     }
     // 같은 판을 두 번 보내도 한 번만 센다(먼저 온 것).
     if (!store.finished.has(input.sessionId)) {
+      if (store.finished.size >= FINISHED_MAX) return { status: 503, body: { error: 'storage-full' } };
       store.finished.set(input.sessionId, { answers, type: typeCode(scoreAnswers(orderedQuestions, answers)), at: now });
     }
     return { status: 200, body: stats(store) };
@@ -223,6 +229,7 @@ export function handle(store: Store, method: string, path: string, body: unknown
   // ── 방명록 ──
   if (parts[0] === 'homes') {
     if (method === 'POST' && parts.length === 1) {
+      if (store.homes.size >= HOMES_MAX) return { status: 503, body: { error: 'storage-full' } };
       // ponytail: Math.random 열쇠 — 별명·유형만 든 방명록이라 이 정도. 연락처 같은 걸 담게 되면 crypto 로.
       for (let tries = 0; tries < 5; tries++) {
         const id = randomText(16, KEY_CHARS.replace(/[a-z]/g, ''), random);
@@ -260,7 +267,7 @@ export function handle(store: Store, method: string, path: string, body: unknown
     return isRegion(region) ? { status: 200, body: regionView(store, region) } : { status: 404, body: { error: 'no-region' } };
   }
 
-  // ── 마을 — 쪽지 쓰기·숨기기(로그인한 주민), 들르기·동전·나도·신고(끝낸 판), 보기(누구나) ──
+  // ── 마을 — 쪽지 쓰기·신고(로그인한 주민), 숨기기(관리자), 들르기·동전·나도(끝낸 판), 보기(누구나) ──
   if (parts[0] === 'village') {
     if (method === 'GET' && parts.length <= 2) return { status: 200, body: villageView(store, now, parts[1]) };
     if (method !== 'POST') return { status: 404, body: { error: 'not-found' } };
@@ -289,6 +296,15 @@ export function handle(store: Store, method: string, path: string, body: unknown
       store.notes.set(note.id, { ...note, hidden: true, hiddenBy: '관리자' });
       return { status: 200, body: { ok: true } };
     }
+    if (parts[1] === 'notes' && parts.length === 4 && parts[3] === 'report') {
+      const found = byKey(store, input.key);
+      if (!found) return { status: 403, body: { error: 'login' } };
+      const note = store.notes.get(parts[2]);
+      if (!note || !shown(note)) return { status: 404, body: { error: 'no-note' } };
+      const account = found[0];
+      if (!note.reports.includes(account)) store.notes.set(note.id, { ...note, reports: [...note.reports, account] });
+      return { status: 200, body: { ok: true } };
+    }
     const sessionId = typeof input.sessionId === 'string' ? input.sessionId : '';
     const done = store.finished.get(sessionId);
     if (!done) return { status: 400, body: { error: 'not-finished' } };
@@ -314,10 +330,6 @@ export function handle(store: Store, method: string, path: string, body: unknown
       if (!note.likes.includes(sessionId)) store.notes.set(note.id, { ...note, likes: [...note.likes, sessionId].slice(-300) });
       return { status: 200, body: { likes: store.notes.get(note.id)!.likes.length } };
     }
-    if (parts[3] === 'report') {
-      if (!note.reports.includes(sessionId)) store.notes.set(note.id, { ...note, reports: [...note.reports, sessionId] });
-      return { status: 200, body: { ok: true } };
-    }
     return { status: 404, body: { error: 'not-found' } };
   }
 
@@ -337,7 +349,7 @@ export function handle(store: Store, method: string, path: string, body: unknown
     const found = byKey(store, input.key);
     if (!found) return { status: 403, body: { error: 'bad-key' } };
     const [account, resident] = found;
-    if (parts.length === 1) return { status: 200, body: { save: resident.save } };
+    if (parts.length === 1) return { status: 200, body: { save: resident.save, admin: resident.admin === true } };
     if (parts[1] === 'save') {
       const save = cleanSave(input.save);
       if (!save) return { status: 400, body: { error: 'bad-save' } };

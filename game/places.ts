@@ -15,6 +15,7 @@ import { toLook, lookFrom, REWARDS, fullPick, type Pick } from './look';
 import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile';
 import { PRIVACY_URL } from './contact';
 import type { PublicNote, VillageView, PublicCard, CardKind } from './api';
+import { gameStorage, isInspectionMode } from './storage';
 
 const PB_URL = 'https://pb.action.or.kr/';
 const DOK_URL = 'https://dok.action.or.kr/';
@@ -120,6 +121,7 @@ function askForm() {
   const go = form.querySelector<HTMLButtonElement>('[type=submit]')!, said = form.querySelector('.g-result')!;
   form.onsubmit = async event => {
     event.preventDefault();
+    if (isInspectionMode()) { said.textContent = '점검용으로 확인했어요. 실제 상담소에는 접수하지 않았어요.'; return; }
     const data = new FormData(form);
     // 체크 칸은 켜짐/꺼짐으로 — FormData 는 켠 것만 'on' 으로 담아, 끈 것이 아예 빠진다(받는 쪽은 === true 로 본다).
     const body = { ...Object.fromEntries(data), form: 'pb-ask', 'pb-agree': data.has('pb-agree'), 'pb-news': data.has('pb-news') };
@@ -379,12 +381,12 @@ type Marks = { mine: string[]; liked: string[]; reported: string[]; lastAt: numb
 const MARKS_KEY = 'budget-game-village';
 export function loadMarks(): Marks {
   try {
-    const raw = JSON.parse(localStorage.getItem(MARKS_KEY) ?? 'null');
+    const raw = JSON.parse(gameStorage.getItem(MARKS_KEY) ?? 'null');
     const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(-200) : []);
     return { mine: ids(raw?.mine), liked: ids(raw?.liked), reported: ids(raw?.reported), lastAt: Number(raw?.lastAt) || 0 };
   } catch { return { mine: [], liked: [], reported: [], lastAt: 0 }; }
 }
-const saveMarks = (marks: Marks) => { try { localStorage.setItem(MARKS_KEY, JSON.stringify(marks)); } catch { /* 막힌 창 */ } };
+const saveMarks = (marks: Marks) => { try { gameStorage.setItem(MARKS_KEY, JSON.stringify(marks)); } catch { /* 막힌 창 */ } };
 /** 내가 붙인 쪽지 — 광장을 다시 그리기 **전에** 적어야 내 모습을 한 주민이 하나 더 서지 않는다(main.ts 의 post). */
 export function rememberMine(id: string, now = Date.now()) { const marks = loadMarks(); marks.mine = [...marks.mine, id].slice(-200); marks.lastAt = now; saveMarks(marks); }
 
@@ -519,7 +521,7 @@ export type Pocket = {
  */
 export function loadPocket(day: number): Pocket {
   try {
-    const raw = JSON.parse(localStorage.getItem(POCKET_KEY) ?? 'null');
+    const raw = JSON.parse(gameStorage.getItem(POCKET_KEY) ?? 'null');
     const num = (v: unknown) => (Number.isInteger(v) && (v as number) >= 0 ? (v as number) : 0);
     const sameDay = raw?.day === day;
     return {
@@ -528,7 +530,7 @@ export function loadPocket(day: number): Pocket {
     };
   } catch { return { day, taken: [], coins: 0, fruits: 0, given: 0, told: false, arcade: [] }; }
 }
-export const savePocket = (pocket: Pocket) => { try { localStorage.setItem(POCKET_KEY, JSON.stringify({ ...pocket, at: Date.now() })); } catch { /* 막힌 창 */ } touched(); };
+export const savePocket = (pocket: Pocket) => { try { gameStorage.setItem(POCKET_KEY, JSON.stringify({ ...pocket, at: Date.now() })); } catch { /* 막힌 창 */ } touched(); };
 
 export type WorksOpts = {
   /** 모두가 넣은 동전(서버 없으면 내가 넣은 것만). */
@@ -565,24 +567,28 @@ const COIN_FAILED: Record<string, string> = {
 export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => void) {
   const { panel, close } = placePanel(shell, 'works', onClose);
   const card = el('div', 't-bigcard'), status = el('p', 't-small'); status.setAttribute('role', 'status');
-  let justBuilt: string | undefined;
+  let justBuilt: string | undefined, busy = false;
   const give = btn('g-primary', '', async () => {
     const n = Math.min(opts.pocket.coins, COIN_DAY_MAX);
-    if (!n) return;
+    if (!n || busy) return;
     const total = opts.total, coins = opts.pocket.coins, before = worksAt(total).done.length;
     // 누르는 순간 막대·주머니를 먼저 채운다(10-20 사용자 「동전을 넣을 때 느려」 — 서버 한 번 1.5~2초). 못 넣었으면 되돌린다.
     // 공사 하나를 다 채우는 동전이면 먼저 채우지 않는다 — 다음 공사 0칸이 먼저 보였다가 「완성!」 이 뜨게 된다.
+    // 넣는 동안(busy) 넣기·사기 단추는 잠근다(GPT 10-20 — 두 번 눌러 두 번 보내던 것).
     const early = worksAt(total + n).done.length === before;
-    if (early) { opts.total = total + n; opts.pocket.coins = coins - n; status.textContent = `동전 ${n}개를 넣었어요.`; draw(); }
-    else status.textContent = '넣는 중…';
-    give.disabled = true;
-    const done = await opts.give(n);
-    if ('failed' in done) { opts.total = total; opts.pocket.coins = coins; status.textContent = COIN_FAILED[done.failed] ?? '지금은 넣지 못했어요. 조금 뒤에 다시 해 주세요.'; draw(); return; }
-    opts.total = done.total;
-    const after = worksAt(opts.total).done;
-    if (after.length > before) justBuilt = WORKS.find(w => w.id === after[after.length - 1])!.name;
-    status.textContent = `동전 ${done.took}개를 넣었어요.`;
+    const undo = (text: string) => { opts.total = total; opts.pocket.coins = coins; status.textContent = text; };
+    busy = true;
+    if (early) { opts.total = total + n; opts.pocket.coins = coins - n; status.textContent = `동전 ${n}개를 넣었어요.`; } else status.textContent = '넣는 중…';
     draw(); drawShop();
+    try {
+      const done = await opts.give(n);
+      if ('failed' in done) { undo(COIN_FAILED[done.failed] ?? '지금은 넣지 못했어요. 조금 뒤에 다시 해 주세요.'); return; }
+      opts.total = done.total;
+      const after = worksAt(opts.total).done;
+      if (after.length > before) justBuilt = WORKS.find(w => w.id === after[after.length - 1])!.name;
+      status.textContent = `동전 ${done.took}개를 넣었어요.`;
+    } catch { undo('지금은 넣지 못했어요. 조금 뒤에 다시 해 주세요.'); }
+    finally { busy = false; draw(); drawShop(); }
   });
   const draw = () => {
     const state = worksAt(opts.total);
@@ -608,7 +614,7 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
     card.replaceChildren(...parts);
     const n = Math.min(opts.pocket.coins, COIN_DAY_MAX);
     give.textContent = !opts.pocket.coins ? '주머니에 동전이 없어요' : !state.now ? '지금 짓는 것이 없어요' : `동전 ${n}개 넣기`;
-    give.disabled = !opts.pocket.coins || !state.now;
+    give.disabled = busy || !opts.pocket.coins || !state.now;
   };
   // 액세서리 사기 — 가진 것은 「갖고 있어요」, 지금 쓰는 것은 「쓰는 중」.
   const shop = el('section', 'v-sec'), wares = el('ul', 'v-list');
@@ -621,11 +627,12 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
       else if (owned.includes(i)) li.append(el('span', 't-small', '갖고 있어요'));
       else {
         const buy = btn('g-ghost', `동전 ${ACCESSORY_PRICE}개로 사기`, () => {
+          if (busy) return;
           if (!opts.buy(i)) { status.textContent = `동전이 ${ACCESSORY_PRICE - opts.pocket.coins}개 더 있어야 해요.`; return; }
           status.textContent = `${josa(reward.name, '을', '를')} 샀어요. 지금 쓰고 있어요.`;
           draw(); drawShop();
         });
-        buy.disabled = opts.pocket.coins < ACCESSORY_PRICE;
+        buy.disabled = busy || opts.pocket.coins < ACCESSORY_PRICE;
         li.append(buy);
       }
       return li;

@@ -84,6 +84,10 @@ export class JourneyScene extends Phaser.Scene {
   private followers: Follower[] = [];
   private guests = new Map<string, Dude>();
   private hillTop?: Point;
+  private hillArt?: Phaser.GameObjects.Container;
+  private portal?: Phaser.GameObjects.Container;
+  private portalScale = 1;
+  private hillWalks = new Map<Dude, Phaser.Tweens.Tween>();
   /** 언덕을 방처럼 걷는다 — 빛 아치가 「문」(wallY 가 아치 발밑). 아치가 피기 전엔 없다. */
   private hillRoom?: Room;
   /** 빛 아치 뒤의 빛무리 — 가까이 갈수록 밝아진다(사용자 10-19 「텍스트로 들어가게 하는 건 너무 강제적」 → 아치가 들어가고 싶게). */
@@ -321,17 +325,17 @@ export class JourneyScene extends Phaser.Scene {
 
   /** 끝 카드 아래 남은 풀밭에 빛 아치를 세운다. 나는 그 아래 몇 걸음 떨어져 있다. */
   private openPortal() {
-    const top = this.hillTop;
-    if (!top || this.mode !== 'hill' || this.hillRoom) return;
+    if (!this.hillTop || this.mode !== 'hill' || this.hillRoom) return;
+    this.relayoutHill(); // 결과 카드가 뜬 뒤 실제 남은 풀밭으로 맞춘다(짧은 가로 화면 포함).
+    const { top, base, floor, scale } = this.hillLayout();
     const { w, h } = this.runtime.view();
-    const free = this.runtime.ui.endFree();
-    const base = Math.round(Math.min(top.y - FEEL.portalGapPx, Math.max(free.top + PORTAL.height + 16, top.y - FEEL.portalGapPx * 1.6)));
-    drawPortal(this, top.x, base, this.reduced);
+    this.portal = drawPortal(this, top.x, base, this.reduced);
+    if (scale < 1) { this.tweens.killTweensOf(this.portal); this.portal.setScale(scale).setAlpha(1); }
     this.glowPortal(top.x, base);
     sparkle(this, top.x, base - PORTAL.height / 2, this.reduced);
     sfx.portal();
     const far = { x: -999, y: -999 };
-    this.hillRoom = { w, h, wallY: base, door: { x: top.x, half: PORTAL.half }, residents: { left: far, right: far }, spawn: { ...top }, floor: Math.min(h - 22, free.bottom - 8) };
+    this.hillRoom = { w, h, wallY: base, door: { x: top.x, half: PORTAL.half * scale }, residents: { left: far, right: far }, spawn: { ...top }, floor };
     this.player.look(0, -1);
     this.standGuide(top, base);
   }
@@ -369,19 +373,20 @@ export class JourneyScene extends Phaser.Scene {
    * 밝기는 update 가 나와의 거리로 바꾼다. 움직임 줄이기면 빛무리만 가만히. 느낌 다듬기는 GPT 몫.
    */
   private glowPortal(x: number, base: number) {
-    const { half, height } = PORTAL, mid = base - height * 0.55;
+    const { half, height } = PORTAL, mid = base - height * this.portalScale * 0.55;
     const glow = this.add.container(x, mid, [
       this.add.ellipse(0, 0, half * 3.8, height * 1.55, 0xffdea9, 0.12),
       this.add.ellipse(0, 4, half * 2, height, 0xfff6df, 0.27),
     ]).setDepth(base - 1).setAlpha(0.58);
     this.portalGlow = glow;
+    glow.setScale(this.portalScale);
     if (this.reduced) return;
-    glow.setScale(0.6);
-    this.tweens.add({ targets: glow, scale: 1, duration: 650, ease: 'Sine.easeOut', onComplete: () => this.tweens.add({ targets: glow, scale: 1.08, duration: 1450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }) });
+    this.tweens.add({ targets: glow, scale: this.portalScale * 1.08, duration: 1450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.time.addEvent({
       delay: 520, loop: true, callback: () => {
         if (!glow.active || this.warping) return;
-        const side = Math.random() < 0.5 ? -1 : 1, sx = x + side * (half + 4 + Math.random() * 11), sy = base - 9 - Math.random() * height * 0.73;
+        const side = Math.random() < 0.5 ? -1 : 1, room = this.hillRoom;
+        const sx = (room?.door.x ?? x) + side * (half + 4 + Math.random() * 11) * this.portalScale, sy = (room?.wallY ?? base) - 9 - Math.random() * height * this.portalScale * 0.73;
         const star = this.add.star(sx, sy, 4, 0.9, 3.2 + Math.random() * 1.5, Math.random() < 0.45 ? 0xfff9dd : 0xffdc99, 0.84).setDepth(base + 2);
         this.tweens.add({ targets: star, y: sy - 25 - Math.random() * 20, angle: 75, alpha: 0, scale: 0.35, duration: 1100, ease: 'Sine.easeOut', onComplete: () => star.destroy() });
       },
@@ -651,7 +656,7 @@ export class JourneyScene extends Phaser.Scene {
 
   skipBus() { this.busDone?.(); }
 
-  /** 개발판 지름길(main.ts skipToEnd) — 고른 주민들을 내 뒤에 세우고 바로 언덕으로. */
+  /** 점검 지름길(main.ts skipToEnd) — 고른 주민들을 내 뒤에 세우고 바로 언덕으로. */
   skipToEnd(picked: { questionId: string; side: DisplaySide; key: 'a' | 'b' }[]) {
     this.dropResidents();
     for (const { questionId, side, key } of picked) {
@@ -663,7 +668,7 @@ export class JourneyScene extends Phaser.Scene {
     this.toHill();
   }
 
-  /** 개발판 지름길 ?room= — 고른 주민들을 줄 세우고 그 방에서 바로 시작(main.ts skipToRoom). */
+  /** 점검 지름길 ?room= — 고른 주민들을 줄 세우고 그 방에서 바로 시작(main.ts skipToRoom). */
   skipToRoom(index: number, picked: { questionId: string; side: DisplaySide; key: 'a' | 'b' }[]) {
     this.dropRoom();
     this.setRoom(this.buildRoom(index, 0));
@@ -682,6 +687,8 @@ export class JourneyScene extends Phaser.Scene {
   private toHill() {
     const { w, h } = this.runtime.view();
     const hill = drawHill(this, w, h, -h);
+    this.hillArt = hill.box;
+    this.sizeBuilt = { w, h };
     this.light.setFillStyle(DAYLIGHT[5][2]);
     this.scrollUp(hill.box, hill.top, () => { this.mode = 'hill'; this.hillTop = hill.top; this.gather(hill.top); });
   }
@@ -696,10 +703,7 @@ export class JourneyScene extends Phaser.Scene {
   private gather(top: Point) {
     const n = this.followers.length;
     this.followers.forEach(({ dude }, i) => {
-      const inner = i < 6, j = inner ? i : i - 6, count = inner ? Math.min(6, n) : n - 6;
-      const spread = Math.PI * 1.15, angle = Math.PI / 2 - spread / 2 + spread * (j + 0.5) / Math.max(1, count);
-      const radius = inner ? 60 : 100; // 아래쪽으로만 둘러선다(위는 끝 카드가 덮는다)
-      const spot = { x: top.x - Math.cos(angle) * radius, y: top.y + Math.sin(angle) * radius * 0.55 - (inner ? 0 : 6) };
+      const spot = this.gatherSpot(i, n, top);
       this.walkTo(dude, spot, FEEL.gatherMs + i * 30, top);
     });
     this.player.look(0, 1);
@@ -718,11 +722,65 @@ export class JourneyScene extends Phaser.Scene {
 
   private walkTo(dude: Dude, spot: Point, ms: number, face: Point) {
     const start = { x: dude.x, y: dude.y };
-    this.tweens.addCounter({
+    const tween = this.tweens.addCounter({
       from: 0, to: 1, duration: this.reduced ? 1 : ms, ease: 'Sine.easeInOut',
       onUpdate: tween => { const p = lerp(start, spot, tween.getValue() ?? 1); dude.look(p.x - dude.x, p.y - dude.y); dude.place(p).walk(16, true, this.reduced); },
-      onComplete: () => { dude.walk(16, false, this.reduced); dude.look(face.x - spot.x, face.y - spot.y); },
+      onComplete: () => { this.hillWalks.delete(dude); dude.walk(16, false, this.reduced); dude.look(face.x - spot.x, face.y - spot.y); },
     });
+    this.hillWalks.set(dude, tween);
+  }
+
+  private gatherSpot(i: number, n: number, top: Point) {
+    const inner = i < 6, j = inner ? i : i - 6, count = inner ? Math.min(6, n) : n - 6;
+    const spread = Math.PI * 1.15, angle = Math.PI / 2 - spread / 2 + spread * (j + 0.5) / Math.max(1, count), radius = inner ? 60 : 100;
+    return { x: top.x - Math.cos(angle) * radius, y: top.y + Math.sin(angle) * radius * 0.55 - (inner ? 0 : 6) };
+  }
+
+  private hillLayout() {
+    const { w, h } = this.runtime.view(), free = this.runtime.ui.endFree();
+    const floor = Math.min(h - 22, free.bottom - 8), nominal = Math.round(h * 0.68);
+    const scale = Math.min(1, Math.max(1, floor - free.top - 8) / (PORTAL.height + FEEL.portalGapPx));
+    const base = Math.round(Math.min(floor - FEEL.portalGapPx * scale, Math.max(free.top + PORTAL.height * scale + 8, nominal - FEEL.portalGapPx * 1.6 * scale)));
+    return { top: { x: w / 2, y: Math.min(floor, Math.max(base + FEEL.portalGapPx * scale, nominal)) }, base, floor, scale };
+  }
+
+  private relayoutHill() {
+    if (!this.hillTop || this.warping) return;
+    const { w, h } = this.runtime.view(), old = this.hillRoom;
+    const { top, base, floor, scale } = this.hillLayout();
+    this.runtime.controls.clear();
+    this.hillWalks.forEach(t => t.stop()); this.hillWalks.clear();
+    this.hillArt?.destroy(); this.hillArt = drawHill(this, w, h, 0).box;
+    this.hillTop = top; this.sizeBuilt = { w, h }; this.portalScale = scale;
+    const progress = old ? Math.max(0, Math.min(1, (this.pos.y - old.wallY) / Math.max(1, old.floor - old.wallY))) : 1;
+    this.pos = old ? { x: Math.max(16, Math.min(w - 16, this.pos.x * w / old.w)), y: Math.max(base + 2, Math.min(floor, base + progress * (floor - base))) } : { ...top };
+    this.player.place(this.pos);
+    this.followers.forEach(({ dude }, i) => dude.place(this.gatherSpot(i, this.followers.length, top)));
+    const tags: { text: string; x: number; y: number }[] = [];
+    [...this.guests.values()].forEach((dude, i) => {
+      const at = { x: top.x + (i % 2 ? 1 : -1) * (34 + Math.floor(i / 2) * 40), y: top.y - 26 - Math.floor(i / 2) * 4 };
+      dude.place(at); tags.push({ text: this.guestTags[i]?.text ?? '', x: at.x, y: at.y - 58 });
+    });
+    if (old) {
+      this.hillRoom = { ...old, w, h, wallY: base, floor, door: { x: top.x, half: PORTAL.half * scale }, spawn: { ...top } };
+      if (this.portal) { this.tweens.killTweensOf(this.portal); this.portal.setPosition(top.x, base).setDepth(base).setScale(scale).setAlpha(1); }
+      if (this.portalGlow) {
+        this.tweens.killTweensOf(this.portalGlow);
+        this.portalGlow.setPosition(top.x, base - PORTAL.height * scale * 0.55).setDepth(base - 1).setScale(scale);
+        if (!this.reduced) this.tweens.add({ targets: this.portalGlow, scale: scale * 1.08, duration: 1450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }
+    }
+    if (this.guide) {
+      const spot = { x: Math.min(w - 28, top.x + FEEL.guideSidePx), y: base + 10 };
+      this.guide.dude.place(spot);
+      this.guide.near ||= distance(this.pos, spot) < FEEL.guideRadius; // 재배치만으로 새 만남을 만들지 않는다.
+      if (this.guide.dots) {
+        this.tweens.killTweensOf(this.guide.dots); this.guide.dots.setPosition(spot.x, spot.y - 90).setDepth(spot.y + 200);
+        if (!this.reduced) this.tweens.add({ targets: this.guide.dots, y: spot.y - 95, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }
+    }
+    this.guestTags = tags; this.tagsShown = undefined;
+    this.runtime.ui.tags([{ text: this.runtime.name() || '나', x: this.pos.x, y: this.pos.y - 58 }, ...tags]);
   }
 
   /** 초대한 친구·같은 테이블 사람을 언덕에 세운다. 새로 온 사람만 아래에서 걸어 올라온다. */
@@ -769,6 +827,7 @@ export class JourneyScene extends Phaser.Scene {
     if (this.mode === 'dress') this.zoomTo(this.dressView());
     else this.cameras.main.setZoom(dpr);
     this.light.setSize(w * 3, h * 3);
+    if (this.mode === 'hill') { if (w !== this.sizeBuilt.w || h !== this.sizeBuilt.h) this.relayoutHill(); return; }
     if (this.mode !== 'play' || (w === this.sizeBuilt.w && Math.abs(h - this.sizeBuilt.h) < 80)) return;
     const chosen = this.chosen, doorOpen = this.doorOpen;
     this.dropRoom();

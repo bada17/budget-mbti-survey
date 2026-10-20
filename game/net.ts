@@ -14,6 +14,7 @@ import type { Stats, TableView, RegionView, Visit, VillageView, PublicNote, Publ
 import type { ContactPayload } from './contact';
 import type { Neighbor, Region, Save } from './profile';
 import type { Pick } from './look';
+import type { Store } from './api';
 
 const GAS: string | undefined = import.meta.env?.VITE_GAME_API || undefined;
 /** 테이블(같이 걷기)이 되는 서버인가. */
@@ -25,9 +26,16 @@ export const TABLES = !GAS;
  */
 let failed = '';
 export const lastFailure = () => failed;
+let inspection: { store: Store; handle: typeof import('./api').handle } | undefined;
 
 async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T | undefined> {
   failed = '';
+  if (inspection) {
+    const result = inspection.handle(inspection.store, method, path, body, Date.now());
+    if (result.status < 400) return result.body as T;
+    failed = String((result.body as { error?: string }).error ?? result.status);
+    return undefined;
+  }
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), GAS ? 12000 : 4000); // 앱스 스크립트는 처음 깨어날 때 몇 초 걸린다
   try {
@@ -51,6 +59,16 @@ async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pr
 }
 
 export const net = {
+  /** 실제 서버에서 확인한 관리자만 점검을 연다. 그 뒤의 요청은 이 페이지 메모리에서만 처리한다. */
+  startInspection: async (key: string) => {
+    const resident = await call<{ save: Save; admin: boolean }>('POST', '/me', { key });
+    if (!resident?.admin) return false;
+    const { createStore, handle } = await import('./api');
+    const store = createStore();
+    store.residents.set(`google:${'0'.repeat(64)}`, { key, save: {}, at: Date.now(), admin: true });
+    inspection = { store, handle };
+    return true;
+  },
   stats: () => call<Stats>('GET', '/stats'),
   finish: (sessionId: string, answers: Record<string, number>) => call<Stats>('POST', '/finish', { sessionId, contentVersion: CONTENT_VERSION, answers }),
   newTable: () => call<{ code: string }>('POST', '/tables', {}),
@@ -69,13 +87,13 @@ export const net = {
   note: (key: string, note: { sessionId?: string; name: string; pick: Pick; text: string; region?: Region }) => call<{ note: PublicNote; view: VillageView }>('POST', '/village/notes', { key, ...note }),
   hide: (key: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/hide`, { key }),
   like: (sessionId: string, id: string) => call<{ likes: number }>('POST', `/village/notes/${id}/like`, { sessionId }),
-  report: (sessionId: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/report`, { sessionId }),
+  report: (key: string, id: string) => call<{ ok: true }>('POST', `/village/notes/${id}/report`, { key }),
   cards: () => call<{ cards: PublicCard[] }>('GET', '/cards'),
   react: (id: string, voter: string, kind: CardKind) => call<{ card: PublicCard }>('POST', `/cards/${encodeURIComponent(id)}/react`, { voter, kind }),
   coins: (sessionId: string, n: number) => call<{ took: number; view: VillageView }>('POST', '/village/coins', { sessionId, n }),
   // 로그인(10-14) — 확인은 서버가 카카오·구글에 묻는다. 그다음은 열쇠로.
   login: (proof: { provider: string; redirectUri: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save; email?: string; admin?: boolean }>('POST', '/login', proof),
-  me: (key: string) => call<{ save: Save }>('POST', '/me', { key }),
+  me: (key: string) => call<{ save: Save; admin: boolean }>('POST', '/me', { key }),
   saveMe: (key: string, save: Save) => call<{ ok: true }>('POST', '/me/save', { key, save }),
   forget: (key: string) => call<{ ok: true }>('POST', '/me/forget', { key }),
 };

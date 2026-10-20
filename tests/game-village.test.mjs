@@ -132,7 +132,7 @@ test('마을 서버: 끝낸 판만 들르고, 최근 이레 안에 들른 사람
 /** 로그인한 주민 — 열쇠. admin 이면 관리자(로그인 때 서버가 확인된 이메일로 가린다). */
 const keyOf = (store, n, admin = false) => login(store, `kakao:${String(n).padStart(64, '0')}`, 0, Math.random, admin).body.key;
 
-test('쪽지: 로그인한 사람만 쓰고, 10분에 하나·하루 셋(계정마다), 나도·신고는 한 판에 한 번, 신고가 모이면 숨는다', () => {
+test('쪽지: 로그인한 사람만 쓰고, 10분에 하나·하루 셋(계정마다), 나도는 판마다·신고는 계정마다 한 번, 신고가 모이면 숨는다', () => {
   const store = createStore();
   let now = Date.UTC(2026, 9, 14, 3);
   const key = keyOf(store, 1);
@@ -160,15 +160,16 @@ test('쪽지: 로그인한 사람만 쓰고, 10분에 하나·하루 셋(계정�
 
   const id = made.body.note.id;
   const like = sessionId => handle(store, 'POST', `/village/notes/${id}/like`, { sessionId }, now);
-  const report = sessionId => handle(store, 'POST', `/village/notes/${id}/report`, { sessionId }, now);
+  const report = key => handle(store, 'POST', `/village/notes/${id}/report`, { key }, now);
   assert.equal(like('session-none').status, 400);
   for (let i = 0; i < REPORT_HIDE + 1; i++) finish(store, `session-r${i}000`);
   assert.equal(like('session-r0000').body.likes, 1);
   assert.equal(like('session-r0000').body.likes, 1, '두 번 눌러도 한 번');
   assert.equal(like('session-r1000').body.likes, 2);
-  report('session-r0000'); report('session-r0000');
-  assert.ok(handle(store, 'GET', '/village', null, now).body.notes.some(n => n.id === id), '같은 판 신고는 한 번만 센다');
-  for (let i = 1; i < REPORT_HIDE; i++) report(`session-r${i}000`);
+  const reporters = Array.from({ length: REPORT_HIDE }, (_, i) => keyOf(store, i + 10));
+  report(reporters[0]); report(reporters[0]);
+  assert.ok(handle(store, 'GET', '/village', null, now).body.notes.some(n => n.id === id), '같은 계정 신고는 한 번만 센다');
+  for (let i = 1; i < REPORT_HIDE; i++) report(reporters[i]);
   assert.ok(!handle(store, 'GET', '/village', null, now).body.notes.some(n => n.id === id), `신고 ${REPORT_HIDE}번이면 숨는다`);
   assert.equal(like('session-r3000').status, 404, '숨은 쪽지엔 못 누른다');
   assert.equal(handle(store, 'POST', '/village/notes/NOPE/like', { sessionId: 'session-r0000' }, now).status, 404);
@@ -205,9 +206,9 @@ test('시트의 쪽지 탭: 사람이 읽는 칸, 숨김 칸에 적으면 숨고
   assert.equal(serve('GET', { parameter: { p: '/regions/1144000' } }, book, now).body.notes.length, 1, '다음 요청이 시트에서 동네를 다시 읽는다');
   rows[1][6] = '광고'; // 지우는 사람이 시트에 적는다
   assert.equal(get().notes.length, 0);
-  post(`/village/notes/${id}/report`, { sessionId: 'session-bbbb' }, now); // 숨은 쪽지 — 404, 아무것도 안 쓴다
+  post(`/village/notes/${id}/report`, { key: KEY }, now); // 숨은 쪽지 — 404, 아무것도 안 쓴다
   rows[1][6] = '';
-  post(`/village/notes/${id}/report`, { sessionId: 'session-bbbb' }, now);
+  post(`/village/notes/${id}/report`, { key: KEY }, now);
   rows[1][6] = '확인함';
   post(`/village/notes/${id}/like`, { sessionId: 'session-aaaa' }, now);
   assert.equal(rows[1][6], '확인함', '서버가 숨김 칸을 덮어쓰지 않는다');

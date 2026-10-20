@@ -8,6 +8,7 @@
   예전 「오늘의 부탁」(건물 문 앞 주민 셋이 날마다 돌림, 10-14 ⓓ)은 이걸로 갈아 끼웠다. 해낸 것은 이 기기에만. 그림 없이 시험되는 것만 여기.
 */
 import type { Point } from './room';
+import { gameStorage } from './storage';
 
 export type Choice = { text: string; /** 맞는 답 — 하나라도 있으면 틀린 걸 고르면 다시 고른다. 없으면(다 못 들어줘요) 무엇을 골라도 된다. */ right?: boolean; reply: string };
 export type Errand = { id: string; /** 주민이 서 있는 자리(마을 지도) */ at: Point; ask: string; choices: Choice[] };
@@ -82,11 +83,11 @@ export function finishErrand(memo: ErrandMemo, id: string, today: number): { mem
 const KEY = 'budget-game-errands';
 export function loadErrands(): ErrandMemo {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    const raw = JSON.parse(gameStorage.getItem(KEY) ?? 'null');
     return {
       done: Array.isArray(raw?.done) ? raw.done.filter((x: unknown) => typeof x === 'string').slice(0, 40) : [],
       cleared: Array.isArray(raw?.cleared) ? raw.cleared.filter(Number.isInteger).slice(0, ERRAND_DAYS.length) : [],
     };
   } catch { return { done: [], cleared: [] }; }
 }
-export const saveErrands = (memo: ErrandMemo) => { try { localStorage.setItem(KEY, JSON.stringify(memo)); } catch { /* 막힌 창 */ } };
+export const saveErrands = (memo: ErrandMemo) => { try { gameStorage.setItem(KEY, JSON.stringify(memo)); } catch { /* 막힌 창 */ } };

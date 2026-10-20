@@ -1,0 +1,2 @@
+.g-inspector{position:fixed;z-index:30;top:max(8px,env(safe-area-inset-top));left:8px;max-width:min(340px,calc(100vw - 16px));max-height:85dvh;overflow:auto;background:#fffaf0;border:2px solid #65503d;border-radius:12px;padding:8px;box-shadow:0 3px 10px #0003;color:#382f27;font:14px/1.5 sans-serif}
+.g-inspector summary{cursor:pointer;font-weight:700}.g-inspector p{margin:8px 0}.g-inspector a{display:block;margin:6px 0;text-decoration:none}.g-inspector label{display:block;margin:10px 0}.g-inspector select{display:block;width:100%;padding:8px;font:inherit}

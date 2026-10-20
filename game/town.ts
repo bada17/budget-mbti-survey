@@ -24,6 +24,7 @@ import { PRIVACY_URL, type ContactForm } from './contact';
 import { PROVIDER_NAME, current as loginNow, type Provider, type Intent } from './login';
 import type { PublicNote, RegionView, Visit } from './api';
 import { VILLAGE_NAME, NOTE_MAX, NOTE_WHY, checkNote, placeName } from './village';
+import { isInspectionMode } from './storage';
 
 export type Person = { name: string; pick: Pick; type: TypeCode; town: Town };
 type Guest = Omit<Visit, 'sessionId'>;
@@ -135,7 +136,6 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   };
 
   // ── 시민증 + 도장판 — 도장을 누르면 받는 법이 아래 한 줄로 ──
-  const stamps = board(loadStamps());
   const card = el('div', 't-card');
   const photo = el('div', 't-photo');
   if (data.photo) { const img = el('img'); img.src = data.photo; img.alt = '내 모습'; photo.append(img); }
@@ -147,23 +147,31 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   const body = el('div', 't-card-body'); body.append(photo, facts);
   const grid = el('div', 't-stamps');
   const tip = el('p', 't-tip');
-  for (const s of stamps) {
-    const mark = btn(`t-stamp${s.on ? ' on' : ''}`, s.name, () => {
-      tip.textContent = s.on ? `${s.name} — 받았어요` : `${s.name} — ${s.how}`;
-      grid.querySelectorAll('.t-stamp').forEach(m => m.classList.toggle('sel', m === mark));
-    });
-    if (s.count > 1) mark.append(el('sup', '', `×${s.count}`));
-    grid.append(mark);
-  }
-  // 발급 — 도장 ISSUE_AT 개부터(사용자 10-15 「도장 찍어야 시민증이 발급되게」). 처음 발급된 날을 적어 두고 그날을 찍는다. 그 전엔 「발급 전」 도장과 남은 수.
-  const got = stamps.filter(s => s.on).length, issued = got >= ISSUE_AT;
-  if (issued) addStamp(ISSUED);
-  const issuedAt = loadStamps()[ISSUED];
-  card.classList.toggle('pending', !issued);
-  card.append(el('div', 't-card-top', '시민의 숲 시민증'), body, el('span', 't-seal', issued ? '발급' : '발급 전'), grid,
-    el('p', 't-issued', issued && issuedAt ? `도장 ${got}/${stamps.length} · ${today(issuedAt)} 발급 · 함께하는 시민행동` : `도장 ${got}/${stamps.length} · ${ISSUE_AT - got}개를 더 모으면 발급돼요`));
+  const seal = el('span', 't-seal'), issuedLine = el('p', 't-issued');
+  card.append(el('div', 't-card-top', '시민의 숲 시민증'), body, seal, grid, issuedLine);
   const save = btn('g-primary', '시민증 저장·보내기', () => {});
-  save.hidden = !issued; // 발급 전 시민증은 보내지 않는다
+  let file: File | undefined, cardRevision = 0;
+  // 방명록이 늦게 도착해 도장을 받으면 발급 상태와 저장할 그림도 같은 판에서 바꾼다.
+  function refreshStamps() {
+    const stamps = board(loadStamps());
+    grid.replaceChildren(...stamps.map(s => {
+      const mark = btn(`t-stamp${s.on ? ' on' : ''}`, s.name, () => {
+        tip.textContent = s.on ? `${s.name} — 받았어요` : `${s.name} — ${s.how}`;
+        grid.querySelectorAll('.t-stamp').forEach(m => m.classList.toggle('sel', m === mark));
+      });
+      if (s.count > 1) mark.append(el('sup', '', `×${s.count}`));
+      return mark;
+    }));
+    const got = stamps.filter(s => s.on).length, issued = got >= ISSUE_AT;
+    if (issued) addStamp(ISSUED);
+    const issuedAt = loadStamps()[ISSUED];
+    card.classList.toggle('pending', !issued);
+    seal.textContent = issued ? '발급' : '발급 전';
+    issuedLine.textContent = issued && issuedAt ? `도장 ${got}/${stamps.length} · ${today(issuedAt)} 발급 · 함께하는 시민행동` : `도장 ${got}/${stamps.length} · ${ISSUE_AT - got}개를 더 모으면 발급돼요`;
+    save.hidden = !issued;
+    cardRevision++; file = undefined;
+  }
+  refreshStamps();
   // 후원 — 시민증 바로 밑 테두리 단추(사용자 10-19 「시민센터, 시민행동의 집을 좀 키우자」 — 전엔 작은 글 링크), 결제 대신 정기후원 안내(/74)
   const join = el('a', 'g-ghost t-join', '함께하는 시민행동 정기후원 안내');
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
@@ -185,7 +193,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
     void data.book().then(guests => {
       if (!guests) { status.textContent = '지금은 방명록을 불러올 수 없어요.'; return; }
       if (!guests.length) { status.textContent = data.share ? '아직 없어요. 아래 「친구에게 보내기」로 링크를 보내 보세요.' : '아직 없어요.'; return; }
-      addStamp('guest');
+      if (addStamp('guest')) { refreshStamps(); void prepare(); }
       status.textContent = `${guests.length}명이 내 링크로 들어와 끝까지 걸었어요.`;
       for (const g of guests) {
         const item = el('li', 't-guest');
@@ -203,13 +211,13 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   show(data.tab === 'region' && regionTab >= 0 ? regionTab : 0);
 
   // ── 그림 — 미리 찍어 둔다(누른 뒤에 찍으면 아이폰이 공유창을 막는다, main.ts 와 같은 까닭) ──
-  let file: File | undefined;
   async function prepare() {
+    const revision = cardRevision;
     try {
       const { toBlob } = await import('html-to-image');
       await document.fonts?.ready;
       const blob = await toBlob(card, { pixelRatio: 3, backgroundColor: '#fffaf0' });
-      if (blob) file = new File([blob], 'dongne-resident.png', { type: 'image/png' });
+      if (blob && revision === cardRevision) file = new File([blob], 'dongne-resident.png', { type: 'image/png' });
     } catch (error) { console.warn(error); }
   }
   setTimeout(prepare, 400); // 판이 열리는 움직임이 끝난 뒤
@@ -247,7 +255,7 @@ export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로
           else status.textContent = '기록을 서버에 못 올려서 로그아웃하지 않았어요. 조금 뒤에 다시 해 주세요.';
         }),
         btn('g-link', '서버 기록 지우기', async () => {
-          if (!confirm('서버에 둔 시민증 기록을 지울까요? 이 기기의 기록은 그대로 남아요.')) return;
+          if (!confirm('서버에 둔 시민증 기록을 지울까요? 이 기기의 로그인과 방명록 열쇠도 지워져요. 그 밖의 게임 기록은 남아요.')) return;
           const ok = await opts.forget();
           draw(); status.textContent = ok ? '서버 기록을 지웠어요.' : '지금은 지울 수 없어요. 조금 뒤에 다시 해 주세요.';
         }),
@@ -272,7 +280,8 @@ export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로
         // 눌렀다는 표시 — 카카오·구글 화면이 뜨기까지 느린 망에선 몇 초 걸린다(10-20)
         status.textContent = opts.start(provider, { back, news: news?.checked })
           ? `${PROVIDER_NAME[provider]}로 가는 중이에요…`
-          : `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
+          : isInspectionMode() ? '점검 중에는 실제 계정을 전환하지 않아요. 점검을 끝낸 뒤 로그인해 주세요.'
+            : `${PROVIDER_NAME[provider]} 로그인은 곧 열려요. 지금은 로그인 없이 둘러봐 주세요 — 기록은 이 기기에 남아요.`;
       });
       const symbol = el('span', 't-login-symbol'); symbol.setAttribute('aria-hidden', 'true');
       // 공식 배포 SVG의 기호만. 사용자 입력은 이 HTML에 넣지 않는다.

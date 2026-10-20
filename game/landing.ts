@@ -16,9 +16,6 @@ import footerHtml from './landing-footer.html?raw'; // 홈페이지 하단 — s
 import { placeName } from './village'; // 건물 이름은 간판에서(글에 박아 두지 않는다)
 
 type Words = { title: string; text: string };
-type Block = Words & { photo: string };
-
-const W: Words = { title: '제목', text: '내용' };
 // 10-19 느낌 보기용 초안(사용자 「내용 대충 한 번 만들어봐, 느낌만 보게」) — 글은 Claude 초안, 그림은 게임 화면·action-landing 활동 사진. 정해지면 갈아 끼운다.
 const PAGE = {
   top: { logo: '', line: '함께하는 시민행동이 만든 예산 게임' },

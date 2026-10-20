@@ -2,9 +2,10 @@
   효과음 — 파일 없이 합성하는 작고 둥근 소리. 이름과 호출 시점은 그대로 둔다.
   소리는 첫 터치(「출발」) 뒤에만 난다(브라우저 규칙).
 */
+import { gameStorage } from './storage';
 let ctx: AudioContext | undefined;
 let muted = false;
-try { muted = localStorage.getItem('budget-game-muted') === '1'; } catch { /* 저장소가 막힌 창 */ }
+try { muted = gameStorage.getItem('budget-game-muted') === '1'; } catch { /* 저장소가 막힌 창 */ }
 
 export function unlockAudio() {
   try { ctx ??= new AudioContext(); void ctx.resume(); } catch { ctx = undefined; }
@@ -12,7 +13,7 @@ export function unlockAudio() {
 export const isMuted = () => muted;
 export function setMuted(value: boolean) {
   muted = value;
-  try { localStorage.setItem('budget-game-muted', value ? '1' : '0'); } catch { /* 무시 */ }
+  try { gameStorage.setItem('budget-game-muted', value ? '1' : '0'); } catch { /* 무시 */ }
 }
 
 function tone(freq: number, dur: number, { type = 'sine' as OscillatorType, gain = 0.1, slide = 0, delay = 0 } = {}) {
@@ -149,4 +150,3 @@ export function playVillageMusic(night: boolean) {
   }, 90);
   music = { stop: () => { clearInterval(timer); if (musicBus && ctx) musicBus.gain.setTargetAtTime(0, ctx.currentTime, 0.2); } };
 }
-export const stopVillageMusic = () => { music?.stop(); music = undefined; };

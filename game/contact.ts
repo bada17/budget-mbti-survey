@@ -54,7 +54,8 @@ export function checkContact(form: ContactForm, now: number): { ok: true; payloa
 export function validPayload(raw: unknown): ContactPayload | undefined {
   const p = (raw && typeof raw === 'object' ? raw : {}) as Partial<ContactPayload>;
   if (p.consentVersion !== CONSENT_VERSION || typeof p.address !== 'string') return undefined;
-  const okAddress = p.channel === 'email' ? p.address.length <= 254 && EMAIL.test(p.address) : p.channel === 'sms' && MOBILE.test(p.address);
+  const address = p.channel === 'email' ? p.address.trim().toLowerCase() : p.address.replace(/[\s-]/g, '');
+  const okAddress = p.channel === 'email' ? address.length <= 254 && EMAIL.test(address) : p.channel === 'sms' && MOBILE.test(address);
   if (!okAddress || p.consents?.age14 !== true || p.consents?.collect !== true || typeof p.consents.marketing !== 'boolean') return undefined;
-  return { consentVersion: CONSENT_VERSION, channel: p.channel!, address: p.address, consents: { age14: true, collect: true, marketing: p.consents.marketing }, at: Number(p.at) || 0 };
+  return { consentVersion: CONSENT_VERSION, channel: p.channel!, address, consents: { age14: true, collect: true, marketing: p.consents.marketing }, at: Number(p.at) || 0 };
 }

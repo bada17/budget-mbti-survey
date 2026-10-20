@@ -207,12 +207,19 @@ export function createUI(root: HTMLElement, actions: {
   let releaseSheet = () => {};
   const openSheet = (...children: Node[]) => { releaseSheet(); releaseSheet = () => {}; sheet.replaceChildren(...children); sheet.hidden = false; };
   const closeSheet = () => { releaseSheet(); releaseSheet = () => {}; sheet.hidden = true; sheet.replaceChildren(); };
+  let releasePanel = () => {};
+  const closePanel = () => { releasePanel(); releasePanel = () => {}; panel.hidden = true; };
+  const openPanel = (...children: Node[]) => {
+    if (!panel.hidden) closePanel();
+    panel.replaceChildren(...children); panel.hidden = false; panel.scrollTop = 0;
+    releasePanel = backCloses(() => { panel.hidden = true; releasePanel = () => {}; });
+  };
 
   return {
     surface: stage,
     ready() { start.disabled = false; start.textContent = '출발'; retry.hidden = true; },
-    loadError() { start.disabled = true; start.textContent = '불러오지 못했어요'; retry.hidden = false; },
-    hideIntro() { intro.classList.add('gone'); later(400, () => { intro.hidden = true; }); },
+    loadError() { intro.hidden = false; intro.classList.remove('gone'); start.disabled = true; start.textContent = '불러오지 못했어요'; retry.hidden = false; },
+    hideIntro() { intro.classList.add('gone'); later(400, () => { if (intro.classList.contains('gone')) intro.hidden = true; }); },
     /** 화면을 덮는 기다림 판(로그인 확인 중 — 서버 한 번이 3~5초, 10-20 사용자 「작동했는지 모르겠어」). 돌려준 함수로 걷는다. */
     wait(title: string, text: string) {
       const cover = el('div', 'g-wait'); cover.setAttribute('role', 'status');
@@ -679,15 +686,13 @@ export function createUI(root: HTMLElement, actions: {
           el('p', 'g-small', close ? `거의 반반이에요. 하나만 반대쪽으로 골랐어도 「${other}」 쪽이었어요.` : `「${side}」 쪽으로 기울었어요.`), rows);
         list.append(box);
       }
-      panel.replaceChildren(
+      openPanel(
         el('h2', '', '왜 이 유형일까?'),
         el('p', 'g-small', '세 갈림길마다 내가 고른 다섯 가지가 한쪽으로 당겼어요. 더 세게 당긴 쪽이 내 유형이 됐어요.'),
         el('p', 'g-small', '유형은 좋고 나쁨이 아니라 방향이에요.'),
         list,
-        button('g-primary', '닫기', () => { panel.hidden = true; }),
+        button('g-primary', '닫기', closePanel),
       );
-      panel.hidden = false;
-      panel.scrollTop = 0;
     },
 
     /** 다른 사람들은 어떻게 골랐을까 — 문항마다 두 쪽 비율. 편 수가 아니라 생각이 갈린 모양을 보여 준다. 로그인한 사람만, 한 사람 한 번(api.ts stats). */
@@ -707,18 +712,16 @@ export function createUI(root: HTMLElement, actions: {
         item.append(el('p', 'g-small', `${q.place} · ${q.prompt}`), bar);
         list.append(item);
       }
-      panel.replaceChildren(
+      openPanel(
         el('h2', '', '다른 사람들은 어떻게 골랐을까?'),
         el('p', 'g-small', stats ? `로그인해 함께한 사람 ${stats.total}명 · 한 사람의 가장 최근 한 바퀴만 세요` : '지금은 다른 사람들 답을 불러올 수 없어요.'),
         el('p', 'g-small', enough ? '굵은 쪽이 내가 고른 쪽이에요. 사람마다 생각이 달라요.' : '아직 로그인해 함께한 사람이 적어요. 다섯 명이 넘으면 비율을 보여 줘요. 굵은 쪽이 내가 고른 쪽이에요.'),
         list,
-        button('g-primary', '닫기', () => { panel.hidden = true; }),
+        button('g-primary', '닫기', closePanel),
       );
-      panel.hidden = false;
-      panel.scrollTop = 0;
     },
 
-    destroy() { timers.forEach(clearTimeout); root.replaceChildren(); },
+    destroy() { releaseSheet(); releasePanel(); timers.forEach(clearTimeout); root.replaceChildren(); },
   };
 }
 
