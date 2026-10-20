@@ -14,7 +14,8 @@ import type { Stats, TableView, RegionView, Visit, VillageView, PublicNote, Publ
 import type { ContactPayload } from './contact';
 import type { Neighbor, Region, Save } from './profile';
 import type { Pick } from './look';
-import type { Store } from './api';
+import type { Store, HitKind } from './api';
+import { source, type Source } from './source';
 
 const GAS: string | undefined = import.meta.env?.VITE_GAME_API || undefined;
 /** 테이블(같이 걷기)이 되는 서버인가. */
@@ -70,7 +71,10 @@ export const net = {
     return true;
   },
   stats: () => call<Stats>('GET', '/stats'),
-  finish: (sessionId: string, answers: Record<string, number>) => call<Stats>('POST', '/finish', { sessionId, contentVersion: CONTENT_VERSION, answers }),
+  finish: (sessionId: string, answers: Record<string, number>) => call<Stats>('POST', '/finish', { sessionId, contentVersion: CONTENT_VERSION, answers, src: source() }),
+  /** 유입 한 줄(들어옴·보냄) — 실패해도 조용히. 끝까지는 finish 가 싣는다. */
+  hit: (kind: Exclude<HitKind, 'finish'>, sessionId: string, src: Source = source()) =>
+    call<{ ok: true }>('GET', `/hit/${kind}/${sessionId}/${[src.source, src.medium, src.campaign].map(t => encodeURIComponent(t || '-')).join('/')}`),
   newTable: () => call<{ code: string }>('POST', '/tables', {}),
   table: (code: string) => call<TableView>('GET', `/tables/${code}`),
   join: (code: string, member: { id: string; name: string; pick: Pick }) => call<TableView>('POST', `/tables/${code}/members`, member),

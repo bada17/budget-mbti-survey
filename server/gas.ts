@@ -17,7 +17,7 @@
 
   ponytail: 요청마다 탭 전체를 읽는다 — 응답이 수천 건을 넘어 느려지면 진짜 서버(README 정할 것 10)로 옮긴다.
 */
-import { handle, login, isAdmin, BODY_MAX, type Store, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
+import { handle, login, isAdmin, BODY_MAX, type Store, type Hit, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
 import { TYPES } from '../game/content';
 import { validPayload } from '../game/contact';
 
@@ -142,6 +142,23 @@ function writeCards(sheet: Sheet, map: Tracked<Card>) {
   }
 }
 
+/**
+ * 유입 탭 — 한 줄씩 덧붙이기만. 「유입 요약」 탭은 처음 만들 때 수식 한 칸(출처별 들어옴·끝까지·보냄)을 넣어 두면 시트가 알아서 센다.
+ * 출처·매체·캠페인은 사람이 적은 꼬리표라 plain 으로(수식으로 안 돌게).
+ */
+const HIT_TAB = '유입', HIT_SUM_TAB = '유입 요약';
+const HIT_HEAD = ['시각', '무엇', '출처', '매체', '캠페인', '세션'];
+const HIT_WORD = { arrive: '들어옴', finish: '끝까지', share: '보냄' } as const;
+const HIT_SUM = `=QUERY('${HIT_TAB}'!A:F, "select C, count(A) where A is not null group by C pivot B label C '출처'", 1)`;
+const hitRow = (h: Hit) => [new Date(h.at).toISOString(), HIT_WORD[h.kind], plain(h.source), plain(h.medium), plain(h.campaign), h.sessionId];
+function hitSheet(book: Book) {
+  const found = book.getSheetByName(HIT_TAB);
+  if (found) return found;
+  const made = tab(book, HIT_TAB, HIT_HEAD);
+  if (!book.getSheetByName(HIT_SUM_TAB)) book.insertSheet(HIT_SUM_TAB).getRange(1, 1, 1, 1).setValues([[HIT_SUM]]);
+  return made;
+}
+
 const contactRow = (c: Contact) => [
   new Date(c.receivedAt).toISOString(), c.channel === 'sms' ? '문자' : '이메일', c.address, '예', '예', c.consents.marketing ? '예' : '아니오', c.consentVersion,
   c.neighbor?.name ?? '', c.neighbor?.questionId ?? '', c.neighbor?.key ?? '', c.neighbor?.seed ?? '', c.type ? `${c.type} ${TYPES[c.type].name}` : '',
@@ -213,6 +230,8 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   if (!path.startsWith('/') || path.startsWith('/tables')) return { status: 404, body: { error: 'not-found' } };
   const contents = event.postData?.contents ?? '';
   if (contents.length > BODY_MAX) return { status: 413, body: { error: 'body-too-large' } };
+  // 유입은 GET(잠금 없이) — 따로 분당 한도. 넘으면 그 줄만 버린다(끝낸 판·쓰기 한도는 건드리지 않는다).
+  if (method === 'GET' && path.startsWith('/hit/') && deps?.quota && !deps.quota(`hits:${Math.floor(now / 60000)}`, 600, 60)) return { status: 429, body: { error: 'hit-limit' } };
   if (method === 'POST' && path === '/contact' && deps?.prop('CONTACT_ENABLED') !== 'true') return { status: 403, body: { error: 'contact-disabled' } };
   let body: unknown = null;
   try { body = contents ? JSON.parse(contents) : null; } catch { return { status: 400, body: { error: 'bad-json' } }; }
@@ -244,7 +263,7 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
     finished: () => readKV<Finished>(sheet('finished')), homes: () => readKV<{ key: string; at: number }>(sheet('homes')), books: () => readKV<Visit[]>(sheet('books')),
     residents: () => readKV<Resident>(sheet('residents')), notes: () => readNotes(sheet('notes')), cards: () => readCards(sheet('cards')),
   };
-  const store = { tables: new Map(), contacts: [] } as unknown as Store;
+  const store = { tables: new Map(), contacts: [], hits: [] } as unknown as Store;
   for (const name of Object.keys(read) as Lazy[]) {
     Object.defineProperty(store, name, { enumerable: true, get: () => (loaded[name] ??= read[name]() as never) });
   }
@@ -258,6 +277,8 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
     // 이메일은 돌려주기만(저장 안 함).
     if (who?.email && result.status === 200) result = { ...result, body: { ...result.body, email: who.email, ...(admin ? { admin: true } : {}) } };
   } else result = handle(store, method, path, body, now);
+  // 유입은 GET 으로도 온다 — 쓰기 묶음 밖에서 덧붙인다. appendRow 는 한 줄씩이라 잠금 없이 겹쳐도 줄이 섞이지 않는다.
+  if (result.status < 400 && store.hits.length) { const sheet = hitSheet(book); store.hits.forEach(h => sheet.appendRow(hitRow(h))); }
   if (method === 'POST' && result.status < 400) {
     for (const name of ['finished', 'homes', 'books', 'residents'] as const) if (loaded[name]) writeKV(sheet(name), loaded[name] as Tracked<unknown>, now);
     if (loaded.notes) writeNotes(sheet('notes'), loaded.notes as Tracked<Note>);

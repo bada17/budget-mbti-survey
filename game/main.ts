@@ -34,6 +34,7 @@ import type { JourneyScene, SceneCommand, Guest } from './scenes/JourneyScene';
 import type { VillageScene } from './scenes/VillageScene';
 import { gameStorage, useInspectionStorage } from './storage';
 import { createCompletionQueue } from './completion';
+import { arrival } from './source';
 import { mountInspectionTools } from './inspection';
 
 const root = document.querySelector<HTMLElement>('#game-root')!;
@@ -66,6 +67,9 @@ let me: Me = loadMe();
 // randomUUID 는 https(또는 이 컴퓨터)에서만 있다 — 와이파이 주소(http)로 폰에서 여는 개발판 시험에서 멈췄다. getRandomValues 는 어디서나 된다.
 const newSessionId = () => crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), (b, i) => (i === 4 || i === 6 || i === 8 || i === 10 ? '-' : '') + b.toString(16).padStart(2, '0')).join('');
 let state = createJourney(newSessionId(), Date.now());
+// 유입(10-21, game/source.ts) — 이 브라우저에 처음 왔으면 「들어옴」 한 줄. 점검 중엔 안 센다. 끝까지는 finish 가, 보냄은 sendLink 가 싣는다.
+if (!inspecting) { const { src, fresh } = arrival(); if (fresh) void net.hit('arrive', state.sessionId, src); }
+let sharedOnce = false;
 let response: GameResponse | undefined;
 let stats: Stats | undefined;
 let scene: JourneyScene | undefined;
@@ -319,6 +323,7 @@ function share(reply = false, copy = false) {
 }
 /** 공유 창(폰 — 카톡이 그 안에) 또는 링크 복사(ui.ts shareButtons). 공유·복사가 다 없는 곳(https 가 아닌 주소)은 주소라도 보인다. */
 function sendLink(copy: boolean, title: string, text: string, url: string, files?: File[]) {
+  if (!inspecting && !sharedOnce) { sharedOnce = true; void net.hit('share', villageMe()?.sessionId || state.sessionId); } // 「보냄」 은 한 페이지에 한 번(공유·복사 둘 다 눌러도)
   if (!copy && typeof navigator.share === 'function') { navigator.share(files ? { files, text: `${text}\n${url}` } : { title, text, url }).catch(() => {}); return; }
   if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
   else ui.toast(url);

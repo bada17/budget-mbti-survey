@@ -25,6 +25,7 @@ import { orderedQuestions } from './response';
 import { cleanName, cleanTableCode, cleanNeighbor, cleanSave, isRegion, townFrom, TABLE_CHARS, type Neighbor, type Region, type Save } from './profile';
 import { validPayload, type ContactPayload } from './contact';
 import { isPick, DEFAULT_PICK, type Pick } from './look';
+import { cleanTag, type Source } from './source';
 import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW, CROWD_DAYS_MS, COIN_DAY_MAX } from './village';
 
 export type Member = { id: string; name: string; pick: Pick; stage: number; type?: TypeCode; at: number };
@@ -42,6 +43,16 @@ export type Note = { id: string; at: number; name: string; text: string; pick: P
 export type Visit = { sessionId: string; name: string; pick: Pick; type: TypeCode; town: string; at: number };
 /** 연락처 한 줄 — 동의 화면의 항목(주소, 내 이웃·유형 결과)만. 지역은 항목에 없어 받지 않는다. */
 export type Contact = ContactPayload & { neighbor?: Neighbor; type?: TypeCode; receivedAt: number };
+/**
+ * 유입 한 줄(10-21, game/source.ts) — 어디서 와서(arrive) 끝까지 걷고(finish) 친구에게 보냈나(share). 출처는 이 브라우저에 처음 온 때 것.
+ * 받아 쌓기만 한다(시트 「유입」 에 덧붙이기). 끝까지는 서버가 처음 받은 판에서만 — 보낸 사람 말을 믿지 않는다.
+ */
+export type HitKind = 'arrive' | 'finish' | 'share';
+export type Hit = Source & { kind: HitKind; sessionId: string; at: number };
+export const cleanSource = (v: unknown): Source => {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  return { source: cleanTag(o.source) || '(direct)', medium: cleanTag(o.medium), campaign: cleanTag(o.campaign) };
+};
 export type Store = {
   finished: Map<string, Finished>;
   tables: Map<string, { createdAt: number; members: Member[] }>;
@@ -51,6 +62,8 @@ export type Store = {
   books: Map<string, Visit[]>;
   /** 받아 쌓기만 한다. 시트 저장소는 새로 들어온 것만 덧붙인다. */
   contacts: Contact[];
+  /** 유입 — 받아 쌓기만(시트 「유입」). */
+  hits: Hit[];
   /** 로그인한 주민 — 계정(해시) → 열쇠·기록 묶음. */
   residents: Map<string, Resident>;
   /** 마을 쪽지 — 번호 → 쪽지. */
@@ -83,7 +96,7 @@ const ID = /^[A-Za-z0-9-]{8,64}$/;
 const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
 const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
-export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], residents: new Map(), notes: new Map(), cards: new Map() });
+export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], hits: [], residents: new Map(), notes: new Map(), cards: new Map() });
 /**
  * 관리자 — 로그인으로 확인된 이메일이 단체 주소(@action.or.kr)이거나 따로 적은 메일(extra, 쉼표로)이면(사용자 10-15 「@action.or.kr 메일은 다 관리자로 하고 내 개인 계정도」).
  * 따로 적는 메일은 공개 저장소에 두지 않는다 — 앱스 스크립트 속성 또는 깃 무시 Secret.js 의 ADMIN_EMAILS.
@@ -222,8 +235,17 @@ export function handle(store: Store, method: string, path: string, body: unknown
     if (!store.finished.has(input.sessionId)) {
       if (store.finished.size >= FINISHED_MAX) return { status: 503, body: { error: 'storage-full' } };
       store.finished.set(input.sessionId, { answers, type: typeCode(scoreAnswers(orderedQuestions, answers)), at: now });
+      store.hits.push({ kind: 'finish', sessionId: input.sessionId, at: now, ...cleanSource(input.src) });
     }
     return { status: 200, body: stats(store) };
+  }
+
+  // ── 유입 — GET /hit/<arrive|share>/<세션>/<출처>/<매체>/<캠페인>(빈 칸은 -). GET 이라 잠금 없이 받는다(사람이 몰려도 끝낸 판 저장을 막지 않게). ──
+  if (method === 'GET' && parts[0] === 'hit' && parts.length === 6) {
+    const [, kind, sessionId, ...tags] = parts.map(part => { try { return decodeURIComponent(part); } catch { return ''; } }).map(part => (part === '-' ? '' : part));
+    if ((kind !== 'arrive' && kind !== 'share') || !ID.test(sessionId)) return { status: 400, body: { error: 'bad-hit' } };
+    store.hits.push({ kind, sessionId, at: now, ...cleanSource({ source: tags[0], medium: tags[1], campaign: tags[2] }) });
+    return { status: 200, body: { ok: true } };
   }
 
   // ── 방명록 ──
