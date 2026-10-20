@@ -1,92 +1,100 @@
-/* 소개 페이지 — 웹 쪽(사용자 10-19 「웹페이지 디자인으로」). 색은 시민행동 홈페이지와 같은 집안(하늘색·먹색), 칸마다 색 면이 바뀐다.
-   게임과 잇는 것은 「게임 하러 가기」 단추(게임 색·주아)와 그림 자리뿐. 제목은 굵은 Pretendard, 글도 Pretendard.
-   Claude 가 형태를 보이려고 입힌 최소한 — 다듬는 건 GPT(README 「GPT 에게 — 겉모습」). */
-.lp{--lp-brand:#00afec;--lp-brand-deep:#0087b8;--lp-ink:#0d1c26;--lp-soft:#47606f;--lp-line:#dde7ec;--lp-sky:#e9f7fd;--lp-paper:#f5f2ea;--lp-action:#ad503d;
- position:fixed;inset:0;z-index:50;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#fff;color:var(--lp-ink);font-family:var(--body);word-break:keep-all;outline:none;transition:opacity .4s,transform .4s}
+/* 소개는 시민행동의 웹 문법. 게임 색·주아는 게임 단추에만. 내용·그림·구조는 landing.ts, 공통 하단은 landing-footer.html. */
+.lp{--lp-brand:#00afec;--lp-brand-deep:#007da8;--lp-ink:#0d1c26;--lp-soft:#425b69;--lp-line:#d4e4eb;--lp-sky:#eaf8fd;--lp-paper:#f3f6f7;--lp-action:#ad503d;--lp-gothic:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+ position:fixed;inset:0;z-index:50;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#fff;color:var(--lp-ink);font-family:var(--lp-gothic);font-weight:400;word-break:keep-all;overflow-wrap:anywhere;outline:none;transition:opacity .4s,transform .4s}
 .lp.out{opacity:0;transform:translateY(-12px);pointer-events:none}
-.lp-wrap{width:min(1120px,calc(100% - 40px));margin:0 auto}
-.lp-sec{padding:clamp(56px,9vw,112px) 0}
-.lp-title{margin:0;font-family:var(--body);font-weight:800;letter-spacing:-.035em;line-height:1.2;text-wrap:balance}
-.lp-h1{font-size:clamp(38px,8vw,76px)}
-.lp-h2{font-size:clamp(30px,5.4vw,56px);margin-bottom:clamp(32px,5vw,64px)}
-.lp-h3{font-size:clamp(21px,2.4vw,27px);margin-bottom:10px;letter-spacing:-.02em}
-.lp-text{margin:0;max-width:34em;font-size:16px;line-height:1.8;color:var(--lp-soft);overflow-wrap:anywhere}
-.lp-h1+.lp-text{margin-top:16px;font-size:clamp(16px,1.6vw,19px)}
-.lp .lp-empty{display:grid;place-items:center;background:#dbe5ea;color:#56707e;font:600 14px var(--body);letter-spacing:.04em} /* 빈 그림 자리 — 각 칸의 display:block 보다 앞서게 .lp 를 붙였다 */
-
-/* 위 띠 */
-.lp-top{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;height:56px;padding:0 max(20px,calc((100% - 1120px)/2));background:var(--lp-ink);color:#fff}
-.lp-logo{height:32px;width:auto}.lp .lp-logo.lp-empty{width:96px;border-radius:6px;background:#2a3a45;color:#a9bcc7;font-size:12px}
-.lp-brand{font-size:16px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
-.lp-top-line{margin:0;font-size:13px;color:#a9bcc7;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-/* ① 첫 화면 */
-.lp-hero{background:var(--lp-sky);padding-top:clamp(24px,5vw,72px)}
-.lp-hero-in{display:grid;gap:clamp(28px,5vw,64px);align-items:center}
-.lp-hero-art{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:20px}
+.lp-wrap{width:min(1120px,calc(100% - 48px));margin-inline:auto}
+.lp-sec{padding-block:clamp(56px,8vw,104px)}
+.lp-title{margin:0;font-family:var(--body);font-weight:800;letter-spacing:-.045em;line-height:1.2;text-wrap:balance}
+.lp-h1{font-size:clamp(36px,5.8vw,72px);line-height:1.12;letter-spacing:-.055em}
+.lp-h2{max-width:19em;margin-bottom:clamp(32px,5vw,64px);font-size:clamp(29px,4.2vw,48px)}
+.lp-h3{margin-bottom:16px;font-size:clamp(23px,2.5vw,32px);line-height:1.3}
+.lp-text{max-width:32em;margin:0;color:var(--lp-soft);font-size:16px;line-height:1.85;overflow-wrap:anywhere;text-wrap:pretty}
+.lp-h1+.lp-text{margin-top:22px;font-size:clamp(16px,1.5vw,18px)}
+.lp :is(.lp-hero-words,.lp-what-words,.lp-story-words,.lp-step){min-width:0}
+/* 빈 칸은 사진을 꽂으면 사라지는 CSS 명도만. 새 이미지 파일을 부르지 않는다. */
+.lp .lp-empty{display:grid;place-items:center;padding:24px;background:#dbeef5;color:#496a79;border:1px solid #c9e1eb;font:400 14px/1.6 var(--lp-gothic);text-align:center;background-image:linear-gradient(135deg,#ffffff70,transparent 65%);letter-spacing:.02em}
+/* 긴 한 줄도 자르지 않고 띠 높이가 늘어난다. */
+.lp-top{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px 28px;min-height:68px;padding:16px max(24px,calc((100% - 1120px)/2));background:#fff;color:var(--lp-ink);border-bottom:1px solid var(--lp-line)}
+.lp-logo{display:block;max-width:180px;max-height:38px;width:auto;height:auto;object-fit:contain}.lp .lp-logo.lp-empty{width:130px;min-height:36px;padding:4px;font-size:12px}
+.lp-brand{flex:none;font-family:var(--body);font-weight:800;font-size:18px;letter-spacing:-.04em}
+.lp-top-line{max-width:30em;margin:0;color:var(--lp-soft);font-size:12px;line-height:1.6;text-align:right}
+/* 첫 화면 */
+.lp-hero{padding-block:clamp(24px,5vw,64px) clamp(48px,7vw,88px);background:var(--lp-sky)}
+.lp-hero-in{display:grid;align-items:center;gap:clamp(24px,4.5vw,64px)}
+.lp-hero-art{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px}
 .lp-hero-words .lp-play{margin-top:28px}
-/* 「전에 해 봤어요」(10-19) — 큰 단추 밑 작은 글 링크, 되게만 둔 모양 */
-.lp-recall{display:inline-flex;align-items:center;min-height:44px;margin:14px 0 0;padding:5px 0;border:0;background:none;color:var(--lp-ink);font:700 16px var(--body);text-decoration:underline;text-decoration-color:var(--lp-brand-deep);text-decoration-thickness:2px;text-underline-offset:5px;cursor:pointer}
+.lp-recall{display:flex;align-items:center;max-width:100%;min-height:44px;margin:14px 0 0;padding:6px 0;border:0;background:none;color:var(--lp-soft);font:400 14px/1.6 var(--lp-gothic);text-align:left;text-decoration:underline;text-decoration-color:#84b7cc;text-decoration-thickness:1px;text-underline-offset:5px;cursor:pointer}
 .lp-recall:hover{color:var(--lp-brand-deep)}
-.lp-hero-words .t-login{max-width:360px;margin:12px 0 0;padding:18px;border:1px solid #d8e5ea;border-radius:17px;background:#fff;color:#4f3f35;box-shadow:0 10px 24px #0d1c2614}
-.lp-hero-words .t-login-title{font-family:var(--body);font-weight:800;letter-spacing:-.02em}
-@media(max-width:480px){.lp-hero-words .t-login{max-width:100%;padding:15px}}
-
-/* 게임 단추 — 게임과 잇는 고리(게임 색·둥근 글꼴) */
-.lp-play{display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;min-height:56px;padding:12px 24px;border:0;border-radius:999px;background:var(--lp-action);color:#fffaf0;font:400 20px var(--display);box-shadow:0 4px 0 #7e382b;cursor:pointer;transition:background .15s,transform .1s,box-shadow .1s}
-.lp-play:hover{background:#9c4534}.lp-play:active{transform:translateY(2px);box-shadow:0 2px 0 #7e382b}
+.lp-hero-words .t-login{max-width:360px;margin:18px 0 0;padding:20px;border:1px solid var(--lp-line);border-radius:12px;background:#fff;color:var(--lp-ink);box-shadow:0 8px 24px #0d1c260a}
+.lp-hero-words .t-login-title{font-family:var(--body);font-weight:800;color:var(--lp-ink);letter-spacing:-.02em}
+.lp-hero-words :is(.t-check,.t-login-note,.t-agree-hint){font-family:var(--lp-gothic);font-weight:400}
+/* 게임과 잇는 단추 */
+.lp-play{display:flex;align-items:center;justify-content:center;width:100%;max-width:320px;min-height:56px;padding:14px 26px;border:0;border-radius:999px;background:var(--lp-action);color:#fffaf0;font:400 20px/1.25 var(--display);box-shadow:0 4px 0 #7e382b;cursor:pointer;transition:background .15s,transform .1s,box-shadow .1s}
+.lp-play:hover{background:#98432f}.lp-play:active{transform:translateY(2px);box-shadow:0 2px 0 #7e382b}
 .lp :is(button,a):focus-visible{outline:3px solid var(--lp-brand-deep);outline-offset:4px}
-
-/* ② 「○○은」 — 그림 반, 글 반 */
-.lp-intro{display:grid}
-.lp-intro-art{display:block;width:100%;aspect-ratio:1;object-fit:cover}
-.lp .lp-intro-art.lp-empty{background:var(--lp-brand);color:#e6f7fe}
-.lp-intro-words{display:flex;flex-direction:column;justify-content:center;padding:clamp(48px,7vw,96px) clamp(20px,6vw,88px);background:var(--lp-ink);color:#fff}
-.lp-intro-words .lp-text{margin-top:16px;color:#c9d6de;font-size:clamp(16px,1.6vw,19px)}
-
-/* ③ 무엇을 하나요 */
-.lp-what{background:var(--lp-paper)}.lp-what.lp-alt{background:var(--lp-sky)}
-.lp-what+.lp-what{padding-top:clamp(40px,6vw,72px)}
-.lp-what-row{display:grid;gap:32px;justify-items:center}
-.lp-what-words{width:100%;max-width:520px}
-.lp-icon{width:72px;height:72px;margin-bottom:18px;object-fit:contain}.lp .lp-icon.lp-empty{border-radius:16px;font-size:12px}
-.lp-phone{width:min(240px,62vw);padding:12px;border-radius:40px;background:#fff;box-shadow:0 0 0 1px var(--lp-line),0 20px 40px #0d1c261f}
-.lp-screen{display:block;width:100%;aspect-ratio:9/19;border-radius:28px;object-fit:cover}
-
-/* ④ 왜 만들었나요 */
-.lp-why{background:#fff}
-.lp-story{display:grid;gap:24px;align-items:center}.lp-story+.lp-story{margin-top:clamp(48px,7vw,96px)}
-.lp-photo{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;padding:6px;border:1px solid var(--lp-line);background:#fff}
-.lp .lp-photo.lp-empty{background:#dbe5ea;background-clip:content-box}
-
-/* ⑤ 어떻게 하나요 — 폰에선 둘씩, 넓으면 넷 한 줄 */
-.lp-how{background:var(--lp-paper)}
-.lp-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px;margin:0;padding:0;list-style:none;counter-reset:step}
-.lp-step{counter-increment:step;text-align:center}
-.lp-step-shot{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;border:1px solid var(--lp-line);border-radius:12px;background:#fff}
-.lp-step-title{margin:14px 0 0;font:800 clamp(17px,1.8vw,22px)/1.3 var(--body);letter-spacing:-.02em}
-.lp-step-title::before{content:counter(step) ". ";color:var(--lp-brand-deep)}
-
-/* 아래에 떠 있는 게임 단추 — 홈페이지 하단은 폰에서 아래를 비워 둔다(떠 있는 단추 자리) */
-.lp-bar{position:fixed;left:0;right:0;bottom:0;z-index:51;display:flex;justify-content:center;padding:16px 20px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(#fff0,#fffffff2 40%);transform:translateY(110%);transition:transform .3s;pointer-events:none}
+/* 그림 반·먹색 반 */
+.lp-intro{display:grid;background:var(--lp-ink)}
+.lp-intro-art{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.lp .lp-intro-art.lp-empty{min-height:240px;border:0;border-radius:0;background-color:var(--lp-brand);color:var(--lp-ink);background-image:linear-gradient(135deg,#ffffff26,transparent)}
+.lp-intro-words{display:flex;flex-direction:column;justify-content:center;padding:clamp(48px,7vw,96px) max(24px,6vw);color:#fff}
+.lp-intro-words .lp-h2{margin:0;font-size:clamp(32px,4vw,48px)}
+.lp-intro-words .lp-text{margin-top:24px;color:#d5e5ed;font-size:clamp(16px,1.5vw,18px)}
+/* 무엇을 하나요 */
+.lp-what{background:#fff}.lp-what.lp-alt{background:var(--lp-sky)}
+.lp-what-row{display:grid;align-items:center;justify-items:center;gap:32px}
+.lp-what-words{width:100%;max-width:470px}
+.lp-icon{display:block;width:56px;height:56px;margin-bottom:24px;object-fit:contain}.lp .lp-icon.lp-empty{padding:8px;border-radius:6px;font-size:11px}
+.lp-phone{position:relative;width:min(224px,59vw);padding:9px;border:1px solid #b9cbd3;border-radius:34px;background:#fff;box-shadow:0 18px 32px #18364712}
+.lp-phone::after{content:"";position:absolute;bottom:16px;left:40%;width:20%;height:3px;border-radius:2px;background:#0d1c262b;pointer-events:none}
+.lp-screen{display:block;width:100%;aspect-ratio:9/19;border-radius:25px;object-fit:cover}.lp .lp-screen.lp-empty{border:0;border-radius:25px;background-color:#e4f0f4}
+/* 왜 만들었나요 */
+.lp-why{background:var(--lp-paper)}
+.lp-story{display:grid;gap:28px;align-items:center}.lp-story+.lp-story{margin-top:clamp(48px,8vw,104px)}
+.lp-photo{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px}.lp .lp-photo.lp-empty{background-color:#e0e9ed}
+.lp-story-words .lp-h3{max-width:15em}
+/* 어떻게 하나요: 높이는 설명에 맞춘다. */
+.lp-how{background:#fff}
+.lp-steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 16px;margin:0;padding:0;list-style:none;counter-reset:step}
+.lp-step{counter-increment:step;text-align:left}
+.lp-step-shot{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;border:1px solid var(--lp-line);border-radius:6px}
+.lp-step-title{margin:18px 0 0;font:800 clamp(16px,1.6vw,20px)/1.5 var(--body);letter-spacing:-.035em;text-wrap:balance}
+.lp-step-title::before{content:counter(step,decimal-leading-zero);display:block;margin-bottom:7px;color:var(--lp-brand-deep);font:400 14px/1.3 var(--lp-gothic);letter-spacing:0}
+.lp-step .lp-text,.lp-step-text{margin:10px 0 0;color:var(--lp-soft);font:400 14px/1.8 var(--lp-gothic)}
+.lp-how-note{max-width:42em;margin:36px 0 0;padding:18px 22px;border-left:3px solid var(--lp-brand);background:var(--lp-sky);color:var(--lp-soft);font:400 14px/1.85 var(--lp-gothic)}
+.lp-report{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 16px;margin:0;padding:20px 24px;color:var(--lp-soft);background:var(--lp-paper);font:400 13px/1.7 var(--lp-gothic)}
+.lp-report a,#ah-foot .lp-report a{color:var(--lp-brand-deep);text-decoration:underline;text-underline-offset:4px}
+#ah-foot .lp-report{margin:24px 0 0;border-top:1px solid var(--lp-line);padding:18px 0;background:none;text-align:left;justify-content:flex-start}
+/* 소식 받기: main에 뒤이어 들어온 폼도 웹 쪽 글꼴·여백으로. 동의·전송 구조는 그대로 둔다. */
+.lp-news{background:var(--lp-sky)}
+.lp-news .lp-h2{margin-bottom:20px}
+.lp-news-form{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:720px;margin-top:28px}
+.lp-news-form :is(input[type=email],input[type=text]){display:block;width:100%;min-width:0;min-height:54px;padding:14px 16px;border:1px solid #a9c8d6;border-radius:6px;background:#fff;color:var(--lp-ink);font:400 16px/1.5 var(--lp-gothic);user-select:text;-webkit-user-select:text}
+.lp-news-form input::placeholder{color:#5b7380}
+.lp-news-form input:focus-visible{outline:3px solid var(--lp-brand-deep);outline-offset:3px}
+.lp-news-agree{position:relative;grid-column:1/-1;display:block;padding-left:30px;color:var(--lp-soft);font:400 14px/1.8 var(--lp-gothic);cursor:pointer}
+.lp-news-agree input{position:absolute;left:0;top:3px;width:20px;height:20px;margin:0;accent-color:var(--lp-brand-deep)}
+.lp-news-agree a{color:var(--lp-brand-deep);text-underline-offset:4px}
+.lp-news-go{grid-column:1/-1;justify-self:start;min-width:160px;min-height:52px;margin-top:8px;padding:14px 26px;border:0;border-radius:6px;background:var(--lp-ink);color:#fff;font:600 16px/1.5 var(--lp-gothic);cursor:pointer;transition:background .15s}
+.lp-news-go:hover{background:#234757}
+.lp-news-sent{margin-top:24px;font-size:14px;color:var(--lp-brand-deep)}.lp-news-sent:empty{display:none}
+/* 단추 위치는 섹션 수·하단 위치에 기대지 않는다. */
+.lp-bar{position:fixed;left:0;right:0;bottom:0;z-index:51;display:flex;justify-content:center;padding:20px 24px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(#fff0,#fffffff2 45%);transform:translateY(calc(100% + 48px));transition:transform .3s;pointer-events:none}
 .lp-bar.on{transform:none}.lp-bar .lp-play{margin:0;pointer-events:auto}.lp.out .lp-bar{display:none}
-/* 아래 떠 있는 게임 단추 띠가 하단 맨 끝(저작권 줄)을 덮지 않게 — 하단 원본은 폰에서만 104px 비운다 */
-.lp-foot #ah-foot .ft{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
-/* PC 는 오른쪽 아래 작은 단추(흰 띠 없이) — 가운데 띠가 글·하단을 가렸다(사용자 10-20). 폰은 가운데 그대로 */
-@media(min-width:900px){.lp-bar{left:auto;right:24px;bottom:24px;padding:0;background:none;transform:translateY(calc(100% + 32px))}.lp-bar .lp-play{width:auto;min-height:48px;font-size:17px;padding:10px 22px}}
-
-.lp-up{opacity:0;transform:translateY(24px);transition:opacity .6s,transform .6s}.lp-up.in{opacity:1;transform:none}
-
+.lp:has(.lp-news-form:focus-within) .lp-bar{visibility:hidden} /* 입력·동의 중에는 떠 있는 게임 단추가 구독 단추를 가리지 않게 */
+.lp-up{opacity:0;transform:translateY(20px);transition:opacity .6s,transform .6s}.lp-up.in{opacity:1;transform:none}
 @media(min-width:760px){
- .lp-hero-in{grid-template-columns:1.15fr 1fr}
- .lp-intro{grid-template-columns:1fr 1fr}.lp-intro-art{aspect-ratio:auto;height:100%;min-height:420px}
- .lp-what-row{grid-template-columns:auto 1fr;gap:clamp(40px,7vw,112px);justify-items:start;align-items:center}
- .lp-what-row.lp-flip>.lp-phone{order:2}
- .lp-story{grid-template-columns:1fr 1fr;gap:clamp(40px,6vw,80px)}.lp-story.lp-flip>.lp-photo{order:2}
+ .lp-hero-in{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}.lp-hero-art{aspect-ratio:5/4}.lp-hero-words .lp-h1{max-width:6.6em}
+ .lp-intro{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.lp-intro-art{height:100%;min-height:400px;aspect-ratio:auto}
+ .lp-what-row{grid-template-columns:minmax(240px,.85fr) minmax(0,1fr);gap:clamp(48px,8vw,112px);justify-items:center}
+ .lp-what-row.lp-flip{grid-template-columns:minmax(0,1fr) minmax(240px,.85fr)}.lp-what-row.lp-flip>.lp-phone{order:2}.lp-phone{width:240px}
+ .lp-story{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(40px,6vw,80px)}.lp-story.lp-flip>.lp-photo{order:2}
  .lp-steps{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+ .lp-bar{left:auto;right:28px;bottom:28px;width:260px;padding:0;background:none}.lp-bar .lp-play{min-height:54px;box-shadow:0 4px 0 #7e382b,0 8px 28px #0d1c2624}
 }
-@media(prefers-reduced-motion:reduce){
- .lp,.lp-bar,.lp-play,.lp-up{transition:none}.lp-up{opacity:1;transform:none}
+@media(max-width:480px){
+ .lp-wrap{width:calc(100% - 40px)}.lp-top{min-height:56px;gap:6px;padding:12px 20px;flex-wrap:wrap}.lp-brand{font-size:16px}.lp-top-line{font-size:11px;text-align:left}
+ .lp-hero-art{aspect-ratio:16/9}.lp-hero-words .lp-play{margin-top:22px}.lp-h1+.lp-text{margin-top:16px;line-height:1.75}.lp-recall{margin-top:10px;font-size:14px}
+ .lp-hero-words .t-login{max-width:100%;padding:16px}.lp-what-row{gap:28px}.lp-how-note{padding:15px 16px}.lp-step-title{font-size:16px}
+ .lp-news-form{grid-template-columns:1fr}.lp-news-go{width:100%}
 }
-#ah-foot .lp-report{margin:clamp(24px,3vw,36px) 0 0;font-size:14px}#ah-foot .lp-report a{color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:4px}
-#ah-foot .lp-report+.ft-copy{margin-top:8px}
+@media(prefers-reduced-motion:reduce){.lp,.lp-bar,.lp-play,.lp-up{transition:none}.lp-up{opacity:1;transform:none}}

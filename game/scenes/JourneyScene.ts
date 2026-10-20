@@ -345,17 +345,20 @@ export class JourneyScene extends Phaser.Scene {
    */
   private standGuide(top: Point, base: number) {
     const spot = { x: top.x + FEEL.guideSidePx, y: base + 10 };
-    const dude = new Dude(this, lookFrom('hill-guide'), spot.x, spot.y).place(spot);
+    const dude = new Dude(this, { ...lookFrom('hill-guide'), top: 'jacket', coat: 0x608c81, accessory: 'scarf' }, spot.x, spot.y).place(spot);
     dude.look(-1, 1);
     dude.hop(14, 2, this.reduced);
     sparkle(this, spot.x, spot.y - 30, this.reduced);
     // 머리 위 「...」 말풍선 — 할 말이 있다는 표시라 가 보고 싶게(사용자 10-19). 둥실. 모양 다듬기는 GPT 몫.
     const dotsAt = { x: spot.x, y: spot.y - 90 };
-    const dots = this.add.container(dotsAt.x, dotsAt.y, [
-      this.add.triangle(0, 13, -5, 0, 5, 0, 0, 7, 0xffffff),
-      this.add.ellipse(0, 0, 40, 26, 0xffffff).setStrokeStyle(2, 0xd6bf98),
-      this.add.text(0, -4, '...', { fontFamily: '"Jua", sans-serif', fontSize: '18px', color: '#6a4716', resolution: textRes(this.runtime.view().dpr) }).setOrigin(0.5),
-    ]).setDepth(spot.y + 200);
+    // 결과 카드 아래의 좁은 틈에서도 보이게 머리 오른쪽 위에 둔다. 바깥 기준점은 회전 재배치와 같다.
+    const dots = this.add.container(dotsAt.x, dotsAt.y, [this.add.container(36, 34, [
+      this.add.ellipse(1, 3, 44, 29, 0xc5ab80, 0.45),
+      this.add.triangle(-5, 14, -5, 0, 5, 0, 0, 7, 0xd6bf98),
+      this.add.triangle(-5, 12, -4, 0, 4, 0, 0, 6, 0xfffcf3),
+      this.add.ellipse(0, 0, 44, 29, 0xfffcf3).setStrokeStyle(1.5, 0xd6bf98),
+      this.add.text(0, -4, '...', { fontFamily: '"Jua", sans-serif', fontSize: '22px', color: '#55754c', resolution: textRes(this.runtime.view().dpr) }).setOrigin(0.5),
+    ])]).setDepth(spot.y + 200);
     if (!this.reduced) this.tweens.add({ targets: dots, y: dotsAt.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.guide = { dude, near: false, dots }; // 이름표는 안 단다(10-20 사용자 「안내하는 사람 이름 삭제해」)
     this.runtime.ui.tags([{ text: this.runtime.name() || '나', x: this.player.x, y: this.player.y - 58 }, ...this.guestTags]);

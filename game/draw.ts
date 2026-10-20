@@ -8,7 +8,7 @@ import { FEEL } from './feel';
 import { ROUTE } from './content';
 import type { Point, Room } from './room';
 import { ERRANDS } from './quests';
-import { PLACES, PLAZA, FOUNTAIN, POND, PITCH, GOAL, ROADS, WORKS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId, type WorksState, type WorkId } from './village';
+import { PLACES, PLAZA, FOUNTAIN, POND, BRIDGE_Y, PITCH, GOAL, ROADS, WORKS, VILLAGE_W, VILLAGE_H, GATE_Y, VILLAGE_NAME, type Place, type PlaceId, type WorksState, type WorkId } from './village';
 
 type Scene = Phaser.Scene;
 type Container = Phaser.GameObjects.Container;
@@ -476,12 +476,14 @@ function worksArt(scene: Scene, dpr: number) {
   // 정자 지붕은 따로 — 평상에 앉은 나보다 앞에(처마 밑에 앉은 것처럼). 바닥·기둥·평상(root)은 나보다 뒤에(10-19 「쉴 수 있게」).
   const roof = scene.add.container(site.x, site.y).setDepth(site.y + site.h + 60);
   // 다리는 그 위를 걷는 나보다 뒤에 깐다(village.ts 가 다 지으면 판자 길을 걸을 수 있게 연다).
-  const bridge = scene.add.container(POND.x + POND.w / 2, POND.y + POND.h / 2 + 4).setDepth(POND.y + POND.h / 2 - 12).setVisible(false);
+  const bridge = scene.add.container(POND.x + POND.w / 2, BRIDGE_Y).setDepth(BRIDGE_Y - 16).setVisible(false);
   { // 연못 다리 — 나무 판자 아치, 양 끝 기둥
     const g = scene.add.graphics(), half = POND.w / 2 + 14;
     g.fillStyle(0x756956, 0.18).fillEllipse(0, 14, half * 2, 12);
     g.fillStyle(0xb07a52).fillRoundedRect(-half, -6, half * 2, 16, 8);
     for (let x = -half + 6; x < half - 4; x += 12) g.fillStyle(0xc99464).fillRoundedRect(x, -4, 9, 12, 2);
+    g.fillStyle(0xe0b27c).fillRoundedRect(-half + 3, -5, half * 2 - 6, 2, 1);
+    g.fillStyle(0x8a5e40).fillRoundedRect(-half + 2, 8, half * 2 - 4, 3, 1.5);
     g.lineStyle(3, 0x8a5e40).beginPath().arc(0, 40, half + 4, Math.PI * 1.18, Math.PI * 1.82, false).strokePath();
     for (const x of [-half, half]) g.fillStyle(0x8a5e40).fillRoundedRect(x - 3, -22, 6, 26, 2);
     bridge.add(g);
@@ -522,15 +524,17 @@ function worksArt(scene: Scene, dpr: number) {
         g.fillStyle(0x756956, 0.16).fillEllipse(w / 2, h + 2, w + 10, 16);
         g.fillStyle(0xd8c6a2).fillRoundedRect(14, h - 24, w - 28, 22, 6);
         g.fillStyle(0xf0dfbc, 0.8).fillRoundedRect(18, h - 24, w - 36, 5, 2);
-        for (const x of [22, w - 28, 48, w - 54]) g.fillStyle(0x9a6a48).fillRoundedRect(x, h - 82, 6, 62, 2);
+        for (const x of [48, w - 54]) g.fillStyle(0x9a6a48).fillRoundedRect(x, h - 90, 6, 70, 2);
         g.fillStyle(0xb07a52).fillRoundedRect(w / 2 - 22, h - 34, 44, 8, 3);
         const top = scene.add.graphics(), lip = scene.add.graphics();
-        top.fillStyle(0x6f8a7e).fillTriangle(-6, h - 80, w / 2, h - 122, w + 6, h - 80).fillRoundedRect(-10, h - 86, w + 20, 12, 6);
-        top.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 84, w, 4, 2);
+        for (const x of [22, w - 28]) top.fillStyle(0x9a6a48).fillRoundedRect(x, h - 90, 6, 70, 2);
+        top.fillStyle(0x6f8a7e).fillTriangle(-6, h - 88, w / 2, h - 130, w + 6, h - 88).fillRoundedRect(-10, h - 94, w + 20, 12, 6);
+        top.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 92, w, 4, 2);
         lip.fillStyle(0xbe9c74).fillRoundedRect(14, h - 12, w - 28, 7, 3);
         lip.fillStyle(0xf5e4c5, 0.55).fillRoundedRect(18, h - 11, w - 36, 2, 1);
-        root.add(g);
-        roof.add([top, label(scene, w / 2, h - 100, '쉼터 정자', 12, dpr, '#ffffff'), lip]);
+        // 평상 앞선은 발보다 뒤, 앞 기둥과 지붕만 사람보다 앞. 앉은 발을 가리지 않는다.
+        root.add([g, lip]);
+        roof.add([top, label(scene, w / 2, h - 108, '쉼터 정자', 12, dpr, '#ffffff')]);
         return;
       }
       // 공사 중 — 바닥, 울타리, 벽돌 더미, 간판(곳 이름 · 지금 공사와 모인 만큼). 이름을 늘 보이게(사용자 10-15 「직관적으로」)
@@ -1119,9 +1123,10 @@ function house(scene: Scene, place: Place, dpr: number) {
   g.fillStyle(0xfff3c4, 0.85).fillRoundedRect(w / 2 - 13, h - 36, 26, 36, { tl: 6, tr: 6, bl: 0, br: 0 });
   g.fillStyle(0xf2d27a).fillCircle(w / 2 + 7, h - 18, 2.2);
   // 간판
-  const plate = label(scene, w / 2, top - 12, place.name, 13, dpr);
-  g.fillStyle(0xfffaf0).fillRoundedRect(w / 2 - plate.width / 2 - 10, top - 24, plate.width + 20, 24, 8);
-  g.lineStyle(1.5, 0xd9c3a1).strokeRoundedRect(w / 2 - plate.width / 2 - 10, top - 24, plate.width + 20, 24, 8);
+  const plate = label(scene, w / 2, top - 12, place.name, globalThis.matchMedia?.('(pointer: fine)').matches ? 16 : 13, dpr);
+  const plateH = Math.max(24, plate.height + 8);
+  g.fillStyle(0xfffaf0).fillRoundedRect(w / 2 - plate.width / 2 - 10, top - 12 - plateH / 2, plate.width + 20, plateH, 8);
+  g.lineStyle(1.5, 0xd9c3a1).strokeRoundedRect(w / 2 - plate.width / 2 - 10, top - 12 - plateH / 2, plate.width + 20, plateH, 8);
   items.push(plate);
   // 장소마다 하나씩 알아볼 거리
   const mark = scene.add.graphics();
@@ -1146,6 +1151,9 @@ function house(scene: Scene, place: Place, dpr: number) {
     for (const [i, cx] of [[0, w / 2 + 30], [1, w / 2 + 30], [2, w / 2 + 30]] as const) mark.fillStyle(i % 2 ? 0xe2ae45 : 0xf2c661).fillEllipse(cx, -38 - i * 5, 16, 6);
   } else if (place.id === 'arcade') { // 오락기 — 화면에 동전, 옆에 조이스틱
     mark.fillStyle(0x5d4a7a).fillRoundedRect(w / 2 - 20, -72, 40, 40, 8).fillStyle(0xbfe6d8).fillRoundedRect(w / 2 - 15, -67, 30, 20, 4);
+    mark.fillStyle(0x806994).fillRoundedRect(w / 2 - 17, -70, 34, 3, 1.5);
+    mark.fillStyle(0x403746).fillRoundedRect(w / 2 - 13, -43, 26, 8, 3);
+    mark.fillStyle(0xf2c661).fillCircle(w / 2 + 8, -39, 2).fillStyle(0xe79b81).fillCircle(w / 2 + 1, -39, 2);
     mark.fillStyle(0xf2c661).fillCircle(w / 2, -57, 5).fillStyle(0xffffff, 0.6).fillCircle(w / 2 - 2, -59, 1.5);
     mark.lineStyle(3, 0x5d4a7a).lineBetween(w / 2 + 34, -34, w / 2 + 34, -50).fillStyle(0xff6b57).fillCircle(w / 2 + 34, -52, 5);
   } else if (place.id === 'dok') { // 밑 빠진 독 — 금 간 항아리에서 물이 샌다

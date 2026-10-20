@@ -18,7 +18,20 @@
 a.v-go{margin:16px 0 4px;text-decoration:none}
 a.g-link{text-align:center}
 /* 상담소에 바로 묻기 — 주제 셋이 360px 에서 넘치지 않게 */
-.v-ask{margin:0 0 16px}.v-ask .g-radio{flex-wrap:wrap;gap:6px 14px}.v-ask textarea{resize:vertical;line-height:1.5}
+.v-ask{margin:0 0 16px}
+form.v-ask{margin:18px 0 24px;padding:20px 16px;border:1.5px solid #dfccaa;border-radius:22px;background:#fffdf6;box-shadow:0 4px 0 #e7d5b5}
+form.v-ask h3{margin-bottom:16px;font-size:22px}
+.v-ask .g-radio{flex-wrap:wrap;gap:8px;margin:12px 0 16px}
+.v-ask .g-radio label{display:flex;align-items:center;gap:6px;min-height:42px;padding:8px 10px;border:1px solid #e4d4b7;border-radius:12px;background:#fbf5e8;font-size:13px;cursor:pointer}
+.v-ask .g-radio label:has(:checked){border-color:#7f9a6f;background:#eaf0df;color:#405f34}
+.v-ask .g-radio input{margin:0;accent-color:#557f49}
+.v-ask textarea{resize:vertical;min-height:130px;line-height:1.7}
+form.v-ask .g-input{margin:12px 0;background:#fffaf0;border-radius:12px;box-shadow:inset 0 0 0 1.5px #decaaa}
+form.v-ask .g-input:focus{box-shadow:inset 0 0 0 2px #658650;outline:2px solid #65865040;outline-offset:2px}
+form.v-ask .g-input::placeholder{color:#89705a}
+form.v-ask .g-check{margin-top:16px;font-size:13px;line-height:1.65}
+form.v-ask details{margin:8px 0 12px 28px;padding:12px;background:#f5eddd}
+form.v-ask .g-primary{margin-top:20px;min-height:48px;font-size:18px}
 .v-qa{margin:0 0 12px;padding:14px 16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line)}
 .v-q,.v-a{margin:0;line-height:1.6}
 .v-q{font-family:var(--body);font-weight:700;font-size:17px;color:#5b402e}.v-q::before{content:"Q ";color:var(--accent)}
@@ -27,13 +40,24 @@ a.g-link{text-align:center}
 .v-sec:has(a[href^="mailto:"]){padding-bottom:20px}
 .v-sec:has(a[href^="mailto:"]) a{display:block;width:max-content;max-width:100%;margin:6px 0;color:var(--accent-dark);text-underline-offset:3px}
 /* 시민행동의 집 — 문의하기는 판 바닥에 붙여 가운데로(10-20). 내용이 짧아도 아래로 밀린다. */
-.t-panel.v-house{display:flex;flex-direction:column}
-.t-panel.v-house>.v-ask{margin-top:auto;padding-top:22px;text-align:center}
+.t-panel.v-house{display:flex;flex-direction:column;padding-inline:20px}
+.v-house>*{flex-shrink:0}
+.v-house>.t-lead{margin:6px 2px 18px;font-size:15px;line-height:1.8}
+.v-house>.g-primary{margin:0 0 26px;min-height:52px}
+.v-house>.g-ghost{min-height:50px;margin-top:10px;border-radius:16px;background:#fffcf3;box-shadow:inset 0 0 0 1.5px #e0cba9,0 3px 0 #e4d2b4;font-size:17px}
+.v-house>.g-ghost:hover{background:#f3ecd9}
+.v-house>.g-link{margin:18px auto 24px}
+.t-panel.v-house>.v-ask{margin-top:auto;padding-top:22px;border-top:1px solid #decaab;text-align:center}
 .t-panel.v-house>.v-ask a{margin:6px auto}
 .v-head{margin:4px 2px 2px;font-family:var(--display);font-size:19px;color:#5b402e}
 .v-by{margin:8px 0 0;text-align:right;font-size:13px;color:var(--soft)}
-.v-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:8px}
-.v-join.g-ghost{width:100%;display:flex;align-items:center;justify-content:center;min-height:42px;margin:6px 0 0;text-decoration:none} /* 독상 사업 밑 서명 바로가기(10-20) — 겉모습은 GPT */
+.v-list{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:12px}
+.v-list>li:has(.v-join){padding:14px;border:1.5px solid #e0cba9;border-radius:22px;background:#fffdf6;box-shadow:0 4px 0 #e5d3b3}
+.v-list>li:has(.v-join) .v-item{padding:0 2px 14px;background:none;box-shadow:none;border-radius:6px;line-height:1.6}
+.v-list>li:has(.v-join) .v-sum{line-height:1.8}
+.v-join.g-ghost{width:100%;display:flex;align-items:center;justify-content:center;min-height:46px;margin:4px 0 0;padding:10px 14px;border-radius:14px;background:#e8efdf;color:#405f34;box-shadow:inset 0 0 0 1.5px #9db18c,0 3px 0 #c7d3b8;text-decoration:none;font-size:17px}
+.v-join.g-ghost:hover{background:#dce7d0}
+.t-panel>.g-ghost:has(+.t-frame){display:flex;align-items:center;justify-content:flex-start;min-height:46px;margin:18px 0 14px;padding:10px 16px;border-radius:14px;background:#fffdf6;box-shadow:inset 0 0 0 1.5px #dfccaa,0 3px 0 #e4d2b3;font:650 15px/1.5 var(--body)}
 a.v-item{display:grid;gap:4px;padding:12px 14px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 3px 0 #e2cfab;color:#5b402e;font-family:var(--body);font-weight:700;font-size:16px;line-height:1.4;text-decoration:none;transition:transform .08s}
 a.v-item:active{transform:translateY(2px)}
 a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
@@ -46,7 +70,7 @@ a.v-item small,.v-sum{font-family:var(--body);font-size:13px;color:var(--soft)}
 .t-chip .t-ava{transform:scale(.7);margin:-6px -4px}
 
 /* 지방정부 예산·마을 곳간 — 우리 동네 페이지를 띄운 창(높이는 그 페이지가 알려 줌) */
-.t-frame{display:block;width:100%;height:70vh;margin:10px 0;border:0;border-radius:18px;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
+.t-frame{display:block;width:100%;height:70vh;margin:14px 0 20px;border:2px solid #cdb794;border-radius:16px;background:#fff;box-shadow:0 0 0 4px #fffdf4,0 6px 0 #dfcba9}
 
 /* 작은 사람(avatar) — 머리·몸 동그라미 셋. data-style 은 머리 모양(9 모자 · 0~3) */
 .t-ava{position:relative;isolation:isolate;display:inline-block;flex:none;width:26px;height:34px;vertical-align:middle}
@@ -108,11 +132,12 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .t-invite{margin:12px 0 16px;padding:10px;border-radius:17px;background:#f8efdf}.t-invite .g-ghost{width:100%;min-height:44px}
 .t-talk{margin:16px 0;padding:14px;border-radius:18px;background:#f7efdf;box-shadow:inset 0 0 0 1px #ead9bc}
 .t-talk :is(input,textarea){max-width:100%}
-.v-ware{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px 10px;padding:11px 12px;border-radius:15px;background:#fffaf0;box-shadow:inset 0 0 0 1.5px #e9d5b6}
-.v-ware-look{width:48px;height:48px;border-radius:12px;background:#f3e6cf}
-.v-ware b{flex:1;min-width:0;color:#5b402e;font-family:var(--display);font-size:16px;font-weight:400}
+.v-ware{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px;border:1px solid #e4d1af;border-radius:18px;background:#fffdf6;box-shadow:0 3px 0 #e8d8ba}
+.v-ware:has(.v-ware-look:not([hidden])){grid-template-columns:48px minmax(0,1fr)}
+.v-ware-look{display:block;flex:none;width:48px;height:48px;object-fit:contain;border:1px solid #d4dec3;border-radius:14px;background:#e9f0df;box-shadow:inset 0 -3px 0 #dae5cb}
+.v-ware b{min-width:0;color:#5b402e;font-family:var(--display);font-size:18px;font-weight:400}
 .v-ware .t-small{margin:0;color:#6b7960;font-weight:700}
-.v-ware .g-ghost{margin:0;min-height:40px;width:auto;max-width:100%;padding:0 12px;font-size:13px;white-space:nowrap}
+.v-ware .g-ghost{grid-column:1/-1;margin:0;min-height:44px;width:100%;max-width:100%;padding:8px 12px;border-radius:12px;background:#fbf0d7;box-shadow:inset 0 0 0 1.5px #e0c38c,0 2px 0 #e6d1a6;font-size:15px;line-height:1.5}
 
 /* 로그인 자리 — 공식 기호·색·여백. 문구의 가이드 차이는 README에 기록. */
 .t-login{margin:18px 0 8px;padding:16px;border-radius:20px;background:#f7efdf}
@@ -132,20 +157,21 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .v-write{margin:9px 0 19px;padding:12px;border-radius:18px;background:#f7efdf}
 .v-write :is(input,textarea){max-width:100%}
 .v-write .g-primary{min-height:48px;margin-top:9px;font-size:16px}
-.v-notes{display:grid;gap:10px;padding-top:2px}
-.v-notes .v-note{border-left:3px solid #d8a982}
-.v-note{padding:12px 14px;border-radius:20px;background:#fffdf6;box-shadow:inset 0 0 0 2px #f0e3c8}
+.v-notes{display:grid;gap:14px;padding-top:2px}
+.v-notes .v-note{border-left:3px solid #cda671}
+.v-note{padding:16px;border:1px solid #eadbc1;border-radius:8px 18px 18px 8px;background:#fffdf6;box-shadow:0 3px 0 #e9dabe}
 .v-note.v-pending{opacity:.6} /* 붙이는 중 — 서버 답이 오면 진짜 쪽지로 갈아 끼운다 */
-.v-who{display:flex;align-items:center;gap:6px;font-family:var(--body);font-weight:700;font-size:15px;color:#5b402e}
+.v-who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:var(--body);font-weight:700;font-size:15px;color:#5b402e}
+.v-who b{min-width:0;overflow-wrap:anywhere}
 .v-who small{font-family:var(--body);font-size:12px;color:var(--soft)}
 .v-mine{margin-left:auto;font-style:normal;font-family:var(--body);font-weight:700;font-size:12px;color:var(--accent-dark)}
-.v-text{margin:6px 0 8px;font-size:16px;line-height:1.55;overflow-wrap:anywhere}
+.v-text{margin:12px 0 14px;font-size:16px;line-height:1.75;overflow-wrap:anywhere}
 .v-acts{display:flex;gap:8px}
-.v-like,.v-report{min-height:34px;padding:0 14px;border-radius:999px;font-family:var(--display);font-size:14px}
+.v-like,.v-report{min-height:40px;padding:0 14px;border-radius:999px;font-family:var(--display);font-size:14px}
 .v-like{background:#fff0e8;color:var(--accent-dark);box-shadow:inset 0 0 0 2px #f6d6c7}.v-like:disabled{opacity:1;background:#ffe2d6}
 .v-report{margin-left:auto;background:transparent;color:var(--soft);font-family:var(--body);font-size:12px;text-decoration:underline}.v-report:disabled{text-decoration:none;opacity:.7}
 .v-card{position:absolute;left:10px;right:10px;bottom:max(12px,env(safe-area-inset-bottom));z-index:3;padding:10px;border-radius:26px;background:#fffaeef5;box-shadow:inset 0 0 0 2px var(--line),0 4px 0 #d6bf98,0 10px 24px #6b4a2a26;animation:ask-in .2s both;user-select:text;-webkit-user-select:text}
-.v-card .v-note{box-shadow:none;background:transparent;padding:4px 6px}
+.v-card .v-note{border:0;box-shadow:none;background:transparent;padding:4px 6px}
 
 /* 마을 공사터(places.ts openWorks)·지방재정 창 등에서 같이 쓰는 칸 — 세금 도감 칸은 10-20 걷었다. */
 .x-flow{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0}
@@ -157,7 +183,10 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .t-mine-ask{margin:16px 0 0;padding:18px 18px 14px;border:1px solid #e1d4b8;border-bottom:0;border-radius:22px 22px 0 0;background:#fffcf3}
 .t-mine-q{margin:0 0 8px;font-family:var(--display);font-size:23px;line-height:1.3;color:#5b402e}
 .t-mine-ask .t-small{margin:0;font-size:14px;line-height:1.75;color:#76604e}
-.t-login-region{margin:6px 0 16px} /* 로그인 직후 「내 동네를 정할까요?」(10-20) — 확인 단추와 띄운다 */
+.t-login-region{margin:12px 0 24px;padding:20px 16px;border:1.5px solid #c8d4b7;border-radius:22px;background:#f1f5e9;box-shadow:0 4px 0 #d7dfc8}
+.t-login-region>.t-small{margin-top:10px;font-size:14px;line-height:1.8;color:#57674a}
+.t-login-region>.g-ghost{min-height:48px;margin-top:18px;border-radius:14px;background:#fffdf6;color:#46643b;box-shadow:inset 0 0 0 1.5px #b8c6a5,0 3px 0 #cbd5bb}
+.t-login-region .t-mine-ask{margin-top:20px;background:#fffdf6}
 .t-picker{min-width:0;margin:10px 0 16px}
 .t-mine-ask:not([hidden])+.t-picker{margin-top:0;padding:2px 12px 14px;border:1px solid #e1d4b8;border-top:0;border-radius:0 0 22px 22px;background:#fffcf3}
 .t-picker .t-regions{gap:8px;margin:0;padding:12px 0}
@@ -168,17 +197,19 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .t-mine-tag{padding:5px 11px;border:1px solid #cbd8be;border-radius:999px;background:#edf2e5;color:#416135;font-size:12px;font-weight:700}
 .t-mine .t-save{background:var(--accent);color:#fffaf0;box-shadow:none}
 /* 문제 카드(10-15) — 한 장 크게, 반응 셋, 반응한 뒤에만 막대 */
-.c-kicker{margin:14px 0 4px;font-family:var(--display);font-size:15px;color:var(--accent-dark)}
-.c-card{margin:0 0 12px;padding:16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 4px 0 #e2cfab}
+.c-kicker{margin:24px 4px 10px;font-family:var(--display);font-size:17px;color:var(--accent-dark)}
+.c-card{margin:0 0 18px;padding:20px 18px;border:1.5px solid #dfcbaa;border-radius:22px;background:#fffdf6;box-shadow:0 4px 0 #e3d0ae}
+.t-panel:has(>.v-npc)>.t-small[role=status]{margin:24px 0;padding:22px 18px;border:1.5px dashed #d5bf98;border-radius:18px;background:#fffcf3;font-size:15px;line-height:1.85;color:#725c47;text-align:center}
 .c-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;font-size:13px;color:var(--soft)}
 .c-ours{padding:2px 9px;border-radius:999px;background:var(--leaf);color:#fff;font-size:12px;font-weight:700}
-.c-title{margin:6px 0 2px;font-family:var(--display);font-size:21px;font-weight:400;line-height:1.35;color:#5b402e}
-.c-text{margin:4px 0 0;font-size:15px;line-height:1.65;color:#5f4c3e}
-.c-react{margin:14px 0 0}
+.c-title{margin:12px 0 8px;font-family:var(--display);font-size:23px;font-weight:400;line-height:1.45;color:#5b402e;overflow-wrap:anywhere}
+.c-text{margin:12px 0 0;font-size:15px;line-height:1.85;color:#5f4c3e}
+.c-react{margin:20px 0 0;padding-top:18px;border-top:1px solid #e8d8ba}
 .c-q{margin:0 0 8px;font-weight:700;font-size:15px;color:#5b402e}
 .c-kinds{display:grid;gap:8px}
-.c-kind{min-height:48px;border-radius:999px;font-family:var(--display);font-size:17px;background:#fff;box-shadow:inset 0 0 0 2px var(--line),0 3px 0 var(--edge)}
-.c-kind.c-problem{background:var(--accent);color:#fffaf0;box-shadow:0 4px 0 var(--accent-dark)}
+.c-kind{min-height:48px;padding:10px 14px;border-radius:14px;font-family:var(--display);font-size:17px;background:#fffaf0;box-shadow:inset 0 0 0 1.5px #ddc9a5,0 3px 0 #e3d0ad;transition:background .15s,transform .1s}
+.c-kind:hover{background:#f6ecd9}.c-kind:active{transform:translateY(2px)}
+.c-kind.c-problem{background:#fae8df;color:#8d4a36;box-shadow:inset 0 0 0 1.5px #ddaf99,0 3px 0 #e4c7b2}
 .c-kind:disabled{opacity:.6}
 .c-result{display:grid;gap:6px}
 .c-row{position:relative;display:flex;justify-content:space-between;padding:10px 14px;border-radius:14px;overflow:hidden;background:#f3ead8;font-size:15px;color:#5f4c3e}
@@ -192,8 +223,9 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .c-fold summary{cursor:pointer;font-size:14px;color:#5f4c3e}
 .c-fold[open] .c-card{margin:10px 0 0}
 /* 예산 오락실(arcade.ts, 10-17) — 쓰이는 모양만 Claude 가 잡아 둠, 꾸미기는 GPT */
-.a-stage{display:grid;gap:10px}
-.a-game{display:grid;gap:4px;padding:16px;border-radius:22px;text-align:left;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 4px 0 var(--edge)}
+.a-stage{display:grid;gap:16px;margin-top:22px}
+.a-game{display:grid;gap:8px;padding:20px 18px;border:1.5px solid #dec7a6;border-radius:22px;text-align:left;background:#fffdf6;box-shadow:0 4px 0 #dcc4a0;transition:background .15s,transform .1s}
+.a-game:hover{background:#fbf2df}.a-game:active{transform:translateY(2px)}
 .a-game b{font-family:var(--display);font-size:20px;color:#5b402e}.a-game small{font-size:14px;color:var(--soft)}
 .a-paid{justify-self:start;margin-top:4px;padding:2px 10px;border-radius:999px;background:#fbefcf;font-size:12px;color:#8a6a2c}
 .a-back{justify-self:start}
@@ -202,19 +234,19 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .a-status{min-height:1.4em;margin:0}
 .a-big{margin:8px 0 0;font-family:var(--display);font-size:30px;color:var(--accent-dark)}
 .a-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.a-item{display:grid;gap:8px;align-content:space-between;min-height:120px;padding:14px 12px;border-radius:20px;text-align:left;background:var(--card);box-shadow:inset 0 0 0 2px var(--line),0 4px 0 var(--edge)}
+.a-item{display:grid;gap:12px;align-content:space-between;min-height:156px;padding:18px 14px;border-radius:18px;text-align:left;background:#fffdf6;box-shadow:inset 0 0 0 1.5px #dec7a6,0 4px 0 #dcc4a0}
 .a-item b{font-family:var(--body);font-weight:700;font-size:16px;line-height:1.4;color:#55402f}
-.a-price{font-family:var(--display);font-size:20px;color:var(--soft)}
+.a-price{font-family:var(--display);font-size:24px;color:var(--soft);font-variant-numeric:tabular-nums}
 .a-item.pricier .a-price{color:var(--accent-dark)}
 .a-item.picked{box-shadow:inset 0 0 0 3px var(--leaf),0 4px 0 var(--leaf-dark)}
-.a-vault{display:flex;gap:3px;min-height:58px;padding:4px;border-radius:14px;background:#6f8a7e}
+.a-vault{display:flex;gap:3px;min-height:68px;padding:7px;border:2px solid #5e786b;border-radius:16px;background:#6f8a7e;box-shadow:inset 0 3px 0 #506d62,0 4px 0 #c3c9ac}
 .a-vault .a-block,.a-empty{flex:1 1 0;min-width:0;border-radius:10px}
-.a-empty{background:#8fa99c}
-.a-tray{display:flex;flex-wrap:wrap;gap:8px}
-.a-block{padding:10px 12px;border-radius:12px;background:#f2c661;color:#5b402e;font-family:var(--display);font-size:15px;box-shadow:0 3px 0 #cf9b37}
+.a-empty{background:#a5baaa;box-shadow:inset 0 2px 0 #7e9989}
+.a-tray{display:flex;flex-wrap:wrap;gap:10px;padding:10px 0}
+.a-block{min-height:44px;padding:10px 12px;border-radius:10px;background:#f2c661;color:#5b402e;font-family:var(--display);font-size:15px;box-shadow:inset 0 2px 0 #ffe19c,0 3px 0 #cf9b37}
 .a-block.in{padding:6px 4px;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;box-shadow:none}
 .a-block:disabled{opacity:.5}
-.a-jar{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:26px 18px 30px;border-radius:44% 44% 38% 38%/22% 22% 30% 30%;background:#a0674b;overflow:hidden}
+.a-jar{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:30px 20px 34px;border:3px solid #80513c;border-radius:44% 44% 38% 38%/22% 22% 30% 30%;background:#ae7656;box-shadow:inset 8px 0 0 #ffffff12,inset -8px 0 0 #56382418,0 5px 0 #d9c5a4;overflow:hidden}
 .a-water{position:absolute;left:0;right:0;bottom:0;background:#7fbcd2e6;transition:height .4s}
 .a-hole{position:relative;min-height:62px;padding:6px 8px;border-radius:999px;background:#5c3a2c;color:#fff7e6;font-family:var(--body);font-weight:700;font-size:13px;line-height:1.3;transition:background .15s,transform .15s}
 .a-hole.up{background:#fffaf0;color:#5b402e;transform:scale(1.04)}

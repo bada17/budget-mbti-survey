@@ -1,0 +1,8 @@
+{
+  "method": "Chrome headless, touch, 360x640, CPU 4x, last room, rAF 5 seconds",
+  "frames": 178,
+  "seconds": 5.0005,
+  "averageFps": 35.596440355964404,
+  "medianFrameMs": 33.200000000000045,
+  "errors": []
+}

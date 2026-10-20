@@ -1,0 +1,56 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>겉모습 검토 · 실제 판</title><link rel="icon" href="data:,"></head>
+<body><style>#game-canvas canvas{width:100%;height:100%}</style><main id="review"></main><script type="module">
+// 검토 전용 입구. 실제 화면 함수를 호출하되 저장·전송 동작은 연결하지 않는다.
+import '@fontsource/jua/400.css';
+import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+import '../ui.css';
+import '../town.css';
+import Phaser from 'phaser';
+import { createUI } from '../ui';
+import { openHouse,openCards,openCounsel,openDok,openWorks,noteView,placePanel,openFinance } from '../places';
+import { openLoggedIn } from '../town';
+import { drawVillage,Dude,toLook,facePhoto,drawHill } from '../draw';
+import { POND,PAVILION_SEAT,worksAt,PLACES } from '../village';
+import { AXES } from '../content';
+import { openArcade } from '../arcade';
+const noop=()=>{};
+const ui=createUI(document.querySelector('#review'),{start:noop,retry:noop,sound:noop,openTable:noop,reply:noop,goTo:noop,goDoor:noop});
+ui.hideIntro();
+const shell=document.querySelector('.g');
+const mode=new URLSearchParams(location.search).get('panel')||'house';
+const pick=[0,1,7,0];
+let scene;
+if(['works','pavilion','bridge','end'].includes(mode)) {
+  scene=await new Promise(resolve=>new Phaser.Game({type:Phaser.CANVAS,parent:'game-canvas',width:360,height:640,backgroundColor:'#e4eccc',banner:false,audio:{noAudio:true},render:{antialias:true},scene:{create(){resolve(this)}}}));
+}
+if(mode==='house') openHouse(shell,noop,noop);
+if(mode==='cards'||mode==='empty') openCards(shell,{online:true,load:async()=>mode==='empty'?[]:await fetch('/api/game/cards').then(r=>r.json()).then(r=>r.cards),mine:()=>({}),react:async()=>undefined,share:noop},noop);
+if(mode==='region') openLoggedIn(shell,'google',false,noop);
+if(mode==='counsel') openCounsel(shell,noop);
+if(mode==='dok') openDok(shell,noop);
+if(mode==='finance') openFinance(shell,noop);
+if(mode==='arcade') {
+  // 본편에서 숨겨 둔 오락실을 이 검토 페이지 안에서만 등록. 실제 게임 목록은 바꾸지 않는다.
+  if(!PLACES.some(p=>p.id==='arcade'))PLACES.push({id:'arcade',name:'예산 오락실',line:'[검토용] 숨겨 둔 놀이 판의 겉모습을 확인해요.',box:{x:0,y:0,w:190,h:96},door:{x:0,y:0}});
+  openArcade(shell,{paid:()=>false,earn:()=>false},noop);
+}
+if(mode==='note') {
+  const {panel}=placePanel(shell,'board',noop);
+  panel.append(noteView({id:'review-note',name:'검토용 주민',pick,at:Date.now(),text:'[검토용 쪽지] 우리 동네 도서관 이야기도 함께 살펴보고 싶어요. 이웃의 생각을 천천히 읽어 봅니다.',likes:0},{like:async()=>undefined,report:async()=>false}));
+}
+if(mode==='works') openWorks(shell,{total:3,pocket:{coins:12,trees:[],day:'2026-10-20'},online:false,loggedIn:false,give:async()=>({failed:'review'}),owned:()=>[],pick:()=>pick,buy:()=>false,preview:p=>facePhoto(scene,toLook(p),120)},noop);
+if(mode==='wait') ui.wait('구글로 로그인하는 중이에요','시민증을 가져오고 있어요. 잠깐만 기다려 주세요.');
+if(mode==='end') {
+  drawHill(scene,360,640,0);
+  const scores=Object.fromEntries(AXES.map(a=>[a.key,-70]));
+  ui.end({code:'000',scores,answers:{},lines:[]},{neighbor:noop,share:noop,village:noop});
+}
+if(mode==='pavilion'||mode==='bridge') {
+  const art=drawVillage(scene,2,'autumn'); art.setWorks(worksAt(30));
+  const at=mode==='pavilion'?{x:PAVILION_SEAT.x,y:PAVILION_SEAT.y+4}:{x:POND.x+POND.w/2,y:POND.y+POND.h/2};
+  const dude=new Dude(scene,toLook(pick),at.x,at.y).place(at); if(mode==='pavilion')dude.sit(true);
+  scene.cameras.main.centerOn(at.x,at.y-100);
+}
+await document.fonts.ready;
+document.body.dataset.ready='true';
+</script></body></html>

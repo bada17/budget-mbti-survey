@@ -1,0 +1,35 @@
+{
+  "landing": [
+    {
+      "width": 320,
+      "scroll": 320,
+      "viewport": 320,
+      "overflow": []
+    },
+    {
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "overflow": []
+    },
+    {
+      "width": 760,
+      "scroll": 760,
+      "viewport": 760,
+      "overflow": []
+    },
+    {
+      "width": 1280,
+      "scroll": 1280,
+      "viewport": 1280,
+      "overflow": []
+    },
+    {
+      "width": 1920,
+      "scroll": 1920,
+      "viewport": 1920,
+      "overflow": []
+    }
+  ],
+  "errors": []
+}
