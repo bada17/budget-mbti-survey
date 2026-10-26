@@ -64,6 +64,7 @@ const SIDES: DisplaySide[] = ['left', 'right'];
 const other = (side: DisplaySide): DisplaySide => (side === 'left' ? 'right' : 'left');
 const lerp = (a: Point, b: Point, k: number) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
 const touchScreen = matchMedia('(pointer: coarse)').matches;
+const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
 export class JourneyScene extends Phaser.Scene {
   private mode: Mode = 'intro';
@@ -104,7 +105,8 @@ export class JourneyScene extends Phaser.Scene {
   /** 방을 넘어갈 때 건물 속을 지나는 띠 — 이 안에 든 사람은 감춘다(문으로 들어가 다음 방 아래로 나오는 것처럼). */
   private insideBand?: { top: number; bottom: number };
   private sizeBuilt = { w: 0, h: 0 };
-  private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 브라우저로 돌아온 뒤 바뀐 설정도 읽는다 — 생성 때의 true/false를 붙잡지 않는다.
+  private get reduced() { return motion.matches; }
 
   constructor(private runtime: Runtime) { super('journey'); }
 
@@ -186,6 +188,7 @@ export class JourneyScene extends Phaser.Scene {
     this.art.destroy();
     this.dropTwist();
     this.dropResidents();
+    this.tweens.killTweensOf(this.outcome);
     this.outcome.forEach(o => o.destroy());
     this.outcome = [];
   }
@@ -602,7 +605,8 @@ export class JourneyScene extends Phaser.Scene {
 
   private fade(out: boolean, done: () => void) {
     const cam = this.cameras.main;
-    if (this.reduced) { done(); return; }
+    // 페이드아웃 도중 설정이 바뀌면, 생략한 페이드인의 덮개도 걷는다.
+    if (this.reduced) { if (!out) cam.fadeEffect.reset(); done(); return; }
     cam.once(out ? Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE : Phaser.Cameras.Scene2D.Events.FADE_IN_COMPLETE, done);
     if (out) cam.fadeOut(200, 255, 250, 240); else cam.fadeIn(220, 255, 250, 240);
   }

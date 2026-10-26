@@ -24,6 +24,8 @@ import type { PublicNote, VillageView } from '../api';
 import type { Controls } from '../input';
 import { sfx } from '../sfx';
 
+const motion = matchMedia('(prefers-reduced-motion: reduce)');
+
 export type VillageRuntime = {
   view(): { w: number; h: number; dpr: number };
   controls: Controls;
@@ -77,7 +79,7 @@ export class VillageScene extends Phaser.Scene {
   /** 땅에 떨어진 것 — 걸어가 닿으면 줍는다. */
   private items: { kind: Drop; tree: number; at: Point; obj: Phaser.GameObjects.Container }[] = [];
   private dustClock = 0;
-  private reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private get reduced() { return motion.matches; }
   /** 작은 운동장 공 — 골이 나면 잠깐 기뻐하다가(cheering) 가운데로 돌아온다. */
   private ball?: Ball;
   private cheering = false;
@@ -156,6 +158,7 @@ export class VillageScene extends Phaser.Scene {
       this.cameras.main.centerOn(this.pos.x, this.pos.y - 40);
       done();
       if (!this.reduced) this.cameras.main.fadeIn(200, 255, 250, 240);
+      else this.cameras.main.fadeEffect.reset(); // 페이드아웃 중 설정을 켰어도 화면이 가려진 채 남지 않는다.
     };
     if (this.reduced) { go(); return; }
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, go);
