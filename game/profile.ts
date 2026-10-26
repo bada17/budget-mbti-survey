@@ -216,7 +216,8 @@ export const saveRegion = (region: Region, at = Date.now()) => {
 
 // ── 로그인하면 서버에 두는 한 묶음(Save) — 이 기기의 기록 그대로. 서버도 받을 때 이걸로 검사한다(api.ts). ──
 /** 주머니 동전(사용자 10-19 「동전 로그인 저장」) — n 남은 동전, at 마지막으로 바뀐 때(더 나중 것이 이긴다), day·taken 그날 주운 나무(두 기기로 같은 나무를 두 번 줍지 않게). */
-export type Coins = { n: number; at: number; day: number; taken: number[] };
+/** 주머니 — n 동전, f 사과(10-26 액세서리를 사과로도 받게 되어 같이 싣는다. 옛 기록엔 없다). */
+export type Coins = { n: number; at: number; day: number; taken: number[]; f?: number };
 export type Save = { me?: Me; neighbor?: Neighbor; last?: Last & { at: number }; home?: Home; stamps?: Record<string, number>; region?: Region; regionAt?: number; coins?: Coins; owned?: number[] };
 export const SAVE_MAX = 4000; // JSON 글자 수 — 이보다 크면 이상한 값
 
@@ -241,7 +242,7 @@ export function cleanSave(raw: unknown): Save | undefined {
     if (Number.isFinite(r.regionAt) && r.regionAt > 0) save.regionAt = r.regionAt;
   }
   const c = r.coins, whole = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
-  if (c && whole(c.n, 1e6) && Number.isFinite(c.at) && c.at > 0 && whole(c.day, 1e7) && Array.isArray(c.taken)) save.coins = { n: c.n, at: c.at, day: c.day, taken: c.taken.filter((t: unknown) => whole(t, 999)).slice(0, 200) };
+  if (c && whole(c.n, 1e6) && Number.isFinite(c.at) && c.at > 0 && whole(c.day, 1e7) && Array.isArray(c.taken)) save.coins = { n: c.n, at: c.at, day: c.day, taken: c.taken.filter((t: unknown) => whole(t, 999)).slice(0, 200), ...(whole(c.f, 1e6) ? { f: c.f } : {}) };
   if (Array.isArray(r.owned)) { const owned = r.owned.filter((i: unknown) => whole(i, REWARDS.length - 1)); if (owned.length) save.owned = [...new Set<number>(owned)]; }
   return save;
 }
@@ -250,12 +251,12 @@ export function cleanSave(raw: unknown): Save | undefined {
 export function exportSave(): Save {
   const rawTown = read(TOWN_KEY) as { at?: unknown } | null, last = loadLast();
   const region = regionRecord();
-  const pocket = read(POCKET_KEY) as Partial<Coins> & { coins?: unknown } | null;
+  const pocket = read(POCKET_KEY) as Partial<Coins> & { coins?: unknown; fruits?: unknown } | null;
   return cleanSave({
     me: read(ME_KEY) ? loadMe() : undefined, neighbor: loadNeighbor(),
     last: last ? { ...last, at: Number(rawTown?.at) || 0 } : undefined,
     home: loadHome(), stamps: loadStamps(), region: region?.value, regionAt: region?.at,
-    coins: pocket?.at ? { n: pocket.coins, at: pocket.at, day: pocket.day, taken: pocket.taken ?? [] } : undefined, owned: loadOwned(),
+    coins: pocket?.at ? { n: pocket.coins, at: pocket.at, day: pocket.day, taken: pocket.taken ?? [], f: pocket.fruits } : undefined, owned: loadOwned(),
   }) ?? {};
 }
 
@@ -275,10 +276,10 @@ export function importSave(remote: Save) {
   if (remote.region && (!here.region || (remote.regionAt ?? 0) >= (here.regionAt ?? 0)) && (remote.region !== here.region || remote.regionAt !== here.regionAt)) {
     write(REGION_KEY, { value: remote.region, at: remote.regionAt ?? 0 });
   }
-  // 동전은 더 나중에 바뀐 쪽(at) — 열매·넣은 동전 같은 이 기기 칸은 그대로 두고 동전·오늘 주운 나무만 갈아 끼운다.
+  // 동전·사과는 더 나중에 바뀐 쪽(at) — 넣은 동전 같은 이 기기 칸은 그대로 두고 동전·사과·오늘 주운 나무만 갈아 끼운다(사과가 없는 옛 기록이면 이 기기 사과 그대로).
   if (remote.coins && remote.coins.at > (here.coins?.at ?? 0)) {
     const pocket = (read(POCKET_KEY) as Record<string, unknown> | null) ?? {};
-    write(POCKET_KEY, { ...pocket, coins: remote.coins.n, at: remote.coins.at, day: remote.coins.day, taken: remote.coins.taken });
+    write(POCKET_KEY, { ...pocket, coins: remote.coins.n, ...(remote.coins.f !== undefined ? { fruits: remote.coins.f } : {}), at: remote.coins.at, day: remote.coins.day, taken: remote.coins.taken });
   }
   if (remote.owned?.some(i => !here.owned?.includes(i))) saveOwned([...(here.owned ?? []), ...remote.owned]); // 산 것은 둘 다
   if (remote.stamps) {

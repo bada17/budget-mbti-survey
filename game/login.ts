@@ -29,6 +29,7 @@ const PENDING = 'budget-game-login-pending';
 const DONE = 'budget-game-login-done';
 const EMAIL = 'budget-game-login-email';
 const UNSAVED = 'budget-game-login-unsaved';
+const FRESH = 'budget-game-login-fresh';
 const BACK = 'budget-game-login-back';
 /**
  * 로그인하러 가며 남기는 것 — back = 돌아오면 다시 열 판(사용자 10-19 「로그인하면 ~할 수 있어요」 자리에서 로그인했으면 그 판으로 — 'board'·'hub'·'hub:region'),
@@ -128,6 +129,7 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   const result = await net.login({ provider: pending.provider, redirectUri: here(), ...proof });
   if (!result) return 'failed';
   saveLogin({ key: result.key, provider: pending.provider, ...(result.admin ? { admin: true as const } : {}) });
+  const fresh = !Object.keys(cleanSave(result.save) ?? {}).length; // 처음 로그인한 계정 — 불러올 게 없었다(10-26, 「불러오기」 를 눌렀는데 그냥 「로그인했어요」 만 떴다)
   confirmed = { key: result.key, text: JSON.stringify(cleanSave(result.save) ?? {}) };
   importSave(result.save);
   const carried = carryProgress(pending.carry);
@@ -148,6 +150,7 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
     sessionStorage.setItem(DONE, pending.provider);
     if (result.email && pending.news === true) sessionStorage.setItem(EMAIL, result.email); // 소식 받기를 켰을 때만 그 판에 채운다
     if (!saved) sessionStorage.setItem(UNSAVED, '1');
+    if (fresh) sessionStorage.setItem(FRESH, '1');
     if (typeof pending.back === 'string' && /^[a-z:]{2,20}$/.test(pending.back)) sessionStorage.setItem(BACK, pending.back);
   } catch { /* 알림만 못 띄운다 */ }
   location.reload();
@@ -208,6 +211,10 @@ export function justLoggedIn(): Provider | undefined {
 export function takeUnsaved(): boolean {
   try { const u = sessionStorage.getItem(UNSAVED); sessionStorage.removeItem(UNSAVED); return u === '1'; } catch { return false; }
 }
+/** 다시 연 뒤 한 번 — 방금 로그인한 계정이 처음 만든 것인가(서버에 기록이 없었다). */
+export function takeFresh(): boolean {
+  try { const f = sessionStorage.getItem(FRESH); sessionStorage.removeItem(FRESH); return f === '1'; } catch { return false; }
+}
 /** 다시 연 뒤 한 번 — 방금 로그인으로 받은 이메일(카카오에서 이메일을 안 켰으면 없음). 꺼내면 지운다. */
 export function takeLoginEmail(): string | undefined {
   try { const e = sessionStorage.getItem(EMAIL); sessionStorage.removeItem(EMAIL); return e ?? undefined; } catch { return undefined; }
@@ -254,12 +261,4 @@ export async function logout() {
   clearLogin(); clearSave();
   clearTimeout(timer); timer = undefined; dirty = false; confirmed = undefined;
   return true;
-}
-/** 서버 기록을 지우고 끊는다. */
-export async function forget() {
-  const login = loadLogin();
-  if (!login) return false;
-  const ok = await net.forget(login.key);
-  if (ok) { clearLogin(); clearTimeout(timer); timer = undefined; dirty = false; confirmed = undefined; }
-  return Boolean(ok);
 }

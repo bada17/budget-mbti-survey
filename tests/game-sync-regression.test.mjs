@@ -62,7 +62,7 @@ function browser(userAgent = 'Regression browser') {
       const next = new URL(url, location.origin);
       location.pathname = next.pathname; location.search = next.search; location.hash = next.hash;
     } },
-    testNet: { forget: async () => ({ ok: true }) },
+    testNet: {},
   };
   vm.runInNewContext(bundled.outputFiles[0].text, context);
   const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
@@ -196,20 +196,6 @@ test('서버 저장에 실패한 최신 지역 선택은 이전 서버 기록을
   profile.importSave({ region: '2600000', regionAt: 100 });
 
   assert.equal(profile.loadRegion(), '1124000');
-});
-
-test('서버 기록을 지운 뒤 다음 계정에 넘길 묶음에는 개인 방명록 열쇠가 없다', async () => {
-  const { profile, login } = browser();
-  profile.saveLogin({ provider: 'kakao', key: 'a'.repeat(32) });
-  profile.saveHome({ id: 'PrivateHome1', key: 'private-key' });
-  profile.saveMe({ name: '기기에 남길 기록', pick: [0, 0, 0, 0], at: 100 });
-
-  assert.equal(await login.forget(), true);
-  profile.saveLogin({ provider: 'google', key: 'b'.repeat(32) });
-  profile.importSave({});
-
-  assert.equal(profile.exportSave().home, undefined);
-  assert.equal(profile.exportSave().me.name, '기기에 남길 기록', '일반 게임 기록은 이 기기에 남긴다');
 });
 
 test('같은 서버 기록을 다시 합쳐도 변경 알림이 생기지 않는다', () => {

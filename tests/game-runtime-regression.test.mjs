@@ -128,16 +128,17 @@ test('점검 중 소리 설정은 실제 게임의 저장된 설정을 바꾸지
   assert.equal(b.context.localStorage.getItem('budget-game-muted'), '0');
 });
 
-test('공사터 동전 전송 중에는 같은 주머니의 액세서리를 살 수 없다', async () => {
+test('공사터 동전 전송 중에는 같은 주머니로 액세서리를 받을 수 없다', async () => {
   const b = browser(); let finish;
   const pending = new Promise(resolve => { finish = resolve; });
-  const pocket = { day: '2026-10-20', taken: [], coins: 100, fruits: 0, given: 0, told: false, arcade: [] };
-  b.openWorks(b.root, { total: 0, pocket, online: true, loggedIn: true, owned: () => [], pick: () => [0, 0, 0, 0], buy: () => true, give: () => pending }, () => {});
+  const pocket = { day: '2026-10-20', taken: [], coins: 100, fruits: 100, given: 0, told: false, arcade: [] };
+  b.openWorks(b.root, { total: 0, pocket, online: true, owned: () => [], pick: () => [0, 0, 0, 0], buy: () => true, give: () => pending }, () => {});
   const find = text => b.root.querySelectorAll('button').find(n => n.textContent === text);
   const sending = find('동전 10개 넣기').onclick();
-  try { assert.equal(find('동전 100개로 사기').disabled, true); }
+  try { assert.equal(find('동전 100개로 받기').disabled, true); assert.equal(find('사과 100개로 받기').disabled, true); }
   finally { finish({ failed: 'network' }); await sending; }
-  assert.equal(find('동전 100개로 사기').disabled, false, '실패 후에는 다시 선택할 수 있다');
+  assert.equal(find('동전 100개로 받기').disabled, false, '실패 후에는 다시 선택할 수 있다');
+  assert.equal(find('사과 100개로 받기').disabled, false);
 });
 
 test('점검 상담소 질문은 외부 접수처에 POST하지 않는다', async () => {

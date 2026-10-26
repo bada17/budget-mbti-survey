@@ -93,5 +93,4 @@ export const net = {
   login: (proof: { provider: string; redirectUri: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save; email?: string; admin?: boolean }>('POST', '/login', proof),
   me: (key: string) => call<{ save: Save; admin: boolean }>('POST', '/me', { key }),
   saveMe: (key: string, save: Save) => call<{ ok: true }>('POST', '/me/save', { key, save }),
-  forget: (key: string) => call<{ ok: true }>('POST', '/me/forget', { key }),
 };

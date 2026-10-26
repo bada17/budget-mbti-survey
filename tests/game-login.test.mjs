@@ -160,19 +160,21 @@ test('카톡 밖으로 실어 보내는 기록: 한글 이름까지 그대로 �
   assert.equal(unpackCarry(btoa('{"me":{"name":1}}'))?.me, undefined);
 });
 
-test('기록 묶음의 동전·산 액세서리(10-19): 동전은 더 나중에 바뀐 쪽, 산 것은 둘 다, 로그아웃하면 비운다', () => {
+test('기록 묶음의 동전·사과·받은 액세서리(10-19·10-26): 주머니는 더 나중에 바뀐 쪽, 받은 것은 둘 다, 로그아웃하면 비운다', () => {
   memory.clear();
   assert.deepEqual(cleanSave({ coins: { n: -1, at: 5, day: 1, taken: [] }, owned: [0, 99] }), { owned: [0] }, '이상한 동전·번호는 버린다');
   localStorage.setItem(POCKET_KEY, JSON.stringify({ day: 7, taken: [3], coins: 40, fruits: 2, given: 5, told: true, arcade: [], at: 100 }));
   saveOwned([1]);
-  assert.deepEqual(exportSave().coins, { n: 40, at: 100, day: 7, taken: [3] });
+  assert.deepEqual(exportSave().coins, { n: 40, at: 100, day: 7, taken: [3], f: 2 }, '사과도 싣는다(10-26)');
   assert.deepEqual(exportSave().owned, [1]);
   importSave({ coins: { n: 10, at: 50, day: 7, taken: [] }, owned: [0] });
   assert.equal(exportSave().coins.n, 40, '이 기기가 더 나중이면 그대로');
   assert.deepEqual(loadOwned(), [0, 1], '산 것은 둘 다');
   importSave({ coins: { n: 120, at: 300, day: 8, taken: [1, 2] } });
   const pocket = JSON.parse(localStorage.getItem(POCKET_KEY));
-  assert.deepEqual([pocket.coins, pocket.day, pocket.taken, pocket.fruits, pocket.given], [120, 8, [1, 2], 2, 5], '다른 기기에서 더 모았으면 서버 것 — 열매·넣은 동전은 이 기기 것');
+  assert.deepEqual([pocket.coins, pocket.day, pocket.taken, pocket.fruits, pocket.given], [120, 8, [1, 2], 2, 5], '다른 기기에서 더 모았으면 서버 것 — 사과가 없는 옛 기록이면 사과·넣은 동전은 이 기기 것');
+  importSave({ coins: { n: 120, at: 400, day: 8, taken: [1, 2], f: 9 } });
+  assert.equal(JSON.parse(localStorage.getItem(POCKET_KEY)).fruits, 9, '사과가 실린 기록이면 사과도 서버 것');
   clearSave();
   assert.equal(localStorage.getItem(POCKET_KEY), null);
   assert.deepEqual(loadOwned(), []);

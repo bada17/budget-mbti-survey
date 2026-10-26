@@ -16,7 +16,7 @@
 import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, rollBall, type Point } from '../room';
-import { PLACES, PLAZA, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
+import { PLACES, keepers, keeperLook, PLAZA, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
 import { textRes, Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, stringLights, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
@@ -105,12 +105,12 @@ export class VillageScene extends Phaser.Scene {
     // [나중에 살림: 내 이웃] 사용자 10-19 「따라다니게 하지말고」 — 숨긴 동안엔 지난번에 정한 이웃도 안 따라온다
     // const neighbor = this.runtime.neighbor();
     // if (neighbor) this.buddy = new Dude(this, lookFrom(neighbor.seed), this.pos.x, this.pos.y + 30, FEEL.followerScale).place({ x: this.pos.x, y: this.pos.y + 30 });
-    // 문 앞 주민 — 문 오른쪽에 서서 나를 본다(쪽지판엔 없다). 판 안의 한마디와 같은 생김새(npc:<id>).
-    for (const place of PLACES) if (place.id !== 'board') {
-      const at = { x: place.door.x + 38, y: place.door.y - 6 };
-      const tag = place.keeper ? nameTag(this, at.x, at.y + 14, place.keeper, dpr) : undefined; // 맡은 사람 이름(10-15)
-      this.keepers.push({ dude: new Dude(this, lookFrom(`npc:${place.id}`), at.x, at.y).place(at), at, tag });
-    }
+    // 문 앞 주민 — 문 오른쪽에 서서 나를 본다. 판 안의 한마디와 같은 생김새(village.ts keeperLook). 여럿이면 문 왼쪽부터 나란히(시민행동의 집 세 대표).
+    for (const place of PLACES) keepers(place.id).forEach((name, i, all) => {
+      const at = { x: place.door.x + (all.length > 1 ? [-44, 40, 90][i] : 38), y: place.door.y - 6 };
+      const tag = place.keeper ? nameTag(this, at.x, at.y + 14, name, dpr) : undefined; // 맡은 사람 이름(10-15)
+      this.keepers.push({ dude: new Dude(this, keeperLook(name), at.x, at.y).place(at), at, tag });
+    });
     this.ball = makeBall(this, PITCH.x + PITCH.w / 2, PITCH.y + PITCH.h / 2);
     cam.startFollow(this.player.root, true, 0.14, 0.14);
     cam.centerOn(this.pos.x, this.pos.y - 40);

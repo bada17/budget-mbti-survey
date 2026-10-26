@@ -15,12 +15,12 @@ import {
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, loadOwned, saveOwned, type Me, type Town, type Neighbor, type Region,
   loadLogin, saveLogin,
 } from './profile';
-import { openTown, openReply, openLetter, openLogin, openNews, openLoggedIn, openCompare, loginBox, type Person, type LoginOpts } from './town';
-import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCuts, noteCard, noteView, loadMarks, rememberMine, loadPocket, savePocket, ACCESSORY_PRICE, type NoteActions } from './places';
+import { openTown, openReply, openLetter, openLogin, openLoggedIn, openCompare, loginBox, type Person, type LoginOpts } from './town';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCuts, noteCard, noteView, loadMarks, rememberMine, loadPocket, savePocket, ACCESSORY_PRICE, HOME_LINK, type NoteActions } from './places';
 import { openArcade } from './arcade';
 import { PLACES, keeperName, placeName, dropsOn, kstDay, worksAt, NOTE_GAP_MS, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
-import { providers, start as startLogin, finish as finishLogin, returning as returningFromLogin, arrivedFromKakao, justLoggedIn, takeLoginEmail, takeUnsaved, takeBack, keepSynced, syncNow, loginKey, current as loginNow, admin as loginAdmin, logout, forget, PROVIDER_NAME } from './login';
+import { providers, start as startLogin, finish as finishLogin, returning as returningFromLogin, arrivedFromKakao, justLoggedIn, takeLoginEmail, takeUnsaved, takeFresh, takeBack, keepSynced, syncNow, loginKey, current as loginNow, admin as loginAdmin, logout, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
 import { seasonStamp, eventStamp } from './stamps';
 import { checkContact, type ContactForm } from './contact';
@@ -154,7 +154,7 @@ if (inspecting || realLogin?.admin) mountInspectionTools(shell, inspecting);
 if (params.has('inspect') && !inspecting) ui.toast('관리자 권한을 확인하지 못했어요. 관리자 계정으로 다시 로그인해 주세요.');
 
 // 로그인(login.ts) — 단추는 늘 보이고 키가 없으면 「곧 열려요」. 카카오·구글에서 돌아왔으면 확인하고 다시 연다. 마을에선 주민센터 안내(hubGuide).
-const loginOpts: LoginOpts = { providers: providers(), current: loginNow, admin: loginAdmin, start: startLogin, logout, forget, news: contactReady };
+const loginOpts: LoginOpts = { providers: providers(), current: loginNow, admin: loginAdmin, start: startLogin, logout, news: contactReady };
 keepSynced();
 arrivedFromKakao(); // 카톡 안에서 구글을 눌러 밖 브라우저로 나왔으면 실어 온 기록을 합치고 바로 구글로
 // 카카오·구글에서 돌아왔으면 확인이 끝날 때까지(서버 한 번 3~5초) 기다림 판으로 덮고 게임은 안 띄운다 — 끝나면 어차피 다시 연다(10-20 사용자 「작동했는지 모르겠어」).
@@ -167,15 +167,15 @@ const loginResult = finishLogin().then(result => {
   return result;
 });
 const loggedIn = justLoggedIn();
-// 로그인 칸에서 [선택] 소식 받기를 켰고 확인된 이메일이 있으면 「이 이메일로 소식 받기」 판부터(openNews) — 연락처 칸이 켜진 판에서만.
-const loginEmail = takeLoginEmail(), loginUnsaved = takeUnsaved();
+// 로그인 칸에서 [선택] 소식 받기를 켰고 확인된 이메일이 있으면 「이 이메일로 소식 받기」 칸을 로그인 판 안에(openLoggedIn) — 연락처 칸이 켜진 판에서만.
+const loginEmail = takeLoginEmail(), loginUnsaved = takeUnsaved(), loginFresh = takeFresh();
 const offerNews = Boolean(loggedIn && loginEmail && contactReady && !loginUnsaved);
 /** 로그인하러 가기 전에 보던 판(쪽지판·시민센터·우리 동네) — 됐다는 판을 닫으면 그리로(사용자 10-19, 다녀오면 페이지를 새로 여니 광장에서 다시 걸어가지 않게). */
 let backTo = loggedIn ? takeBack() : undefined;
 const unpause = () => { panelOpen = false; village?.setPaused(false); goBack(); };
-if (offerNews) { panelOpen = true; openNews(shell, loggedIn!, loginEmail!, sendContact, unpause); }
 // 됐다는 판(예전엔 2초 알림). 걸으러 온 링크에서 불러와 지난번 판이 생겼으면 「마을로 갈까요?」 도 묻는다(10-26 사용자 「불러오기 하면 마을로 갈까요? 물어보면」).
-else if (loggedIn) { panelOpen = true; openLoggedIn(shell, loggedIn, loginUnsaved, unpause, lastPlay?.type && walkLink ? goVillage : undefined); }
+// 소식 받기 칸도 이 판 안에(10-26 — 전엔 판이 둘 이어 떴다).
+if (loggedIn) { panelOpen = true; openLoggedIn(shell, loggedIn, { unsaved: loginUnsaved, fresh: loginFresh }, unpause, lastPlay?.type && walkLink ? goVillage : undefined, offerNews ? { email: loginEmail!, send: sendContact } : undefined); }
 /** 판이 닫혔고 마을이 섰으면 돌아갈 판을 연다(어느 쪽이 나중이든 한 번). */
 function goBack() {
   if (!backTo || panelOpen || where !== 'village') return;
@@ -326,7 +326,7 @@ function neighborSheet(who: Pick<Neighbor, 'questionId' | 'key' | 'seed'>, keepN
   });
 }
 
-/** 소식 받기 보내기 — 내 이웃 판과 로그인 직후 판(openNews)이 같이 쓴다. */
+/** 소식 받기 보내기 — 내 이웃 판과 로그인 직후 판(openLoggedIn)이 같이 쓴다. */
 async function sendContact(form: ContactForm) {
   const checked = checkContact(form, Date.now());
   if (!checked.ok) return { ok: false, text: checked.error };
@@ -352,7 +352,7 @@ function openHub(person: Person, extra: { photo?: string; tab?: 'region' } = {},
     notes: online ? { item: note => noteView(note, noteActions()), post: (text, region) => postNote(text, region) } : undefined,
     subscribe: contactReady ? () => { const n = loadNeighbor(); if (n) { ui.endActions(false); neighborSheet(n, n.name); } } : undefined,
     share: copy => share(false, copy),
-    login: PUB ? undefined : loginOpts,
+    login: PUB ? undefined : loginOpts, home: PUB ? HOME_LINK : undefined,
   }, onClose, backText);
 }
 
@@ -411,7 +411,7 @@ function enteredVillage() {
   where = 'village';
   ui.village({ phone: openPhone });
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
-  ui.villagePocket(loadPocket(kstDay(Date.now())).coins, toWorks);
+  ui.villagePocket(loadPocket(kstDay(Date.now())), toWorks);
   // showErrands(); // [나중에 살림: 오락실·부탁] 사용자 10-19 「필드에 부탁도 일단 주석처리해놔」 — 부탁하는 주민이 안 선다(규칙 quests.ts·시험은 그대로)
   // 주점 환영 → 시민센터 → 동쪽 지방재정 → 서쪽 상담소·독상. 게임 기록은 남기지 않는다.
   if (PUB) village?.celebrate();
@@ -426,29 +426,39 @@ function enteredVillage() {
 }
 
 /**
- * 주민센터 안내(사용자 10-16) — 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 「기록을 저장하려면 주민센터로」 + 카메라가 주민센터를 보여 주고 돌아온다.
- * 주민센터(내 기록 보는 곳)는 남쪽 문 정면 위라 그대로 걸어 올라가면 닿는다. 로그인은 그 안 시민증 탭에서.
+ * 마을 둘러보기(사용자 10-16 시민센터 안내 → 10-26 「집들도 시점 이동해서 설명」 — 두 곳만, 한 곳에 말 상자 하나·집마다 한 줄).
+ * 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 시민센터 → 동쪽 지방정부 셋 → 서쪽 상담소·독상. 말은 시민센터의 채연하(keeperName('hub')).
+ * 후원주점판은 창립행사 환영 말부터. 주점판은 시민증이 안 나오니(기록을 안 남긴다) 시민센터 대신 홈페이지 본편을 알린다(사용자 10-26).
  * 예전 「마을 입구 로그인 판」(들어오자마자 로그인 요구)은 지웠다 — 사용자 「마을 입구 로그인판은 그럼 지워」, 같은 말을 두 번 하게 돼서.
  */
+const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 확정(따져 볼 지방정부만 사용자 글, 나머지는 Claude 초안 그대로)
+  finance: '우리 동네가 한 해 돈을 어디에 쓰는지 봐요.',
+  tax: '그 돈이 어디서 들어오는지 봐요.',
+  cards: '우리 동네 예산이 어디로 새고 있는지 함께 따져 봐요.',
+  counsel: '예산에 참여하는 길이 궁금하면 물어보세요.',
+  dok: '예산이 새는 사업을 시민이 함께 감시해요.',
+};
 function hubGuide() {
   if (villageStart !== 'gate' || shell.querySelector('.t-panel')) return;
   try { if (gameStorage.getItem(HUB_GUIDE)) return; gameStorage.setItem(HUB_GUIDE, '1'); } catch { /* 다음 입장에 다시 안내 */ }
   villageGuiding = true;
+  const guide = keeperName('hub');
   const groups: PlaceId[][] = [['hub'], ['finance', 'tax', 'cards'], ['counsel', 'dok']];
   const stop = (i: number) => {
     ui.villageNotice();
     village?.showPlaces(groups[i], () => {
-      const text = i === 0
-        ? PUB ? placeName('hub') + '에서 시민증과 발급 조건을 볼 수 있어요.' : placeName('hub') + '에서 로그인하면 기록이 남고 다른 기기에서도 이어할 수 있어요.'
-        : groups[i].map(id => placeName(id) + ' — [자리 글]').join('\n');
-      ui.villageNotice('', text, [{ label: i < 2 ? '다음' : '둘러보기 마치기', run: () => {
-        if (i < 2) stop(i + 1); else { villageGuiding = false; village?.endTour(); }
-      } }]);
+      const text = i > 0 ? groups[i].map(id => `${placeName(id)} — ${TOUR_LINE[id]}`).join('\n')
+        : PUB ? '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가려면 시민행동 홈페이지에서 본편을 해 보세요.'
+          : loginNow() ? `${placeName('hub')}에서 내 시민증과 도장을 볼 수 있어요.` // 이미 로그인한 사람에게 「로그인하면」 은 틀린 말(10-26)
+            : `${placeName('hub')}에서 로그인하면 기록이 남고 다른 기기에서도 이어할 수 있어요.`; // 문구 사용자 10-20
+      const next = () => { if (i < 2) stop(i + 1); else { villageGuiding = false; village?.endTour(); } };
+      ui.villageNotice(guide, text, [{ label: i < 2 ? '다음' : '둘러보기 마치기', run: next },
+        ...(PUB && i === 0 ? [{ label: '홈페이지 가기', run: () => { window.open(HOME_LINK, '_blank', 'noopener'); next(); } }] : [])]);
     });
   };
   if (PUB) {
     village?.setPaused(true);
-    ui.villageNotice('', '함께하는 시민행동 창립행사에 오신 걸 환영해요!', [{ label: '고마워요', run: () => stop(0) }]);
+    ui.villageNotice(guide, '함께하는 시민행동 창립행사에 오신 걸 환영해요!', [{ label: '고마워요', run: () => stop(0) }]);
   } else stop(0);
 }
 function cancelVillageGuide() {
@@ -498,7 +508,7 @@ function picked(tree: number, kind: Drop) {
   const first = kind === 'coin' && !pocket.told;
   if (first) pocket.told = true;
   savePocket(pocket);
-  ui.villagePocket(pocket.coins, toWorks);
+  ui.villagePocket(pocket, toWorks);
   // 첫 동전 — 공사터 주민이 넣는 곳을 알려 준다(한 번만). 「나중에」 해도 위 띠 동전을 누르면 공사터로 간다.
   if (first) ui.villageNotice(keeperName('works'), `동전을 주웠네요! 「동전 모으는 곳」 에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
     [{ label: '넣으러 가기', run: toWorks }, { label: '나중에' }]);
@@ -523,7 +533,7 @@ function answerErrand(id: string, choice: Choice) {
   saveErrands(memo);
   const pocket = loadPocket(today);
   pocket.coins += ERRAND_COIN; savePocket(pocket);
-  ui.villagePocket(pocket.coins, toWorks); sfx.coin();
+  ui.villagePocket(pocket, toWorks); sfx.coin();
   showErrands();
   ui.villageNotice(who, `${choice.reply} 고마워요! 동전 ${ERRAND_COIN}개 드릴게요.`, [{ label: '좋아요', run: () => { if (cleared !== undefined) dayDone(who, cleared); } }]);
 }
@@ -554,7 +564,7 @@ function openPhone() {
   if (panelOpen) return;
   cancelVillageGuide();
   const { season, now } = clock(), pocket = loadPocket(kstDay(Date.now()));
-  const head = `${now.getMonth() + 1}월 ${now.getDate()}일 ${now.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} · ${SEASON_NAME[season]} · 동전 ${pocket.coins} · 열매 ${pocket.fruits}`;
+  const head = `${now.getMonth() + 1}월 ${now.getDate()}일 ${now.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} · ${SEASON_NAME[season]} · 동전 ${pocket.coins} · 사과 ${pocket.fruits}`;
   const go = (id: PlaceId) => () => village?.jump(id, () => openPlace(id));
   // 앱 이름 = 간판 이름(사용자 10-19 「다른 글에도 안 들어가게 해」 — 글마다 이름을 적지 않고 PLACES 에서)
   const app = (icon: string, id: PlaceId) => ({ icon, name: placeName(id), run: go(id) });
@@ -592,17 +602,18 @@ function openPlace(id: PlaceId, tab?: 'region') {
   else if (id === 'works') {
     const sid = who?.sessionId, pocket = loadPocket(kstDay(Date.now()));
     openWorks(shell, {
-      total: online ? villageView?.coins ?? 0 : pocket.given, pocket, online, loggedIn: Boolean(loginNow()),
+      total: online ? villageView?.coins ?? 0 : pocket.given, pocket, online,
       // 지금 쓰는 액세서리도 가진 것으로(부탁 보상으로 받았던 것 — 다시 사지 않게)
       owned: () => [...new Set([...loadOwned(), ...REWARDS.flatMap((r, i) => (me.pick[r.slot] === r.value ? [i] : []))])],
       pick: () => me.pick,
       preview: village ? pick => village!.portrait(pick, 120) : undefined,
-      buy: i => {
+      // 동전이나 사과로(사용자 10-26 「동전또는 사과로 — 사과는 무제한이잖아」, 값은 같은 100)
+      buy: (i, pay) => {
         if (pocketBusy) return false;
         const fresh = loadPocket(kstDay(Date.now()));
-        if (fresh.coins < ACCESSORY_PRICE) return false;
-        fresh.coins -= ACCESSORY_PRICE; savePocket(fresh);
-        pocket.coins = fresh.coins; ui.villagePocket(fresh.coins, toWorks);
+        if (fresh[pay] < ACCESSORY_PRICE) return false;
+        fresh[pay] -= ACCESSORY_PRICE; savePocket(fresh);
+        pocket.coins = fresh.coins; pocket.fruits = fresh.fruits; ui.villagePocket(fresh, toWorks);
         saveOwned([...loadOwned(), i]);
         me = { ...me, pick: wearing(me.pick, REWARDS[i]), at: Date.now() }; saveMe(me); village?.setLook(me.pick);
         sfx.coin();
@@ -624,7 +635,7 @@ function openPlace(id: PlaceId, tab?: 'region') {
         } else total = fresh.given + n;
         const latest = loadPocket(kstDay(Date.now()));
         latest.coins = Math.max(0, latest.coins - took); latest.given += took; savePocket(latest);
-        pocket.coins = latest.coins; ui.villagePocket(latest.coins);
+        pocket.coins = latest.coins; ui.villagePocket(latest, toWorks);
         if (!online) village?.setWorks(latest.given);
         return { took, total };
         } finally { pocketBusy = false; }
@@ -638,7 +649,7 @@ function openPlace(id: PlaceId, tab?: 'region') {
       const pocket = loadPocket(kstDay(Date.now()));
       if (pocket.arcade.includes(game)) return false;
       pocket.arcade.push(game); pocket.coins++; savePocket(pocket);
-      ui.villagePocket(pocket.coins, toWorks); sfx.coin();
+      ui.villagePocket(pocket, toWorks); sfx.coin();
       return true;
     },
   }, done);

@@ -10,14 +10,14 @@
 */
 import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, loginInvite, noteForm, type LoginOpts } from './town';
 import { DONATE_URL, typeOut, shareButtons } from './ui';
-import { PLACES, keeperName, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
-import { toLook, lookFrom, REWARDS, fullPick, type Pick } from './look';
+import { PLACES, keepers, keeperLook, keeperName, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
+import { toLook, REWARDS, fullPick, type Pick } from './look';
 import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile';
 import { PRIVACY_URL, CONTACT } from './contact';
 import type { PublicNote, VillageView, PublicCard, CardKind } from './api';
 import { gameStorage, isInspectionMode } from './storage';
 import { PUB } from './pub';
-import { loadCuts, findCuts, cutMoney, CUT_ARTICLE } from './cuts';
+import { loadCuts, findCuts, cutMoney, CUT_ARTICLE, CUT_FROM } from './cuts';
 
 const PB_URL = 'https://pb.action.or.kr/';
 const DOK_URL = 'https://dok.action.or.kr/';
@@ -32,6 +32,8 @@ const HOME_URL = 'https://action.or.kr/';
 const UTM = 'utm_source=dongne-game&utm_medium=game&utm_campaign=village';
 /** 바깥 주소에 utm 을 붙인다(# 앞에). */
 const out = (base: string, hash = '') => `${base}?${UTM}${hash ? `#${hash}` : ''}`;
+/** 시민행동 홈페이지 — 후원주점판이 본편을 하러 보내는 곳(사용자 10-26 「실제 로그인과 본편은 홈페이지로」, 홈 첫 칸이 시민의 숲). */
+export const HOME_LINK = out(HOME_URL);
 
 const link = (text: string, href: string, className = 'g-primary v-go') => {
   const a = el('a', className, text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a;
@@ -49,7 +51,7 @@ export function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void)
   const { panel, close } = panelShell(shell, onClose, '마을로');
   const line = PUB && id === 'board' ? '게임에 대해 한마디 남겨주세요' : place.line;
   const npc = el('div', 'v-npc'), said = el('p', 'v-said');
-  npc.append(avatar(lookFrom(`npc:${id}`)), el('span', 'g-name', keeperName(id)), said);
+  npc.append(...keepers(id).map(name => avatar(keeperLook(name))), el('span', 'g-name', keeperName(id)), said);
   npc.onclick = () => typeOut(said, line); // 다시 누르면 한 번 더 말한다
   panel.append(el('h2', '', placeName(id)), npc);
   typeOut(said, line);
@@ -259,7 +261,8 @@ function townFrame(code: string, part: '오나' | '쓰나') {
   frame.src = `${FINANCE_URL}?cd=${code}&part=${encodeURIComponent(part)}&${UTM}`;
   const onMessage = (e: MessageEvent) => {
     if (!frame.isConnected) { removeEventListener('message', onMessage); return; }
-    if (e.source === frame.contentWindow && typeof e.data?.lfHeight === 'number') frame.style.height = `${Math.ceil(e.data.lfHeight)}px`;
+    // 알려 준 높이는 안쪽(페이지) 높이 — 창 테두리(위아래 2px씩)를 더한다. 안 더하면 4px 모자라 PC 에서 창 안에 스크롤바가 하나 더 생겼다(사용자 10-26 「스크롤바가 두 개 겹쳐」).
+    if (e.source === frame.contentWindow && typeof e.data?.lfHeight === 'number') frame.style.height = `${Math.ceil(e.data.lfHeight) + frame.offsetHeight - frame.clientHeight}px`;
   };
   addEventListener('message', onMessage);
   return [frame, link('우리 동네 살림 전체 보기', `${FINANCE_URL}?cd=${code}&${UTM}`, 'g-link')];
@@ -343,15 +346,17 @@ export function openCuts(shell: HTMLElement, onClose: () => void) {
   panel.querySelector('.v-npc')?.remove(); // 기사부터 보인다. 활동가의 한 줄은 기사 아래에.
   const article = link('', CUT_ARTICLE.url, 'v-cut-article');
   article.append(el('h3', '', CUT_ARTICLE.title), el('span', '', CUT_ARTICLE.publisher + ' · ' + CUT_ARTICLE.date));
-  panel.append(article, el('p', 'v-cut-mission', '[자리 글] 아무도 눈여겨보지 않는 예산 문제를 시민행동이 짚고 고쳐 가는 이야기'));
+  panel.append(article, el('p', 'v-cut-mission', '아무도 눈여겨보지 않는 사이 새는 돈이 있어요. 함께하는 시민행동이 하나씩 짚고 고쳐 갈게요.')); // 사용자 10-26 ⓐ
   const details = el('details', 'v-cut-more'), summary = el('summary', '', '다른 교부세 감액 확인하기');
   const search = el('input', 'g-input'); search.type = 'search'; search.placeholder = '지역 이름·사업 이름으로 검색'; search.setAttribute('aria-label', '지역 이름·사업 이름으로 검색');
   const source = el('p', 't-small', '자료를 불러오는 중…'), status = el('p', 't-small'), list = el('ol', 'v-cut-list');
   status.setAttribute('role', 'status');
-  details.append(summary, source, search, status, list); panel.append(details);
+  details.append(summary, source, search, status, list);
+  // 다음에 올 것(사용자 10-26 글, 「준비중에요」 만 바로잡음) — 목록을 펼치지 않아도 보이게 판 맨 아래.
+  panel.append(details, el('p', 't-small v-cut-next', '후속으로 지방정부 기후예산, 업무추진비, 축제 예산을 준비 중이에요. 조금만 기다려 주세요.'));
   void loadCuts().then(data => {
     if (!panel.isConnected) return;
-    source.textContent = '출처: ' + data.source + ' · 자료 받은 날 ' + data.received + ' · 금액은 감액된 교부세예요.';
+    source.textContent = '출처: ' + data.source + ' · 자료 받은 날 ' + data.received + ' · ' + CUT_FROM + '년부터 · 금액은 감액된 교부세예요.';
     const mine = loadRegion();
     let limit = 30;
     const more = btn('g-ghost', '더 보기', () => { limit += 30; draw(); }); details.append(more);
@@ -614,22 +619,21 @@ export type WorksOpts = {
   total: number;
   pocket: Pocket;
   online: boolean;
-  /** 로그인했나 — 안 했으면 「동전은 이 기기에만」 한 줄. */
-  loggedIn: boolean;
   /** 넣기 — 서버가 받은 수와 새 합계. 못 넣었으면 undefined(하루 한도 등). */
   /** 넣었으면 넣은 수와 모인 수, 못 넣었으면 그 까닭(net.ts lastFailure — 「not-finished」·「coin-day」…). */
   give(n: number): Promise<{ took: number; total: number } | { failed: string }>;
-  /** 액세서리 — 이미 가진 것(REWARDS 번호)·지금 쓰는 모습, 사기(동전 ACCESSORY_PRICE 개, 산 것은 바로 쓴다). */
+  /** 액세서리 — 이미 가진 것(REWARDS 번호)·지금 쓰는 모습, 받기(동전이나 사과 ACCESSORY_PRICE 개, 받은 것은 바로 쓴다). */
   owned(): number[];
   pick(): Pick;
-  buy(i: number): boolean;
-  /** 그 모습을 쓴 내 얼굴 그림(시민증 사진과 같은 것) — 사기 전에 미리 보기. 장면이 없으면 undefined. */
+  buy(i: number, pay: 'coins' | 'fruits'): boolean;
+  /** 그 모습을 쓴 내 얼굴 그림(시민증 사진과 같은 것) — 받기 전에 미리 보기. 장면이 없으면 undefined. */
   preview?(pick: Pick): Promise<string | undefined>;
 };
 
 /**
  * 동전으로 액세서리 하나(사용자 10-19 「웅 그렇게 하자」) — 나무에서 하루 15개까지 줍고 공사엔 하루 10개까지라, 100개면 적어도 이레(다시 올 까닭).
- * 액세서리를 받을 길이 마을 부탁(숨김)뿐이던 것을 이걸로 연다. 벗고 끼기(모습 판)는 GPT 몫 — 산 것은 지금은 바로 쓰기만.
+ * 액세서리를 받을 길이 마을 부탁(숨김)뿐이던 것을 이걸로 연다. 벗고 끼기(모습 판)는 GPT 몫 — 받은 것은 지금은 바로 쓰기만.
+ * 10-26 「사기」 가 아니라 「받기」, 사과로도(사용자 「사과는 무제한이잖아」 — 쓸 데 없이 쌓이기만 했다). 값은 둘 다 100.
  */
 export const ACCESSORY_PRICE = 100;
 /** 동전을 못 넣은 까닭마다 한 줄(api.ts /village/coins). 서버에 판이 없는 사람 = 10-16 서버를 옮기기 전에 걸었거나 끝낼 때 서버에 못 닿은 사람. */
@@ -639,7 +643,7 @@ const COIN_FAILED: Record<string, string> = {
 };
 
 /**
- * 마을 공사터 — 지금 공사·모인 동전·다 지은 것, 내 주머니 동전 넣기, 액세서리 사기.
+ * 마을 공사터 — 지금 공사·모인 동전·다 지은 것, 내 주머니 동전 넣기, 액세서리 받기.
  * 다 채우는 순간 판에서 「○○ 완성!」 과 「보러 가기」(사용자 10-19 「동전 넣었는데 변화가 없는데?」 — 전엔 바로 다음 공사 0/10 으로 넘어갔다).
  * 보러 가기 = 판을 닫는 것 — 판이 닫히면 장면이 카메라를 그리로 보내 뚝딱 서는 걸 보여 준다(VillageScene showBuilt). 다음 공사는 그 뒤.
  */
@@ -653,7 +657,7 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
     const total = opts.total, coins = opts.pocket.coins, before = worksAt(total).done.length;
     // 누르는 순간 막대·주머니를 먼저 채운다(10-20 사용자 「동전을 넣을 때 느려」 — 서버 한 번 1.5~2초). 못 넣었으면 되돌린다.
     // 공사 하나를 다 채우는 동전이면 먼저 채우지 않는다 — 다음 공사 0칸이 먼저 보였다가 「완성!」 이 뜨게 된다.
-    // 넣는 동안(busy) 넣기·사기 단추는 잠근다(GPT 10-20 — 두 번 눌러 두 번 보내던 것).
+    // 넣는 동안(busy) 넣기·받기 단추는 잠근다(GPT 10-20 — 두 번 눌러 두 번 보내던 것).
     const early = worksAt(total + n).done.length === before;
     const undo = (text: string) => { opts.total = total; opts.pocket.coins = coins; status.textContent = text; };
     busy = true;
@@ -695,8 +699,8 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
     give.textContent = !opts.pocket.coins ? '주머니에 동전이 없어요' : !state.now ? '지금 짓는 것이 없어요' : `동전 ${n}개 넣기`;
     give.disabled = busy || !opts.pocket.coins || !state.now;
   };
-  // 액세서리 사기 — 가진 것은 「갖고 있어요」, 지금 쓰는 것은 「쓰는 중」.
-  // 살 것 옆엔 그걸 쓴 내 얼굴(10-20 사용자 「100개 옆에 모습 그려 줘」). 그림 판 하나를 같이 써서 한 장씩 차례로 그린다.
+  // 액세서리 받기 — 가진 것은 「갖고 있어요」, 지금 쓰는 것은 「쓰는 중」.
+  // 받을 것 옆엔 그걸 쓴 내 얼굴(10-20 사용자 「100개 옆에 모습 그려 줘」). 그림 판 하나를 같이 써서 한 장씩 차례로 그린다.
   const shop = el('section', 'v-sec'), wares = el('ul', 'v-list');
   const looks = new Map<string, Promise<string | undefined>>();
   let queue: Promise<unknown> = Promise.resolve();
@@ -719,21 +723,23 @@ export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => vo
       if (wearing) li.append(el('span', 't-small', '쓰는 중'));
       else if (owned.includes(i)) li.append(el('span', 't-small', '갖고 있어요'));
       else {
-        const buy = btn('g-ghost', `동전 ${ACCESSORY_PRICE}개로 사기`, () => {
-          if (busy) return;
-          if (!opts.buy(i)) { status.textContent = `동전이 ${ACCESSORY_PRICE - opts.pocket.coins}개 더 있어야 해요.`; return; }
-          status.textContent = `${josa(reward.name, '을', '를')} 샀어요. 지금 쓰고 있어요.`;
-          draw(); drawShop();
-        });
-        buy.disabled = busy || opts.pocket.coins < ACCESSORY_PRICE;
-        li.append(buy);
+        for (const [pay, name] of [['coins', '동전'], ['fruits', '사과']] as const) {
+          const buy = btn('g-ghost', `${name} ${ACCESSORY_PRICE}개로 받기`, () => {
+            if (busy) return;
+            if (!opts.buy(i, pay)) { status.textContent = `${name}${name === '동전' ? '이' : '가'} ${ACCESSORY_PRICE - opts.pocket[pay]}개 더 있어야 해요.`; return; }
+            status.textContent = `${josa(reward.name, '을', '를')} 받았어요. 지금 쓰고 있어요.`;
+            draw(); drawShop();
+          });
+          buy.disabled = busy || opts.pocket[pay] < ACCESSORY_PRICE;
+          li.append(buy);
+        }
       }
       return li;
     }));
   };
-  shop.append(el('h3', 'v-head', '액세서리 사기'), el('p', 't-small', `동전 ${ACCESSORY_PRICE}개에 하나씩 살 수 있어요. 산 것은 바로 써요.`), wares);
+  shop.append(el('h3', 'v-head', '액세서리 받기'), el('p', 't-small', `동전이나 사과 ${ACCESSORY_PRICE}개에 하나씩 받을 수 있어요. 받은 것은 바로 써요.`), wares);
   // 「진짜 마을도 이렇게 지어요」 한마디와 「마을 곳간에 가 보기」 단추는 걷었다(10-20 사용자 「그 버튼은 삭제해도 되지 않아?」 — 곳간에서 세금 종류도 빠져 그 말이 틀리게 됐다).
-  panel.append(card, give, status, el('p', 't-small x-hint', `나무 밑동에 부딪혀 보세요. 날마다 몇 그루에서 동전이 떨어져요.${opts.loggedIn ? '' : ' 동전은 이 기기에만 모여요 — 로그인하면 다른 기기에서도 이어져요.'}`),
-    shop);
+  // 「나무 밑동에 부딪혀 보세요…」 안내 줄은 걷었다(사용자 10-26).
+  panel.append(card, give, status, shop);
   draw(); drawShop();
 }

@@ -11,16 +11,16 @@
     **화면 글에 건물 이름을 박아 쓰지 않는다** — placeName(id) 로 가져다 쓴다(사용자 「다른 글에도 안 들어가게 해」 — 이름이 바뀌면 글이 따로 놀았다).
 */
 import type { Point } from './room';
-import { rng, nameFrom } from './look';
+import { rng, nameFrom, lookFrom, toLook, type Pick } from './look';
 import { PUB } from './pub';
 
 export type Box = { x: number; y: number; w: number; h: number };
 export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards' | 'arcade';
 /**
  * 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다).
- * keeper 는 문 앞 주민의 이름 — 시민행동 사람이 맡은 건물은 그 사람 이름(사용자 10-15), 없으면 순우리말 이름(keeperName).
+ * keeper 는 문 앞 주민의 이름 — 시민행동 사람(사용자 10-15·10-26). 여럿이면 문 앞에 나란히(시민행동의 집 세 대표). 없으면 순우리말 이름(keeperName).
  */
-export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point; keeper?: string };
+export type Place = { id: PlaceId; name: string; line: string; box: Box; door: Point; keeper?: string | string[] };
 
 export const VILLAGE_NAME = '시민의 숲';
 export const VILLAGE_W = 1300; // 10-17 동쪽으로 넓힘(1040 →) — 큰길 동쪽 끝 예산 오락실 자리(사용자 「마을 확장해봐도 되고」)
@@ -34,29 +34,49 @@ export const FOUNTAIN: Box = { x: 486, y: 770, w: 68, h: 52 };
 // 10-20 문제 카드도 살렸다(사용자 「일단 문제카드만 살려」) — 자리는 광장 오른쪽 길 들머리(아래 줄).
 // 광장 기준 오른쪽(동쪽) 길 = 지방정부 쪽(사용자 10-20 「광장 기준 오른쪽 길이 지방정부 쪽 내용」): 문제 카드 → 지방정부 예산 → 지방정부 곳간(10-26 「마을 곳간」 에서 이름만 바꿈).
 export const PLACES: Place[] = [
-  { id: 'hub', name: '시민센터', line: '시민증과 도장, 방명록은 여기서 봐요.', box: { x: 420, y: 230, w: 200, h: 100 }, door: { x: 520, y: 352 } },
-  // 시민행동 사람이 문 앞을 지킨다(사용자 10-15 「밑빠진독상은 정남진, 시민참여 상담소는 김민철, 시민행동의 집은 채연하, 지방정부예산은 유종웅」).
-  { id: 'house', name: '시민행동의 집', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 }, keeper: '채연하' },
+  // 시민행동 사람이 문 앞을 지킨다(사용자 10-15, 10-26 다시 — 「시민센터는 채연하, 시민행동의 집은 김태일·김주일·유수훈 대표 셋, 유종웅은 따져 볼 지방정부 앞,
+  // 운영위원(강준원·김선화·신우용·오지은·정원석·조민지·최경혜)은 적절히 — 다 넣을 필요는 없고, 사람과 대화하는 모든 곳에 이름을」). 운영위원 다섯을 이름 없던 문 앞에.
+  { id: 'hub', name: '시민센터', line: '시민증과 도장, 방명록은 여기서 봐요.', box: { x: 420, y: 230, w: 200, h: 100 }, door: { x: 520, y: 352 }, keeper: '채연하' },
+  { id: 'house', name: '시민행동의 집', line: '이 마을을 만든 함께하는 시민행동이에요.', box: { x: 96, y: 236, w: 150, h: 90 }, door: { x: 171, y: 348 }, keeper: ['김태일', '김주일', '유수훈'] },
   { id: 'counsel', name: '시민참여 상담소', line: '참여예산이 궁금하면 여기 물어보세요.', box: { x: 84, y: 500, w: 190, h: 96 }, door: { x: 179, y: 618 }, keeper: '김민철' },
-  { id: 'finance', name: '지방정부 예산', line: '우리 지역 지방정부의 한 해 예산을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 }, keeper: '유종웅' },
+  { id: 'finance', name: '지방정부 예산', line: '우리 지역 지방정부의 한 해 예산을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 }, keeper: '강준원' },
   // 지방정부 곳간 — 지방정부 예산 바로 동쪽 옆(10-20 사용자 「마을 곳간 위치를 지방정부 예산 옆에」, 전엔 윗줄 시민센터 옆 빈 터). 쓰나(예산) 옆에 오나(곳간). 판은 places.ts openTax.
-  { id: 'tax', name: '지방정부 곳간', line: '우리 동네 살림 돈이 어디서 오는지 보여 줄게요.', box: { x: 1016, y: 500, w: 160, h: 96 }, door: { x: 1096, y: 618 } },
-  { id: 'board', name: PUB ? '게임에 대해 한마디 남겨주세요' : '쪽지판', line: PUB ? '게임에 대해 한마디 남겨주세요' : '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
+  { id: 'tax', name: '지방정부 곳간', line: '우리 동네 살림 돈이 어디서 오는지 보여 줄게요.', box: { x: 1016, y: 500, w: 160, h: 96 }, door: { x: 1096, y: 618 }, keeper: '김선화' },
+  { id: 'board', name: PUB ? '게임에 대해 한마디 남겨주세요' : '쪽지판', line: PUB ? '게임에 대해 한마디 남겨주세요' : '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 }, keeper: '정원석' },
   { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 }, keeper: '정남진' },
   // 마을 공사터 — 나무에서 주운 동전을 넣으면 모두의 동전이 모여 다리·정자가 선다(사용자 10-14 동물의 숲 ⓑ). 판은 places.ts openWorks.
-  { id: 'works', name: '동전 모으는 곳', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 } },
+  { id: 'works', name: '동전 모으는 곳', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 }, keeper: '신우용' },
   // 문제 카드 — 활동가가 매주·매달 올리는 사업 한 건에 반응하기(사용자 10-15 「한 달에 한 번이라도 들어올 명분」). 광장 오른쪽 길 들머리, 가로등 곁(10-20).
   // 10-26 「문제 카드」 에서 — 이름이 「문제」 라고 미리 판단해 버려서(반응에 「그럴 수 있다」 도 있다), 이웃 지방정부 예산·곳간과 한 줄로
-  { id: 'cards', name: '따져 볼 지방정부', line: '활동가가 고른 우리 세금 이야기예요. 어떻게 보세요?', box: { x: 694, y: 712, w: 92, h: 22 }, door: { x: 740, y: 758 } },
-  { id: 'bus', name: '한 바퀴 다시 걷기', line: '버스 타고 열다섯 동네를 다시 걸어요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 } },
+  { id: 'cards', name: '따져 볼 지방정부', line: '우리 동네 예산이 어디로 새고 있는지 함께 따져 봐요.', box: { x: 694, y: 712, w: 92, h: 22 }, door: { x: 740, y: 758 }, keeper: '유종웅' },
+  { id: 'bus', name: '한 바퀴 다시 걷기', line: '버스 타고 열다섯 동네를 다시 걸어요.', box: { x: 776, y: 1000, w: 170, h: 40 }, door: { x: 861, y: 1064 }, keeper: '오지은' },
   // [나중에 살림: 오락실·부탁] 사용자 10-19 「오락실도 주석처리해놔. 지금하긴 애매해」 — 놀이 셋이 재미없어 다시 짤 때까지 건물째 숨긴다(판 arcade.ts·규칙·시험은 그대로).
   // 예산 오락실 — 사는 집이 아니라 들어가서 짧은 예산 놀이를 하는 집(사용자 10-17 「게임을 하는 집」). 동서 큰길을 따라 동쪽 끝. 판은 arcade.ts.
   // ⚠️ 이 자리(1080,640)는 10-20 부터 지방정부 곳간 길이 지나간다 — 살릴 땐 자리를 새로 잡는다.
   // { id: 'arcade', name: '예산 오락실', line: '한 판에 30초, 예산 놀이 셋이 있어요.', box: { x: 1080, y: 640, w: 180, h: 96 }, door: { x: 1170, y: 758 } },
 ];
 
-/** 문 앞 주민 이름 — 맡은 사람이 있으면 그 이름, 없으면 건물마다 정해진 순우리말 이름. 판의 이름표·말 상자·부탁 목록이 같이 쓴다. */
-export const keeperName = (id: PlaceId) => PLACES.find(p => p.id === id)?.keeper ?? nameFrom(`npc:${id}`);
+/** 문 앞 주민들 — 맡은 사람이 없으면 건물마다 정해진 순우리말 이름 하나. */
+export const keepers = (id: PlaceId) => [PLACES.find(p => p.id === id)?.keeper ?? nameFrom(`npc:${id}`)].flat();
+/** 문 앞 주민 이름 — 판의 이름표·말 상자·부탁 목록이 같이 쓴다. 여럿이면 가운뎃점으로. */
+export const keeperName = (id: PlaceId) => keepers(id).join(' · ');
+/**
+ * 시민행동 사람의 모습(10-26) — 사용자가 알려 준 대로 채연하는 여자, 김민철·세 대표는 남자 모습으로 정해 둔다(전엔 집마다 무작위라 반대로 보였다).
+ * 유종웅·정남진은 원래 자리의 모습 그대로(「기존 사람들은 그대로」), 운영위원은 이름으로 무작위(「설명없이 일단 랜덤」).
+ * 고른 번호 열 칸은 look.ts Pick — [기본 조합, 머리색, 옷 색, 피부, 색 넣기, 머리 모양, 옷, 안경, 장식, 섞는 색].
+ */
+const STAFF_LOOK: Record<string, Pick | string> = {
+  채연하: [7, 0, 8, 1, 0, 7, 7, 0, 0, 0], // 어깨 단발·재킷
+  김민철: [4, 2, 1, 1, 0, 4, 4, 0, 0, 0], // 가르마·점퍼(파란 옷은 그대로)
+  김태일: [6, 3, 9, 1, 0, 6, 6, 0, 0, 0], // 넓은 이마·셔츠
+  김주일: [9, 0, 3, 2, 0, 8, 4, 0, 0, 0], // 짧은 머리·수염
+  유수훈: [4, 1, 10, 0, 0, 4, 7, 1, 0, 0], // 가르마·정장 재킷·안경
+  유종웅: 'npc:finance', 정남진: 'npc:dok',
+};
+export function keeperLook(name: string) {
+  const look = STAFF_LOOK[name];
+  return typeof look === 'string' ? lookFrom(look) : look ? toLook(look) : lookFrom(`staff:${name}`);
+}
 /** 건물 이름 — 화면 글은 이걸 쓴다(간판이 바뀌면 글도 같이). 숨겨 둔 건물이면 빈 글자. */
 export const placeName = (id: PlaceId) => PUB && id === 'board' ? '게임에 대해 한마디 남겨주세요' : PLACES.find(p => p.id === id)?.name ?? '';
 

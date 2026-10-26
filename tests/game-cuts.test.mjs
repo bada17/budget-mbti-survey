@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 const cuts = await import('../game/cuts.ts').catch(() => undefined);
-test('교부세 감액은 정적 원본 그대로, 금액 내림차순·내 동네 우선·지역과 사업 검색', async () => {
+test('교부세 감액은 정적 원본에서 2020년부터, 금액 내림차순·내 동네 우선·지역과 사업 검색', async () => {
   assert.ok(cuts, '정적 감액 자료와 목록 규칙이 있어야 한다');
   const data = await cuts.loadCuts();
   assert.equal(data.received, '2026-10-13');
   const all = cuts.findCuts(data);
-  assert.equal(all.length, 2304);
+  assert.equal(all.length, 487, '2020~2026 — 원본 2,304건 중');
+  assert.ok(all.every(r => r.year >= 2020));
   assert.ok(all.every((r, i) => !i || all[i - 1].amount >= r.amount));
   const mine = cuts.findCuts(data, '', '4211000');
   const firstOther = mine.findIndex(r => r.code !== '4211000');

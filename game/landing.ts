@@ -15,7 +15,7 @@
 */
 import footerHtml from './landing-footer.html?raw'; // 홈페이지 하단 — scripts/port-footer.mjs 가 만든다
 import { placeName } from './village'; // 건물 이름은 간판에서(글에 박아 두지 않는다)
-import { CONTACT, PRIVACY_URL } from './contact';
+import { PRIVACY_URL } from './contact';
 
 type Words = { title: string; text: string };
 // 10-19 느낌 보기용 초안(사용자 「내용 대충 한 번 만들어봐, 느낌만 보게」) — 글은 Claude 초안, 그림은 게임 화면·action-landing 활동 사진. 정해지면 갈아 끼운다.
@@ -144,18 +144,11 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
   foot.innerHTML = footerHtml;
 
   // 오류 알리기 — 게임 밖(소개 페이지) 하단, 저작권 줄 바로 위(사용자 10-20 「하단에 넣어야지」): 게임이 안 열리는 사람도 알릴 수 있게.
-  // 하단 원본은 공통이라 고치지 않고 여기서 끼워 넣는다. 받는 곳은 아직 메일 — 정하면 href 만 바꾼다.
-  // ponytail: 메일 본문에 기기 정보를 미리 적어 둔다(서버 없이). 게임 안 칸 + 시트 서버(수정 목록)로 옮기면 화면 상태까지 받는다.
-  const device = `
-
----
-기기 정보(지우지 말아 주세요)
-${navigator.userAgent}
-화면 ${screen.width}×${screen.height} · 창 ${innerWidth}×${innerHeight}
-${location.href}`;
-  const report = el('p', 'lp-report', '게임이 안 열리거나 이상하게 움직이나요? '), reportLink = el('a', '', '오류 알리기');
-  reportLink.href = `mailto:${CONTACT.mail}?subject=${encodeURIComponent('[시민의 숲 오류]')}&body=${encodeURIComponent('어떤 일이 있었나요?' + device)}`;
-  report.append(reportLink);
+  // 하단 원본은 공통이라 고치지 않고 여기서 끼워 넣는다. 받는 곳이 정해지기 전이라 누르면 「준비 중이에요」(사용자 10-26 — 전엔 메일 쓰기 창이 열렸다).
+  const report = el('p', 'lp-report', '게임이 안 열리거나 이상하게 움직이나요? '), reportLink = el('a', '', '오류 알리기'), reportSaid = el('span', '');
+  reportLink.href = '#'; reportLink.setAttribute('role', 'button'); reportSaid.setAttribute('role', 'status');
+  reportLink.onclick = e => { e.preventDefault(); reportSaid.textContent = ' 준비 중이에요.'; };
+  report.append(reportLink, reportSaid);
   const copy = foot.querySelector('.ft-copy');
   if (copy) copy.before(report); else foot.append(report);
 

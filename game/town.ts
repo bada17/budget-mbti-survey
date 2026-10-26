@@ -47,9 +47,11 @@ export type HubData = {
   share?: (copy: boolean) => void;
   /** 로그인(login.ts) — 단추가 없는 판(키를 넣기 전)엔 안 보인다. */
   login?: LoginOpts;
+  /** 후원주점판 — 로그인 자리에 홈페이지 본편 안내(사용자 10-26 「실제 로그인과 본편은 홈페이지로」). 주점판은 시민증이 안 나온다. */
+  home?: string;
 };
 /** start 가 false 면 아직 못 간다(키를 넣기 전) — 판이 「준비 중」 이라 알린다. news = 로그인 칸에 [선택] 소식 받기를 보이나(연락처 칸이 켜진 판만). */
-export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider, intent?: Intent): boolean; logout(): Promise<boolean>; forget(): Promise<boolean>; news?: boolean };
+export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider, intent?: Intent): boolean; logout(): Promise<boolean>; news?: boolean };
 
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));
 export const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
@@ -177,7 +179,11 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   join.href = `${DONATE_URL}&utm_content=resident-card`; join.target = '_blank'; join.rel = 'noopener';
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const mine = el('div'); mine.append(card, tip, join, save, status);
-  if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, '함께', 'hub'));
+  if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, 'hub'));
+  else if (data.home) {
+    const go = el('a', 'g-primary', '홈페이지 가기'); go.href = data.home; go.target = '_blank'; go.rel = 'noopener';
+    mine.append(el('p', 't-lead', '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가려면 시민행동 홈페이지에서 본편을 해 보세요.'), go);
+  }
   tab('시민증', mine);
 
   // ── 방명록 ──
@@ -234,13 +240,15 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
 }
 
 /**
- * 로그인 자리 — 안 했으면 로그인 단추(만 14세 체크 하나 + 안내 한 줄), 했으면 「함께하고 있어요」 와 끊기·지우기.
+ * 로그인 자리 — 안 했으면 로그인 단추(만 14세 체크 하나 + 안내 한 줄), 했으면 「함께하고 있어요」 와 로그아웃.
  * 말은 「지키기」 가 아니라 「함께」(사용자 10-19 「지키기 이런 표현보다 함께한다는 표현으로 하는게 맞지 않나?」).
  * 동의 칸은 [필수] 만 14세 하나(사용자 10-19 「해봐」) — 계정 확인은 서비스에 꼭 필요한 처리라 체크 칸 대신 안내 한 줄(개인정보처리방침 링크).
  * [선택] 소식 받기는 로그인 조건으로 묶지 않는다(정보통신망법 50조·개인정보보호법 22조) — 연락처 칸이 켜진 판(opts.news)에서만 보인다.
- * back = 로그인하고 돌아오면 다시 열 판(login.ts Intent). verb — '함께' 시민센터, '불러오기' 시작 화면·소개 페이지, '로그인' 그 자리에서(쪽지·우리 동네, 제목 없이).
+ * back = 로그인하고 돌아오면 다시 열 판(login.ts Intent).
+ * 10-26 줄임(사용자 「로그인이 좀 복잡하고 어색해」): 자리마다 다르던 제목·단추 말(함께·불러오기·로그인)을 하나로, 「서버 기록 지우기」 는 걷었다
+ * (「같은 기기로 여러 명이 할 일이 많지 않은데」 — 지우고 싶은 사람은 개인정보처리방침의 문의로. 서버의 /me/forget 은 남겨 둠).
  */
-export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로그인', back?: string) {
+export function loginBox(opts: LoginOpts, back?: string) {
   const box = el('section', 't-login');
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const draw = () => {
@@ -248,26 +256,15 @@ export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로
     box.replaceChildren();
     if (now) {
       const links = el('div', 't-login-links');
-      links.append(
-        btn('g-link', '이 기기에서 로그아웃', async () => {
-          status.textContent = '기록을 올리는 중…';
-          if (await opts.logout()) location.reload(); // 이 기기 기록도 비웠으니 처음 화면부터
-          else status.textContent = '기록을 서버에 못 올려서 로그아웃하지 않았어요. 조금 뒤에 다시 해 주세요.';
-        }),
-        btn('g-link', '서버 기록 지우기', async () => {
-          if (!confirm('서버에 둔 시민증 기록을 지울까요? 이 기기의 로그인과 방명록 열쇠도 지워져요. 그 밖의 게임 기록은 남아요.')) return;
-          const ok = await opts.forget();
-          draw(); status.textContent = ok ? '서버 기록을 지웠어요.' : '지금은 지울 수 없어요. 조금 뒤에 다시 해 주세요.';
-        }),
-      );
+      links.append(btn('g-link', '로그아웃', async () => {
+        status.textContent = '기록을 올리는 중…';
+        if (await opts.logout()) location.reload(); // 이 기기 기록도 비웠으니 처음 화면부터
+        else status.textContent = '기록을 서버에 못 올려서 로그아웃하지 않았어요. 조금 뒤에 다시 해 주세요.';
+      }));
       box.append(el('p', 't-login-on', `${PROVIDER_NAME[now]}로 함께하고 있어요${opts.admin() ? ' · 관리자 계정' : ''}. 다른 기기에서도 같은 ${PROVIDER_NAME[now]} 계정으로 들어오면 기록이 이어져요.`), links, status);
       return;
     }
-    if (verb === '함께') {
-      const can = el('ul', 't-small t-login-can');
-      can.append(...['우리 동네 사람들과 함께해요', '쪽지로 한마디 남길 수 있어요', '기록이 남아 다른 기기에서도 이어 할 수 있어요'].map(text => el('li', '', text)));
-      box.append(el('p', 't-login-title', '로그인하고 함께해요'), can);
-    } else if (verb === '불러오기') box.append(el('p', 't-login-title', '전에 해 봤다면'), el('p', 't-small', '전에 로그인해 둔 시민증과 도장을 불러와요.'));
+    box.append(el('p', 't-login-title', '로그인하면 기록이 이어져요'));
     const agree = el('div', 't-agree'), buttons: HTMLButtonElement[] = [];
     const check = (text: string) => { const label = el('label', 't-check'), input = el('input'); input.type = 'checkbox'; label.append(input, el('span', '', text)); agree.append(label); return input; };
     const age = check('[필수] 만 14세 이상이에요');
@@ -286,7 +283,7 @@ export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로
       const symbol = el('span', 't-login-symbol'); symbol.setAttribute('aria-hidden', 'true');
       // 공식 배포 SVG의 기호만. 사용자 입력은 이 HTML에 넣지 않는다.
       symbol.innerHTML = provider === 'kakao' ? kakaoSymbol : googleSymbol;
-      button.append(symbol, el('span', 't-login-label', `${PROVIDER_NAME[provider]}로 ${verb === '불러오기' ? '불러오기' : '로그인'}`));
+      button.append(symbol, el('span', 't-login-label', `${PROVIDER_NAME[provider]}로 로그인`));
       button.disabled = true;
       buttons.push(button);
       box.append(button);
@@ -307,7 +304,7 @@ export function loginBox(opts: LoginOpts, verb: '함께' | '불러오기' | '로
  */
 export function loginInvite(text: string, opts: LoginOpts, back: string) {
   const wrap = el('div', 't-invite');
-  const open = btn('g-ghost', text, () => { wrap.replaceChildren(loginBox(opts, '로그인', back)); });
+  const open = btn('g-ghost', text, () => { wrap.replaceChildren(loginBox(opts, back)); });
   wrap.append(open);
   return wrap;
 }
@@ -315,21 +312,27 @@ export function loginInvite(text: string, opts: LoginOpts, back: string) {
 /** 시작 화면 「전에 해 봤어요」 — 다른 기기에서 로그인해 둔 시민증 불러오기. */
 export function openLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => void) {
   const { panel } = panelShell(shell, onClose, '← 처음 화면으로');
-  panel.append(el('h2', '', '내 시민증 불러오기'), loginBox(opts, '불러오기'));
+  panel.append(el('h2', '', '내 시민증 불러오기'), loginBox(opts));
 }
 
 /**
  * 로그인 직후 한 번 — 됐다는 걸 판으로 확실히(사용자 10-16 「된 건지 안 된 건지 모르겠다」, 예전엔 2초 알림 한 줄).
- * 기록을 서버에 못 올렸으면(unsaved) 그렇게 말한다 — 다음에 열 때 keepSynced 가 다시 올린다.
+ * 기록을 서버에 못 올렸으면(unsaved) 그렇게 말한다 — 다음에 열 때 keepSynced 가 다시 올린다. 처음 만든 계정이면(fresh) 불러올 게 없었다고(10-26).
+ * news = 로그인 칸의 [선택] 소식 받기를 켰고 카카오·구글이 확인해 준 이메일이 있을 때 — 그 주소로 소식 받기 칸(사용자 10-15 「이메일 정도는 받을 수 있잖아」).
+ *   그 주소는 이 칸을 채우는 데만 쓴다. 동의 칸은 내 이웃 판과 같은 것(contactForm) — 「소식 받기」 를 누르기 전엔 어디에도 안 남는다.
+ *   10-26 까지는 이 판과 따로 한 번 더 떴다(openNews) — 사용자 「로그인이 복잡하고 어색해」로 한 판에 합쳤다.
  * toVillage = 걸으러 온 링크(걷기 화면)에서 불러와 지난번 판이 생겼을 때 — 「마을로 갈까요?」(10-26).
  */
-export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: boolean, onClose: () => void, toVillage?: () => void) {
+export function openLoggedIn(shell: HTMLElement, provider: Provider, note: { unsaved: boolean; fresh: boolean }, onClose: () => void, toVillage?: () => void,
+  news?: { email: string; send: (form: ContactForm) => Promise<{ ok: boolean; text: string }> }) {
   const { panel, close } = panelShell(shell, onClose, '확인');
   panel.classList.add('t-gate');
   panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `✓ ${PROVIDER_NAME[provider]}로 로그인했어요`),
-    el('p', 't-lead', unsaved
+    el('p', 't-lead', note.unsaved
       ? '로그인은 됐지만 기록을 서버에 아직 못 올렸어요. 이 기기에는 그대로 있고, 다음에 열 때 다시 올려요.'
-      : `이제 기록이 남아요. 다른 기기에서도 같은 ${PROVIDER_NAME[provider]} 계정으로 들어오면 그대로 이어 할 수 있어요.`));
+      : note.fresh ? `처음 로그인이라 불러올 기록은 없었어요. 이 기기에서 한 것부터 이어져요. 다른 기기에서도 같은 ${PROVIDER_NAME[provider]} 계정으로 들어오면 그대로예요.`
+        : `이제 기록이 남아요. 다른 기기에서도 같은 ${PROVIDER_NAME[provider]} 계정으로 들어오면 그대로 이어 할 수 있어요.`));
+  if (news) panel.append(el('p', 't-mine-q', '이 이메일로 소식도 받아 볼래요?'), el('p', 't-small', '안 받아도 기록은 그대로 이어져요.'), contactForm(news.send, '이메일로 소식 받기', news.email).form);
   // 내 동네가 아직 없으면 여기서 묻는다(10-20 사용자 「로그인하면 우리동네 설정을 하시겠어요? 물어보고 설정하게」) — 내 동네는 로그인한 사람만 정하니, 로그인한 그 자리가 맞다.
   // 다른 기기에서 정해 둔 사람은 로그인하며 서버 것을 받아(importSave) 이미 있다 — 묻지 않는다.
   if (!loadRegion()) {
@@ -342,18 +345,6 @@ export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: bo
   }
   if (toVillage) panel.append(el('p', 't-mine-q', '지난번 기록을 불러왔어요. 마을로 갈까요?'), btn('g-primary', '마을로 가기', toVillage), btn('g-ghost', '여기서 걸을게요', close));
   else panel.append(btn('g-primary', '확인', close));
-}
-
-/**
- * 로그인 직후 한 번 — 카카오·구글이 확인해 준 이메일로 소식 받기(사용자 10-15 「이메일 정도는 받을 수 있잖아 — 준비해놔」).
- * 그 주소는 이 칸을 채우는 데만 쓴다. 동의 칸은 내 이웃 판과 같은 것(contactForm) — 「소식 받기」 를 누르기 전엔 어디에도 안 남는다.
- */
-export function openNews(shell: HTMLElement, provider: Provider, email: string, send: (form: ContactForm) => Promise<{ ok: boolean; text: string }>, onClose: () => void) {
-  const { panel, close } = panelShell(shell, onClose, '닫기');
-  panel.classList.add('t-gate');
-  panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `${PROVIDER_NAME[provider]}로 로그인했어요`),
-    el('p', 't-lead', '이 이메일로 소식도 받아 볼래요? 안 받아도 기록은 그대로 이어져요.'),
-    contactForm(send, '이메일로 소식 받기', email).form, btn('g-ghost', '괜찮아요', close));
 }
 
 // ───────────────────────── 내 동네 고르기 — 지방정부 예산·우리 지역 수입·우리 동네가 같이 쓴다 ─────────────────────────

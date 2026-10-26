@@ -1122,7 +1122,7 @@ const FONT = '"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif';
  * (10-15 「상담소·독상 간판 한 글자가 볼드 처리가 안 된 듯」 — 「시민참여」 의 「참」. 전엔 「마을」 두 글자의 조각만 받았다).
  * 간판에 새 글자를 쓰면 여기에도 넣는다 — 개발판은 빠진 글자를 콘솔에 알린다(label).
  */
-export const CANVAS_TEXT = [...PLACES.map(p => p.name + (p.keeper ?? '')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! 이어칠하다 ? 0123456789·/'].join('');
+export const CANVAS_TEXT = [...PLACES.map(p => p.name + [p.keeper ?? []].flat().join('')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! 이어칠하다 ? 0123456789·/'].join('');
 /** 사람 이름표 — 발밑에 작게, 밝은 테두리를 둘러 바닥 위에서도 읽히게(문 앞을 맡은 시민행동 사람, 10-15). */
 export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: number) =>
   label(scene, x, y, text, 11, dpr, '#5b402e').setStroke('#fffaf0', 4).setDepth(y + 2);

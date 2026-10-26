@@ -40,6 +40,7 @@ export const ICONS = {
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
   up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6.5 11.5L12 6l5.5 5.5"/></svg>',
   coin: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2" class="i"/></svg>',
+  apple: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.4c-1.7-1.5-5-1.3-6.3 1.4-1.5 3.1.3 8.3 2.9 10 1.2.8 2.2.4 3.4 0 1.2.4 2.2.8 3.4 0 2.6-1.7 4.4-6.9 2.9-10-1.3-2.7-4.6-2.9-6.3-1.4z"/><path class="i" d="M12.3 7.8c.1-2.1 1.4-3.6 3.6-4-.2 2.1-1.4 3.6-3.6 4z"/></svg>',
   phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.8" width="12" height="18.4" rx="3.2"/><rect x="8.2" y="5.6" width="7.6" height="10.6" rx="1.2" class="i"/><circle cx="12" cy="18.6" r="1" class="i"/></svg>',
   people: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2z"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.2 13.9c2.6-.4 4.7 1.2 5.3 4.6h-4.4"/></svg>',
   hand: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M13 5.5a2.2 2.2 0 0 1 4.4 0v8.2l5.1 1.1a3 3 0 0 1 2.3 3.4l-1.2 6.6A3.5 3.5 0 0 1 20.2 28h-5.6a3.5 3.5 0 0 1-2.8-1.4l-4.6-6.1a2.1 2.1 0 0 1 3.1-2.8l2.7 2.4z"/></svg>',
@@ -106,7 +107,7 @@ const SPEND = {
 } as const;
 
 /**
- * 소식 받기 칸(연락처) — 내 이웃 판(neighborSheet)과 로그인 직후 판(town.ts openNews)이 같이 쓴다.
+ * 소식 받기 칸(연락처) — 내 이웃 판(neighborSheet)과 로그인 직후 판(town.ts openLoggedIn)이 같이 쓴다.
  * 동의 칸·문구는 하나뿐이다(뜻은 contact.ts 를 지킨다). email 을 주면 로그인으로 받은 그 주소를 채워 둔다 — 고쳐 쓸 수 있다.
  * 봇 막이는 칸이 보인 때부터 잰다 — 숨겼다 보이면 shown() 을 부른다.
  */
@@ -601,15 +602,18 @@ export function createUI(root: HTMLElement, actions: {
       people.append(String(count));
       where.insertBefore(people, where.querySelector('.g-pocket')); // 동전보다 앞에(전엔 동전 칩을 지울 때가 있었다 — 둘 다 g-today)
     },
-    /** 위 띠 — 주머니 동전(0이면 숨김). 늘면 톡 튄다. */
-    villagePocket(coins: number, open?: () => void) {
-      let chip = where.querySelector<HTMLElement>('.g-pocket');
-      if (!coins) { chip?.remove(); return; }
-      // 누르면 공사터로 — 넣을 곳을 찾아 헤매지 않게(사용자 10-14 「동전을 어디에 넣는데?」)
-      if (!chip) { chip = icon(button('g-today g-pocket', '', () => open?.()), ICONS.coin, ''); chip.append(el('span')); where.append(chip); }
-      chip.setAttribute('aria-label', `주머니 동전 ${coins}개 — 동전 모으는 곳에 넣으러 가기`);
-      chip.lastElementChild!.textContent = String(coins);
-      chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
+    /** 위 띠 — 주머니 동전·사과(0이면 숨김, 사과는 10-26 사용자 「위에 사과도 표시」). 바뀐 칩만 톡 튄다. */
+    villagePocket(pocket: { coins: number; fruits: number }, open?: () => void) {
+      for (const [kind, n, svg, name] of [['coin', pocket.coins, ICONS.coin, '동전'], ['fruit', pocket.fruits, ICONS.apple, '사과']] as const) {
+        let chip = where.querySelector<HTMLElement>(`.g-pocket[data-kind=${kind}]`);
+        if (!n) { chip?.remove(); continue; }
+        // 누르면 동전 모으는 곳으로 — 넣을 곳·액세서리 받을 곳을 찾아 헤매지 않게(사용자 10-14 「동전을 어디에 넣는데?」)
+        if (!chip) { chip = icon(button('g-today g-pocket', '', () => open?.()), svg, ''); chip.dataset.kind = kind; chip.append(el('span')); where.append(chip); }
+        chip.setAttribute('aria-label', `주머니 ${name} ${n}개 — 동전 모으는 곳으로 가기`);
+        if (chip.lastElementChild!.textContent === String(n)) continue;
+        chip.lastElementChild!.textContent = String(n);
+        chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
+      }
     },
     /**
      * 주민 폰(동물의 숲 ⓖ) — 위엔 날짜·시각·철, 아래엔 앱. 앱을 누르면 판을 닫고 run.
