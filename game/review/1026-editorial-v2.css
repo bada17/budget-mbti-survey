@@ -1,0 +1,99 @@
+/* A안 다음 판. 이 주소에서만 적용하며 landing.css로 옮기지 않는다. */
+.lp { --lp-preview-dock:88px; padding-bottom:var(--lp-preview-dock) }
+.lp-top { min-height:80px }
+.lp-wrap { width:min(1120px,calc(100% - 64px)) }
+.lp-hero { padding-block:48px; background:#fff }
+.lp-hero-in { display:grid; grid-template-columns:minmax(0,1fr); gap:40px }
+.lp-hero-words { grid-row:1; display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:16px 48px; align-items:end }
+.lp-hero-words .lp-h1 { grid-column:1; grid-row:1/span 2; max-width:13em; font-size:clamp(48px,5.8vw,76px); line-height:1.16; letter-spacing:-.055em; text-wrap:pretty }
+.lp-hero-words .lp-play { grid-column:2; grid-row:1; margin:0 }
+.lp-hero-words :is(.lp-recall,.t-login) { grid-column:2; grid-row:2; margin:0; align-self:start }
+.lp .lp-hero-art { display:grid; width:100%; height:auto; aspect-ratio:14/5; border-radius:0 }
+.lp .lp-empty { background:#f0f5f5; border:1px solid #cbd9dc; color:#536b74; font-size:14px }
+
+/* 모든 칸 제목은 같은 검은 글·크기·가는 윗줄. */
+.lp :is(.lp-intro-words,.lp-what>.lp-wrap,.lp-why>.lp-wrap,.lp-news>.lp-wrap) { border-top:1px solid var(--lp-line) }
+.lp :is(.lp-intro-words,.lp-what:first-of-type>.lp-wrap,.lp-why>.lp-wrap,.lp-news>.lp-wrap) { padding-top:40px }
+.lp :is(.lp-intro-words,.lp-what>.lp-wrap,.lp-why>.lp-wrap,.lp-news) .lp-h2 { max-width:none; margin:0 0 36px; color:var(--lp-ink); font-size:clamp(28px,3vw,38px); font-weight:800; line-height:1.3 }
+.lp-intro { display:block; width:min(1120px,calc(100% - 64px)); margin:auto; background:#fff }
+.lp .lp-intro-art { display:none }
+.lp-intro-words { display:block; padding:40px 0 56px; color:var(--lp-ink) }
+.lp-intro-words .lp-text { max-width:36em; margin:0; color:var(--lp-ink); font-size:clamp(21px,2.2vw,28px); font-weight:550; line-height:1.65 }
+
+.lp-what,.lp-what.lp-alt { padding-block:0 56px; background:#fff }
+.lp-what>.lp-wrap { padding-top:40px }
+.lp-what-row,.lp-what-row.lp-flip { display:grid; gap:32px 56px; align-items:center }
+.lp-what-words { max-width:none; justify-self:stretch }
+.lp-what-words .lp-h3 { max-width:13em; font-size:clamp(32px,3.8vw,48px); line-height:1.22 }
+.lp-what-words .lp-text { max-width:30em; font-size:18px; line-height:1.8 }
+.lp-feature-art { width:100%; min-width:0 }
+/* 걷기는 글 뒤로 길게 펼치는 장면. */
+[data-feature=walk] .lp-what-row { grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) }
+[data-feature=walk] .lp-feature-art { order:2; aspect-ratio:4/3 }
+/* 살림은 큰 자료판을 먼저, 오른쪽에 읽는 글. */
+[data-feature=budget] .lp-what-row { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) }
+.lp [data-feature=budget] .lp-feature-art { order:0; aspect-ratio:8/5; background:#eaf8fd }
+/* 따져 보기는 세로 카드와 짧은 글이 한 묶음. 폰 테두리는 없다. */
+[data-feature=cards] .lp-what-row { grid-template-columns:minmax(0,1fr) minmax(0,.65fr); padding:40px; background:#f5f6f2 }
+.lp [data-feature=cards] .lp-feature-art { order:2; width:min(100%,320px); justify-self:center; aspect-ratio:4/5; background:#fff }
+.lp-how-note { max-width:none; margin:28px 0 0; font-size:15px }
+
+/* 큰 기사 하나와 작은 글 둘은 유지. */
+.lp-why { padding-block:0 64px; background:#fff }
+.lp-why>.lp-wrap { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,.85fr); gap:32px 56px; padding-top:40px }
+.lp-why>.lp-wrap>.lp-h2 { grid-column:1/-1; margin-bottom:4px }
+.lp-story,.lp-story.lp-flip { display:flex; flex-direction:column; align-items:stretch; gap:24px; min-width:0 }
+.lp-story+.lp-story { margin:0 }
+.lp-story:first-of-type { grid-column:1; grid-row:2/span 2 }
+.lp-story.lp-flip { padding:28px; background:var(--lp-sky) }
+.lp-story.lp-flip>.lp-photo { order:0 }
+.lp-photo { aspect-ratio:16/7; border-radius:0 }
+.lp-story:first-of-type>.lp-photo { aspect-ratio:4/3 }
+.lp .lp-story:not(:first-of-type) .lp-photo.lp-empty { display:none }
+.lp-story-words .lp-h3 { font-size:clamp(28px,2.7vw,34px) }
+.lp-story:first-of-type .lp-h3 { font-size:clamp(32px,3.3vw,42px) }
+.lp-story-words .lp-text { font-size:18px; line-height:1.8 }
+.lp-news { padding-block:0 64px; background:#fff }
+.lp-news>.lp-wrap { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px 56px; padding-top:40px }
+.lp-news .lp-h2 { grid-column:1; margin-bottom:0 }
+.lp-news>.lp-wrap>.lp-text { grid-column:1; align-self:start }
+.lp-news .lp-news-form { grid-column:2; grid-row:1/span 3; align-self:start; margin:0 }
+.lp-news>.lp-wrap>.lp-news-sent { grid-column:2 }
+
+/* 고정 단추가 내용 위에 뜨지 않도록 스크롤 영역을 전용 독 위에서 끝낸다. */
+.lp:has(.lp-bar.on) { bottom:var(--lp-preview-dock) }
+.lp .lp-bar { inset:auto 0 0; width:auto; height:var(--lp-preview-dock); padding:14px 24px calc(14px + env(safe-area-inset-bottom)); justify-content:center; background:#fff; border-top:1px solid var(--lp-line) }
+.lp .lp-bar .lp-play { min-height:54px; box-shadow:0 4px 0 #7e382b }
+
+@media(max-width:759px) {
+  .lp { --lp-preview-dock:calc(84px + env(safe-area-inset-bottom)) }
+  .lp-wrap,.lp-intro { width:calc(100% - 40px) }
+  .lp-hero { padding-block:28px 36px }
+  .lp-hero-in { gap:28px }
+  .lp-hero-words { grid-template-columns:minmax(0,1fr); gap:16px }
+  .lp-hero-words .lp-h1 { grid-column:1; grid-row:1; font-size:40px; line-height:1.24; letter-spacing:-.05em }
+  .lp-hero-words .lp-play { grid-column:1; grid-row:2; margin-top:8px }
+  .lp-hero-words :is(.lp-recall,.t-login) { grid-column:1; grid-row:3 }
+  .lp .lp-hero-art { aspect-ratio:14/5; padding:16px }
+  .lp :is(.lp-intro-words,.lp-what>.lp-wrap,.lp-why>.lp-wrap,.lp-news>.lp-wrap) { padding-top:28px }
+  .lp :is(.lp-intro-words,.lp-what>.lp-wrap,.lp-why>.lp-wrap,.lp-news) .lp-h2 { margin-bottom:24px; font-size:28px }
+  .lp-intro-words { padding-inline:0; padding-bottom:36px }
+  .lp-intro-words .lp-text { font-size:21px }
+  .lp-what,.lp-what.lp-alt { padding-bottom:36px }
+  [data-feature] .lp-what-row { grid-template-columns:minmax(0,1fr); gap:24px }
+  [data-feature] .lp-what-words { grid-row:1 }
+  .lp-what-words .lp-h3 { font-size:32px }
+  .lp-what-words .lp-text { font-size:17px }
+  [data-feature=budget] .lp-feature-art { grid-row:2 }
+  [data-feature=cards] .lp-what-row { padding:24px }
+  .lp [data-feature=cards] .lp-feature-art { width:100%; max-width:260px }
+  .lp-why { padding-bottom:40px }
+  .lp-why>.lp-wrap { grid-template-columns:minmax(0,1fr); gap:32px }
+  .lp-story:first-of-type { grid-column:auto; grid-row:auto }
+  .lp-story.lp-flip { padding:24px }
+  .lp-story:first-of-type>.lp-photo { aspect-ratio:4/3 }
+  .lp-story-words .lp-text { font-size:17px }
+  .lp-news>.lp-wrap { display:block }
+  .lp-news>.lp-wrap>.lp-text { margin-top:20px }
+  .lp-news .lp-news-form { margin-top:28px }
+}

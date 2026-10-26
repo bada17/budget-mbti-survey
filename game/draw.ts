@@ -404,31 +404,45 @@ export function confetti(scene: Scene, w: number, top: number, reduced: boolean,
 
 /**
  * 「이어칠하다」 등불 줄 — 후원주점판 마을 들머리(사용자 10-26 「폭죽 말고 이어칠하다 느낌」, 27주년 말장난: 27 + 이어).
- * 보이는 화면(left·top·w·h, 장면 좌표) 위쪽에 줄을 늘어뜨리고 등불 스물일곱 개가 하나씩 이어 켜진 뒤 「27」, 3초 뒤 사라진다.
- * 대충 판 — 모양은 GPT 가 다듬는다. 밤빛 덮개(60000·60001) 위라 밤에도 밝다.
+ * 보이는 화면(left·top·w·h, 장면 좌표)에 전구 14+13개를 두 줄로 건다. 위에서 아래로 빛이 이어지고 작은 주점 간판이 내려앉는다.
+ * 밤빛 덮개(60000·60001) 위. 한 번 켜지고 천천히 걷히며, 모든 그림·트윈은 같은 수명의 묶음에 둔다.
  */
 export function stringLights(scene: Scene, left: number, top: number, w: number, h: number, dpr: number, reduced: boolean) {
   if (reduced) return;
-  const y0 = top + h * 0.1, sag = 46, x0 = left + 14, x1 = left + w - 14, step = 60;
-  const at = (t: number) => ({ x: x0 + (x1 - x0) * t, y: y0 + sag * 4 * t * (1 - t) }); // 처진 줄(포물선)
-  const parts: (Phaser.GameObjects.Graphics | Phaser.GameObjects.Arc | Phaser.GameObjects.Text)[] = [];
-  const wire = scene.add.graphics().setDepth(60002).lineStyle(1.5, 0x7a5a44, 0.8);
-  wire.beginPath(); wire.moveTo(x0, y0);
-  for (let i = 1; i <= 20; i++) { const p = at(i / 20); wire.lineTo(p.x, p.y); }
-  wire.strokePath(); parts.push(wire);
-  const colors = [0xffc74d, 0xff6b57, 0x6ad1a3, 0xffe08a, 0xd98cb3];
-  for (let i = 0; i < 27; i++) {
-    const p = at(i / 26), color = colors[i % colors.length];
-    const glow = scene.add.circle(p.x, p.y + 6, 11, color, 0.3).setDepth(60002).setScale(0);
-    const bulb = scene.add.circle(p.x, p.y + 6, 5, color).setDepth(60002).setScale(0);
-    parts.push(glow, bulb);
-    scene.tweens.add({ targets: [glow, bulb], scale: 1, delay: i * step, duration: 220, ease: 'Back.easeOut' });
+  const root = scene.add.container(left + w / 2, top + Math.min(h * 0.09, 64)).setDepth(60002).setName('pub-string-lights');
+  const span = w - 48, step = 52, colors = [0xffd580, 0xffc064, 0xed9e7d, 0xffe4a3, 0xbad2ad];
+  const wire = scene.add.graphics().lineStyle(1.7, 0x695340, 0.85);
+  root.add(wire);
+  let index = 0;
+  for (const [row, count] of [14, 13].entries()) {
+    const at = (t: number) => ({ x: (t - 0.5) * span, y: row * 124 + (row ? 20 : 26) * 4 * t * (1 - t) });
+    wire.beginPath(); wire.moveTo(-span / 2, row * 124);
+    for (let j = 1; j <= 32; j++) { const p = at(j / 32); wire.lineTo(p.x, p.y); }
+    wire.strokePath();
+    for (let i = 0; i < count; i++, index++) {
+      const p = at(row ? 1 - i / (count - 1) : i / (count - 1));
+      const color = colors[index % colors.length], radius = Math.min(5.5, span / 65);
+      const glow = scene.add.circle(0, 10, radius * 3, color, 0.16).setAlpha(0);
+      const glass = scene.add.ellipse(0, 10, radius * 1.65, radius * 2.15, color).setAlpha(0.18);
+      const shine = scene.add.ellipse(-1, 8, 2, 4, 0xfffbeb, 0.9).setAlpha(0);
+      const bulb = scene.add.container(p.x, p.y, [glow, scene.add.rectangle(0, 3, 4, 7, 0x695340), glass, shine]).setName('pub-bulb');
+      root.add(bulb);
+      scene.tweens.add({ targets: [glow, glass, shine], alpha: 1, delay: index * step, duration: 260, ease: 'Sine.easeOut' });
+    }
   }
-  const mark = scene.add.text(left + w / 2, y0 + sag + 46, '27', { fontFamily: FONT, fontSize: '64px', color: '#d9785f', resolution: textRes(dpr) })
-    .setOrigin(0.5).setStroke('#fffaf0', 8).setDepth(60002).setScale(0);
-  parts.push(mark);
-  scene.tweens.add({ targets: mark, scale: 1, delay: 27 * step + 100, duration: 360, ease: 'Back.easeOut' });
-  scene.tweens.add({ targets: parts, alpha: 0, delay: 27 * step + 3000, duration: 600, onComplete: () => parts.forEach(p => p.destroy()) });
+  const signW = Math.min(320, w - 72);
+  wire.lineStyle(1.2, 0x8d7154).lineBetween(-signW * 0.32, 24, -signW * 0.32, 51).lineBetween(signW * 0.32, 24, signW * 0.32, 51);
+  const sign = scene.add.container(0, 76).setAlpha(0).setName('pub-welcome');
+  const board = scene.add.graphics().fillStyle(0x513b2c, 0.12).fillRoundedRect(-signW / 2 + 2, -28, signW, 66, 9)
+    .fillStyle(0xfff4db).fillRoundedRect(-signW / 2, -32, signW, 64, 8)
+    .lineStyle(1.5, 0xa77b54).strokeRoundedRect(-signW / 2, -32, signW, 64, 8);
+  const badgeX = -signW / 2 + 36;
+  const badge = scene.add.circle(badgeX, 0, 22, 0xad503d);
+  const number = scene.add.text(badgeX, 0, '27', { fontFamily: FONT, fontSize: '25px', color: '#fff6df', resolution: textRes(dpr) }).setOrigin(0.5);
+  const title = scene.add.text(27, 0, '이어칠하다', { fontFamily: FONT, fontSize: `${Math.min(33, (signW - 86) / 5)}px`, color: '#654733', resolution: textRes(dpr) }).setOrigin(0.5);
+  sign.add([board, badge, number, title]); root.add(sign);
+  scene.tweens.add({ targets: sign, alpha: 1, y: 82, delay: 27 * step + 80, duration: 420, ease: 'Sine.easeOut' });
+  scene.tweens.add({ targets: root, alpha: 0, delay: 4200, duration: 700, onComplete: () => root.destroy() });
 }
 
 // ── 방 ──
@@ -1108,7 +1122,7 @@ const FONT = '"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif';
  * (10-15 「상담소·독상 간판 한 글자가 볼드 처리가 안 된 듯」 — 「시민참여」 의 「참」. 전엔 「마을」 두 글자의 조각만 받았다).
  * 간판에 새 글자를 쓰면 여기에도 넣는다 — 개발판은 빠진 글자를 콘솔에 알린다(label).
  */
-export const CANVAS_TEXT = [...PLACES.map(p => p.name + (p.keeper ?? '')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! ? 0123456789·/'].join('');
+export const CANVAS_TEXT = [...PLACES.map(p => p.name + (p.keeper ?? '')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! 이어칠하다 ? 0123456789·/'].join('');
 /** 사람 이름표 — 발밑에 작게, 밝은 테두리를 둘러 바닥 위에서도 읽히게(문 앞을 맡은 시민행동 사람, 10-15). */
 export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: number) =>
   label(scene, x, y, text, 11, dpr, '#5b402e').setStroke('#fffaf0', 4).setDepth(y + 2);

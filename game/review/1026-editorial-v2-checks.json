@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-26",
+  "url": "/review/1026-editorial-v2.html?about",
+  "browser": "Chrome headless; desktop pointer, 360x640 and 1280x900",
+  "landing": {
+    "widths": [360, 1280],
+    "horizontalOverflow": 0,
+    "h1": "우리 동네 살림, 같이 들여다볼 이웃을 찾아요",
+    "phoneFrames": 0,
+    "placeholderRatios": ["14:5", "4:3", "8:5", "4:5"],
+    "allSectionHeadingsMatch": true,
+    "dockDoesNotOverlapScrollArea": true,
+    "dockHiddenWhileTyping": true,
+    "requiredConsentUnchecked": true,
+    "doubleTextWidths": [320, 760, 1920],
+    "doubleTextHorizontalOverflow": 0,
+    "pageErrors": []
+  },
+  "pub": {
+    "entry": "?pub&end -> hill guide -> walk through arch",
+    "widths": [360, 1280],
+    "nightAt1280": true,
+    "bulbs": 27,
+    "sequentialLighting": true,
+    "sign": "이어칠하다",
+    "textResolution": 2,
+    "insideViewport": true,
+    "objectsAndTweensCleaned": true,
+    "reducedMotionOmitsEffect": true,
+    "welcomeTextUnchangedAndShown": true,
+    "captureNote": "Guide automation left .g.scrollTop=123 at both widths. Reset to 0 before capturing; HUD/sign restored. Production camera unchanged.",
+    "pageErrors": []
+  },
+  "review": "Separate read-only reviewer: no actionable findings. Did not rerun browser or commands.",
+  "commands": { "npm test": "132 passed, 0 failed", "npx tsc --noEmit --incremental false": "passed", "npm run lint": "passed", "npm run build:game": "passed" },
+  "limitations": ["Artwork intentionally empty; Claude will capture it", "No physical iOS device test", "No public or GAS deployment"]
+}
