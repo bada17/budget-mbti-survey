@@ -2,7 +2,8 @@
   소개 페이지(10-16, 사용자 「시티트리클럽처럼 설명과 이야기를 웹에서 보고 게임으로 접속」 — seoulkfem.or.kr/citytreeclub).
   10-19 다시 짬(사용자 「동물의 숲 디자인 말고 웹페이지 디자인으로」「시티트리클럽 흐름으로, 똑같이 말고」「하단은 홈페이지랑 같은 형태」):
     위 띠(로고·한 줄) → ① 첫 화면(마을 그림·제목·게임 단추) → ② 「○○은」 한 줄 → ③ 무엇을 하나요(폰 틀 속 게임 화면)
-    → ④ 왜 만들었나요(사진·글 번갈아) → ⑤ 어떻게 하나요(단계 카드 넷) → ⑥ 소식 받기(스티비) → 홈페이지 공통 하단(landing-footer.html).
+    → ④ 왜 만들었나요(사진·글 번갈아) → ⑥ 소식 받기(스티비) → 홈페이지 공통 하단(landing-footer.html).
+  ⑤ 어떻게 하나요(단계 카드 넷)는 10-26 뺐다 — ③ 을 짧게 다시 말할 뿐이라(사용자 「추천대로」). 밑 글(가입 없이…)은 ③ 끝으로.
   ⑥ 함께한 사람들의 시선 · ⑦ 함께해요(회원·후원·수업자료·문의) · ⑧ 지금 일어나는 일들 은 만들지 않는다(사용자 「일단 만들지 말고 기억만」).
   게임과 잇는 고리는 셋뿐 — ① 마을 그림, ③ 폰 속 게임 화면, 「게임 하러 가기」 단추(게임 색·둥근 글꼴). 나머지(글꼴·색 면·여백)는 웹 쪽.
 
@@ -19,23 +20,19 @@ import { CONTACT, PRIVACY_URL } from './contact';
 type Words = { title: string; text: string };
 // 10-19 느낌 보기용 초안(사용자 「내용 대충 한 번 만들어봐, 느낌만 보게」) — 글은 Claude 초안, 그림은 게임 화면·action-landing 활동 사진. 정해지면 갈아 끼운다.
 const PAGE = {
-  top: { logo: '', line: '혼자 읽는 예산서 말고, 함께 걷는 우리 동네 살림' },
+  top: { logo: 'landing/logo.svg', line: '혼자 읽는 예산서 말고, 함께 걷는 우리 동네 살림' },
   hero: { title: '함께해요 시민의 숲', text: '우리 동네 살림, 같이 들여다볼 이웃을 찾아요', photo: 'landing/hero.jpg' },
-  intro: { title: '시민의 숲은', text: '우리 동네 살림을 이웃과 함께 들여다보는 마을이에요. 걷기 게임으로 예산 고민을 먼저 해 보고, 마을에서 우리 동네 돈이 어디서 와서 어디에 쓰이는지 같이 따져 봐요.', photo: 'landing/intro.jpg' },
+  intro: { title: '시민의 숲은', text: '우리 동네 살림을 이웃과 함께 들여다보는 마을이에요. 걷기 게임에서 예산 고민을 먼저 해 보고, 마을에서는 우리 동네 예산부터 지방정부가 잘 보여 주지 않는 자료까지 함께 살펴봐요.', photo: 'landing/intro.jpg' },
   what: { title: '시민의 숲에서는 무엇을 하나요?', items: [
     { title: '걸으며 고민해요', text: '둘 다 필요한데 하나만 골라야 한다면? 숲길에서 주민들의 바람을 듣고 열다섯 번 골라요. 다 걸으면 나의 예산 성향이 나와요.', shot: 'landing/phone-room.jpg', icon: '' },
     { title: '우리 동네 살림을 펼쳐 봐요', text: `시·군·구를 고르면 우리 동네 돈이 어디서 와서 어디에 쓰이는지 보여요. ${placeName('tax')}과 ${placeName('finance')}에서 전국 243개 지방정부를 다 볼 수 있어요.`, shot: 'landing/phone-village.jpg', icon: '' },
     { title: '이웃과 함께 따져 봐요', text: `활동가가 올린 ${placeName('cards')}에 내 생각을 남기고, 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, shot: 'landing/phone-end.jpg', icon: '' },
-  ] },
-  why: { title: '왜 만들었나요?', stories: [
-    { title: '가장 가까운 돈인데, 가장 멀리 있어요', text: '놀이터, 마을버스, 동네 도서관. 우리 생활에 닿는 많은 돈이 동네 예산에서 나와요. 그런데 동네 예산을 들여다보는 사람은 많지 않아요.', photo: 'landing/why-1.jpg' },
-    { title: '예산에는 정답이 없어요', text: '둘 다 필요한 것 중에 하나를 골라야 하는 게 예산이에요. 그래서 한 사람이 정하기보다 여럿이 따져 볼수록 나아져요. 시민의 숲은 그 고민을 나누는 자리예요.', photo: '' },
-    { title: '혼자보다 함께 지켜보면 달라져요', text: '27년 동안 정부와 기업의 돈을 감시해 온 함께하는 시민행동이 만들었어요. 시민의 숲은 그 일에 이웃을 초대하는 마을이에요.', photo: 'landing/why-2.jpg' },
-  ] },
-  how: { title: '어떻게 하나요?', steps: [
-    { title: '걷기 게임하기', text: '숲길에서 주민들의 바람을 듣고 열다섯 번 골라요.', shot: '' }, { title: '내 동네 살림 살펴보기', text: '시·군·구를 고르면 그 동네 예산이 열려요.', shot: '' },
-    { title: '이웃·활동가와 이야기하기', text: '문제 카드, 쪽지판, 상담소 질문으로 생각을 나눠요.', shot: '' }, { title: '직접 나서기', text: '예산이 새는 사업 감시에 이름을 보태요.', shot: '' },
   ], note: '가입 없이 바로 시작해요. 로그인하면 내 동네를 저장하고 다른 기기에서도 이어 할 수 있어요.' },
+  why: { title: '왜 만들었나요?', stories: [
+    { title: '가장 가까운 돈인데, 가장 멀리 있어요', text: '놀이터, 마을버스, 동네 도서관. 우리 생활에 닿는 많은 돈이 동네 예산에서 나와요. 조금 어려워 보여도 결국 우리 삶과 바로 이어져 있어요. 그런데 들여다보는 사람은 많지 않아요.', photo: 'landing/why-1.jpg' },
+    { title: '예산에는 정답이 없어요', text: '둘 다 필요한 것 중에 하나를 골라야 하는 게 예산이에요. 몇 번만 달리 골라도 답이 달라져요. 그래서 예산에는 많은 논쟁과 깊은 숙의가 필요해요. (물론 새는 돈은 있어요)', photo: '' },
+    { title: '멈칫한 순간을 함께 나눠요', text: '걷다 보면 몇 번이나 멈칫하게 될 거예요. 그 순간을 혼자 갖고 있으면 금세 잊혀요. 27년 동안 정부와 기업의 돈을 감시해 온 함께하는 시민행동이 그 고민을 이웃과 나눌 마을을 만들었어요.', photo: 'landing/why-2.jpg' },
+  ] },
   news: { title: '소식 받기', text: '시민의 숲과 함께하는 시민행동의 예산 감시 소식을 메일로 보내 드려요.' },
   play: '게임 하러 가기',
 };
@@ -82,7 +79,8 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
   const go = (className: string) => { const b = el('button', className, PAGE.play); b.type = 'button'; b.onclick = leave; return b; };
 
   const top = el('div', 'lp-top');
-  top.append(PAGE.top.logo ? photo(PAGE.top.logo, 'lp-logo') : el('b', 'lp-brand', '함께해요 시민의 숲'), el('p', 'lp-top-line', PAGE.top.line));
+  const logo = el('img', 'lp-logo'); logo.src = PAGE.top.logo; logo.alt = '함께해요 시민의 숲'; // 로고 A안(10-26) — game/review/1020-logo-a.svg
+  top.append(PAGE.top.logo ? logo : el('b', 'lp-brand', '함께해요 시민의 숲'), el('p', 'lp-top-line', PAGE.top.line));
 
   // ① 첫 화면
   const hero = el('header', 'lp-sec lp-hero');
@@ -109,6 +107,7 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
     body.append(...words(item, 'h3'));
     row.append(phone(item.shot), body);
     inner.append(row);
+    if (i === PAGE.what.items.length - 1) inner.append(el('p', 'lp-text lp-how-note', PAGE.what.note));
     return sec;
   });
 
@@ -120,16 +119,6 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
     row.append(photo(s.photo, 'lp-photo'), body);
     return row;
   }));
-
-  // ⑤ 어떻게 하나요
-  const how = section('lp-how', PAGE.how.title);
-  const steps = el('ol', 'lp-steps');
-  steps.append(...PAGE.how.steps.map(s => {
-    const li = el('li', 'lp-step lp-up');
-    li.append(photo(s.shot, 'lp-step-shot', '게임 화면'), el('h3', 'lp-step-title', s.title), el('p', 'lp-text', s.text));
-    return li;
-  }));
-  how.inner.append(steps, el('p', 'lp-text lp-how-note', PAGE.how.note));
 
   // ⑥ 소식 받기(스티비) — 위 STIBEE_LIST
   const news = section('lp-news', PAGE.news.title);
@@ -176,7 +165,7 @@ ${location.href}`;
   // 첫 화면을 지나면 아래에 늘 떠 있는 게임 단추
   const bar = el('div', 'lp-bar'); bar.append(go('lp-play'));
 
-  page.append(top, hero, intro, ...what, why.sec, how.sec, news.sec, foot, bar);
+  page.append(top, hero, intro, ...what, why.sec, news.sec, foot, bar);
   document.body.append(page);
   page.focus({ preventScroll: true });
 
