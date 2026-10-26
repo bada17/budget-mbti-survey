@@ -234,7 +234,8 @@
 .lp-story.lp-flip>.lp-photo { order:0 }
 .lp-photo { aspect-ratio:16/7; border-radius:0 }
 .lp-story:first-of-type>.lp-photo { aspect-ratio:4/3 }
-.lp .lp-story .lp-photo.lp-empty { display:none } /* 본편은 빈 사진 칸을 안 보인다 — 첫 칸 사진은 사용자가 준다(Claude 10-26) */
+.lp .lp-story .lp-photo.lp-empty { display:none }
+.lp-caption { margin:-14px 0 0; color:var(--lp-soft); font-size:14px; font-weight:600 } /* 사진 밑 작은 글(Claude 10-26, 모양은 GPT) */ /* 본편은 빈 사진 칸을 안 보인다 — 첫 칸 사진은 사용자가 준다(Claude 10-26) */
 .lp-story-words .lp-h3 { font-size:clamp(28px,2.7vw,34px) }
 .lp-story:first-of-type .lp-h3 { font-size:clamp(32px,3.3vw,42px) }
 .lp-story-words .lp-text { font-size:18px; line-height:1.8 }

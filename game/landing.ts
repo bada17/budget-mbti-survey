@@ -32,9 +32,9 @@ const PAGE = {
     { title: '이웃과 함께 따져 봐요', text: `활동가가 고른 사례를 ${placeName('cards')}에서 함께 보고 내 생각을 남겨요. 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, feature: 'cards', shot: 'landing/what-cards.jpg', icon: '' }, // 마을의 그 게시판(진짜 이야기가 아직 0장이라 카드 대신 — 사용자 10-26 「게임 안에 있는 이미지」)
   ], note: '가입 없이 바로 시작해요. 로그인하면 내 동네를 저장하고 다른 기기에서도 이어 할 수 있어요.' },
   why: { title: '왜 만들었나요?', stories: [
-    { title: '가장 가까운 돈인데, 가장 멀리 있어요', text: '놀이터, 마을버스, 동네 도서관 — 모두 동네 예산으로 만들어요. 우리 생활에 가장 가까운 돈인데, 어디에 얼마를 쓰는지 아는 사람은 드물어요. 보는 눈이 많아야 돈이 제대로 쓰여요.', photo: 'landing/why-1.jpg' }, // 사용자 사진1(10-26) — 마포구 이동식 무단투기 감시카메라
+    { title: '가장 가까운 돈인데, 가장 멀리 있어요', text: '놀이터, 마을버스, 동네 도서관, 감시 카메라 — 모두 동네 예산으로 만들어요. 우리 생활에 가장 가까운 돈인데, 어디에 얼마를 쓰는지 아는 사람은 드물어요. 보는 눈이 많아야 돈이 제대로 쓰여요.', photo: 'landing/why-1.jpg', caption: '이것도 구예산이에요!' }, // 사용자 사진1(10-26) — 마포구 이동식 무단투기 감시카메라, 밑 작은 글도 사용자
     { title: '예산에는 정답이 없어요', text: '둘 다 필요한 것 중에 하나를 골라야 하는 게 예산이에요. 몇 번만 달리 골라도 답이 달라져요. 그래서 예산에는 많은 논쟁과 깊은 숙의가 필요해요. (물론 새는 돈은 있어요)', photo: '' },
-    { title: '멈칫한 순간을 함께 나눠요', text: '걷다 보면 몇 번이나 멈칫하게 될 거예요. 그 순간을 혼자 갖고 있으면 금세 잊혀요. 27년 동안 정부와 기업의 돈을 감시해 온 함께하는 시민행동이 그 고민을 이웃과 나눌 마을을 만들었어요.', photo: 'landing/why-3.jpg' }, // 사용자 사진2(10-26) — 제40회 밑빠진 독상(한강 리버버스)
+    { title: '멈칫한 순간을 함께 나눠요', text: '걷다 보면 몇 번이나 멈칫하게 될 거예요. 그 순간을 혼자 갖고 있으면 금세 잊혀요. 27년 동안 정부와 기업의 돈을 감시해 온 함께하는 시민행동이 그 고민을 이웃과 나눌 마을을 만들었어요.', photo: 'landing/why-3.webp' }, // 사용자 사진2(10-26) — 제40회 밑빠진 독상(한강 리버버스), 배경 지운 투명 그림(사용자 「항아리만」)
   ] },
   news: { title: '소식 받기', text: '시민의 숲과 함께하는 시민행동의 예산 감시 소식을 메일로 보내 드려요.' },
   play: '게임 하러 가기',
@@ -114,7 +114,7 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
   why.inner.append(...PAGE.why.stories.map((s, i) => {
     const row = el('div', `lp-story lp-up${i % 2 ? ' lp-flip' : ''}`), body = el('div', 'lp-story-words');
     body.append(...words(s, 'h3'));
-    row.append(photo(s.photo, 'lp-photo'), body);
+    row.append(photo(s.photo, 'lp-photo'), ...(s.caption ? [el('p', 'lp-caption', s.caption)] : []), body); // caption — 사진 밑 작은 글
     return row;
   }));
 
