@@ -434,8 +434,8 @@ const cardOpts = (focus?: string): CardsOpts => ({
     return got?.card;
   },
   share: (card, copy, file) => {
-    const url = `${shareAt()}?card=${encodeURIComponent(card.id)}`, text = `문제 카드 — ${card.title}. 이 돈, 어떻게 보세요?`;
-    sendLink(copy, '함께해요 시민의 숲 — 문제 카드', text, url, file && navigator.canShare?.({ files: [file] }) ? [file] : undefined);
+    const url = `${shareAt()}?card=${encodeURIComponent(card.id)}`, text = `${placeName('cards')} — ${card.title}. 이 돈, 어떻게 보세요?`;
+    sendLink(copy, `함께해요 시민의 숲 — ${placeName('cards')}`, text, url, file && navigator.canShare?.({ files: [file] }) ? [file] : undefined);
   },
 });
 /** 판을 열면 지금 있는 카드는 다 본 것으로(「!」·알림이 꺼진다). */
@@ -449,7 +449,7 @@ async function tellNewCard() {
   await loadCards();
   marks();
   // 카드를 불러오는 사이 판이 열렸으면 알리지 않는다(판 밑에 깔린다)
-  if (newCard() && where === 'village' && !panelOpen) ui.villageNotice(keeperName('cards'), '새 문제 카드가 올라왔어요. 이 돈, 어떻게 보세요?',
+  if (newCard() && where === 'village' && !panelOpen) ui.villageNotice(keeperName('cards'), `${placeName('cards')}에 새 이야기가 올라왔어요. 이 돈, 어떻게 보세요?`,
     [{ label: '보러 가기', run: () => { if (!panelOpen) village?.jump('cards', () => openPlace('cards')); } }, { label: '나중에' }]);
 }
 

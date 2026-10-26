@@ -340,16 +340,16 @@ export function openCards(shell: HTMLElement, opts: CardsOpts, onClose: () => vo
   panel.append(status);
   void Promise.all([opts.load(), loadPlaces().catch(() => undefined)]).then(([cards, places]) => {
     if (!cards) { status.textContent = opts.online ? '지금은 카드를 불러올 수 없어요. 조금 뒤에 다시 와 주세요.' : '시험판이라 아직 카드가 없어요. 활동가가 올리면 여기에 떠요.'; return; }
-    if (!cards.length) { status.textContent = '첫 문제 카드를 준비하고 있어요. 곧 올라와요.'; return; } // 0장일 때(10-20 사용자 「아직 준비중이라는 문구 띄우고」)
+    if (!cards.length) { status.textContent = '첫 이야기를 준비하고 있어요. 곧 올라와요.'; return; } // 0장일 때(10-20 사용자 「아직 준비중이라는 문구 띄우고」)
     status.remove();
     const myPlace = places?.places.find(p => p.c === loadRegion());
     const ours = (card: PublicCard) => Boolean(myPlace && !myPlace.n.endsWith('(시·도)') && squash(card.region).includes(squash(placeTitle(myPlace))));
     const first = cards.find(c => c.id === opts.focus) ?? cards[0], rest = cards.filter(c => c !== first);
     const top = cardView(first, ours(first), opts);
-    panel.append(el('p', 'c-kicker', first === cards[0] ? '이번 문제 카드' : '친구가 보낸 문제 카드'), top.box);
+    panel.append(el('p', 'c-kicker', first === cards[0] ? '이번 이야기' : '친구가 보낸 이야기'), top.box);
     setTimeout(top.prepare, 600); // 판이 열리는 움직임이 끝난 뒤
     if (!rest.length) return;
-    panel.append(el('h3', 'x-h', '지난 문제 카드'));
+    panel.append(el('h3', 'x-h', '지난 이야기'));
     for (const card of rest) {
       const fold = el('details', 'c-fold'), mine = opts.mine()[card.id] as CardKind | undefined, view = cardView(card, ours(card), opts);
       fold.append(el('summary', '', `${dayLabel(card.date)} · ${card.title}${mine ? ` — 내 반응: ${CARD_KIND_NAME[mine]}` : ''}`), view.box);

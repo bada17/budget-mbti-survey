@@ -26,7 +26,7 @@ const PAGE = {
   what: { title: '시민의 숲에서는 무엇을 하나요?', items: [
     { title: '걸으며 고민해요', text: '둘 다 필요한데 하나만 골라야 한다면? 숲길에서 주민들의 바람을 듣고 열다섯 번 골라요. 다 걸으면 나의 예산 성향이 나와요.', shot: 'landing/phone-room.jpg', icon: '' },
     { title: '우리 동네 살림을 펼쳐 봐요', text: `시·군·구를 고르면 우리 동네 돈이 어디서 와서 어디에 쓰이는지 보여요. ${placeName('tax')}과 ${placeName('finance')}에서 전국 243개 지방정부를 다 볼 수 있어요.`, shot: 'landing/phone-village.jpg', icon: '' },
-    { title: '이웃과 함께 따져 봐요', text: `활동가가 올린 ${placeName('cards')}에 내 생각을 남기고, 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, shot: 'landing/phone-end.jpg', icon: '' },
+    { title: '이웃과 함께 따져 봐요', text: `활동가가 고른 사례를 ${placeName('cards')}에서 함께 보고 내 생각을 남겨요. 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, shot: 'landing/phone-end.jpg', icon: '' },
   ], note: '가입 없이 바로 시작해요. 로그인하면 내 동네를 저장하고 다른 기기에서도 이어 할 수 있어요.' },
   why: { title: '왜 만들었나요?', stories: [
     { title: '가장 가까운 돈인데, 가장 멀리 있어요', text: '놀이터, 마을버스, 동네 도서관. 우리 생활에 닿는 많은 돈이 동네 예산에서 나와요. 조금 어려워 보여도 결국 우리 삶과 바로 이어져 있어요. 그런데 들여다보는 사람은 많지 않아요.', photo: 'landing/why-1.jpg' },
