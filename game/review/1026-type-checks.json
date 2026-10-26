@@ -1,0 +1,90 @@
+{
+  "url": "http://127.0.0.1:5186",
+  "layout": [
+    {
+      "normal": {
+        "width": 320,
+        "scroll": 320,
+        "view": 320,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "long": {
+        "width": 320,
+        "scroll": 320,
+        "view": 320,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기 전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "recallOpensLogin": true
+    },
+    {
+      "normal": {
+        "width": 360,
+        "scroll": 360,
+        "view": 360,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "long": {
+        "width": 360,
+        "scroll": 360,
+        "view": 360,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기 전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "recallOpensLogin": true
+    },
+    {
+      "normal": {
+        "width": 760,
+        "scroll": 760,
+        "view": 760,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "long": {
+        "width": 760,
+        "scroll": 760,
+        "view": 760,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기 전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "recallOpensLogin": true
+    },
+    {
+      "normal": {
+        "width": 1280,
+        "scroll": 1280,
+        "view": 1280,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "long": {
+        "width": 1280,
+        "scroll": 1280,
+        "view": 1280,
+        "tagWeight": "700",
+        "introWeight": "650",
+        "recallText": "전에 해 봤어요 — 내 시민증 불러오기 전에 해 봤어요 — 내 시민증 불러오기",
+        "overflow": []
+      },
+      "recallOpensLogin": true
+    }
+  ],
+  "errors": []
+}
