@@ -23,8 +23,8 @@ import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
 import type { Controls } from '../input';
 import { sfx } from '../sfx';
+import { prefersReducedMotion } from '../motion';
 
-const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
 export type VillageRuntime = {
   view(): { w: number; h: number; dpr: number };
@@ -79,7 +79,7 @@ export class VillageScene extends Phaser.Scene {
   /** 땅에 떨어진 것 — 걸어가 닿으면 줍는다. */
   private items: { kind: Drop; tree: number; at: Point; obj: Phaser.GameObjects.Container }[] = [];
   private dustClock = 0;
-  private get reduced() { return motion.matches; }
+  private get reduced() { return prefersReducedMotion(); }
   /** 작은 운동장 공 — 골이 나면 잠깐 기뻐하다가(cheering) 가운데로 돌아온다. */
   private ball?: Ball;
   private cheering = false;

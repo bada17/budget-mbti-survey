@@ -45,7 +45,7 @@ async page => {
           await new Promise(resolve => {
             const tick = now => {
               ys.push(rain.map(o=>o.y)); tops.push(door.getBoundingClientRect().top);
-              if (now-start < 1300) requestAnimationFrame(tick); else resolve();
+              if (now-start < 1700) requestAnimationFrame(tick); else resolve();
             };
             requestAnimationFrame(tick);
           });
@@ -57,9 +57,8 @@ async page => {
             doorRange: Math.max(...tops)-Math.min(...tops), animation: getComputedStyle(door).animationName,
             rainBounds: bounds(rain), buildBounds: bounds(build), diag: document.querySelector('body > pre')?.textContent?.split('\n').find(line=>line.startsWith('문 화살표')) };
         }, { css, reduced });
-        check(state.count === 4, `${name}: rain 네 개`);
-        check(state.monotonic, `${name}: 착지 후 튀면 안 된다`);
-        check(state.moved.every(y => reduced ? y === 0 : y > 0 && y <= 48), `${name}: 짧은 낙하/축소 시 정지`);
+        check(state.count === 12, `${name}: rain 열두 개`);
+        check(state.moved.every(y => reduced ? y === 0 : y > 48), `${name}: 원래 낙하/축소 시 정지`);
         check(state.intermediate.every(value => value === !reduced), `${name}: 순간 이동 없이 중간 위치를 거친다`);
         check(reduced ? state.doorRange < 0.01 && state.animation === 'none' : state.doorRange > 4, `${name}: 문 화살표 일반/축소`);
         check(state.current === reduced && state.village === reduced, `${name}: 두 장면의 설정`);
@@ -71,7 +70,7 @@ async page => {
           const made=playOutcome(s,OUTCOMES['C-T2'].a,{spot:s.room.residents.left,room:s.room,dpr:s.runtime.view().dpr,reduced,seed:'letters'});
           return made.length;
         }, reduced);
-        check(letters === 4, `${name}: 편지도 네 개`);
+        check(letters === 12, `${name}: 편지도 열두 개`);
         // 새로고침 없이 설정을 뒤집는다. 예전 true를 계속 기억하는 회귀를 잡는다.
         await p.emulateMedia({ reducedMotion: reduced ? 'no-preference' : 'reduce' });
         await p.waitForFunction(expected => window.__journey.reduced === expected && window.__village.reduced === expected, !reduced);

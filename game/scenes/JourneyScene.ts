@@ -22,6 +22,7 @@ import { TWISTS, streamOf, keepDry, catOf, CAT_WAKE, type TwistKind } from '../t
 import { textRes, Dude, lookFrom, toLook, drawRoom, drawHill, drawPortal, PORTAL, drawBus, playOutcome, drawTwist, type TwistArt, hearts, dust, tapRing, confetti, flee, meow, sparkle, DAYLIGHT, type RoomArt, type Cat } from '../draw';
 import type { Pick } from '../look';
 import { sfx } from '../sfx';
+import { prefersReducedMotion } from '../motion';
 import type { Controls } from '../input';
 import type { GameUI } from '../ui';
 import type { GameEvent } from '../events';
@@ -64,7 +65,6 @@ const SIDES: DisplaySide[] = ['left', 'right'];
 const other = (side: DisplaySide): DisplaySide => (side === 'left' ? 'right' : 'left');
 const lerp = (a: Point, b: Point, k: number) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
 const touchScreen = matchMedia('(pointer: coarse)').matches;
-const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
 export class JourneyScene extends Phaser.Scene {
   private mode: Mode = 'intro';
@@ -106,7 +106,7 @@ export class JourneyScene extends Phaser.Scene {
   private insideBand?: { top: number; bottom: number };
   private sizeBuilt = { w: 0, h: 0 };
   // 브라우저로 돌아온 뒤 바뀐 설정도 읽는다 — 생성 때의 true/false를 붙잡지 않는다.
-  private get reduced() { return motion.matches; }
+  private get reduced() { return prefersReducedMotion(); }
 
   constructor(private runtime: Runtime) { super('journey'); }
 

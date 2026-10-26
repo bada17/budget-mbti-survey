@@ -9,6 +9,7 @@ class Node {
   constructor(tag = '', text = '') { this.tagName = tag; this.children = []; this.text = text; this.className = ''; this.style = { setProperty() {} }; this.attrs = {}; this.hidden = false; this.dataset = {}; }
   get classList() { return { contains: c => this.className.split(/\s+/).includes(c), add: (...cs) => { this.className = [...new Set([...this.className.split(/\s+/).filter(Boolean), ...cs])].join(' '); }, remove: (...cs) => { this.className = this.className.split(/\s+/).filter(c => !cs.includes(c)).join(' '); }, toggle: (c, force) => { const on = force ?? !this.classList.contains(c); this.classList[on ? 'add' : 'remove'](c); return on; } }; }
   append(...nodes) { for (const n of nodes) { const child = typeof n === 'string' ? new Node('', n) : n; child.remove(); child.parentElement = this; this.children.push(child); } }
+  insertBefore(child, before) { child.remove(); child.parentElement = this; const i = this.children.indexOf(before); this.children.splice(i < 0 ? this.children.length : i, 0, child); return child; }
   replaceChildren(...nodes) { this.children.forEach(n => { n.parentElement = undefined; }); this.children = []; this.text = ''; this.append(...nodes); }
   remove() { if (this.parentElement) this.parentElement.children = this.parentElement.children.filter(n => n !== this); this.parentElement = undefined; }
   setAttribute(k, v) { this.attrs[k] = String(v); if (k === 'class') this.className = v; }
@@ -56,7 +57,7 @@ function browser(capture) {
   const context = { module: runtimeModule, exports: runtimeModule.exports, console, URL, URLSearchParams, TextEncoder, TextDecoder, atob, btoa, File, Blob, structuredClone, AbortController,
     localStorage: storage, sessionStorage: storage, document, history,
     navigator: { canShare: () => true, share: async ({ files }) => shared.push(await files[0].text()) },
-    matchMedia: () => ({ matches: true }),
+    matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }),
     setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {},
     captureCard: async card => { const text = card.textContent; captures.push(text); return capture ? capture(text) : new Blob([text], { type: 'image/png' }); },
     fetch: async (url, options = {}) => { requests.push({ url, method: options.method ?? 'GET' }); return { ok: false, text: async () => '', json: async () => ({ ok: false }) }; },

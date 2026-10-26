@@ -251,7 +251,7 @@ button.g-pocket{pointer-events:auto;cursor:pointer}
 /* 짧은 가로 화면에서도 결과 카드와 행동 사이에 걸어서 나갈 풀밭을 남긴다. */
 @media(max-height:500px){.g-end{padding-top:50px}.g-end-card{max-height:64px;overflow-y:auto}.g-end-actions{max-height:52px;overflow-y:auto}}
 @media(max-height:620px){.g-prompt{font-size:17px}.g-bubble{font-size:14px;padding:7px 11px 6px}.g-reply{min-height:40px;font-size:15px}.g-talk{padding:20px 18px 14px}.g-talk .g-quote{font-size:16px}.g-intro h1{font-size:38px}.g-end-card{padding:10px 14px}.g-end-card h1{font-size:30px}}
-@media(prefers-reduced-motion:reduce){*{animation-duration:1ms!important;animation-iteration-count:1!important;animation-delay:0ms!important;transition-duration:1ms!important}.g-door,.g-wait-dot{animation:none}}
+@media(prefers-reduced-motion:reduce){html:not([data-motion=full]) *{animation-duration:1ms!important;animation-iteration-count:1!important;animation-delay:0ms!important;transition-duration:1ms!important}html:not([data-motion=full]) .g-door,html:not([data-motion=full]) .g-wait-dot{animation:none}}
 .g.shooting *{animation:none!important}
 
 /* 걷기 대답판의 화면 밖 transform이 마을 전체를 스크롤시키지 않게 한다. */

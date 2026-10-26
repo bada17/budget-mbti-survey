@@ -10,6 +10,7 @@ import { currentQuestion, type JourneyState } from './flow';
 import { displayOptions, orderedQuestions, pullsOf, type DisplaySide } from './response';
 import { COATS, HAIRS, SKINS, FACES, faceOf, HAIR_MENU, HAIR_STYLES, TOPS, PATTERNS, REWARDS, fullPick, randomPick, nameFrom, type Pick } from './look';
 import { sfx } from './sfx';
+import { prefersReducedMotion, deviceRequestsReducedMotion, fullMotionProbe, motionPreference, setMotionPreference } from './motion';
 import { cleanName, josa, loadOwned, type Me } from './profile';
 import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
 import type { Stats } from './api';
@@ -69,7 +70,7 @@ export function typeOut(node: HTMLElement, text: string, done = () => {}, pitch 
     if (i >= text.length) finish(); else timer = window.setTimeout(tick, /[,.…!?]/.test(ch) ? 170 : 36);
   };
   typers.set(node, { cancel: () => { over = true; clearTimeout(timer); typers.delete(node); }, finish });
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) finish(); else timer = window.setTimeout(tick, 140);
+  if (prefersReducedMotion()) finish(); else timer = window.setTimeout(tick, 140);
   return finish;
 }
 export const finishTyping = (node: HTMLElement) => typers.get(node)?.finish();
@@ -198,6 +199,26 @@ export function createUI(root: HTMLElement, actions: {
     <button class="g-link g-home-open" type="button" hidden>걷지 않고 마을로 가기</button>
     <button class="g-link g-login-open" type="button" hidden>전에 해 봤어요 — 내 시민증 불러오기</button>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
+  // 기기 신호와 의도가 다른 사람은 직접 원래 애니메이션을 켤 수 있다.
+  const toggleMotion = () => {
+    setMotionPreference(motionPreference() === 'full' ? 'system' : 'full');
+    updateMotion();
+  };
+  const motionButton = button('g-link g-motion', '', toggleMotion);
+  const hudMotion = button('g-sound g-motion', '', toggleMotion);
+  const updateMotion = () => {
+    const full = motionPreference() === 'full';
+    const label = full ? '움직임은 기기 설정 따르기' : '애니메이션 켜기';
+    motionButton.hidden = hudMotion.hidden = fullMotionProbe || (!deviceRequestsReducedMotion() && !full);
+    motionButton.textContent = label;
+    hudMotion.textContent = full ? '↺' : '▶';
+    hudMotion.title = label; hudMotion.setAttribute('aria-label', label);
+  };
+  updateMotion();
+  const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
+  motionMedia.addEventListener('change', updateMotion);
+  intro.querySelector('.g-intro-card')!.append(motionButton);
+  hud.insertBefore(hudMotion, sound);
   const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·이웃이 번갈아 쓰는 아래 판
   const panel = el('section', 'g-panel'); panel.hidden = true; // 화면을 덮는 판(다른 사람들 마음)
   const caption = el('section', 'g-caption'); caption.hidden = true; // 버스 장면 글
@@ -400,7 +421,7 @@ export function createUI(root: HTMLElement, actions: {
           row.append(...values.map((value, i) => swatch(line, value, i)));
           const head = el('div', 'g-row-head'), nav = el('div', 'g-row-nav');
           const step = (direction: number) => row.scrollBy({ left: direction * row.clientWidth * 0.8,
-            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
           const previous = button('g-row-step', '‹', () => step(-1)), next = button('g-row-step', '›', () => step(1));
           previous.setAttribute('aria-label', `${label} 이전 보기`); next.setAttribute('aria-label', `${label} 다음 보기`);
           const update = () => {
@@ -430,7 +451,7 @@ export function createUI(root: HTMLElement, actions: {
           }
           const head = el('div', 'g-row-head'), nav = el('div', 'g-row-nav');
           const step = (direction: number) => row.scrollBy({ left: direction * row.clientWidth * 0.8,
-            behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
           const previous = button('g-row-step', '‹', () => step(-1)), next = button('g-row-step', '›', () => step(1));
           previous.setAttribute('aria-label', `${label} 이전 보기`); next.setAttribute('aria-label', `${label} 다음 보기`);
           const update = () => {
@@ -715,7 +736,7 @@ export function createUI(root: HTMLElement, actions: {
       );
     },
 
-    destroy() { releaseSheet(); releasePanel(); timers.forEach(clearTimeout); root.replaceChildren(); },
+    destroy() { motionMedia.removeEventListener('change', updateMotion); releaseSheet(); releasePanel(); timers.forEach(clearTimeout); root.replaceChildren(); },
   };
 }
 

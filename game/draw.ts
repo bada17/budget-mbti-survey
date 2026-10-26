@@ -1571,14 +1571,14 @@ export function playOutcome(scene: Scene, o: Outcome, at: { spot: Point; room: R
     }
     case 'rain': {
       sfx.rain();
-      // build(52px 하나)와 비슷한 그림의 양(26px 넷). 고른 쪽 벽 앞에만 차분히 내린다.
-      const spots = [[-15, -18], [15, -18], [-15, 0], [15, 0]];
-      spots.forEach(([dx, dy], i) => {
-        const x = anchor.x + dx, y = anchor.y + dy;
-        const drop = emoji(scene, x, reduced ? y : y - 36, o.icon, 26, dpr).setDepth(y);
-        left.push(drop); // build·grow처럼 방을 나갈 때까지 남기고 dropRoom에서 치운다.
-        if (!reduced) scene.tweens.add({ targets: drop, y, duration: 620, delay: i * 80, ease: 'Quad.easeOut' });
-      });
+      for (let i = 0; i < 12; i++) {
+        const x = 30 + ((i * 53) % (room.w - 60)), y = floorY(((i * 37) % 10) / 10);
+        const drop = emoji(scene, x, room.wallY - 10, o.icon, 22, dpr).setDepth(y);
+        left.push(drop);
+        if (reduced) { drop.setY(y); continue; }
+        scene.tweens.add({ targets: drop, y, duration: 520 + (i % 4) * 90, delay: i * 55, ease: 'Bounce.easeOut' });
+        scene.tweens.add({ targets: drop, alpha: 0, delay: 2200 + i * 40, duration: 500, onComplete: () => drop.destroy() });
+      }
       break;
     }
     case 'visit': {

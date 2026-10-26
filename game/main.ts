@@ -862,6 +862,9 @@ else void boot();
 // 진단 판(game/diag.ts) — 주소에 ?diag 가 있을 때만 받는다. 아이패드 원인 찾으면 지운다(10-19).
 if (params.has('diag')) void import('./diag').then(m => m.startDiag({ surface: ui.surface, scene: () => (game?.scene.isActive('village') ? village : scene), vector: () => controls.keyVector() }));
 
+// 실기기 재현용 별도 기록 — 기존 ?diag 판은 그대로 둔다.
+if (params.has('motiontrace')) void import('./motion-debug').then(m => m.startMotionDebug(() => (game?.scene.isActive('village') ? village : scene)));
+
 // 저장 단계에서 붙일 자리. 답은 「다른 사람들 마음」 서버로만 간다(개인정보 없음).
 export function getPendingResponse() { return response ? structuredClone(response) : undefined; }
 
