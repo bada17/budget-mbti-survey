@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+const cuts = await import('../game/cuts.ts').catch(() => undefined);
+test('교부세 감액은 정적 원본 그대로, 금액 내림차순·내 동네 우선·지역과 사업 검색', async () => {
+  assert.ok(cuts, '정적 감액 자료와 목록 규칙이 있어야 한다');
+  const data = await cuts.loadCuts();
+  assert.equal(data.received, '2026-10-13');
+  const all = cuts.findCuts(data);
+  assert.equal(all.length, 2304);
+  assert.ok(all.every((r, i) => !i || all[i - 1].amount >= r.amount));
+  const mine = cuts.findCuts(data, '', '4211000');
+  const firstOther = mine.findIndex(r => r.code !== '4211000');
+  assert.ok(firstOther > 0);
+  assert.ok(mine.slice(firstOther).every(r => r.code !== '4211000'));
+  assert.ok(cuts.findCuts(data, '춘천').every(r => r.name.includes('춘천')));
+  assert.ok(cuts.findCuts(data, '생태탐방로').every(r => r.project.includes('생태탐방로')));
+  assert.equal(cuts.findCuts(data, '없는사업zz').length, 0);
+  const article = cuts.findCuts(data, '생태탐방로').find(r => r.code === '4211000' && r.year === 2026 && r.amount === 3909000000);
+  assert.equal(article.link, 'https://www.kado.net/news/articleView.html?idxno=2079091');
+  assert.equal(cuts.cutMoney(article.amount), '39.09억 원');
+});

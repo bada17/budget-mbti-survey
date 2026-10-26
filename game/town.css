@@ -256,3 +256,19 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .t-check input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--leaf)}
 .t-agree-hint{margin:0 0 6px}
 .t-login-btn:disabled{opacity:.45;cursor:not-allowed}
+
+
+/* 따져 볼 지방정부: 기사와 자료를 차분하게 나눠 읽는다. */
+.v-cut-article{display:block;margin:12px 0 20px;padding:24px 20px;border-block:2px solid var(--leaf-dark);color:var(--ink);text-decoration:none;background:#f1f3e7}
+.v-cut-article h3{margin:0 0 18px;font:800 26px/1.4 var(--body);letter-spacing:-.04em;word-break:keep-all}
+.v-cut-article span{font:500 13px/1.5 var(--body);color:var(--soft)}
+.v-cut-article:focus-visible,.v-cut-article:hover{background:#e8eedc}
+.v-cut-mission{margin:20px 0 28px;font:500 16px/1.7 var(--body)}
+.v-cut-more summary{padding:16px 0;font:500 19px/1.4 var(--display);cursor:pointer}
+.v-cut-more>.g-input{width:100%;margin-top:12px}
+.v-cut-list{margin:0;padding:0;list-style:none}
+.v-cut-row{padding:20px 0;border-top:1px solid var(--line)}
+.v-cut-meta{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--soft)}
+.v-cut-row h4{margin:10px 0;font:650 16px/1.55 var(--body);overflow-wrap:anywhere}
+.v-cut-money{font:750 23px/1.5 var(--body);color:var(--leaf-dark)}
+.v-cut-link{display:inline-block;padding:10px 0;color:var(--leaf-dark);font-size:14px;text-underline-offset:4px}

@@ -193,7 +193,7 @@
 .lp-hero-words:has(.lp-badge) .lp-h1 { grid-row:2/span 2 }
 .lp-hero-words:has(.lp-badge) .lp-play { grid-row:2 }
 .lp-hero-words:has(.lp-badge) :is(.lp-recall,.t-login) { grid-row:3 }
-.lp .lp-hero-art { display:grid; width:100%; height:auto; aspect-ratio:14/5; border-radius:0 }
+.lp .lp-hero-art { display:grid; width:100%; height:auto; aspect-ratio:21/8; border-radius:0 }
 .lp .lp-empty { background:#f0f5f5; border:1px solid #cbd9dc; color:#536b74; font-size:14px }
 
 /* 모든 칸 제목은 같은 검은 글·크기·가는 윗줄. */
@@ -217,7 +217,7 @@
 [data-feature=walk] .lp-feature-art { order:2; aspect-ratio:4/3 }
 /* 살림은 큰 자료판을 먼저, 오른쪽에 읽는 글. */
 [data-feature=budget] .lp-what-row { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) }
-.lp [data-feature=budget] .lp-feature-art { order:0; aspect-ratio:8/5; background:#eaf8fd }
+.lp [data-feature=budget] .lp-feature-art { order:0; aspect-ratio:848/510; background:#eaf8fd }
 /* 따져 보기는 세로 카드와 짧은 글이 한 묶음. 폰 테두리는 없다. */
 [data-feature=cards] .lp-what-row { grid-template-columns:minmax(0,1fr) minmax(0,.65fr); padding:40px; background:#f5f6f2 }
 .lp [data-feature=cards] .lp-feature-art { order:2; width:min(100%,320px); justify-self:center; aspect-ratio:4/5; background:#fff }
@@ -263,7 +263,7 @@
   .lp-hero-words:has(.lp-badge) .lp-h1 { grid-row:2 }
   .lp-hero-words:has(.lp-badge) .lp-play { grid-row:3 }
   .lp-hero-words:has(.lp-badge) :is(.lp-recall,.t-login) { grid-row:4 }
-  .lp .lp-hero-art { aspect-ratio:14/5; padding:16px }
+  .lp .lp-hero-art { aspect-ratio:21/8; padding:16px }
   .lp :is(.lp-intro-words,.lp-what>.lp-wrap,.lp-why>.lp-wrap,.lp-news>.lp-wrap) { padding-top:28px }
   .lp :is(.lp-intro-words,.lp-what>.lp-wrap,.lp-why>.lp-wrap,.lp-news) .lp-h2 { margin-bottom:24px; font-size:28px }
   .lp-intro-words { padding-inline:0; padding-bottom:36px }
@@ -286,3 +286,6 @@
   .lp-news>.lp-wrap>.lp-text { margin-top:20px }
   .lp-news .lp-news-form { margin-top:28px }
 }
+
+/* 두 문장은 각각 새 줄에서 읽는다(10-26 확정 원고). */
+.lp-intro-words .lp-text { white-space:pre-line }

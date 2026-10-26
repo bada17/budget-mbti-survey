@@ -73,7 +73,7 @@ function writeKV<V>(sheet: Sheet, map: Tracked<V>, now: number) {
 const plain = (text: string) => `'${text}`;
 
 const NOTE_TAB = '쪽지';
-const NOTE_HEAD = ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록'];
+const NOTE_HEAD = ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록', '출처'];
 function readNotes(sheet: Sheet) {
   const map = new Tracked<Note>();
   const last = sheet.getLastRow();
@@ -81,7 +81,7 @@ function readNotes(sheet: Sheet) {
   sheet.getRange(2, 1, last - 1, NOTE_HEAD.length).getValues().forEach((row, i) => {
     try {
       const [id, , name, text, , , hide, json] = row;
-      const rest = JSON.parse(String(json)) as Pick<Note, 'at' | 'pick' | 'sessionId' | 'account' | 'region' | 'likes' | 'reports'>;
+      const rest = JSON.parse(String(json)) as Pick<Note, 'at' | 'pick' | 'sessionId' | 'account' | 'region' | 'likes' | 'reports' | 'source' | 'device'>;
       if (id) map.load(String(id), { ...rest, id: String(id), name: String(name ?? ''), text: String(text ?? ''), hidden: String(hide ?? '').trim() !== '' }, i + 2);
     } catch { /* 사람이 손으로 망친 줄은 건너뛴다 */ }
   });
@@ -91,11 +91,13 @@ function writeNotes(sheet: Sheet, map: Tracked<Note>) {
   for (const id of map.dirty) {
     const n = map.get(id)!;
     const shown = [n.id, new Date(n.at).toISOString(), plain(n.name), plain(n.text), n.likes.length, n.reports.length];
-    const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, account: n.account, region: n.region, likes: n.likes, reports: n.reports });
+    const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, account: n.account, region: n.region, likes: n.likes, reports: n.reports, source: n.source, device: n.device });
     const at = map.rows.get(id) ?? sheet.getLastRow() + 1;
     sheet.getRange(at, 1, 1, shown.length).setValues([shown]); // 숨김 칸(7)은 사람 몫 — 관리자 「숨기기」 일 때만 「관리자」 를 적는다(그땐 칸이 비어 있었다 — 숨은 쪽지는 숨길 수 없다)
     if (n.hiddenBy) sheet.getRange(at, 7, 1, 1).setValues([[n.hiddenBy]]);
     sheet.getRange(at, 8, 1, 1).setValues([[record]]);
+    sheet.getRange(1, 9, 1, 1).setValues([['출처']]);
+    sheet.getRange(at, 9, 1, 1).setValues([[n.source ?? '']]);
     map.rows.set(id, at);
   }
 }

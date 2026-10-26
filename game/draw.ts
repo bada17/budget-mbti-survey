@@ -405,10 +405,9 @@ export function confetti(scene: Scene, w: number, top: number, reduced: boolean,
 /**
  * 「이어칠하다」 등불 줄 — 후원주점판 마을 들머리(사용자 10-26 「폭죽 말고 이어칠하다 느낌」, 27주년 말장난: 27 + 이어).
  * 보이는 화면(left·top·w·h, 장면 좌표)에 전구 14+13개를 두 줄로 건다. 위에서 아래로 빛이 이어지고 작은 주점 간판이 내려앉는다.
- * 밤빛 덮개(60000·60001) 위. 한 번 켜지고 천천히 걷히며, 모든 그림·트윈은 같은 수명의 묶음에 둔다.
+ * 밤빛 덮개(60000·60001) 위. 광장에 계속 걸려 있고, 움직임 줄이기면 처음부터 켜진 모습으로 둔다.
  */
 export function stringLights(scene: Scene, left: number, top: number, w: number, h: number, dpr: number, reduced: boolean) {
-  if (reduced) return;
   const root = scene.add.container(left + w / 2, top + Math.min(h * 0.09, 64)).setDepth(60002).setName('pub-string-lights');
   const span = w - 48, step = 52, colors = [0xffd580, 0xffc064, 0xed9e7d, 0xffe4a3, 0xbad2ad];
   const wire = scene.add.graphics().lineStyle(1.7, 0x695340, 0.85);
@@ -427,7 +426,8 @@ export function stringLights(scene: Scene, left: number, top: number, w: number,
       const shine = scene.add.ellipse(-1, 8, 2, 4, 0xfffbeb, 0.9).setAlpha(0);
       const bulb = scene.add.container(p.x, p.y, [glow, scene.add.rectangle(0, 3, 4, 7, 0x695340), glass, shine]).setName('pub-bulb');
       root.add(bulb);
-      scene.tweens.add({ targets: [glow, glass, shine], alpha: 1, delay: index * step, duration: 260, ease: 'Sine.easeOut' });
+      if (reduced) [glow, glass, shine].forEach(bit => bit.setAlpha(1));
+      else scene.tweens.add({ targets: [glow, glass, shine], alpha: 1, delay: index * step, duration: 260, ease: 'Sine.easeOut' });
     }
   }
   const signW = Math.min(320, w - 72);
@@ -441,8 +441,8 @@ export function stringLights(scene: Scene, left: number, top: number, w: number,
   const number = scene.add.text(badgeX, 0, '27', { fontFamily: FONT, fontSize: '25px', color: '#fff6df', resolution: textRes(dpr) }).setOrigin(0.5);
   const title = scene.add.text(27, 0, '이어칠하다', { fontFamily: FONT, fontSize: `${Math.min(33, (signW - 86) / 5)}px`, color: '#654733', resolution: textRes(dpr) }).setOrigin(0.5);
   sign.add([board, badge, number, title]); root.add(sign);
-  scene.tweens.add({ targets: sign, alpha: 1, y: 82, delay: 27 * step + 80, duration: 420, ease: 'Sine.easeOut' });
-  scene.tweens.add({ targets: root, alpha: 0, delay: 4200, duration: 700, onComplete: () => root.destroy() });
+  if (reduced) sign.setAlpha(1).setY(82);
+  else scene.tweens.add({ targets: sign, alpha: 1, y: 82, delay: 27 * step + 80, duration: 420, ease: 'Sine.easeOut' });
 }
 
 // ── 방 ──
@@ -1293,7 +1293,9 @@ function noteBoard(scene: Scene, place: Place, dpr: number) {
   g.fillStyle(0x6d5444).fillRect(8, -40, 6, h + 40).fillRect(w - 14, -40, 6, h + 40);
   g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(-4, -60, w + 8, 12, 5);
   g.fillStyle(0xd8b48c).fillRoundedRect(0, -48, w, 44, 6);
-  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, -54, place.name, 11, dpr, '#ffffff')];
+  const feedback = place.id === 'board' && place.name !== '쪽지판';
+  if (feedback) g.fillStyle(PLACE_LOOK.board.roof).fillRoundedRect(-24, -82, w + 48, 34, 6);
+  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, feedback ? -65 : -54, feedback ? '게임에 대해\n한마디 남겨주세요' : place.name, 11, dpr, '#ffffff').setAlign('center')];
   if (cards) { // 문제 카드 — 큰 종이 한 장에 붉은 「!」
     g.fillStyle(0xfffaf0).fillRect(w / 2 - 22, -45, 44, 38).fillStyle(0xd9785f).fillRect(w / 2 - 22, -45, 44, 6);
     items.push(label(scene, w / 2, -21, '!', 20, dpr, '#d9785f'));

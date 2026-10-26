@@ -1,0 +1,43 @@
+{
+  "errors": [],
+  "requests": [
+    "http://127.0.0.1:5191/api/game/village/pub-notes"
+  ],
+  "checks": [
+    {
+      "hub": "시민센터에서 시민증과 발급 조건을 볼 수 있어요.▼\n\n다음"
+    },
+    {
+      "east": "지방정부 예산 — [자리 글]\n지방정부 곳간 — [자리 글]\n따져 볼 지방정부 — [자리 글]▼\n\n다음"
+    },
+    {
+      "west": "시민참여 상담소 — [자리 글]\n밑 빠진 독상 — [자리 글]▼\n\n둘러보기 마치기"
+    },
+    {
+      "persistent": true,
+      "alpha": 1,
+      "bulbs": 27
+    },
+    {
+      "citizen": "발급 전",
+      "condition": "도장 0/4 · 3개를 더 모으면 발급돼요",
+      "saveVisible": false
+    },
+    {
+      "limited": "10분에 한 번 남길 수 있어요. 10분 뒤에 다시 해 주세요.",
+      "durable": [
+        "budget-game-pub-feedback"
+      ],
+      "postCount": 1
+    },
+    {
+      "cuts": "강원춘천시\n2026년\n실시협약과 다르게 생태탐방로 조성사업 추진 부적정 등\n39.09억 원\n\n법령위반과다지출\n\n관련 기사 원문"
+    },
+    {
+      "initial": "함께하는 시민행동 · 예산 성향 게임\n함께해요\n시민의 숲\n출발"
+    },
+    {
+      "reducedLights": 1
+    }
+  ]
+}

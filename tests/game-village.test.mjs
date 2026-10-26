@@ -194,7 +194,7 @@ test('시트의 쪽지 탭: 사람이 읽는 칸, 숨김 칸에 적으면 숨고
   post('/village/here', { sessionId: 'session-aaaa', pick: [1, 1, 1, 1] }, now);
   const { id } = post('/village/notes', { key: KEY, sessionId: 'session-aaaa', name: '민지', pick: [1, 1, 1, 1], text: '반가워요', region: '1144000' }, now).body.note;
   const rows = book.sheets.get('쪽지').rows;
-  assert.deepEqual(rows[0], ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록']);
+  assert.deepEqual(rows[0], ['번호', '남긴 시각', '별명', '글', '나도', '신고', '숨김(사람이 적음)', '기록', '출처']);
   assert.deepEqual(rows[1].slice(0, 6), [id, new Date(now).toISOString(), "'민지", "'반가워요", 0, 0], "사람이 쓴 칸은 ' 를 붙여 글자로만");
   assert.equal(JSON.parse(rows[1][7]).region, '1144000', '쓴 사람의 동네는 기록 칸에');
   assert.equal(post(`/village/notes/${id}/like`, { sessionId: 'session-bbbb' }, now).body.likes, 1);

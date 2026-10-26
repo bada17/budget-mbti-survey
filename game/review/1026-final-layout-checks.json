@@ -1,0 +1,81 @@
+{
+  "errors": [],
+  "layouts": [
+    {
+      "width": 360,
+      "overflow": false,
+      "images": [
+        {
+          "src": "landing/hero-wide.jpg",
+          "ok": true,
+          "w": 1260,
+          "h": 480
+        },
+        {
+          "src": "landing/what-walk.jpg",
+          "ok": true,
+          "w": 640,
+          "h": 480
+        },
+        {
+          "src": "landing/what-money.jpg",
+          "ok": true,
+          "w": 848,
+          "h": 510
+        },
+        {
+          "src": "landing/what-cards.jpg",
+          "ok": true,
+          "w": 640,
+          "h": 800
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "overflow": false,
+      "images": [
+        {
+          "src": "landing/hero-wide.jpg",
+          "ok": true,
+          "w": 1260,
+          "h": 480
+        },
+        {
+          "src": "landing/what-walk.jpg",
+          "ok": true,
+          "w": 640,
+          "h": 480
+        },
+        {
+          "src": "landing/what-money.jpg",
+          "ok": true,
+          "w": 848,
+          "h": 510
+        },
+        {
+          "src": "landing/what-cards.jpg",
+          "ok": true,
+          "w": 640,
+          "h": 800
+        }
+      ]
+    }
+  ],
+  "rotate": {
+    "zoomBefore": 1.254355400696864,
+    "zoom": 1.6724738675958188,
+    "dpr": 2,
+    "ids": [
+      "finance",
+      "tax",
+      "cards"
+    ],
+    "scroll": 0
+  },
+  "cancel": {
+    "showing": false,
+    "paused": false
+  },
+  "normalBoard": true
+}

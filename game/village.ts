@@ -12,6 +12,7 @@
 */
 import type { Point } from './room';
 import { rng, nameFrom } from './look';
+import { PUB } from './pub';
 
 export type Box = { x: number; y: number; w: number; h: number };
 export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards' | 'arcade';
@@ -40,7 +41,7 @@ export const PLACES: Place[] = [
   { id: 'finance', name: '지방정부 예산', line: '우리 지역 지방정부의 한 해 예산을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 }, keeper: '유종웅' },
   // 지방정부 곳간 — 지방정부 예산 바로 동쪽 옆(10-20 사용자 「마을 곳간 위치를 지방정부 예산 옆에」, 전엔 윗줄 시민센터 옆 빈 터). 쓰나(예산) 옆에 오나(곳간). 판은 places.ts openTax.
   { id: 'tax', name: '지방정부 곳간', line: '우리 동네 살림 돈이 어디서 오는지 보여 줄게요.', box: { x: 1016, y: 500, w: 160, h: 96 }, door: { x: 1096, y: 618 } },
-  { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
+  { id: 'board', name: PUB ? '게임에 대해 한마디 남겨주세요' : '쪽지판', line: PUB ? '게임에 대해 한마디 남겨주세요' : '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 } },
   { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 }, keeper: '정남진' },
   // 마을 공사터 — 나무에서 주운 동전을 넣으면 모두의 동전이 모여 다리·정자가 선다(사용자 10-14 동물의 숲 ⓑ). 판은 places.ts openWorks.
   { id: 'works', name: '동전 모으는 곳', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 } },
@@ -57,7 +58,7 @@ export const PLACES: Place[] = [
 /** 문 앞 주민 이름 — 맡은 사람이 있으면 그 이름, 없으면 건물마다 정해진 순우리말 이름. 판의 이름표·말 상자·부탁 목록이 같이 쓴다. */
 export const keeperName = (id: PlaceId) => PLACES.find(p => p.id === id)?.keeper ?? nameFrom(`npc:${id}`);
 /** 건물 이름 — 화면 글은 이걸 쓴다(간판이 바뀌면 글도 같이). 숨겨 둔 건물이면 빈 글자. */
-export const placeName = (id: PlaceId) => PLACES.find(p => p.id === id)?.name ?? '';
+export const placeName = (id: PlaceId) => PUB && id === 'board' ? '게임에 대해 한마디 남겨주세요' : PLACES.find(p => p.id === id)?.name ?? '';
 
 export const POND: Box = { x: 740, y: 1210, w: 170, h: 100 };
 /**

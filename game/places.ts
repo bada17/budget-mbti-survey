@@ -16,6 +16,8 @@ import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile'
 import { PRIVACY_URL, CONTACT } from './contact';
 import type { PublicNote, VillageView, PublicCard, CardKind } from './api';
 import { gameStorage, isInspectionMode } from './storage';
+import { PUB } from './pub';
+import { loadCuts, findCuts, cutMoney, CUT_ARTICLE } from './cuts';
 
 const PB_URL = 'https://pb.action.or.kr/';
 const DOK_URL = 'https://dok.action.or.kr/';
@@ -45,11 +47,11 @@ const fetchJson = async <T>(url: string, ms?: number) => { const text = await fe
 export function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void) {
   const place = PLACES.find(p => p.id === id)!;
   const { panel, close } = panelShell(shell, onClose, '마을로');
-  const line = place.line;
+  const line = PUB && id === 'board' ? '게임에 대해 한마디 남겨주세요' : place.line;
   const npc = el('div', 'v-npc'), said = el('p', 'v-said');
   npc.append(avatar(lookFrom(`npc:${id}`)), el('span', 'g-name', keeperName(id)), said);
   npc.onclick = () => typeOut(said, line); // 다시 누르면 한 번 더 말한다
-  panel.append(el('h2', '', place.name), npc);
+  panel.append(el('h2', '', placeName(id)), npc);
   typeOut(said, line);
   return { panel, close };
 }
@@ -334,6 +336,42 @@ export type CardsOpts = {
 const dayLabel = (date: string) => { const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(date); return m ? `${Number(m[2])}월 ${Number(m[3])}일` : date; };
 const squash = (text: string) => text.replace(/\s/g, '');
 
+/** 따져 볼 지방정부 — 기사 메타데이터와 정적 교부세 감액 목록(본문 전재·반응 카드 없음). */
+export function openCuts(shell: HTMLElement, onClose: () => void) {
+  const { panel } = placePanel(shell, 'cards', onClose);
+  panel.classList.add('v-cuts');
+  panel.querySelector('.v-npc')?.remove(); // 기사부터 보인다. 활동가의 한 줄은 기사 아래에.
+  const article = link('', CUT_ARTICLE.url, 'v-cut-article');
+  article.append(el('h3', '', CUT_ARTICLE.title), el('span', '', CUT_ARTICLE.publisher + ' · ' + CUT_ARTICLE.date));
+  panel.append(article, el('p', 'v-cut-mission', '[자리 글] 아무도 눈여겨보지 않는 예산 문제를 시민행동이 짚고 고쳐 가는 이야기'));
+  const details = el('details', 'v-cut-more'), summary = el('summary', '', '다른 교부세 감액 확인하기');
+  const search = el('input', 'g-input'); search.type = 'search'; search.placeholder = '지역 이름·사업 이름으로 검색'; search.setAttribute('aria-label', '지역 이름·사업 이름으로 검색');
+  const source = el('p', 't-small', '자료를 불러오는 중…'), status = el('p', 't-small'), list = el('ol', 'v-cut-list');
+  status.setAttribute('role', 'status');
+  details.append(summary, source, search, status, list); panel.append(details);
+  void loadCuts().then(data => {
+    if (!panel.isConnected) return;
+    source.textContent = '출처: ' + data.source + ' · 자료 받은 날 ' + data.received + ' · 금액은 감액된 교부세예요.';
+    const mine = loadRegion();
+    let limit = 30;
+    const more = btn('g-ghost', '더 보기', () => { limit += 30; draw(); }); details.append(more);
+    const draw = () => {
+      const rows = findCuts(data, search.value, mine);
+      status.textContent = rows.length.toLocaleString('ko-KR') + '건' + (mine ? ' · 내 동네 먼저, 그다음 감액 큰 순' : ' · 감액 큰 순');
+      list.replaceChildren(...rows.slice(0, limit).map(row => {
+        const li = el('li', 'v-cut-row'), meta = el('div', 'v-cut-meta');
+        meta.append(el('b', '', row.name + (row.code === mine ? ' · 내 동네' : '')), el('span', '', row.year + '년'));
+        li.append(meta, el('h4', '', row.project), el('strong', 'v-cut-money', cutMoney(row.amount)), el('p', 't-small', row.reason));
+        if (row.link) li.append(link('관련 기사 원문', row.link, 'v-cut-link'));
+        return li;
+      }));
+      if (!rows.length) list.append(el('li', 't-small', '검색 결과가 없어요. 다른 지역이나 사업 이름으로 찾아보세요.'));
+      more.hidden = rows.length <= limit;
+    };
+    search.oninput = () => { limit = 30; draw(); }; draw();
+  }).catch(() => { source.textContent = '자료를 불러오지 못했어요. 다시 열어 주세요.'; });
+}
+
 export function openCards(shell: HTMLElement, opts: CardsOpts, onClose: () => void) {
   const { panel } = placePanel(shell, 'cards', onClose);
   const status = el('p', 't-small', '불러오는 중…'); status.setAttribute('role', 'status');
@@ -489,6 +527,7 @@ export type BoardOpts = NoteActions & {
   view?: VillageView;
   refresh(): Promise<VillageView | undefined>;
   online: boolean;
+  pub?: boolean;
   /** 쓰기는 로그인한 사람만(사용자 10-19) — 안 했으면 그 자리에 「로그인하면 쪽지를 남길 수 있어요」. */
   login: LoginOpts;
   /** 붙이기 — 됐나와 알릴 말, 됐으면 서버가 같이 돌려준 마을 모습(main 이 우리 동네 탭과 같이 쓴다). */
@@ -500,6 +539,10 @@ export type BoardOpts = NoteActions & {
 /** 쪽지판(10-19 살림) — 다녀간 사람들의 한 줄, 새것부터. 내 동네를 정한 사람의 쪽지는 우리 동네 탭 「동네 한마디」 에도 뜬다. */
 export function openBoard(shell: HTMLElement, opts: BoardOpts, onClose: () => void) {
   const { panel } = placePanel(shell, 'board', onClose);
+  if (opts.pub) {
+    panel.append(el('p', 't-small', '로그인 없이 남길 수 있어요. 10분에 한 번, 40자까지예요. 남긴 글은 모으기만 하고 공개하지 않아요.'), noteForm(opts.post));
+    return;
+  }
   if (!opts.online) { panel.append(el('p', 't-lead', '서버가 없는 시험판이라 쪽지판이 비어 있어요.')); return; }
   let view = opts.view;
   const list = el('div', 'v-notes');

@@ -16,7 +16,7 @@
 import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, rollBall, type Point } from '../room';
-import { PLACES, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
+import { PLACES, PLAZA, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
 import { textRes, Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, stringLights, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
@@ -85,6 +85,7 @@ export class VillageScene extends Phaser.Scene {
   private works?: WorksState;
   private pendingBuilt?: WorkId;
   private showing = false;
+  private guided?: { ids: PlaceId[]; arrive: () => void };
   /** 정자 평상에 앉아 있나(사용자 10-19 「쉴 수 있게」) — 움직이면 일어난다. */
   private sitting = false;
 
@@ -408,13 +409,18 @@ export class VillageScene extends Phaser.Scene {
     });
   }
 
-  relayout() { if (this.player) this.cameras.main.setZoom(this.runtime.view().dpr); }
+  relayout() {
+    if (!this.player) return;
+    if (this.guided) this.showPlaces(this.guided.ids, this.guided.arrive);
+    else this.cameras.main.setZoom(this.runtime.view().dpr);
+  }
 
   private marks = new Map<PlaceId, Phaser.GameObjects.Container>();
   /** 「!」 를 띄울 건물 — 지금은 새 문제 카드뿐([나중에 살림]), 쪽지판·문제 카드는 판 위. */
-  /** 「이어칠하다」 등불 줄 — 지금 보이는 화면 위쪽에(후원주점판, 마을에 들면). 카메라가 나를 비춘 뒤에 잰다. */
+  /** 「이어칠하다」 등불 줄 — 후원주점판 광장에 계속 걸어 둔다. 카메라 이동·회전에 따라 위치가 바뀌지 않는다. */
   celebrate() {
-    this.time.delayedCall(300, () => { const v = this.cameras.main.worldView; stringLights(this, v.x, v.y, v.width, v.height, this.runtime.view().dpr, this.reduced); });
+    if (this.children.getByName('pub-string-lights')) return;
+    stringLights(this, PLAZA.x - 180, PLAZA.y - 5, 360, 0, this.runtime.view().dpr, this.reduced);
   }
   setQuestMarks(places: PlaceId[]) {
     for (const [id, mark] of this.marks) if (!places.includes(id)) { mark.destroy(); this.marks.delete(id); }
@@ -466,6 +472,34 @@ export class VillageScene extends Phaser.Scene {
     this.showing = true;
     this.runtime.controls.clear(); this.goal = undefined; this.route = [];
     this.tour(place.door.x, place.door.y - 60, 2400);
+  }
+
+  /** 안내 한 곳의 건물들을 한눈에 담고, 읽는 동안 머문다. 다음 단추가 다음 시점을 연다. */
+  showPlaces(ids: PlaceId[], arrive: () => void) {
+    const places = PLACES.filter(p => ids.includes(p.id));
+    if (!places.length) return;
+    this.guided = { ids, arrive };
+    this.showing = true; this.setPaused(true);
+    const cam = this.cameras.main, { w, h, dpr } = this.runtime.view();
+    cam.stopFollow();
+    const left = Math.min(...places.map(p => p.box.x)) - 32, right = Math.max(...places.map(p => p.box.x + p.box.w)) + 60;
+    const top = Math.min(...places.map(p => p.box.y)) - 100, bottom = Math.max(...places.map(p => p.door.y)) + 24;
+    const scale = Math.min(1, w / (right - left), Math.max(180, h - 240) / (bottom - top));
+    cam.setZoom(dpr * scale);
+    // 말 상자는 화면 아래에 있으므로 건물의 중심을 윗부분에 둔다.
+    const x = (left + right) / 2, y = (top + bottom) / 2 + 105 / scale;
+    if (this.reduced) { cam.centerOn(x, y); arrive(); }
+    else cam.pan(x, y, 900, 'Sine.easeInOut', true, (_cam, t) => { if (t === 1) arrive(); });
+  }
+
+  endTour(instant = false) {
+    this.guided = undefined;
+    const cam = this.cameras.main;
+    cam.panEffect.reset();
+    cam.setZoom(this.runtime.view().dpr);
+    const finish = () => { cam.startFollow(this.player.root, true, 0.14, 0.14); this.showing = false; this.setPaused(false); };
+    if (this.reduced || instant) { cam.centerOn(this.pos.x, this.pos.y - 40); finish(); }
+    else cam.pan(this.pos.x, this.pos.y - 40, 800, 'Sine.easeInOut', true, (_cam, t) => { if (t === 1) finish(); });
   }
 
   /** 카메라가 (x, y)로 가서 hold 만큼 머물고 나에게 돌아온다 — 그동안 나는 멈춘다(showing). 닿으면 arrive. */

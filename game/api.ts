@@ -36,7 +36,7 @@ export type Finished = {
  * 쪽지 한 장. likes 는 누른 판(세션), reports 는 신고한 주민(계정 해시) — 각각 한 번. hidden 은 시트의 「숨김」 칸에서 온다(사람이 적거나, 관리자가 「숨기기」 — hiddenBy).
  * account = 쓴 주민(해시, 밖으로 안 낸다 — 하루 몇 장 셀 때만), region = 쓸 때 그 사람의 내 동네(우리 동네 탭의 「동네 한마디」). 옛 쪽지엔 sessionId 만 있다.
  */
-export type Note = { id: string; at: number; name: string; text: string; pick: Pick; sessionId?: string; account?: string; region?: Region; likes: string[]; reports: string[]; hidden?: boolean; hiddenBy?: string };
+export type Note = { source?: 'pub'; device?: string; id: string; at: number; name: string; text: string; pick: Pick; sessionId?: string; account?: string; region?: Region; likes: string[]; reports: string[]; hidden?: boolean; hiddenBy?: string };
 /** 방명록 한 줄 — 내 링크로 들어와 끝까지 걸은 사람. 동네·유형은 그 사람이 끝낸 답에서 서버가 만든다. */
 export type Visit = { sessionId: string; name: string; pick: Pick; type: TypeCode; town: string; at: number };
 /** 연락처 한 줄 — 동의 화면의 항목(주소, 내 이웃·유형 결과)만. 지역은 항목에 없어 받지 않는다. */
@@ -180,7 +180,7 @@ export function villageView(store: Store, now: number, exclude?: string) {
   for (const f of store.finished.values()) coins += f.coins ?? 0;
   return { people: residentRuns(store).length, crowd, notes, coins };
 }
-const shown = (note: Note) => !note.hidden && note.reports.length < REPORT_HIDE;
+const shown = (note: Note) => note.source !== 'pub' && !note.hidden && note.reports.length < REPORT_HIDE;
 const publicNote = ({ id, at, name, text, pick, likes }: Note) => ({ id, at, name, text, pick, likes: likes.length });
 
 function validAnswers(raw: unknown): Record<string, number> | undefined {
@@ -277,6 +277,19 @@ export function handle(store: Store, method: string, path: string, body: unknown
   if (parts[0] === 'village') {
     if (method === 'GET' && parts.length <= 2) return { status: 200, body: villageView(store, now, parts[1]) };
     if (method !== 'POST') return { status: 404, body: { error: 'not-found' } };
+    // 주점 글은 게임 기록·로그인 없이 받아 모으기만 한다. 공개 API에는 내지 않는다(shown).
+    if (path === '/village/pub-notes') {
+      const checked = checkNote(input.text);
+      if (typeof input.device !== 'string' || !/^[a-f0-9]{32}$/.test(input.device) || !checked.ok || !isPick(input.pick)) return { status: 400, body: { error: 'bad-note' } };
+      const mine = [...store.notes.values()].filter(n => n.source === 'pub' && n.device === input.device);
+      if (mine.some(n => now - n.at < NOTE_GAP_MS)) return { status: 429, body: { error: 'note-wait' } };
+      let id = '';
+      for (let tries = 0; tries < 5 && (!id || store.notes.has(id)); tries++) id = randomText(10, KEY_CHARS, random);
+      if (!id || store.notes.has(id)) return { status: 503, body: { error: 'busy' } };
+      const name = cleanName(input.name);
+      store.notes.set(id, { id, at: now, source: 'pub', device: input.device, name: rude(name) ? '' : name, text: checked.text, pick: input.pick, likes: [], reports: [] });
+      return { status: 201, body: { ok: true } };
+    }
     if (path === '/village/notes') {
       const found = byKey(store, input.key);
       if (!found) return { status: 403, body: { error: 'login' } };

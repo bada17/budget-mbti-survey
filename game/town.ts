@@ -454,7 +454,7 @@ function regionSection(data: HubData) {
 /** 한 줄 남기기 — 마을 쪽지판과 우리 동네의 동네 한마디가 같이 쓴다. 글 규칙은 village.ts checkNote(서버도 같은 규칙으로 다시 본다). 됐으면 done. */
 export function noteForm(post: (text: string) => Promise<{ ok: boolean; text: string }>, done?: () => void) {
   const form = el('form', 'v-write');
-  const input = el('input', 'g-input'); input.maxLength = NOTE_MAX; input.placeholder = `한 줄 남기기 (${NOTE_MAX}자까지)`; input.enterKeyHint = 'send';
+  const input = el('input', 'g-input'); input.maxLength = NOTE_MAX; input.placeholder = `한 줄 남기기 (${NOTE_MAX}자까지)`; input.enterKeyHint = 'send'; input.setAttribute('aria-label', '한 줄 남기기');
   input.title = '링크·연락처는 못 남겨요.';
   const send = el('button', 'g-primary', '남기기'); send.type = 'submit';
   const result = el('p', 't-small'); result.setAttribute('role', 'status');

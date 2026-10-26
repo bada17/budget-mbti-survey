@@ -23,18 +23,18 @@ const PAGE = {
   top: { logo: 'landing/logo.svg', line: '혼자 읽는 예산서 말고, 함께 걷는 우리 동네 살림' },
   // badge — 가오픈 표시(사용자 10-26 「마을은 단장 중, 가오픈 형식으로」). 정식 오픈 때 지운다(빈 글이면 안 그린다).
   // 이름은 위 띠 로고에 맡기고 핵심 문장 하나만 큰 제목으로(10-26 A안 — Claude 검토 ①).
-  hero: { badge: '가오픈 · 마을은 단장 중이에요', text: '우리 동네 살림, 같이 들여다볼 이웃을 찾아요', photo: 'landing/hero-wide.jpg' },
-  intro: { title: '시민의 숲은', text: '우리 동네 살림을 이웃과 함께 들여다보는 마을이에요. 걷기 게임에서 예산 고민을 먼저 해 보고, 마을에서는 우리 동네 예산부터 지방정부가 잘 보여 주지 않는 자료까지 함께 살펴봐요.' },
+  hero: { badge: '가오픈 · 마을은 아직 단장 중이에요', text: '우리 동네 살림, 같이 들여다봐요', photo: 'landing/hero-wide.jpg' },
+  intro: { title: '시민의 숲은', text: '우리 동네 살림을 이웃과 함께 들여다보는 마을이에요.\n우리 동네 예산부터 지방정부가 잘 보여 주지 않는 자료까지 함께 살펴봐요.' },
   // 칸마다 그림 꼴이 다르다(10-26 A안) — walk 걷기 장면 4:3 · budget 큰 자료판 8:5 · cards 세로 카드 4:5. shot 이 비면 글만.
   what: { title: '시민의 숲에서는 무엇을 하나요?', items: [
-    { title: '걸으며 고민해요', text: '둘 다 필요한데 하나만 골라야 한다면? 숲길에서 주민들의 바람을 듣고 열다섯 번 골라요. 다 걸으면 나의 예산 성향이 나와요.', feature: 'walk', shot: 'landing/what-walk.jpg', icon: '' },
+    { title: '걸으며 고민해요', text: '우리 동네에 둘 다 필요한데 하나만 골라야 한다면? 다 걸으면 나의 예산 성향을 확인할 수 있어요.', feature: 'walk', shot: 'landing/what-walk.jpg', icon: '' },
     { title: '우리 동네 살림을 펼쳐 봐요', text: `시·군·구를 고르면 우리 동네 돈이 어디서 와서 어디에 쓰이는지 보여요. ${placeName('tax')}과 ${placeName('finance')}에서 전국 243개 지방정부를 다 볼 수 있어요.`, feature: 'budget', shot: 'landing/what-money.jpg', icon: '' },
-    { title: '이웃과 함께 따져 봐요', text: `활동가가 고른 사례를 ${placeName('cards')}에서 함께 보고 내 생각을 남겨요. 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, feature: 'cards', shot: 'landing/what-cards.jpg', icon: '' }, // 마을의 그 게시판(진짜 이야기가 아직 0장이라 카드 대신 — 사용자 10-26 「게임 안에 있는 이미지」)
-  ], note: '가입 없이 바로 시작해요. 로그인하면 내 동네를 저장하고 다른 기기에서도 이어 할 수 있어요.' },
+    { title: '함께 따져 봐요', text: `${placeName('cards')}에서 우리 세금이 어떻게 쓰였는지 살펴봐요. 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, feature: 'cards', shot: 'landing/what-cards.jpg', icon: '' }, // 새 기사·감액 판의 실제 게임 화면(10-26)
+  ] },
   why: { title: '왜 만들었나요?', stories: [
     { title: '가장 가까운 돈인데, 가장 멀리 있어요', text: '놀이터, 마을버스, 동네 도서관, 감시 카메라 — 모두 동네 예산으로 만들어요. 우리 생활에 가장 가까운 돈인데, 어디에 얼마를 쓰는지 아는 사람은 드물어요. 보는 눈이 많아야 돈이 제대로 쓰여요.', photo: 'landing/why-1.jpg', caption: '이것도 구예산이에요!' }, // 사용자 사진1(10-26) — 마포구 이동식 무단투기 감시카메라, 밑 작은 글도 사용자
-    { title: '예산에는 정답이 없어요', text: '둘 다 필요한 것 중에 하나를 골라야 하는 게 예산이에요. 몇 번만 달리 골라도 답이 달라져요. 그래서 예산에는 많은 논쟁과 깊은 숙의가 필요해요. (물론 새는 돈은 있어요)', photo: '' },
-    { title: '멈칫한 순간을 함께 나눠요', text: '걷다 보면 몇 번이나 멈칫하게 될 거예요. 그 순간을 혼자 갖고 있으면 금세 잊혀요. 27년 동안 정부와 기업의 돈을 감시해 온 함께하는 시민행동이 그 고민을 이웃과 나눌 마을을 만들었어요.', photo: 'landing/why-3.webp' }, // 사용자 사진2(10-26) — 제40회 밑빠진 독상(한강 리버버스), 배경 지운 투명 그림(사용자 「항아리만」)
+    { title: '예산에는 정답이 없어요', text: '둘 다 필요한 것 중에 하나를 골라야 하는 게 예산이에요. 몇 번만 달리 골라도 답이 달라져요. 그래서 예산에는 많은 논쟁과 깊은 숙의가 필요해요. (물론 새는 돈은 있어요 🙂)', photo: '' },
+    { title: '멈칫한 순간을 함께 나눠요', text: '걷다 보면 몇 번이나 멈칫하게 될 거예요. 그 순간을 혼자 갖고 있으면 금세 잊혀요. 27년 동안 정부와 기업을 감시해 온 함께하는 시민행동이 그 고민을 함께 나눌 마을을 만들었어요.', photo: 'landing/why-3.webp' }, // 사용자 사진2(10-26) — 제40회 밑빠진 독상(한강 리버버스), 배경 지운 투명 그림(사용자 「항아리만」)
   ] },
   news: { title: '소식 받기', text: '시민의 숲과 함께하는 시민행동의 예산 감시 소식을 메일로 보내 드려요.' },
   play: '게임 하러 가기',
@@ -105,7 +105,6 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
     body.append(...words(item, 'h3'));
     row.append(...(item.shot ? [photo(item.shot, 'lp-feature-art')] : []), body);
     inner.append(row);
-    if (i === PAGE.what.items.length - 1) inner.append(el('p', 'lp-text lp-how-note', PAGE.what.note));
     return sec;
   });
 

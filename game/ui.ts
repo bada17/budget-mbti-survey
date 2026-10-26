@@ -15,7 +15,6 @@ import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
 import type { Stats } from './api';
 import type { Point } from './room';
 import { VILLAGE_NAME } from './village';
-import { PUB } from './pub';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
   const node = document.createElement(tag);
@@ -193,7 +192,6 @@ export function createUI(root: HTMLElement, actions: {
   const intro = el('section', 'g-intro');
   intro.innerHTML = `<div class="g-intro-card"><span class="g-kicker">함께하는 시민행동 · 예산 성향 게임</span>
     <h1>함께해요<br>시민의 숲</h1>
-    <p>주민 ${PUB ? '여섯' : '열다섯'} 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
     <ul class="g-notes"></ul>
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
     <button class="g-link g-home-open" type="button" hidden>걷지 않고 마을로 가기</button>
@@ -587,6 +585,7 @@ export function createUI(root: HTMLElement, actions: {
      */
     village(on: { phone(): void }) {
       shell.dataset.phase = 'village';
+      shell.scrollTop = 0;
       for (const node of [end, ask, door, hint, intro, caption, panel]) node.hidden = true;
       closeSheet(); bubbles.replaceChildren(); marks.replaceChildren(); replies.classList.remove('open');
       area.textContent = VILLAGE_NAME;
@@ -638,6 +637,7 @@ export function createUI(root: HTMLElement, actions: {
       if (even) row.classList.add('g-choices');
       box.append(talk, row);
       shell.append(box);
+      said.style.whiteSpace = 'pre-line';
       typeOut(said, text);
       live.textContent = who ? `${who}: ${text}` : text;
     },

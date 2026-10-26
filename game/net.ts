@@ -57,6 +57,7 @@ async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pr
 }
 
 export const net = {
+  pubNote: (input: { device: string; name: string; pick: Pick; text: string }) => call<{ ok: true }>('POST', '/village/pub-notes', input),
   /** 실제 서버에서 확인한 관리자만 점검을 연다. 그 뒤의 요청은 이 페이지 메모리에서만 처리한다. */
   startInspection: async (key: string) => {
     const resident = await call<{ save: Save; admin: boolean }>('POST', '/me', { key });
