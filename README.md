@@ -32,7 +32,7 @@ npm run build:gas     # 시트 서버 → server/gas/server.js (clasp push 전�
 **10-20 옛 「예산 성향 테스트」 설문(app·static·worker·db·Next)을 지우고 게임을 첫 주소로 옮겼다**(사용자 「지워버려. 저 도메인으로 쓰고 싶어」).
 - https://forest.action.or.kr/ — 게임. `game/public/CNAME` 이 같이 구워져 주소를 지킨다.
 - 옛 /game/ 은 `game/public/game/index.html` 이 첫 주소로 넘긴다(?·# 그대로 — 퍼진 친구 링크·홈페이지 링크).
-- 시트 서버는 **10-26 밤 버전 8**(창립행사 응원판 `/cheers`·폼 응답 읽기·주점 의견·사과 저장). 이번엔 Claude 가 `clasp -u action push` 뒤 `clasp -u action deploy -i <배포 번호> -d …` 로 새 버전까지 올렸다(막히지 않았다 — 막히면 아래처럼 사용자가 편집기에서). 공개판 gh-pages 57ff916.
+- 시트 서버는 **10-26 밤 버전 8**(창립행사 응원판 `/cheers`·폼 응답 읽기·주점 의견·사과 저장). 이번엔 Claude 가 `clasp -u action push` 뒤 `clasp -u action deploy -i <배포 번호> -d …` 로 새 버전까지 올렸다(막히지 않았다 — 막히면 아래처럼 사용자가 편집기에서). 공개판 gh-pages ffdf0d2(배너 삼색까지).
 - (그 전) **10-26 버전 7**(첫 주소 로그인·액세서리 넷 범위·테이블 걷음·GPT 서버 점검 — `clasp -u action push` 는 Claude, 「배포 관리 → 새 버전」 은 사용자. Claude Code 안전 장치가 실서비스 배포를 막아서). 카카오·구글 콘솔 리디렉션 URI 에 `https://forest.action.or.kr/` 더함(10-26 사용자).
 - `[정함]` **가오픈(10-26 사용자)** — 걷기는 다 됐고 마을은 단장 중이라 홈페이지에 가오픈으로 띄운다. 소개 페이지 첫 화면 제목 위에 「가오픈 · 마을은 단장 중이에요」(`landing.ts` `PAGE.hero.badge` — 정식 오픈 때 빈 글로). 링크로 바로 온 사람도 알게 게임 쪽에 둔다(홈페이지 띠에만 있으면 모른다). **가오픈 기록은 정식 오픈 때도 그대로 둔다** — 지우면 먼저 온 사람이 시민증·동네를 잃는다.
 
