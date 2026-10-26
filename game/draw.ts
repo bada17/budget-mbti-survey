@@ -409,6 +409,8 @@ export function confetti(scene: Scene, w: number, top: number, reduced: boolean,
  */
 /** 후원주점판 광장 배너 두 줄(사용자 10-26 「함께하는 시민행동 27주년 창립행사, 이어칠하다 로 주점판 배너 변경」). */
 export const PUB_BANNER = ['함께하는 시민행동 27주년 창립행사,', '이어칠하다'] as const;
+/** 후원주점 삼색(행사 페이지·인쇄물의 삼색 붓 띠 — fundraising-pub-page globals.css --acid·--orange·--blue). 사용자 10-26 「후원주점 색 3개로 칠해」. */
+export const PUB_COLORS = [0xddeb66, 0xf4a183, 0x385be8] as const;
 export function stringLights(scene: Scene, left: number, top: number, w: number, h: number, dpr: number, reduced: boolean) {
   const root = scene.add.container(left + w / 2, top + Math.min(h * 0.09, 64)).setDepth(60002).setName('pub-string-lights');
   const span = w - 48, step = 52, colors = [0xffd580, 0xffc064, 0xed9e7d, 0xffe4a3, 0xbad2ad];
@@ -441,7 +443,13 @@ export function stringLights(scene: Scene, left: number, top: number, w: number,
     .lineStyle(1.5, 0xa77b54).strokeRoundedRect(-signW / 2, -42, signW, 84, 8);
   const lead = scene.add.text(0, -19, PUB_BANNER[0], { fontFamily: FONT, fontSize: `${Math.min(16, (signW - 24) / 18)}px`, color: '#8a5a3c', resolution: textRes(dpr) }).setOrigin(0.5);
   const title = scene.add.text(0, 14, PUB_BANNER[1], { fontFamily: FONT, fontSize: `${Math.min(33, (signW - 40) / 5)}px`, color: '#654733', resolution: textRes(dpr) }).setOrigin(0.5);
-  sign.add([board, lead, title]); root.add(sign);
+  // 삼색 — 판 위쪽 띠 + 「이어칠하다」 밑칠(글자를 칠하면 연두 위에서 안 읽혀 아래 절반만 붓칠처럼, 조금씩 기울여).
+  const band = scene.add.graphics(), third = signW / 3;
+  PUB_COLORS.forEach((color, i) => band.fillStyle(color).fillRoundedRect(-signW / 2 + i * third, -42, third, 8, { tl: i === 0 ? 8 : 0, tr: i === 2 ? 8 : 0, bl: 0, br: 0 }));
+  const stroke = title.width / 3;
+  const paint = PUB_COLORS.map((color, i) => scene.add.graphics().fillStyle(color, 0.9).fillRoundedRect(-stroke / 2 - 4, -8, stroke + 8, 16, 8)
+    .setPosition(-title.width / 2 + (i + 0.5) * stroke, 24).setAngle([-3, 2, -2][i]));
+  sign.add([board, band, ...paint, lead, title]); root.add(sign);
   if (reduced) sign.setAlpha(1).setY(82);
   else scene.tweens.add({ targets: sign, alpha: 1, y: 82, delay: 27 * step + 80, duration: 420, ease: 'Sine.easeOut' });
 }
