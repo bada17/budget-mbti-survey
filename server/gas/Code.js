@@ -4,14 +4,14 @@
   쓰는 요청은 한 번에 하나씩(LockService) — 두 사람이 같은 줄을 동시에 고치지 않게.
 */
 function doGet(e) {
-  return reply_(GameServer.serve('GET', e, book_()));
+  return reply_(GameServer.serve('GET', e, book_(), Date.now(), undefined, cheerRows_));
 }
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return reply_({ status: 503, body: { error: 'busy' } });
   try {
-    return reply_(GameServer.serve('POST', e, book_(), Date.now(), deps_()));
+    return reply_(GameServer.serve('POST', e, book_(), Date.now(), deps_(), cheerRows_));
   } finally {
     lock.releaseLock();
   }
@@ -71,6 +71,24 @@ function deps_() {
       return true;
     },
   };
+}
+
+/**
+ * 창립행사 응원 폼(후원주점 행사 페이지)의 응답 시트 — 스크립트 속성 또는 Secret.js 의 CHEER_SHEET_ID(시트 주소 /d/ 와 /edit 사이).
+ * 폼·시트는 사용자 개인 계정 것이라, 이 웹 앱을 배포한 계정에 시트 「보기」 공유가 있어야 열린다. 못 열면 빈 칸 — 응원판엔 바로 적은 응원만 보인다.
+ * 시트 번호를 여기 적지 않는 건 이 저장소가 공개라서(열 권한은 없어도 비공개 시트 주소를 내놓지 않는다).
+ */
+function cheerRows_() {
+  var id = PropertiesService.getScriptProperties().getProperty('CHEER_SHEET_ID') || (typeof SECRET_ !== 'undefined' && SECRET_.CHEER_SHEET_ID);
+  if (!id) return [];
+  try {
+    var sheets = SpreadsheetApp.openById(id).getSheets(); // 폼이 응답 탭을 몇 번째에 넣을지 몰라 — 폼이 붙은 탭을 찾는다
+    for (var i = 0; i < sheets.length; i++) if (sheets[i].getFormUrl()) return sheets[i].getDataRange().getValues();
+    return [];
+  } catch (err) {
+    console.warn('응원 폼 시트를 못 열었다: ' + err);
+    return [];
+  }
 }
 
 function book_() {

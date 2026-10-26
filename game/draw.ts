@@ -1165,6 +1165,7 @@ const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {
   works: { wall: 0xe8d6b5, roof: 0xb07a52 }, // 공사터는 house 로 안 그린다(worksArt) — 자리만
   board: { wall: 0xd8b48c, roof: 0x9a7356 },
   cards: { wall: 0xd8b48c, roof: 0xd9785f },
+  cheer: { wall: 0xd8b48c, roof: 0xd9785f }, // 창립행사 응원판 — 후원주점판에만(겉모습은 GPT)
   arcade: { wall: 0xe9d8f0, roof: 0x8a6fb3 }, // 겉모습은 GPT 가 다듬는다(10-17 Claude 임시)
 };
 
@@ -1293,9 +1294,10 @@ function noteBoard(scene: Scene, place: Place, dpr: number) {
   g.fillStyle(0x6d5444).fillRect(8, -40, 6, h + 40).fillRect(w - 14, -40, 6, h + 40);
   g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(-4, -60, w + 8, 12, 5);
   g.fillStyle(0xd8b48c).fillRoundedRect(0, -48, w, 44, 6);
-  const feedback = place.id === 'board' && place.name !== '쪽지판';
-  if (feedback) g.fillStyle(PLACE_LOOK.board.roof).fillRoundedRect(-24, -82, w + 48, 34, 6);
-  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, feedback ? -65 : -54, feedback ? '게임에 대해\n한마디 남겨주세요' : place.name, 11, dpr, '#ffffff').setAlign('center')];
+  // 두 줄 간판 — 후원주점판의 쪽지판(게임 의견)과 창립행사 응원판
+  const sign = place.id === 'cheer' ? '창립행사\n응원판' : place.id === 'board' && place.name !== '쪽지판' ? '게임에 대해\n한마디 남겨주세요' : '';
+  if (sign) g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(-24, -82, w + 48, 34, 6);
+  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, sign ? -65 : -54, sign || place.name, 11, dpr, '#ffffff').setAlign('center')];
   if (cards) { // 문제 카드 — 큰 종이 한 장에 붉은 「!」
     g.fillStyle(0xfffaf0).fillRect(w / 2 - 22, -45, 44, 38).fillStyle(0xd9785f).fillRect(w / 2 - 22, -45, 44, 6);
     items.push(label(scene, w / 2, -21, '!', 20, dpr, '#d9785f'));
@@ -1438,7 +1440,7 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
   for (const place of PLACES) {
     const { x, y, w, h } = place.box, b = { x0: x - 24, x1: x + w + 36, y0: y - 92, y1: y + h + 12 };
     if (place.id === 'works') continue; // 공사터는 동전이 모이는 대로 바뀐다 — 아래 worksArt
-    const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' || place.id === 'cards' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
+    const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' || place.id === 'cards' || place.id === 'cheer' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
     keep(bake(scene, `village-${place.id}`, make, b, sharp).setDepth(y + h), b);
     if (place.id === 'dok') {
       const drop = scene.add.circle(x + DOK_DRIP.x, y + h + DOK_DRIP.y, 2.2, 0x9fd3e6).setDepth(y + h + 1);

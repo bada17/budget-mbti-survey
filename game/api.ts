@@ -26,6 +26,7 @@ import { validPayload, type ContactPayload } from './contact';
 import { isPick, DEFAULT_PICK, type Pick } from './look';
 import { cleanTag, type Source } from './source';
 import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW, CROWD_DAYS_MS, COIN_DAY_MAX } from './village';
+import { isCheerProject, CHEER_MAX, CHEER_GAP_MS, CHEERS_SHOW, type CheerProject, type PublicCheer } from './cheer';
 
 export type Finished = {
   answers: Record<string, number>; type: TypeCode; at: number; pick?: Pick; /** 마을에 마지막으로 들른 시각 */ seenAt?: number;
@@ -35,8 +36,9 @@ export type Finished = {
 /**
  * 쪽지 한 장. likes 는 누른 판(세션), reports 는 신고한 주민(계정 해시) — 각각 한 번. hidden 은 시트의 「숨김」 칸에서 온다(사람이 적거나, 관리자가 「숨기기」 — hiddenBy).
  * account = 쓴 주민(해시, 밖으로 안 낸다 — 하루 몇 장 셀 때만), region = 쓸 때 그 사람의 내 동네(우리 동네 탭의 「동네 한마디」). 옛 쪽지엔 sessionId 만 있다.
+ * source — 없으면 마을 쪽지, pub = 후원주점판 게임 의견(모으기만), cheer = 창립행사 응원판에 바로 적은 응원(project 와 함께, cheer.ts).
  */
-export type Note = { source?: 'pub'; device?: string; id: string; at: number; name: string; text: string; pick: Pick; sessionId?: string; account?: string; region?: Region; likes: string[]; reports: string[]; hidden?: boolean; hiddenBy?: string };
+export type Note = { source?: 'pub' | 'cheer'; project?: CheerProject; device?: string; id: string; at: number; name: string; text: string; pick: Pick; sessionId?: string; account?: string; region?: Region; likes: string[]; reports: string[]; hidden?: boolean; hiddenBy?: string };
 /** 방명록 한 줄 — 내 링크로 들어와 끝까지 걸은 사람. 동네·유형은 그 사람이 끝낸 답에서 서버가 만든다. */
 export type Visit = { sessionId: string; name: string; pick: Pick; type: TypeCode; town: string; at: number };
 /** 연락처 한 줄 — 동의 화면의 항목(주소, 내 이웃·유형 결과)만. 지역은 항목에 없어 받지 않는다. */
@@ -67,6 +69,8 @@ export type Store = {
   notes: Map<string, Note>;
   /** 문제 카드 — 번호 → 카드(시트 「문제 카드」 탭). */
   cards: Map<string, Card>;
+  /** 창립행사 응원 폼 응답 — 읽기만(server/gas.ts readFormCheers). 개발 서버엔 없다(빈 칸). */
+  formCheers: PublicCheer[];
 };
 /** admin = 로그인 때 서버가 확인된 이메일로 가린 관리자(isAdmin) — 이메일은 안 남기고 이 표시만. 쪽지 숨기기를 열쇠로 다시 확인한다. */
 export type Resident = { key: string; save: Save; at: number; admin?: true };
@@ -91,7 +95,7 @@ const ID = /^[A-Za-z0-9-]{8,64}$/;
 const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
 const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
-export const createStore = (): Store => ({ finished: new Map(), homes: new Map(), books: new Map(), contacts: [], hits: [], residents: new Map(), notes: new Map(), cards: new Map() });
+export const createStore = (): Store => ({ finished: new Map(), homes: new Map(), books: new Map(), contacts: [], hits: [], residents: new Map(), notes: new Map(), cards: new Map(), formCheers: [] });
 /**
  * 관리자 — 로그인으로 확인된 이메일이 단체 주소(@action.or.kr)이거나 따로 적은 메일(extra, 쉼표로)이면(사용자 10-15 「@action.or.kr 메일은 다 관리자로 하고 내 개인 계정도」).
  * 따로 적는 메일은 공개 저장소에 두지 않는다 — 앱스 스크립트 속성 또는 깃 무시 Secret.js 의 ADMIN_EMAILS.
@@ -180,7 +184,13 @@ export function villageView(store: Store, now: number, exclude?: string) {
   for (const f of store.finished.values()) coins += f.coins ?? 0;
   return { people: residentRuns(store).length, crowd, notes, coins };
 }
-const shown = (note: Note) => note.source !== 'pub' && !note.hidden && note.reports.length < REPORT_HIDE;
+const shown = (note: Note) => !note.source && !note.hidden && note.reports.length < REPORT_HIDE; // 주점 의견·응원은 마을 쪽지판에 안 섞는다
+/** 창립행사 응원판 — 바로 적은 응원(숨김 칸 빈 것)과 폼 응원을 새것부터. 신고·나도는 없다(로그인 없는 판) — 숨기기는 시트에서. */
+export function cheerView(store: Store) {
+  const here = [...store.notes.values()].filter(n => n.source === 'cheer' && !n.hidden && isCheerProject(n.project))
+    .map(({ id, at, name, pick, project, text }): PublicCheer => ({ id, at, name, pick, project: project!, text }));
+  return { cheers: [...here, ...store.formCheers].sort((x, y) => y.at - x.at).slice(0, CHEERS_SHOW) };
+}
 const publicNote = ({ id, at, name, text, pick, likes }: Note) => ({ id, at, name, text, pick, likes: likes.length });
 
 function validAnswers(raw: unknown): Record<string, number> | undefined {
@@ -350,6 +360,21 @@ export function handle(store: Store, method: string, path: string, body: unknown
       return { status: 200, body: { likes: store.notes.get(note.id)!.likes.length } };
     }
     return { status: 404, body: { error: 'not-found' } };
+  }
+
+  // ── 창립행사 응원판(후원주점판) — 보기·쓰기 모두 로그인 없이. 기기 번호는 주점 의견과 같은 것(pub-feedback.ts). ──
+  if (method === 'GET' && path === '/cheers') return { status: 200, body: cheerView(store) };
+  if (method === 'POST' && path === '/cheers') {
+    const checked = checkNote(input.text, CHEER_MAX);
+    if (typeof input.device !== 'string' || !/^[a-f0-9]{32}$/.test(input.device) || !isCheerProject(input.project) || !isPick(input.pick)) return { status: 400, body: { error: 'bad-cheer' } };
+    if (!checked.ok) return { status: 400, body: { error: 'bad-cheer', why: checked.why } };
+    if ([...store.notes.values()].some(n => n.source === 'cheer' && n.device === input.device && now - n.at < CHEER_GAP_MS)) return { status: 429, body: { error: 'note-wait' } };
+    let id = '';
+    for (let tries = 0; tries < 5 && (!id || store.notes.has(id)); tries++) id = randomText(10, KEY_CHARS, random);
+    if (!id || store.notes.has(id)) return { status: 503, body: { error: 'busy' } };
+    const name = cleanName(input.name);
+    store.notes.set(id, { id, at: now, source: 'cheer', project: input.project, device: input.device, name: rude(name) ? '' : name, text: checked.text, pick: input.pick, likes: [], reports: [] });
+    return { status: 201, body: cheerView(store) };
   }
 
   // ── 문제 카드 — 보이기 한 것만, 새것부터. 반응 수는 반응한 뒤에 화면이 보인다(먼저 보이면 끌려간다). ──

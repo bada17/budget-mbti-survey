@@ -15,7 +15,7 @@ import { rng, nameFrom } from './look';
 import { PUB } from './pub';
 
 export type Box = { x: number; y: number; w: number; h: number };
-export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards' | 'arcade';
+export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards' | 'arcade' | 'cheer';
 /**
  * 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다).
  * keeper 는 문 앞 주민의 이름 — 시민행동 사람이 맡은 건물은 그 사람 이름(사용자 10-15), 없으면 순우리말 이름(keeperName).
@@ -53,6 +53,9 @@ export const PLACES: Place[] = [
   // 예산 오락실 — 사는 집이 아니라 들어가서 짧은 예산 놀이를 하는 집(사용자 10-17 「게임을 하는 집」). 동서 큰길을 따라 동쪽 끝. 판은 arcade.ts.
   // ⚠️ 이 자리(1080,640)는 10-20 부터 지방정부 곳간 길이 지나간다 — 살릴 땐 자리를 새로 잡는다.
   // { id: 'arcade', name: '예산 오락실', line: '한 판에 30초, 예산 놀이 셋이 있어요.', box: { x: 1080, y: 640, w: 180, h: 96 }, door: { x: 1170, y: 758 } },
+  // 창립행사 응원판 — 후원주점판에만(사용자 10-26 「글 남기는 곳 만들어줘. 새로 판 세워서」). 처음엔 광장 오른쪽(정류장 길 동쪽)에 세웠다가
+  // 사용자가 「시민참여 상담소로 가는 길에」 로 옮김 — 동서 큰길 위, 광장 왼쪽 가로등(370,760) 바로 왼쪽(가로등과 안 겹치게). 쪽지판(게임 의견)은 그대로. 규칙 cheer.ts, 판 cheer-board.ts.
+  ...(PUB ? [{ id: 'cheer' as const, name: '창립행사 응원판', line: '세 사업 중 하나를 골라 응원 한마디 남겨 주세요.', box: { x: 266, y: 712, w: 92, h: 22 }, door: { x: 312, y: 758 } }] : []),
 ];
 
 /** 문 앞 주민 이름 — 맡은 사람이 있으면 그 이름, 없으면 건물마다 정해진 순우리말 이름. 판의 이름표·말 상자·부탁 목록이 같이 쓴다. */
@@ -233,12 +236,12 @@ const compact = (text: string) => text.toLowerCase().replace(/[^가-힣ㄱ-ㅎ�
 export const rude = (text: string) => { const c = compact(text); return BLOCKED_WORDS.some(word => c.includes(word)); };
 
 export type NoteCheck = { ok: true; text: string } | { ok: false; why: 'short' | 'long' | 'link' | 'word' };
-/** 쪽지 글 다듬기 + 검사. 링크·연락처·숫자 줄은 막는다(광고와 개인정보), 거친 말도. */
-export function checkNote(raw: unknown): NoteCheck {
+/** 쪽지 글 다듬기 + 검사. 링크·연락처·숫자 줄은 막는다(광고와 개인정보), 거친 말도. max 는 창립행사 응원(cheer.ts CHEER_MAX)이 늘려 쓴다. */
+export function checkNote(raw: unknown, max = NOTE_MAX): NoteCheck {
   const text = typeof raw === 'string' ? raw.replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim() : '';
   const length = [...text].length;
   if (length < 2) return { ok: false, why: 'short' };
-  if (length > NOTE_MAX) return { ok: false, why: 'long' };
+  if (length > max) return { ok: false, why: 'long' };
   if (LINKISH.test(text) || PHONEISH.test(text)) return { ok: false, why: 'link' };
   if (rude(text)) return { ok: false, why: 'word' };
   return { ok: true, text };

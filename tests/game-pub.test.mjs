@@ -31,3 +31,19 @@ test('후원주점판 — 여섯 문항 답하면 언덕에 닿고, 고른 쪽�
     assert.equal(state.result, code);
   }
 });
+
+test('후원주점판 — 상담소 가는 길의 창립행사 응원판은 문이 트여 있고, 다른 문과 떨어져 있고, 광장·남쪽 문에서 걸어서 닿는다', async () => {
+  const { PLACES, SPAWN, blocked, placeAt, findPath, walkVillage } = await import('../game/village.ts');
+  const cheer = PLACES.find(p => p.id === 'cheer');
+  assert.ok(cheer, '주점판에만 선다');
+  assert.equal(blocked(cheer.door), false);
+  assert.equal(placeAt(cheer.door, 24)?.id, 'cheer');
+  for (const other of PLACES) if (other !== cheer) assert.ok(Math.hypot(other.door.x - cheer.door.x, other.door.y - cheer.door.y) > 60, other.name);
+  for (const from of [SPAWN.plaza, SPAWN.gate]) {
+    let p = { ...from };
+    for (const spot of findPath(from, cheer.door)) for (let i = 0; i < 400 && Math.hypot(spot.x - p.x, spot.y - p.y) > 0.5; i++) {
+      p = walkVillage(p, { x: spot.x - p.x, y: spot.y - p.y }, Math.min(4, Math.hypot(spot.x - p.x, spot.y - p.y)));
+    }
+    assert.ok(Math.hypot(p.x - cheer.door.x, p.y - cheer.door.y) < 3, JSON.stringify(p));
+  }
+});

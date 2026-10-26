@@ -7,7 +7,8 @@
   · 연락처: 사람이 읽는 칸으로 한 줄씩 덧붙이기만(읽어 들이지 않는다 — 게임이 연락처를 읽을 일이 없다).
   · 주민(로그인, 10-14): 계정(회원번호를 소금 친 해시로) | {열쇠, 기록 묶음} | 고친 시각.
   · 쪽지(마을, 기획 4차): 사람이 읽는 칸 + 「숨김」 칸 + 기록(JSON). **숨김 칸에 무엇이든 적으면 그 쪽지는 바로 안 보인다** — 지우는 사람이 시트에서 하는 일.
-    서버는 숨김 칸을 읽기만 하고 쓰지 않는다(사람이 적는 사이 요청이 와도 지워지지 않게).
+    서버는 숨김 칸을 읽기만 하고 쓰지 않는다(사람이 적는 사이 요청이 와도 지워지지 않게). 창립행사 응원판에 바로 적은 응원도 여기(출처 cheer).
+  · 창립행사 응원 폼 응답(다른 스프레드시트, 사용자 개인 계정 — 이 스크립트 계정에 보기 권한만): Code.js cheerRows_ 가 읽어 넘긴다(readFormCheers).
 
   로그인 확인(verifyLogin) — 카카오는 받은 code 를 토큰으로 바꿔 회원번호를 묻고, 구글은 id_token 을 tokeninfo 로 확인한다.
   바깥에 묻는 건 Code.js 가 넣어 주는 deps(UrlFetchApp·스크립트 속성·해시·난수)로만 — 시험에서는 가짜로 바꿔 끼운다.
@@ -19,6 +20,8 @@
 import { handle, login, isAdmin, BODY_MAX, type Store, type Hit, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
 import { TYPES } from '../game/content';
 import { validPayload } from '../game/contact';
+import { checkNote } from '../game/village';
+import { CHEER_PROJECTS, CHEER_MAX, type CheerProject, type PublicCheer } from '../game/cheer';
 
 /** 쓰는 곳(set)을 기억하는 Map — 시트에는 이것만 다시 쓴다. */
 class Tracked<V> extends Map<string, V> {
@@ -81,7 +84,7 @@ function readNotes(sheet: Sheet) {
   sheet.getRange(2, 1, last - 1, NOTE_HEAD.length).getValues().forEach((row, i) => {
     try {
       const [id, , name, text, , , hide, json] = row;
-      const rest = JSON.parse(String(json)) as Pick<Note, 'at' | 'pick' | 'sessionId' | 'account' | 'region' | 'likes' | 'reports' | 'source' | 'device'>;
+      const rest = JSON.parse(String(json)) as Pick<Note, 'at' | 'pick' | 'sessionId' | 'account' | 'region' | 'likes' | 'reports' | 'source' | 'device' | 'project'>;
       if (id) map.load(String(id), { ...rest, id: String(id), name: String(name ?? ''), text: String(text ?? ''), hidden: String(hide ?? '').trim() !== '' }, i + 2);
     } catch { /* 사람이 손으로 망친 줄은 건너뛴다 */ }
   });
@@ -91,7 +94,7 @@ function writeNotes(sheet: Sheet, map: Tracked<Note>) {
   for (const id of map.dirty) {
     const n = map.get(id)!;
     const shown = [n.id, new Date(n.at).toISOString(), plain(n.name), plain(n.text), n.likes.length, n.reports.length];
-    const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, account: n.account, region: n.region, likes: n.likes, reports: n.reports, source: n.source, device: n.device });
+    const record = JSON.stringify({ at: n.at, pick: n.pick, sessionId: n.sessionId, account: n.account, region: n.region, likes: n.likes, reports: n.reports, source: n.source, device: n.device, project: n.project });
     const at = map.rows.get(id) ?? sheet.getLastRow() + 1;
     sheet.getRange(at, 1, 1, shown.length).setValues([shown]); // 숨김 칸(7)은 사람 몫 — 관리자 「숨기기」 일 때만 「관리자」 를 적는다(그땐 칸이 비어 있었다 — 숨은 쪽지는 숨길 수 없다)
     if (n.hiddenBy) sheet.getRange(at, 7, 1, 1).setValues([[n.hiddenBy]]);
@@ -100,6 +103,25 @@ function writeNotes(sheet: Sheet, map: Tracked<Note>) {
     sheet.getRange(at, 9, 1, 1).setValues([[n.source ?? '']]);
     map.rows.set(id, at);
   }
+}
+
+/**
+ * 창립행사 응원 폼 응답 시트(getDataRange 그대로, 첫 줄 머리글) — 머리글로 칸을 찾는다: 「응원할 사업」, 「<사업>에 응원 한마디」 셋, 「숨김」(사람이 더한 칸).
+ * 폼은 300자까지만 받지만 링크·연락처·거친 말은 쪽지와 같은 규칙으로 거른다. 번호는 줄 번호 — 응답을 지우면 바뀌지만 이 판엔 나도·신고가 없어 상관없다.
+ */
+export function readFormCheers(rows: unknown[][]): PublicCheer[] {
+  const [head = [], ...body] = rows;
+  const col = (name: string) => head.findIndex(h => String(h ?? '').trim() === name);
+  const which = col('응원할 사업'), hide = col('숨김');
+  if (which < 0) return [];
+  const byName = new Map<string, CheerProject>(Object.entries(CHEER_PROJECTS).map(([id, name]) => [name, id as CheerProject]));
+  return body.flatMap((row, i) => {
+    const project = byName.get(String(row[which] ?? '').trim());
+    if (!project || (hide >= 0 && String(row[hide] ?? '').trim())) return [];
+    const checked = checkNote(row[col(`${CHEER_PROJECTS[project]}에 응원 한마디`)], CHEER_MAX);
+    const at = row[0] instanceof Date ? row[0].getTime() : Date.parse(String(row[0] ?? ''));
+    return checked.ok && Number.isFinite(at) ? [{ id: `f${i + 2}`, at, name: '', project, text: checked.text }] : [];
+  });
 }
 
 /**
@@ -225,8 +247,11 @@ export function accountOf(who: { provider: 'kakao' | 'google'; subject: string }
   return salt ? `${who.provider}:${deps.sha256(`${who.provider}:${who.subject}:${salt}`)}` : undefined;
 }
 
-/** 웹 앱 한 번 — doGet/doPost(Code.js)가 부른다. 쓰는 요청(POST)은 Code.js 가 잠금을 잡고 부른다. */
-export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now = Date.now(), deps?: Deps) {
+/**
+ * 웹 앱 한 번 — doGet/doPost(Code.js)가 부른다. 쓰는 요청(POST)은 Code.js 가 잠금을 잡고 부른다.
+ * cheerRows = 창립행사 응원 폼 응답 시트 읽기(Code.js cheerRows_) — 응원판 요청에서만 부른다(다른 스프레드시트라 열면 느리다).
+ */
+export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now = Date.now(), deps?: Deps, cheerRows?: () => unknown[][]) {
   const path = String(event.parameter?.p ?? '/');
   if (!path.startsWith('/')) return { status: 404, body: { error: 'not-found' } };
   const contents = event.postData?.contents ?? '';
@@ -268,6 +293,8 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   for (const name of Object.keys(read) as Lazy[]) {
     Object.defineProperty(store, name, { enumerable: true, get: () => (loaded[name] ??= read[name]() as never) });
   }
+  let formCheers: PublicCheer[] | undefined;
+  Object.defineProperty(store, 'formCheers', { enumerable: true, get: () => (formCheers ??= readFormCheers(cheerRows?.() ?? [])) });
   let result;
   if (method === 'POST' && path === '/login') {
     const who = deps ? verifyLogin((body ?? {}) as Record<string, unknown>, deps, now) : undefined;
