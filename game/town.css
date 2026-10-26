@@ -263,12 +263,14 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 
 
 /* 따져 볼 지방정부: 기사와 자료를 차분하게 나눠 읽는다. */
-.v-cut-article{display:block;margin:12px 0 20px;padding:24px 20px;border-block:2px solid var(--leaf-dark);color:var(--ink);text-decoration:none;background:#f1f3e7}
+.v-cut-article{display:block;margin:28px 0 8px;padding:24px 20px;border-block:2px solid var(--leaf-dark);color:var(--ink);text-decoration:none;background:#f1f3e7}
 .v-cut-article h3{margin:0 0 18px;font:800 26px/1.4 var(--body);letter-spacing:-.04em;word-break:keep-all}
 .v-cut-article span{font:500 13px/1.5 var(--body);color:var(--soft)}
 .v-cut-article:focus-visible,.v-cut-article:hover{background:#e8eedc}
-.v-cut-mission{margin:20px 0 28px;font:500 16px/1.7 var(--body)}
-.v-cut-next{margin:28px 0 0;padding-top:16px;border-top:1px solid var(--line)}
+/* 맨 앞 글 — 옛 기사 자리의 초록 바탕(사용자 10-26), 기사는 판 맨 아래로 */
+.v-cut-mission{margin:12px 0 24px;padding:22px 20px;border-block:2px solid var(--leaf-dark);background:#f1f3e7;font:500 17px/1.75 var(--body);word-break:keep-all}
+.v-cut-mission p{margin:0}.v-cut-mission p+p{margin-top:14px}
+.v-cut-next{margin:28px 0 0;padding-top:16px;border-top:1px solid var(--line);font:600 18px/1.6 var(--body);word-break:keep-all} /* 사용자 10-26 「글씨좀 크게」 */
 .v-cut-more summary{padding:16px 0;font:500 19px/1.4 var(--display);cursor:pointer}
 .v-cut-more>.g-input{width:100%;margin-top:12px}
 .v-cut-list{margin:0;padding:0;list-style:none}

@@ -407,6 +407,8 @@ export function confetti(scene: Scene, w: number, top: number, reduced: boolean,
  * 보이는 화면(left·top·w·h, 장면 좌표)에 전구 14+13개를 두 줄로 건다. 위에서 아래로 빛이 이어지고 작은 주점 간판이 내려앉는다.
  * 밤빛 덮개(60000·60001) 위. 광장에 계속 걸려 있고, 움직임 줄이기면 처음부터 켜진 모습으로 둔다.
  */
+/** 후원주점판 광장 배너 두 줄(사용자 10-26 「함께하는 시민행동 27주년 창립행사, 이어칠하다 로 주점판 배너 변경」). */
+export const PUB_BANNER = ['함께하는 시민행동 27주년 창립행사,', '이어칠하다'] as const;
 export function stringLights(scene: Scene, left: number, top: number, w: number, h: number, dpr: number, reduced: boolean) {
   const root = scene.add.container(left + w / 2, top + Math.min(h * 0.09, 64)).setDepth(60002).setName('pub-string-lights');
   const span = w - 48, step = 52, colors = [0xffd580, 0xffc064, 0xed9e7d, 0xffe4a3, 0xbad2ad];
@@ -433,14 +435,13 @@ export function stringLights(scene: Scene, left: number, top: number, w: number,
   const signW = Math.min(320, w - 72);
   wire.lineStyle(1.2, 0x8d7154).lineBetween(-signW * 0.32, 24, -signW * 0.32, 51).lineBetween(signW * 0.32, 24, signW * 0.32, 51);
   const sign = scene.add.container(0, 76).setAlpha(0).setName('pub-welcome');
-  const board = scene.add.graphics().fillStyle(0x513b2c, 0.12).fillRoundedRect(-signW / 2 + 2, -28, signW, 66, 9)
-    .fillStyle(0xfff4db).fillRoundedRect(-signW / 2, -32, signW, 64, 8)
-    .lineStyle(1.5, 0xa77b54).strokeRoundedRect(-signW / 2, -32, signW, 64, 8);
-  const badgeX = -signW / 2 + 36;
-  const badge = scene.add.circle(badgeX, 0, 22, 0xad503d);
-  const number = scene.add.text(badgeX, 0, '27', { fontFamily: FONT, fontSize: '25px', color: '#fff6df', resolution: textRes(dpr) }).setOrigin(0.5);
-  const title = scene.add.text(27, 0, '이어칠하다', { fontFamily: FONT, fontSize: `${Math.min(33, (signW - 86) / 5)}px`, color: '#654733', resolution: textRes(dpr) }).setOrigin(0.5);
-  sign.add([board, badge, number, title]); root.add(sign);
+  // 두 줄 — 「함께하는 시민행동 27주년 창립행사,」 + 「이어칠하다」(사용자 10-26 배너 글). 「27주년」 이 글에 들어가 옛 27 동그라미는 걷었다.
+  const board = scene.add.graphics().fillStyle(0x513b2c, 0.12).fillRoundedRect(-signW / 2 + 2, -38, signW, 86, 9)
+    .fillStyle(0xfff4db).fillRoundedRect(-signW / 2, -42, signW, 84, 8)
+    .lineStyle(1.5, 0xa77b54).strokeRoundedRect(-signW / 2, -42, signW, 84, 8);
+  const lead = scene.add.text(0, -19, PUB_BANNER[0], { fontFamily: FONT, fontSize: `${Math.min(16, (signW - 24) / 18)}px`, color: '#8a5a3c', resolution: textRes(dpr) }).setOrigin(0.5);
+  const title = scene.add.text(0, 14, PUB_BANNER[1], { fontFamily: FONT, fontSize: `${Math.min(33, (signW - 40) / 5)}px`, color: '#654733', resolution: textRes(dpr) }).setOrigin(0.5);
+  sign.add([board, lead, title]); root.add(sign);
   if (reduced) sign.setAlpha(1).setY(82);
   else scene.tweens.add({ targets: sign, alpha: 1, y: 82, delay: 27 * step + 80, duration: 420, ease: 'Sine.easeOut' });
 }
@@ -1122,7 +1123,7 @@ const FONT = '"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif';
  * (10-15 「상담소·독상 간판 한 글자가 볼드 처리가 안 된 듯」 — 「시민참여」 의 「참」. 전엔 「마을」 두 글자의 조각만 받았다).
  * 간판에 새 글자를 쓰면 여기에도 넣는다 — 개발판은 빠진 글자를 콘솔에 알린다(label).
  */
-export const CANVAS_TEXT = [...PLACES.map(p => p.name + [p.keeper ?? []].flat().join('')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! 이어칠하다 ? 0123456789·/'].join('');
+export const CANVAS_TEXT = [...PLACES.map(p => p.name + [p.keeper ?? []].flat().join('')), ...WORKS.map(w => w.name), VILLAGE_NAME, ...PUB_BANNER, '버스 작은 운동장 동전 다음 공사 준비 중 완성! 이어칠하다 ? 0123456789·/'].join('');
 /** 사람 이름표 — 발밑에 작게, 밝은 테두리를 둘러 바닥 위에서도 읽히게(문 앞을 맡은 시민행동 사람, 10-15). */
 export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: number) =>
   label(scene, x, y, text, 11, dpr, '#5b402e').setStroke('#fffaf0', 4).setDepth(y + 2);
