@@ -37,6 +37,7 @@ import { arrival } from './source';
 import { mountInspectionTools } from './inspection';
 import { PUB } from './pub';
 import { feedbackGate, feedbackSent } from './pub-feedback';
+import { openCheerBoard } from './cheer-board';
 
 const root = document.querySelector<HTMLElement>('#game-root')!;
 const params = new URLSearchParams(location.search);
@@ -575,6 +576,7 @@ function openPhone() {
     // { icon: '🕹️', name: '오락실', run: go('arcade') },
     app('🪪', 'hub'), app('💰', 'tax'), app('🏗️', 'works'), app('📌', 'board'),
     app('📢', 'cards'), // 10-20 살림
+    ...(PUB ? [app('📣', 'cheer')] : []), // 창립행사 응원판 — 후원주점판에만
     app('🚌', 'bus'),
   ]);
 }
@@ -654,6 +656,7 @@ function openPlace(id: PlaceId, tab?: 'region') {
     },
   }, done);
   else if (id === 'cards') openCuts(shell, done);
+  else if (id === 'cheer') openCheerBoard(shell, () => me, done);
   else openBoard(shell, {
     ...noteActions(), view: villageView, online, pub: PUB, login: loginOpts, post: text => postNote(text), me: () => me,
     refresh: async () => { const fresh = await net.village(who?.sessionId || undefined); if (fresh) showVillage(fresh); return fresh; },
