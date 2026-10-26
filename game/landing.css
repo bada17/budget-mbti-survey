@@ -15,6 +15,7 @@
 .lp-wrap { width:min(1120px,calc(100% - 48px)); margin-inline:auto }
 .lp-sec { padding-block:clamp(64px,8.5vw,112px) }
 .lp-title { margin:0; font-family:var(--body); font-weight:800; letter-spacing:-.045em; line-height:1.2; text-wrap:balance }
+.lp-badge { display:inline-block; margin:0 0 14px; padding:5px 12px; border:1px solid var(--lp-line); border-radius:999px; background:#fff; color:var(--lp-brand-deep); font-size:14px; font-weight:700 } /* 가오픈 표시(Claude 10-26, 모양은 GPT) */
 .lp-h1 { max-width:7em; font-size:clamp(40px,6vw,78px); font-weight:850; line-height:1.12; letter-spacing:-.055em }
 .lp-h2 { max-width:16em; margin-bottom:clamp(36px,5vw,64px); font-size:clamp(32px,4.6vw,58px); font-weight:850; line-height:1.16 }
 .lp-h3 { max-width:12.5em; margin-bottom:22px; font-size:clamp(28px,3.2vw,42px); line-height:1.24; letter-spacing:-.04em }

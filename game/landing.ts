@@ -21,7 +21,8 @@ type Words = { title: string; text: string };
 // 10-19 느낌 보기용 초안(사용자 「내용 대충 한 번 만들어봐, 느낌만 보게」) — 글은 Claude 초안, 그림은 게임 화면·action-landing 활동 사진. 정해지면 갈아 끼운다.
 const PAGE = {
   top: { logo: 'landing/logo.svg', line: '혼자 읽는 예산서 말고, 함께 걷는 우리 동네 살림' },
-  hero: { title: '함께해요 시민의 숲', text: '우리 동네 살림, 같이 들여다볼 이웃을 찾아요', photo: 'landing/hero.jpg' },
+  // badge — 가오픈 표시(사용자 10-26 「마을은 단장 중, 가오픈 형식으로」). 정식 오픈 때 지운다(빈 글이면 안 그린다).
+  hero: { badge: '가오픈 · 마을은 단장 중이에요', title: '함께해요 시민의 숲', text: '우리 동네 살림, 같이 들여다볼 이웃을 찾아요', photo: 'landing/hero.jpg' },
   intro: { title: '시민의 숲은', text: '우리 동네 살림을 이웃과 함께 들여다보는 마을이에요. 걷기 게임에서 예산 고민을 먼저 해 보고, 마을에서는 우리 동네 예산부터 지방정부가 잘 보여 주지 않는 자료까지 함께 살펴봐요.', photo: 'landing/intro.jpg' },
   what: { title: '시민의 숲에서는 무엇을 하나요?', items: [
     { title: '걸으며 고민해요', text: '둘 다 필요한데 하나만 골라야 한다면? 숲길에서 주민들의 바람을 듣고 열다섯 번 골라요. 다 걸으면 나의 예산 성향이 나와요.', shot: 'landing/phone-room.jpg', icon: '' },
@@ -85,7 +86,7 @@ export function openLanding(play: () => void, recall?: () => HTMLElement) {
   // ① 첫 화면
   const hero = el('header', 'lp-sec lp-hero');
   const heroIn = el('div', 'lp-wrap lp-hero-in'), heroWords = el('div', 'lp-hero-words lp-up');
-  heroWords.append(...words(PAGE.hero, 'h1'), go('lp-play'));
+  heroWords.append(...(PAGE.hero.badge ? [el('p', 'lp-badge', PAGE.hero.badge)] : []), ...words(PAGE.hero, 'h1'), go('lp-play'));
   if (recall) {
     const again = el('button', 'lp-recall', '전에 해 봤어요 — 내 시민증 불러오기'); again.type = 'button';
     again.onclick = () => again.replaceWith(recall());
