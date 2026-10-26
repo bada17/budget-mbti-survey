@@ -52,10 +52,12 @@ export const PATTERNS: { value: HairPattern; name: string }[] = [
   { value: 'solid', name: '전체 단색' }, { value: 'streak', name: '앞머리 한 줄' }, { value: 'mixed', name: '고루 섞기' }, { value: 'temples', name: '양옆만' },
 ];
 /** 머리 장식 — 하나만, 안경과는 같이 쓴다. 모자는 승인에서 뺐다. */
-export type Accessory = 'none' | 'headband' | 'hairpin' | 'ribbon' | 'scarf';
+export type Accessory = 'none' | 'headband' | 'hairpin' | 'ribbon' | 'scarf' | 'magnifier' | 'badge' | 'fieldBag' | 'clipboard';
 export const ACCESSORIES: { value: Accessory; name: string }[] = [
   { value: 'none', name: '없음' }, { value: 'headband', name: '머리띠' }, { value: 'hairpin', name: '머리핀' }, { value: 'ribbon', name: '작은 리본' },
   { value: 'scarf', name: '목도리' },
+  { value: 'magnifier', name: '돋보기' }, { value: 'badge', name: '시민행동 배지' },
+  { value: 'fieldBag', name: '현장 가방' }, { value: 'clipboard', name: '기록판' },
 ];
 export const GLASSES = ['없음', '둥근 안경'];
 
@@ -152,6 +154,8 @@ export function randomPick(random = Math.random, keep?: Pick): Required<Pick> {
 export const REWARDS: { name: string; slot: 7 | 8; value: number }[] = [
   { name: '머리핀', slot: 8, value: 2 }, { name: '머리띠', slot: 8, value: 1 }, { name: '작은 리본', slot: 8, value: 3 }, { name: '둥근 안경', slot: 7, value: 1 },
   { name: '목도리', slot: 8, value: 4 },
+  { name: '돋보기', slot: 8, value: 5 }, { name: '시민행동 배지', slot: 8, value: 6 },
+  { name: '현장 가방', slot: 8, value: 7 }, { name: '기록판', slot: 8, value: 8 },
 ];
 /** 받은 액세서리를 쓴 모습. */
 export function wearing(pick: Pick, reward: (typeof REWARDS)[number]): Required<Pick> {

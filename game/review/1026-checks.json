@@ -1,0 +1,136 @@
+{
+  "browser": "Chrome headless",
+  "layout": [
+    {
+      "normal": {
+        "width": 320,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "headerHeight": 88.9375,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      },
+      "stress": {
+        "width": 320,
+        "scrollWidth": 320,
+        "clientWidth": 320,
+        "headerHeight": 107.078125,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      }
+    },
+    {
+      "normal": {
+        "width": 360,
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "headerHeight": 88.9375,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      },
+      "stress": {
+        "width": 360,
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "headerHeight": 107.078125,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      }
+    },
+    {
+      "normal": {
+        "width": 760,
+        "scrollWidth": 760,
+        "clientWidth": 760,
+        "headerHeight": 84,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      },
+      "stress": {
+        "width": 760,
+        "scrollWidth": 760,
+        "clientWidth": 760,
+        "headerHeight": 84,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      }
+    },
+    {
+      "normal": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "headerHeight": 84,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      },
+      "stress": {
+        "width": 1280,
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "headerHeight": 84,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      }
+    },
+    {
+      "normal": {
+        "width": 1920,
+        "scrollWidth": 1920,
+        "clientWidth": 1920,
+        "headerHeight": 84,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      },
+      "stress": {
+        "width": 1920,
+        "scrollWidth": 1920,
+        "clientWidth": 1920,
+        "headerHeight": 84,
+        "h1Font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "h1Weight": "800",
+        "bodyFont": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "overflow": []
+      }
+    }
+  ],
+  "tools": [
+    {
+      "width": 360,
+      "samples": 32
+    },
+    {
+      "width": 1280,
+      "samples": 32
+    }
+  ],
+  "checks": [
+    "no how section",
+    "3 what + 3 why",
+    "long copy + empty photos + extra section",
+    "2 required unchecked consents; no form sent",
+    "bar hidden during news input",
+    "inline recall login opens",
+    "CTA starts actual journey",
+    "four directions + walking + sitting + baked art"
+  ],
+  "errors": []
+}

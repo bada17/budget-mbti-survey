@@ -193,6 +193,35 @@ function figure(scene: Scene, look: Look, bakeAt: number) {
     scarf.fillStyle(0xecc68e, 0.9).fillRoundedRect(-12, -32, 24, 2, 1);
     scarf.fillStyle(0xecc68e, 0.75).fillRoundedRect(5, -20, 6, 2, 1).fillRoundedRect(5, -14, 6, 2, 1);
   }
+  // 승인한 도구 넷(review/1020-options.ts). 몸통에 함께 구워 걷기·앉기·폴짝에도 같은 자리를 지킨다.
+  const gear = s.graphics();
+  if (look.accessory === 'magnifier') {
+    gear.lineStyle(6, 0x765b45).lineBetween(20, -23, 29, -10);
+    gear.fillStyle(0xc8e8ed).fillCircle(18, -30, 10);
+    gear.lineStyle(3, 0x557b7c).strokeCircle(18, -30, 10);
+    gear.lineStyle(2, 0xffffff).lineBetween(14, -34, 18, -37);
+    gear.fillStyle(skin).fillCircle(23, -18, 3.5);
+  }
+  if (look.accessory === 'badge') {
+    gear.fillStyle(0x008ebd).fillTriangle(2, -18, 7, -18, 2, -9).fillTriangle(6, -18, 11, -18, 12, -9);
+    gear.fillStyle(0xfffcf3).fillCircle(7, -23, 7);
+    gear.fillStyle(0x00afec).fillCircle(7, -23, 5.5);
+    gear.fillStyle(0xfffcf3).fillCircle(7, -23, 2);
+  }
+  if (look.accessory === 'fieldBag') {
+    gear.lineStyle(3, 0x8c6650).lineBetween(-10, -29, 12, -9);
+    gear.fillStyle(0x9b7156).fillRoundedRect(5, -19, 19, 17, 4);
+    gear.fillStyle(0xe8c790).fillRoundedRect(6, -20, 19, 9, 3);
+    gear.fillStyle(0x6d5746).fillRoundedRect(13, -13, 4, 4, 1);
+  }
+  if (look.accessory === 'clipboard') {
+    gear.fillStyle(0xa87e56).fillRoundedRect(12, -31, 18, 25, 2);
+    gear.fillStyle(0xfffcf3).fillRoundedRect(14, -28, 14, 19, 1);
+    gear.fillStyle(0x708b86).fillRoundedRect(17, -33, 8, 6, 2);
+    gear.lineStyle(2.2, 0x638b61).beginPath().moveTo(17, -19).lineTo(20, -16).lineTo(25, -22).strokePath();
+    gear.lineStyle(1.3, 0xb7c7c1).lineBetween(17, -12, 25, -12);
+    gear.fillStyle(skin).fillCircle(13, -16, 3.5);
+  }
   // 안 움직이는 덩어리(뒷머리 · 몸통~얼굴 · 다리 하나 · 팔 하나)를 마을 그림처럼 한 장씩 굽는다(bake) — 도형이 사람마다 스무 개 넘고
   // Graphics 는 장마다 다시 쪼개 그려서, 주민이 열 명 넘게 서면 느린 폰(CPU 4배)에서 초당 16~24장까지 떨어졌다(10-19, 마지막 방·언덕).
   // 그릇(container)째 구워 그릇의 자리·각도는 그대로 — 걷기(다리)·앉기·손 흔들기(오른팔 숨김) 움직임은 안 바뀐다. 눈만 따로(보는 쪽으로 움직임).
@@ -200,10 +229,10 @@ function figure(scene: Scene, look: Look, bakeAt: number) {
   if (bakeAt) { legs.forEach(leg => freeze(scene, leg, LEG_BOX, bakeAt)); sleeves.forEach(arm => freeze(scene, arm, SLEEVE_BOX, bakeAt)); }
   const lump = (parts: Phaser.GameObjects.GameObject[]) => { const c = s.container(0, 0, parts); return bakeAt ? freeze(scene, c, FIG_BOX, bakeAt) : c; };
   const hasBack = back.commandBuffer.length > 3; // 색 정하기 하나뿐이면 그린 게 없다
-  const fig = s.container(0, 0, [hasBack ? lump([back]) : back, ...legs, ...sleeves, lump([torso, wear, neck, ...ears, head, scarf, fringe, deco, face]), ...eyes]).setScale(FIGURE_SCALE);
+  const fig = s.container(0, 0, [hasBack ? lump([back]) : back, ...legs, ...sleeves, lump([torso, wear, neck, ...ears, head, scarf, fringe, deco, face, gear]), ...eyes]).setScale(FIGURE_SCALE);
   return { fig, legs, eyes, rightArm: sleeves[1], sleeveColor };
 }
-const FIG_BOX = { x0: -28, y0: -76, x1: 28, y1: 0 }, LEG_BOX = { x0: -7, y0: -5, x1: 7, y1: 9 }, SLEEVE_BOX = { x0: -10, y0: -4, x1: 10, y1: 20 };
+const FIG_BOX = { x0: -28, y0: -76, x1: 33, y1: 0 }, LEG_BOX = { x0: -7, y0: -5, x1: 7, y1: 9 }, SLEEVE_BOX = { x0: -10, y0: -4, x1: 10, y1: 20 };
 let figBakes = 0;
 /** 그릇 c 속 도형을 그 자리 그대로 그림 한 장으로(bake) 바꿔 c 에 다시 넣는다. 사람이 사라지면 그림도 지운다. */
 function freeze(scene: Scene, c: Phaser.GameObjects.Container, b: Bounds, res: number) {

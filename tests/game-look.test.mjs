@@ -70,3 +70,20 @@ test('새 목도리는 다섯째 보상으로 입고, 옛 머리 장식 번호�
   assert.equal(toLook(wearing(base, REWARDS[1])).accessory, 'headband');
   assert.deepEqual(wearing(base, REWARDS[4]).slice(0, 8), base.slice(0, 8));
 });
+
+test('새 도구 넷은 기존 보상 뒤에 붙고, 열 칸 기록과 안경을 그대로 지킨다', () => {
+  const base = fullPick([13, 9, 4, 3]); base[7] = 1;
+  assert.deepEqual(REWARDS.slice(0, 5).map(r => [r.slot, r.value]), [[8, 2], [8, 1], [8, 3], [7, 1], [8, 4]]);
+  const tools = REWARDS.slice(5);
+  assert.deepEqual(tools.map(r => r.name), ['돋보기', '시민행동 배지', '현장 가방', '기록판']);
+  for (const [i, tool] of tools.entries()) {
+    assert.deepEqual([tool.slot, tool.value], [8, 5 + i]);
+    const pick = wearing(base, tool);
+    assert.ok(isPick(pick));
+    assert.deepEqual(fullPick(pick), pick);
+    assert.deepEqual(pick.slice(0, 8), base.slice(0, 8));
+    assert.equal(toLook(pick).glasses, true);
+    assert.equal(toLook(pick).accessory, ['magnifier', 'badge', 'fieldBag', 'clipboard'][i]);
+    assert.deepEqual(randomPick(() => 0.5, pick).slice(7, 9), pick.slice(7, 9));
+  }
+});

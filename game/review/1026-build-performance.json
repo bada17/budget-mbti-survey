@@ -1,0 +1,31 @@
+{
+  "method": "Chrome headless, touch 360x640, development last room, clipboard, CPU4x, rAF5s; not physical iOS",
+  "built": [
+    {
+      "width": 360,
+      "scroll": 360,
+      "view": 360,
+      "font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+      "headingWeight": "800",
+      "button": "Jua, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif"
+    },
+    {
+      "width": 1280,
+      "scroll": 1280,
+      "view": 1280,
+      "font": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+      "headingWeight": "800",
+      "button": "Jua, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif"
+    }
+  ],
+  "shop": {
+    "items": 9,
+    "price": 100,
+    "newToolsVisible": true
+  },
+  "frames": 241,
+  "seconds": 5.0005,
+  "averageFps": 48.1951804819518,
+  "medianFrameMs": 16.699999999999818,
+  "errors": []
+}
