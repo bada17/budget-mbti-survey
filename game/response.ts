@@ -1,6 +1,7 @@
 import { AXES, COMMON_QUESTIONS, FIELD_QUESTIONS, ROUTE, REPLIES, CONTENT_VERSION, type Question } from './content';
 import { buildResponseMeta, shouldSwapSurveyOptions, type SurveyTiming } from './survey-response';
 import type { Answers } from './score';
+import './pub'; // 후원주점판이면 아래 orderedQuestions 를 만들기 전에 길을 줄인다
 
 export type DisplaySide = 'left' | 'right';
 const byId = new Map([...COMMON_QUESTIONS, ...FIELD_QUESTIONS].map(q => [q.id, q]));

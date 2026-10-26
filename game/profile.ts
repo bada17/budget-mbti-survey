@@ -13,6 +13,7 @@
 import { TYPES, COMMON_QUESTIONS, FIELD_QUESTIONS, ROUTE, type TypeCode } from './content';
 import { isPick, fullPick, randomPick, DEFAULT_PICK, REWARDS, type Pick } from './look';
 import { gameStorage } from './storage';
+import './pub'; // 후원주점판이면 아래 TOWN_IDS 를 만들기 전에 길을 줄인다
 
 /** at = 사람이 직접 고르거나 이름을 쓴 때 — 로그인해 합칠 때 더 나중에 고른 쪽이 이긴다(importSave). 손 안 댄 기본 모습엔 없다. */
 export type Me = { name: string; pick: Pick; at?: number };

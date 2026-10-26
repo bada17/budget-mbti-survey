@@ -402,6 +402,35 @@ export function confetti(scene: Scene, w: number, top: number, reduced: boolean,
   }
 }
 
+/**
+ * 「이어칠하다」 등불 줄 — 후원주점판 마을 들머리(사용자 10-26 「폭죽 말고 이어칠하다 느낌」, 27주년 말장난: 27 + 이어).
+ * 보이는 화면(left·top·w·h, 장면 좌표) 위쪽에 줄을 늘어뜨리고 등불 스물일곱 개가 하나씩 이어 켜진 뒤 「27」, 3초 뒤 사라진다.
+ * 대충 판 — 모양은 GPT 가 다듬는다. 밤빛 덮개(60000·60001) 위라 밤에도 밝다.
+ */
+export function stringLights(scene: Scene, left: number, top: number, w: number, h: number, dpr: number, reduced: boolean) {
+  if (reduced) return;
+  const y0 = top + h * 0.1, sag = 46, x0 = left + 14, x1 = left + w - 14, step = 60;
+  const at = (t: number) => ({ x: x0 + (x1 - x0) * t, y: y0 + sag * 4 * t * (1 - t) }); // 처진 줄(포물선)
+  const parts: (Phaser.GameObjects.Graphics | Phaser.GameObjects.Arc | Phaser.GameObjects.Text)[] = [];
+  const wire = scene.add.graphics().setDepth(60002).lineStyle(1.5, 0x7a5a44, 0.8);
+  wire.beginPath(); wire.moveTo(x0, y0);
+  for (let i = 1; i <= 20; i++) { const p = at(i / 20); wire.lineTo(p.x, p.y); }
+  wire.strokePath(); parts.push(wire);
+  const colors = [0xffc74d, 0xff6b57, 0x6ad1a3, 0xffe08a, 0xd98cb3];
+  for (let i = 0; i < 27; i++) {
+    const p = at(i / 26), color = colors[i % colors.length];
+    const glow = scene.add.circle(p.x, p.y + 6, 11, color, 0.3).setDepth(60002).setScale(0);
+    const bulb = scene.add.circle(p.x, p.y + 6, 5, color).setDepth(60002).setScale(0);
+    parts.push(glow, bulb);
+    scene.tweens.add({ targets: [glow, bulb], scale: 1, delay: i * step, duration: 220, ease: 'Back.easeOut' });
+  }
+  const mark = scene.add.text(left + w / 2, y0 + sag + 46, '27', { fontFamily: FONT, fontSize: '64px', color: '#d9785f', resolution: textRes(dpr) })
+    .setOrigin(0.5).setStroke('#fffaf0', 8).setDepth(60002).setScale(0);
+  parts.push(mark);
+  scene.tweens.add({ targets: mark, scale: 1, delay: 27 * step + 100, duration: 360, ease: 'Back.easeOut' });
+  scene.tweens.add({ targets: parts, alpha: 0, delay: 27 * step + 3000, duration: 600, onComplete: () => parts.forEach(p => p.destroy()) });
+}
+
 // ── 방 ──
 export const THEMES = [
   { ground: 0xeee5d0, path: 0xfbf6e9, wall: 0xf3bfa9, roof: 0xd9785f, window: 0xcfe8f2, tree: 0x8cc07a, water: 0 }, // 동네 입구

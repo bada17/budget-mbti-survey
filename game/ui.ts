@@ -15,6 +15,7 @@ import { PRIVACY_URL, type Channel, type ContactForm } from './contact';
 import type { Stats } from './api';
 import type { Point } from './room';
 import { VILLAGE_NAME } from './village';
+import { PUB } from './pub';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => {
   const node = document.createElement(tag);
@@ -173,7 +174,7 @@ export function createUI(root: HTMLElement, actions: {
   const area = el('b', 'g-area');
   const where = el('div', 'g-where'); where.append(area);
   const progress = el('ol', 'g-progress'); progress.setAttribute('aria-label', '진행');
-  const pips = Array.from({ length: 15 }, (_, i) => { const li = el('li'); if (i % 3 === 2) li.className = 'gap'; return li; });
+  const pips = Array.from({ length: orderedQuestions.length },(_, i) => { const li = el('li'); if (i % 3 === 2) li.className = 'gap'; return li; });
   progress.append(...pips);
   const sound = button('g-sound', '', actions.sound);
   sound.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="w" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/><path class="x" d="M16 9l6 6M22 9l-6 6"/></svg>';
@@ -192,7 +193,7 @@ export function createUI(root: HTMLElement, actions: {
   const intro = el('section', 'g-intro');
   intro.innerHTML = `<div class="g-intro-card"><span class="g-kicker">함께하는 시민행동 · 예산 성향 게임</span>
     <h1>함께해요<br>시민의 숲</h1>
-    <p>주민 열다섯 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
+    <p>주민 ${PUB ? '여섯' : '열다섯'} 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
     <ul class="g-notes"></ul>
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
     <button class="g-link g-home-open" type="button" hidden>걷지 않고 마을로 가기</button>
