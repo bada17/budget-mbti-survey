@@ -52,14 +52,18 @@ export const ICONS = {
 const typers = new WeakMap<HTMLElement, { cancel(): void; finish(): void }>();
 export function typeOut(node: HTMLElement, text: string, done = () => {}, pitch = 0) {
   typers.get(node)?.cancel();
-  const shown = document.createTextNode(''), next = el('span', 'g-next', '▼');
+  // 아직 안 나온 글자도 투명하게 미리 깔아 둔다(10-26 사용자 「버벅이면서 나온다」) — 한 자씩 늘리면 줄바꿈이 다시 잡혀 낱말이 윗줄·아랫줄을 오가고,
+  // 줄이 늘 때마다 아래에 붙은 말 상자가 위로 밀렸다. 자리를 처음부터 다 잡아 두면 글자만 차례로 보인다.
+  const shown = document.createTextNode(''), rest = el('span', '', text), next = el('span', 'g-next', '▼');
+  rest.style.visibility = 'hidden'; rest.setAttribute('aria-hidden', 'true');
   next.setAttribute('aria-hidden', 'true');
-  node.replaceChildren(shown);
+  node.replaceChildren(shown, rest);
   let i = 0, timer = 0, over = false;
-  const finish = () => { if (over) return; over = true; clearTimeout(timer); typers.delete(node); shown.data = text; node.append(next); done(); };
+  const finish = () => { if (over) return; over = true; clearTimeout(timer); typers.delete(node); shown.data = text; rest.remove(); node.append(next); done(); };
   const tick = () => {
     const ch = text[i++] ?? '';
     shown.data = text.slice(0, i);
+    rest.textContent = text.slice(i);
     sfx.babble(ch, pitch);
     if (i >= text.length) finish(); else timer = window.setTimeout(tick, /[,.…!?]/.test(ch) ? 170 : 36);
   };
@@ -156,7 +160,7 @@ export function contactForm(send: (form: ContactForm) => Promise<{ ok: boolean; 
 }
 
 export function createUI(root: HTMLElement, actions: {
-  start(): void; retry(): void; sound(): void; openTable(): void;
+  start(): void; retry(): void; sound(): void;
   reply(questionId: string, level: number): void;
   goTo(side: DisplaySide): void; goDoor(): void;
 }) {
@@ -191,11 +195,10 @@ export function createUI(root: HTMLElement, actions: {
     <p>주민 열다섯 명이 바라는 게 서로 달라요.<br>마음 가는 사람에게 걸어가 이야기를 들어 주세요.</p>
     <ul class="g-notes"></ul>
     <button class="g-primary g-start" type="button" disabled>준비하고 있어요…</button>
-    <button class="g-link g-table-open" type="button" hidden>테이블에서 같이 하기</button>
     <button class="g-link g-home-open" type="button" hidden>걷지 않고 마을로 가기</button>
     <button class="g-link g-login-open" type="button" hidden>전에 해 봤어요 — 내 시민증 불러오기</button>
     <button class="g-retry" type="button" hidden>다시 불러오기</button></div>`;
-  const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·테이블·이웃이 번갈아 쓰는 아래 판
+  const sheet = el('section', 'g-sheet'); sheet.hidden = true; // 내 모습·이웃이 번갈아 쓰는 아래 판
   const panel = el('section', 'g-panel'); panel.hidden = true; // 화면을 덮는 판(다른 사람들 마음)
   const caption = el('section', 'g-caption'); caption.hidden = true; // 버스 장면 글
   const end = el('section', 'g-end'); end.hidden = true;
@@ -206,7 +209,6 @@ export function createUI(root: HTMLElement, actions: {
   const start = intro.querySelector<HTMLButtonElement>('.g-start')!;
   const retry = intro.querySelector<HTMLButtonElement>('.g-retry')!;
   start.onclick = actions.start; retry.onclick = actions.retry;
-  intro.querySelector<HTMLButtonElement>('.g-table-open')!.onclick = actions.openTable;
 
   let bubbleEls: Partial<Record<DisplaySide, HTMLButtonElement>> = {};
   let replyKey = '';
@@ -236,14 +238,12 @@ export function createUI(root: HTMLElement, actions: {
       shell.append(cover);
       return () => cover.remove();
     },
-    /** 게임 서버가 있을 때만 「테이블에서 같이 하기」 를 보인다. */
-    online(on: boolean) { intro.querySelector<HTMLElement>('.g-table-open')!.hidden = !on; },
     /** 다시 온 사람이 링크로 걷기 화면에 왔을 때 — 걷지 않고 마을로(기획 4차). */
     homeOpen(run: () => void) { const b = intro.querySelector<HTMLButtonElement>('.g-home-open')!; b.hidden = false; b.onclick = run; },
     /** 로그인 안 한 사람 — 다른 기기에서 지켜 둔 시민증 불러오기(login.ts). */
     /** 시작 화면 로그인 단추 — 로그인했으면 label(「✓ 카카오로 로그인됨」)로 늘 보인다(사용자 10-16 「된 건지 모르겠다」). */
     loginOpen(run: () => void, label?: string) { const b = intro.querySelector<HTMLButtonElement>('.g-login-open')!; b.hidden = false; b.onclick = run; if (label) b.textContent = label; },
-    /** 시작 화면 아래 한 줄씩 — 초대한 친구, 지난번 이웃, 테이블. */
+    /** 시작 화면 아래 한 줄씩 — 초대한 친구, 지난번 이웃. */
     notes(lines: string[]) { intro.querySelector('.g-notes')!.replaceChildren(...lines.map(line => el('li', '', line))); },
 
     render(state: JourneyState) {
@@ -468,26 +468,6 @@ export function createUI(root: HTMLElement, actions: {
       releaseSheet = () => resize.disconnect();
     },
 
-    /** 테이블에서 같이 하기 — 새로 만들거나 코드로 들어간다. */
-    tablePanel(code: string | undefined, on: { create(): Promise<string | undefined>; enter(code: string): Promise<boolean>; link(code: string): string; close(): void }) {
-      const status = el('p', 'g-small');
-      const showCode = (c: string) => {
-        const link = on.link(c);
-        const copy = button('g-primary', '링크 복사하기', () => { void navigator.clipboard?.writeText(link).then(() => { copy.textContent = '복사했어요'; }, () => { status.textContent = link; }); });
-        openSheet(el('p', 'g-kicker', '우리 테이블'), el('p', 'g-code', c), el('p', 'g-small', '같은 테이블 사람들이 이 링크로 들어오면, 끝에 다 같이 언덕에 모여요.'), copy, status, button('g-link', '닫기', () => { closeSheet(); on.close(); }));
-      };
-      if (code) { showCode(code); return; }
-      const input = el('input', 'g-input'); input.maxLength = 4; input.placeholder = '코드 네 자리'; input.autocapitalize = 'characters';
-      openSheet(
-        el('p', 'g-kicker', '테이블에서 같이 하기'),
-        el('p', 'g-small', '한 테이블이 같은 코드로 들어오면, 각자 걷고 끝에 같은 언덕에서 만나요.'),
-        button('g-primary', '새 테이블 만들기', async () => { status.textContent = '만드는 중…'; const c = await on.create(); if (c) showCode(c); else status.textContent = '지금은 같이 하기를 쓸 수 없어요.'; }),
-        input,
-        button('g-ghost', '코드로 들어가기', async () => { if (await on.enter(input.value)) { closeSheet(); on.close(); } else status.textContent = '그런 테이블이 없어요. 코드를 다시 봐 주세요.'; }),
-        status, button('g-link', '닫기', () => { closeSheet(); on.close(); }),
-      );
-    },
-
     /**
      * 버스 예산 퀴즈 — 버스 글 칸을 문제 카드로 바꾼다(위엔 다음 동네 이름). 고르면 맞았는지·까닭을 보여 주고 잠시 뒤 done(맞았나).
      * 「넘기기」 는 바로 done(undefined).
@@ -512,18 +492,18 @@ export function createUI(root: HTMLElement, actions: {
       caption.hidden = false;
       live.textContent = `${areaName}로 가는 버스 퀴즈. ${quiz.q}`;
     },
-    /** 버스 장면 글 — 다음 동네 이름과 테이블 사람들이 어디쯤인지. 누르면 넘긴다. area 없이 부르면 치운다. */
-    busCaption(areaName?: string, others: string[] = [], skip?: () => void) {
+    /** 버스 장면 글 — 다음 동네 이름. 누르면 넘긴다. area 없이 부르면 치운다. */
+    busCaption(areaName?: string, skip?: () => void) {
       caption.hidden = !areaName;
       caption.classList.remove('g-quiz');
       if (!areaName) return;
-      caption.replaceChildren(el('h2', '', areaName), ...others.map(text => el('p', 'g-small', text)));
+      caption.replaceChildren(el('h2', '', areaName));
       caption.onclick = () => skip?.();
       live.textContent = `다음 동네, ${areaName}`;
     },
 
     /**
-     * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구·테이블, 그리고 할 수 있는 것들.
+     * 언덕 끝 화면 — 유형 이름·한 줄, 초대한 친구, 그리고 할 수 있는 것들.
      * 시민증·우리 동네 예산·한 번 더 걷기는 마을 건물이 맡는다(기획 4차). 마을로는 언덕의 빛 아치를 걸어서 지난다(10-14).
      */
     end(info: { code: TypeCode; scores: AxisScores; answers: Record<string, number>; lines: string[] }, on: { neighbor(): void; others?: () => void; share(copy: boolean): void; reply?: { label: string; run(): void }; compare?: { label: string; run(): void }; village(): void }) {
@@ -578,7 +558,7 @@ export function createUI(root: HTMLElement, actions: {
       } finally { shell.classList.remove('shooting'); }
     },
     endActions(show: boolean) { const bar = end.querySelector<HTMLElement>('.g-end-actions'); if (bar) bar.hidden = !show; },
-    /** 끝 화면 카드 아래 줄 — 초대한 친구와 테이블 사람들(새로 온 사람이 있으면 다시 부른다). */
+    /** 끝 화면 카드 아래 줄 — 초대한 친구. */
     endLines(lines: string[]) {
       const card = end.querySelector('.g-end-card');
       if (!card) return;

@@ -3,14 +3,13 @@
   규칙은 api.ts 에 있다.
 
   두 가지 서버 —
-  · 개발 서버(npm run dev:game): ./api/game/… 그대로. 테이블까지 다 된다.
+  · 개발 서버(npm run dev:game): ./api/game/… 그대로.
   · 구글 시트(앱스 스크립트 웹 앱): 빌드할 때 VITE_GAME_API 에 웹 앱 주소(…/exec)를 주면 그리로 간다(README 「구글 시트 서버」).
     앱스 스크립트는 주소 뒤 길을 못 받아서 ?p=/stats 처럼 넘기고, 응답 코드도 못 정해서 { status, body } 로 싸서 온다.
     POST 는 text/plain 으로 보낸다 — application/json 이면 브라우저가 먼저 OPTIONS 를 묻는데 앱스 스크립트는 그걸 못 받는다.
-    테이블은 붙이지 않는다(TABLES) — 4초마다 묻는 게 앱스 스크립트 한도에 걸린다.
 */
 import { CONTENT_VERSION } from './content';
-import type { Stats, TableView, RegionView, Visit, VillageView, PublicNote, PublicCard, CardKind } from './api';
+import type { Stats, RegionView, Visit, VillageView, PublicNote, PublicCard, CardKind } from './api';
 import type { ContactPayload } from './contact';
 import type { Neighbor, Region, Save } from './profile';
 import type { Pick } from './look';
@@ -18,8 +17,6 @@ import type { Store, HitKind } from './api';
 import { source, type Source } from './source';
 
 const GAS: string | undefined = import.meta.env?.VITE_GAME_API || undefined;
-/** 테이블(같이 걷기)이 되는 서버인가. */
-export const TABLES = !GAS;
 
 /**
  * 마지막 요청이 실패한 까닭 — 서버가 준 error(「not-finished」·「coin-day」…), 닿지 못했으면 'network'. 실패를 그 까닭대로 알리려고(10-20 동전 —
@@ -75,10 +72,6 @@ export const net = {
   /** 유입 한 줄(들어옴·보냄) — 실패해도 조용히. 끝까지는 finish 가 싣는다. */
   hit: (kind: Exclude<HitKind, 'finish'>, sessionId: string, src: Source = source()) =>
     call<{ ok: true }>('GET', `/hit/${kind}/${sessionId}/${[src.source, src.medium, src.campaign].map(t => encodeURIComponent(t || '-')).join('/')}`),
-  newTable: () => call<{ code: string }>('POST', '/tables', {}),
-  table: (code: string) => call<TableView>('GET', `/tables/${code}`),
-  join: (code: string, member: { id: string; name: string; pick: Pick }) => call<TableView>('POST', `/tables/${code}/members`, member),
-  progress: (code: string, id: string, patch: { stage?: number; type?: string }) => call<TableView>('POST', `/tables/${code}/members/${id}`, patch),
   // 다시 올 이유(10-14)
   newHome: () => call<{ id: string; key: string }>('POST', '/homes', {}),
   visit: (home: string, visitor: { sessionId: string; name: string; pick: Pick }) => call<{ ok: true }>('POST', `/homes/${home}/visits`, visitor),

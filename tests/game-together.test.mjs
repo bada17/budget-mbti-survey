@@ -1,9 +1,9 @@
-// 같이 노는 규칙 — 친구 초대 코드, 연락처 확인, 서버 규칙(다른 사람들 마음·테이블). 화면 없이 돈다.
+// 같이 노는 규칙 — 친구 초대 코드, 연락처 확인, 서버 규칙(다른 사람들 마음). 화면 없이 돈다.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { encodeInvite, decodeInvite, cleanName, cleanTableCode, josa, townFrom, isTown, TOWN_IDS } from '../game/profile.ts';
+import { encodeInvite, decodeInvite, cleanName, josa, townFrom, isTown, TOWN_IDS } from '../game/profile.ts';
 import { checkContact } from '../game/contact.ts';
-import { createStore, handle, login, TABLE_TTL_MS, TABLE_MAX } from '../game/api.ts';
+import { createStore, handle, login } from '../game/api.ts';
 import { orderedQuestions } from '../game/response.ts';
 import { CONTENT_VERSION } from '../game/content.ts';
 
@@ -67,24 +67,6 @@ test('다른 사람들 마음: 끝낸 판 중 로그인한 사람의 것만 세�
     { sessionId: 'session-cccc', contentVersion: CONTENT_VERSION, answers: { ...answersFor(1), extra: 1 } },
   ]) assert.equal(handle(store, 'POST', '/finish', bad, 1000).status, 400);
   assert.equal(handle(store, 'GET', '/stats', null, 2000).body.total, 2);
-});
-
-test('테이블: 만들고 들어가고 진행을 알리고, 꽉 차거나 오래되면 막힌다', () => {
-  const store = createStore();
-  const code = handle(store, 'POST', '/tables', {}, 0, () => 0.1).body.code;
-  assert.equal(cleanTableCode(code), code);
-  const join = (id, now = 10) => handle(store, 'POST', `/tables/${code}/members`, { id, name: '민지', pick: [0, 0, 0, 0] }, now);
-  assert.equal(join('member-0001').status, 200);
-  assert.equal(join('member-0001').body.members.length, 1); // 다시 들어와도 한 사람
-  assert.equal(handle(store, 'POST', `/tables/${code}/members/member-0001`, { stage: 3 }, 20).body.members[0].stage, 3);
-  assert.equal(handle(store, 'POST', `/tables/${code}/members/member-0001`, { stage: 1 }, 30).body.members[0].stage, 3); // 뒤로 안 감
-  assert.equal(handle(store, 'POST', `/tables/${code}/members/member-0001`, { type: '010' }, 40).body.members[0].type, '010');
-  assert.equal(handle(store, 'POST', `/tables/${code}/members/member-0001`, { type: '999' }, 40).status, 400);
-  assert.equal(handle(store, 'POST', `/tables/${code}/members`, { id: 'member-0002', pick: [9, 9, 9, 9] }, 10).status, 400);
-  for (let i = 2; i <= TABLE_MAX; i++) join(`member-${String(i).padStart(4, '0')}`);
-  assert.equal(join('member-9999').status, 409);
-  assert.equal(handle(store, 'GET', `/tables/${code}`, null, TABLE_TTL_MS + 1).status, 404);
-  assert.equal(handle(store, 'GET', '/tables/abcd', null, 0).status, 404);
 });
 
 test('내 동네: 답에서 열다섯 자로, 친구 링크에 실려 오가고, 이상한 동네는 동네만 버린다', () => {

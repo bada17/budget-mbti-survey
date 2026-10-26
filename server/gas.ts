@@ -8,7 +8,6 @@
   · 주민(로그인, 10-14): 계정(회원번호를 소금 친 해시로) | {열쇠, 기록 묶음} | 고친 시각.
   · 쪽지(마을, 기획 4차): 사람이 읽는 칸 + 「숨김」 칸 + 기록(JSON). **숨김 칸에 무엇이든 적으면 그 쪽지는 바로 안 보인다** — 지우는 사람이 시트에서 하는 일.
     서버는 숨김 칸을 읽기만 하고 쓰지 않는다(사람이 적는 사이 요청이 와도 지워지지 않게).
-  테이블은 안 붙인다(net.ts 의 TABLES).
 
   로그인 확인(verifyLogin) — 카카오는 받은 code 를 토큰으로 바꿔 회원번호를 묻고, 구글은 id_token 을 tokeninfo 로 확인한다.
   바깥에 묻는 건 Code.js 가 넣어 주는 deps(UrlFetchApp·스크립트 속성·해시·난수)로만 — 시험에서는 가짜로 바꿔 끼운다.
@@ -227,7 +226,7 @@ export function accountOf(who: { provider: 'kakao' | 'google'; subject: string }
 /** 웹 앱 한 번 — doGet/doPost(Code.js)가 부른다. 쓰는 요청(POST)은 Code.js 가 잠금을 잡고 부른다. */
 export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now = Date.now(), deps?: Deps) {
   const path = String(event.parameter?.p ?? '/');
-  if (!path.startsWith('/') || path.startsWith('/tables')) return { status: 404, body: { error: 'not-found' } };
+  if (!path.startsWith('/')) return { status: 404, body: { error: 'not-found' } };
   const contents = event.postData?.contents ?? '';
   if (contents.length > BODY_MAX) return { status: 413, body: { error: 'body-too-large' } };
   // 유입은 GET(잠금 없이) — 따로 분당 한도. 넘으면 그 줄만 버린다(끝낸 판·쓰기 한도는 건드리지 않는다).
@@ -263,7 +262,7 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
     finished: () => readKV<Finished>(sheet('finished')), homes: () => readKV<{ key: string; at: number }>(sheet('homes')), books: () => readKV<Visit[]>(sheet('books')),
     residents: () => readKV<Resident>(sheet('residents')), notes: () => readNotes(sheet('notes')), cards: () => readCards(sheet('cards')),
   };
-  const store = { tables: new Map(), contacts: [], hits: [] } as unknown as Store;
+  const store = { contacts: [], hits: [] } as unknown as Store;
   for (const name of Object.keys(read) as Lazy[]) {
     Object.defineProperty(store, name, { enumerable: true, get: () => (loaded[name] ??= read[name]() as never) });
   }

@@ -5,7 +5,7 @@
   방 안:   두 주민이 말풍선으로 바람을 말함 → 한 사람에게 걸어감 → 대답 고르기(HTML)
            → 그 주민이 하트를 날리며 내 뒤에 줄 섬, 그 자리에 고른 것의 표지판이 섬 → 문이 열림 → 위로 나감
   방 사이: 화면이 위로 밀려 다음 방(같은 동네), 세 방마다 버스를 타고 다음 동네. 동네를 지날수록 아침 → 노을.
-  끝:      강 건너 언덕 — 따라온 주민·초대한 친구·같은 테이블 사람들이 모이고, 한 명을 내 이웃으로 고른다.
+  끝:      강 건너 언덕 — 따라온 주민·초대한 친구가 모이고, 한 명을 내 이웃으로 고른다.
            끝 카드가 내려앉으면 언덕 위에 빛 아치가 피어난다 — 걸어서 지나면 마을(VillageScene)로 간다(10-14).
 
   답·진행은 runtime.send 로 flow.ts 에 맡긴다. 여기서는 위치·그림·연출만 다룬다.
@@ -31,7 +31,7 @@ export type SceneCommand =
   | { type: 'leave' }
   | { type: 'exit'; stageIndex: number };
 
-/** 언덕에 함께 서는 사람 — 초대한 친구, 같은 테이블 사람. */
+/** 언덕에 함께 서는 사람 — 초대한 친구. */
 export type Guest = { id: string; name: string; pick: Pick; label: string };
 /** 내 뒤를 따라오는 주민. 이웃으로 고르면 이 정보가 남는다. */
 export type Follower = { dude: Dude; questionId: string; key: 'a' | 'b'; seed: string };
@@ -785,7 +785,7 @@ export class JourneyScene extends Phaser.Scene {
     this.runtime.ui.tags([{ text: this.runtime.name() || '나', x: this.pos.x, y: this.pos.y - 58 }, ...tags]);
   }
 
-  /** 초대한 친구·같은 테이블 사람을 언덕에 세운다. 새로 온 사람만 아래에서 걸어 올라온다. */
+  /** 초대한 친구를 언덕에 세운다. 새로 온 사람만 아래에서 걸어 올라온다. */
   setGuests(guests: Guest[]) {
     const top = this.hillTop;
     if (!top || this.mode !== 'hill') return;

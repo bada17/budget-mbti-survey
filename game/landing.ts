@@ -10,7 +10,7 @@
   글·사진은 느낌 보기 초안(10-19 「내용 대충 넣어 봐」) — 정해지면 아래 PAGE 만 고친다 — 그림은 game/public/ 에 넣은 이름(예: 'landing/hero.jpg'), 비어 있으면 자리 이름이 적힌 빈 칸.
   구조·움직임은 Claude, 겉모습(landing.css)은 GPT(README 「GPT 에게 — 겉모습」).
 
-  언제 보이나 — main.ts: 처음 온 사람이 아무것도 안 붙은 주소로 왔을 때만. 친구 초대·테이블·로그인 돌아옴·
+  언제 보이나 — main.ts: 처음 온 사람이 아무것도 안 붙은 주소로 왔을 때만. 친구 초대·로그인 돌아옴·
   다시 온 사람(바로 마을)은 건너뛴다. ?about 이면 늘 보인다(보기용). 주소는 10-20 부터 첫 주소(forest.action.or.kr/) — 옛 /game/ 은 첫 주소로 넘어온다.
 */
 import footerHtml from './landing-footer.html?raw'; // 홈페이지 하단 — scripts/port-footer.mjs 가 만든다

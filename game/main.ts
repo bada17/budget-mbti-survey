@@ -11,7 +11,7 @@ import { createUI, GAME_URL } from './ui';
 import { attachEffects } from './effects';
 import { unlockAudio, isMuted, setMuted, playVillageMusic, sfx } from './sfx';
 import {
-  loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, cleanTableCode, josa, townFrom, saveTown,
+  loadMe, saveMe, loadNeighbor, saveNeighbor, decodeInvite, encodeInvite, josa, townFrom, saveTown,
   loadHome, saveHome, addStamp, loadRegion, saveRegion, readNeighborParam, loadLast, loadCardMemo, saveCardMemo, loadOwned, saveOwned, type Me, type Town, type Neighbor, type Region,
   loadLogin, saveLogin,
 } from './profile';
@@ -28,8 +28,8 @@ import { checkContact, type ContactForm } from './contact';
 // import { quizFor } from './quiz'; // [나중에 살림: 버스 퀴즈]
 import { ERRANDS, ERRAND_COIN, errandDay, errandsShown, finishErrand, loadErrands, saveErrands, type Choice } from './quests';
 import { REWARDS, wearing, nameFrom } from './look';
-import { net, TABLES, lastFailure } from './net';
-import type { Stats, TableView, VillageView } from './api';
+import { net, lastFailure } from './net';
+import type { Stats, VillageView } from './api';
 import type { JourneyScene, SceneCommand, Guest } from './scenes/JourneyScene';
 import type { VillageScene } from './scenes/VillageScene';
 import { gameStorage, useInspectionStorage } from './storage';
@@ -61,8 +61,6 @@ const eventCode = params.get('stamp');
 // 현장 도장(?stamp=) — 기록은 조용히 그대로 찍는다(살리면 받은 게 보인다). 알림·도장판 칸은 [나중에 살림: 철·현장 도장](사용자 10-19 「일단 빼봐」).
 { const id = eventStamp(eventCode); if (id) addStamp(id); }
 let home = loadHome(); // 내 방명록 집 — 끝까지 걸으면 서버에서 받아 둔다
-let tableCode = cleanTableCode(params.get('table'));
-let table: TableView | undefined;
 let me: Me = loadMe();
 // randomUUID 는 https(또는 이 컴퓨터)에서만 있다 — 와이파이 주소(http)로 폰에서 여는 개발판 시험에서 멈췄다. getRandomValues 는 어디서나 된다.
 const newSessionId = () => crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), (b, i) => (i === 4 || i === 6 || i === 8 || i === 10 ? '-' : '') + b.toString(16).padStart(2, '0')).join('');
@@ -76,7 +74,6 @@ let scene: JourneyScene | undefined;
 let game: import('phaser').Game | undefined;
 let pendingReveal: string | undefined;
 let frame = 0;
-let poll: ReturnType<typeof setInterval> | undefined;
 let card: File | undefined; // 공유 그림 — 미리 만들어 둔다(아래 prepareCard)
 let town: Town | undefined; // 이번에 지은 동네(링크·지난번 판에 싣는다)
 let cardFor: string | undefined;
@@ -87,10 +84,14 @@ const here = () => `${location.origin}${location.pathname}`;
 const shareAt = () => (import.meta.env.PROD ? GAME_URL : here()); // 남에게 보내는 링크 — 옛 주소(github.io)로 들어와 있어도 새 주소로 나간다
 /** 연락처 칸은 보유 기간이 정해지기 전까지 이 컴퓨터의 개발판에서만 보인다(README 「연락처 — 켜기 전에」). */
 const contactReady = import.meta.env.DEV || inspecting;
-/** 게임 서버(다른 사람들 마음·방명록·우리 지역, 테이블은 TABLES 일 때만)가 있나. 서버 없는 시험판엔 없다 — 그때는 그 단추들을 숨긴다. */
+/** 게임 서버(다른 사람들 마음·방명록·우리 지역)가 있나. 서버 없는 시험판엔 없다 — 그때는 그 단추들을 숨긴다. */
 let online = false;
 /** 지난번 판 — 유형이 남은 판(10-14 뒤)이면 다시 온 사람이다. */
 let lastPlay = loadLast();
+/** 걸으러 온 링크(?walk·친구 초대, 개발판 ?end) — 다시 온 사람이어도 걷기 화면에서 시작한다. */
+const walkLink = params.has('walk') || Boolean(invite) || ((import.meta.env.DEV || inspecting) && params.has('end'));
+/** 걷지 않고 마을로 — 걸으러 왔지만 지난번 판이 있는 사람(시작 화면 단추, 불러온 뒤 묻기). */
+const goVillage = () => { location.href = inspecting ? `${here()}?inspect=1&village=1` : here(); };
 /** 마을(기획 4차) — 지금 어디(걷기 판 / 마을), 마을에 어디서 나타나나, 판이 열려 있나(그동안 나는 멈춘다). */
 let where: 'walk' | 'village' = 'walk';
 let villageStart: 'gate' | 'plaza' = 'plaza';
@@ -109,7 +110,7 @@ function startWalk() {
   ui.hideIntro();
   ui.dresser(me, {
     change: next => { me = next; scene?.setLook(next.pick); },
-    done: next => { me = next; saveMe(next); send({ type: 'start' }); void joinTable(); },
+    done: next => { me = next; saveMe(next); send({ type: 'start' }); },
   });
   scene?.dress(); // 판을 먼저 열어야 판 위에 남은 자리를 잴 수 있다
 }
@@ -118,16 +119,6 @@ const ui = createUI(root, {
   start: startWalk,
   retry: () => location.reload(),
   sound: () => { setMuted(!isMuted()); ui.setSound(isMuted()); if (!isMuted()) unlockAudio(); },
-  openTable: () => ui.tablePanel(tableCode, {
-    create: async () => { const made = await net.newTable(); if (made) { tableCode = made.code; notes(); } return made?.code; },
-    enter: async value => {
-      const code = cleanTableCode(value);
-      if (!code || !(await net.table(code))) return false;
-      tableCode = code; notes(); return true;
-    },
-    link: code => `${shareAt()}?table=${code}`,
-    close: () => {},
-  }),
   reply: (questionId, level) => send({ type: 'answer', questionId, level }),
   goTo: side => scene?.goTo(side),
   goDoor: () => scene?.goDoor(),
@@ -144,7 +135,6 @@ function notes() {
   const lines: string[] = [];
   if (invite) lines.push(`${invite.name}님이 이 동네로 불렀어요. 끝에 언덕에서 만나요.`);
   if (invite?.home && online) lines.push(`끝까지 걸으면 ${invite.name}님 동네 방명록에 내 이름·모습·유형이 남아요.`);
-  if (tableCode) lines.push(`테이블 ${tableCode} 에 앉았어요. 끝에 다 같이 모여요.`);
   // [나중에 살림: 철·현장 도장] 「지금은 ○○ — 이번 철에 걸으면 철 도장」 · 「「행사」 현장 도장을 받았어요」 두 줄(seasonAt·EVENTS)
   ui.notes(lines);
 }
@@ -152,8 +142,6 @@ notes();
 const statsReady = net.stats().then(found => {
   online = Boolean(found);
   stats = found;
-  if (!online || !TABLES) tableCode = undefined;
-  ui.online(online && TABLES);
   notes();
 });
 
@@ -182,7 +170,8 @@ const offerNews = Boolean(loggedIn && loginEmail && contactReady && !loginUnsave
 let backTo = loggedIn ? takeBack() : undefined;
 const unpause = () => { panelOpen = false; village?.setPaused(false); goBack(); };
 if (offerNews) { panelOpen = true; openNews(shell, loggedIn!, loginEmail!, sendContact, unpause); }
-else if (loggedIn) { panelOpen = true; openLoggedIn(shell, loggedIn, loginUnsaved, unpause); } // 됐다는 판(예전엔 2초 알림)
+// 됐다는 판(예전엔 2초 알림). 걸으러 온 링크에서 불러와 지난번 판이 생겼으면 「마을로 갈까요?」 도 묻는다(10-26 사용자 「불러오기 하면 마을로 갈까요? 물어보면」).
+else if (loggedIn) { panelOpen = true; openLoggedIn(shell, loggedIn, loginUnsaved, unpause, lastPlay?.type && walkLink ? goVillage : undefined); }
 /** 판이 닫혔고 마을이 섰으면 돌아갈 판을 연다(어느 쪽이 나중이든 한 번). */
 function goBack() {
   if (!backTo || panelOpen || where !== 'village') return;
@@ -191,7 +180,8 @@ function goBack() {
   village?.jump(id, () => openPlace(id, to === 'hub:region' ? 'region' : undefined));
 }
 const loginLabel = loginNow() && `✓ ${PROVIDER_NAME[loginNow()!]}로 로그인됨`;
-ui.loginOpen(() => openLogin(shell, loginOpts, () => {}), loginLabel || undefined);
+// 시작 화면 작은 단추는 하나만(10-26 사용자 ⓑ) — 지난번 판이 있으면 아래 「걷지 않고 마을로 가기」, 없으면 이 「내 시민증 불러오기」.
+if (!lastPlay?.type) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}), loginLabel || undefined);
 
 type UntimedCommand = Command extends infer T ? T extends { at: number } ? Omit<T, 'at'> : never : never;
 function send(command: UntimedCommand | SceneCommand) {
@@ -222,32 +212,17 @@ window.addEventListener('pagehide', pause, { signal: abort.signal });
 window.addEventListener('pageshow', resume, { signal: abort.signal });
 ui.render(state);
 
-// ── 같이 걷기: 테이블·다른 사람들 마음 ──
-async function joinTable() {
-  if (!tableCode) return;
-  table = await net.join(tableCode, { id: state.sessionId, name: me.name, pick: me.pick }) ?? table;
-}
-async function refreshTable() {
-  if (tableCode) table = await net.table(tableCode) ?? table;
-}
-const tablemates = () => table?.members.filter(member => member.id !== state.sessionId) ?? [];
-const whereIs = (stage: number) => (stage >= ROUTE.length ? '언덕에 닿음' : `${ROUTE[stage].area} 걷는 중`);
-
+// ── 끝낸 판 — 서버에 알리기·다른 사람들 마음 ──
 bus.subscribe(event => {
-  if (event.type === 'stage.entered' && tableCode) {
-    void net.progress(tableCode, state.sessionId, { stage: event.stageId - 1 }).then(view => { table = view ?? table; });
-  }
   if (event.type === 'journey.arrived') {
     if (!completion.enqueue(state.sessionId, state.answers)) ui.toast('미저장 기록이 많아요. 연결을 복구한 뒤 화면을 닫아 주세요.');
-    // 도장은 한 일에 찍는다(stamps.ts) — 한 바퀴, 테이블, 그 철에 걸었으면 철 도장.
+    // 도장은 한 일에 찍는다(stamps.ts) — 한 바퀴, 그 철에 걸었으면 철 도장.
     addStamp('walk');
-    if (tableCode) addStamp('table');
     const season = seasonAt(Date.now());
     if (season) addStamp(seasonStamp(season.id));
     // 처음 서버 부르기(/stats)가 실패했어도 끝낸 판은 다시 알린다 — 안 그러면 서버에 판이 없어 마을에서 동전·쪽지가 막힌다(10-20).
     // 그때는 마을 들어가기를 붙잡지 않고 뒤에서 — 닿으면 그때부터 온라인.
     finishing = statsReady.then(() => (online ? afterFinish() : void afterFinish()));
-    if (tableCode) void net.progress(tableCode, state.sessionId, { stage: ROUTE.length, type: event.typeCode }).then(view => { table = view ?? table; });
   }
 });
 
@@ -269,21 +244,18 @@ void statsReady.then(() => afterFinish());
 function guests(): Guest[] {
   const list: Guest[] = [];
   if (invite) list.push({ id: 'invite', name: invite.name, pick: invite.pick, label: `${invite.name} · ${TYPES[invite.type].name}` });
-  for (const mate of tablemates()) if (mate.type) list.push({ id: mate.id, name: mate.name, pick: mate.pick, label: `${mate.name} · ${TYPES[mate.type].name}` });
   return list;
 }
 function endLines() {
   const lines: string[] = [];
   if (invite) lines.push(`나를 부른 ${invite.name}님은 「${TYPES[invite.type].name}」`);
-  const mates = tablemates();
-  if (tableCode) lines.push(mates.length ? `우리 테이블 — ${mates.map(m => `${m.name} ${m.type ? `「${TYPES[m.type].name}」` : `(${whereIs(m.stage)})`}`).join(' · ')}` : `테이블 ${tableCode} — 아직 다른 사람이 없어요`);
   return lines;
 }
 const mine = () => Object.fromEntries(Object.entries(state.answers).map(([id, value]) => [id, value <= 3 ? 'a' : 'b'])) as Record<string, 'a' | 'b'>;
 
 /**
  * 공유 그림을 미리 찍어 둔다. 누른 뒤에 찍으면 아이폰 사파리가 「누른 직후」가 지났다며 공유창을 막는다.
- * 언덕에 테이블 사람이 새로 서면(끝 화면 줄이 바뀌면) 다시 찍는다.
+ * 끝 화면 줄이 바뀌면 다시 찍는다.
  */
 async function prepareCard() {
   const key = endLines().join('|');
@@ -411,7 +383,6 @@ async function postNote(text: string, region: Region | undefined = loadRegion())
 /** 언덕의 빛 아치를 지났다(화면 읽기 도구는 숨은 단추로) — 언덕이 하얗게 바래고, 마을 남쪽 문에서 나타난다. */
 function toVillage() {
   if (where === 'village' || !game) return;
-  clearInterval(poll);
   ui.villageNotice(); // 안내하는 사람 말 상자가 열린 채 아치를 지났으면 닫는다
   villageStart = 'gate';
   scene?.leave(() => { game!.scene.stop('journey'); game!.scene.start('village'); });
@@ -722,16 +693,17 @@ function skipToEnd() {
   언덕 안내하는 사람(사용자 10-19 「이 게임이 무엇이고 예산이 어려운 이유를 알려주고, 마을로 가 보라고」).
   아치 옆에 서 있다가 다가가면(아치로 가는 길목이라 마을로 가는 사람은 다 지난다) 말 상자. 쪽마다 「다음」, 마지막 쪽은 「마을로 가기」·「조금 더 있을게요」.
   이름은 안 단다(10-20 사용자 「안내 하는 사람 이름 삭제해」) — 말 상자도 이름표 없이.
-  글은 사용자 최종안(10-20 「웅 그렇게하자」) 여섯 쪽. 셋째 쪽 두 유형은 그 사람 결과로 — 가까운 유형 = 0 에 가장 가까운 축 하나만 뒤집은 것(score.ts 는 읽기만).
+  글은 사용자 최종안(10-20 「웅 그렇게하자」, 10-26 넷째 쪽부터 다시 — 「응 이렇게 수정할거야」) 일곱 쪽. 셋째 쪽 두 유형은 그 사람 결과로 — 가까운 유형 = 0 에 가장 가까운 축 하나만 뒤집은 것(score.ts 는 읽기만).
 */
 const HILL_GUIDE = {
   pages: (mine: string, near: string) => [
     '여기까지 오신 걸 축하해요! 걸어오면서 몇 번이나 멈칫했나요?',
     '둘 다 필요한 것 중에 하나만 고르라니, 질문이 얄궂었죠? 이 게임은 줄다리기 같아요. 고른 것들을 모아 어느 쪽으로 기울었는지 봐요.',
     `그래서 몇 번만 달리 골랐어도 「${mine}」 대신 ${josa(`「${near}」`, '이', '가')} 나왔을 수 있어요. 예산에는 딱 떨어지는 정답이 없거든요. (물론 새는 돈은 있어요 😊)`,
-    '함께 사는 바탕을 만드는 예산에는 많은 논쟁과 깊은 숙의가 필요해요. 그 시작이 오늘 당신이 멈칫한 그 순간이라고 생각해요.',
-    '그리고 그 멈칫을 혼자만 갖고 있지 말고 마을에서 사람들과 나눠 보세요.',
-    '이제 저 아치를 지나면 시민의 숲이에요. 천천히 둘러보시길 바라요. 그럼 안녕~',
+    '이처럼 예산에는 많은 논쟁과 깊은 숙의가 필요해요. 그 시작이 오늘 당신이 멈칫한 순간이라고 생각해요.',
+    '하지만 그 순간을 함께 나누지 않으면 금세 잊혀요. 그래서 시민의 숲에는 더 나은 사회를 고민하는 사람들이 모여요.',
+    '시민의 숲에서는 우리 동네 예산부터, 지방정부가 잘 보여 주지 않는 자료까지 볼 수 있어요. 조금 어려워 보여도 결국 우리 삶과 바로 이어져 있어요.',
+    '이제 저 아치를 지나면 시민의 숲이에요. 마을을 천천히 둘러보시길 바라요. 그럼 안녕~',
   ],
   next: '다음', go: '마을로 가기', stay: '조금 더 있을게요',
 };
@@ -781,8 +753,6 @@ function showEnd() {
     compare: invite && friendTown && myTown ? { label: `${invite.name}님과 고른 것 보기`, run: () => openCompare(shell, { name: me.name, pick: me.pick, type: state.result!, town: myTown }, { ...invite, town: friendTown }, () => {}) } : undefined,
     village: toVillage,
   });
-  // 테이블 사람들이 하나둘 언덕에 닿으면 그때그때 세운다.
-  if (tableCode) poll = setInterval(async () => { await refreshTable(); scene?.setGuests(guests()); ui.endLines(endLines()); setTimeout(prepareCard, 1600); }, 4000);
   setTimeout(prepareCard, 1600); // 카드가 내려앉고 손님이 언덕에 다 올라온 뒤
 }
 
@@ -811,7 +781,7 @@ async function boot() {
       pick: () => me.pick, name: () => me.name, arrived: showEnd, enter: toVillage, guide: { meet: () => guideTalk(), leave: guideBye },
       busCaption: (stage, skip) => {
         if (stage < 0) { ui.busCaption(); return; }
-        ui.busCaption(ROUTE[stage].area, tablemates().map(m => `${m.name} — ${whereIs(m.stage)}`), skip);
+        ui.busCaption(ROUTE[stage].area, skip);
       },
       // [나중에 살림: 버스 퀴즈] 사용자 10-19 「이 문제 나오는 건 삭제하라고 했던 것 같은데」 — 버스는 서지 않고 떠난다(false = 퀴즈 없음, JourneyScene toBus).
       // 살리면: const { quiz, choices } = quizFor(state.sessionId, stage); ui.busQuiz(ROUTE[stage].area, quiz, choices, correct => { if (correct) { 동전 하나 } done(); }); return true;
@@ -845,7 +815,7 @@ async function boot() {
     abort.signal.addEventListener('abort', () => resize.disconnect());
   } catch (error) { console.error(error); ui.loadError(); }
 }
-// ── 시작 — 다시 온 사람은 걷지 않고 마을에서(사용자 10-14, 2ⓐ). 걸으러 온 링크(?walk·친구 초대·테이블)면 걷기 화면. ──
+// ── 시작 — 다시 온 사람은 걷지 않고 마을에서(사용자 10-14, 2ⓐ). 걸으러 온 링크(?walk·친구 초대)면 걷기 화면. ──
 if ((import.meta.env.DEV || inspecting) && params.has('village') && !lastPlay?.type) {
   // 개발판 ?village — 아직 한 판도 안 끝낸 브라우저면 아무렇게나 한 판을 끝낸 셈 치고 마을로.
   bus.emit(autoAnswer().arrived);
@@ -853,14 +823,14 @@ if ((import.meta.env.DEV || inspecting) && params.has('village') && !lastPlay?.t
   saveTown(town!, { type: state.result, sessionId: state.sessionId });
   lastPlay = loadLast();
 }
-const startInVillage = Boolean(lastPlay?.type) && !params.has('walk') && !invite && !tableCode && !((import.meta.env.DEV || inspecting) && params.has('end'));
+const startInVillage = Boolean(lastPlay?.type) && !walkLink;
 // 소개 페이지(landing.ts, 10-16) — 처음 온 사람이 맨 주소로 왔을 때만 게임 위에 덮는다. ?about 이면 늘(보기용). 따로 불러와 첫 화면을 무겁게 하지 않는다.
 // 첫 칸에 「전에 해 봤어요 — 내 시민증 불러오기」(사용자 10-19) — 다른 기기·카톡 브라우저로 다시 온 사람도 이 브라우저에선 처음 온 사람이라 소개 페이지를 본다.
 // 불러오면 로그인 길이 페이지를 새로 열고, 지난번 판이 생겼으니 소개 페이지 없이 마을에서 시작한다(startInVillage).
 // 한 번도 안 걸은 사람이 불러오면 지난번 판이 없어 걷기부터 — 그때도 소개 페이지는 다시 안 띄운다(10-20, 덮으면 「로그인했어요」 판이 가려졌다).
 if (params.has('about') || (arrivedPlain && !lastPlay?.type && !loggedIn)) void Promise.all([import('./landing'), import('./landing.css')]).then(([m]) => m.openLanding(startInVillage ? () => {} : walkFromLanding, () => loginBox(loginOpts, '불러오기')));
 if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unlockAudio, { once: true }); } // 「출발」 을 안 누르니 첫 손길에 소리를 푼다
-else if (lastPlay?.type) ui.homeOpen(() => { location.href = inspecting ? `${here()}?inspect=1&village=1` : here(); }); // 걸으러 왔지만 마을로 갈 수도
+else if (lastPlay?.type) ui.homeOpen(goVillage); // 걸으러 왔지만 마을로 갈 수도
 // 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.
 if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
 else if (cardLink) void statsReady.then(() => openCards(shell, cardOpts(cardLink), () => {})); // 친구가 보낸 ?card= 링크(10-20 살림)
@@ -874,5 +844,5 @@ if (params.has('diag')) void import('./diag').then(m => m.startDiag({ surface: u
 export function getPendingResponse() { return response ? structuredClone(response) : undefined; }
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
-  cancelAnimationFrame(frame); clearInterval(poll); abort.abort(); stopEffects(); bus.clear(); controls.destroy(); game?.destroy(true); ui.destroy();
+  cancelAnimationFrame(frame); abort.abort(); stopEffects(); bus.clear(); controls.destroy(); game?.destroy(true); ui.destroy();
 });

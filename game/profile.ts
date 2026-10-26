@@ -190,11 +190,12 @@ export function addStamp(id: string, now = Date.now()) {
 
 // ── 문제 카드 — 이 기기의 투표 번호(반응은 기기마다 하나), 본 카드(새 카드 알림용), 내 반응 ──
 const CARD_KEY = 'budget-game-cards';
+const VOTER_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 헷갈리는 글자(0·O·1·I) 없이
 export type CardMemo = { voter: string; seen: string[]; mine: Record<string, string> };
 export function loadCardMemo(): CardMemo {
   const raw = read(CARD_KEY) as Partial<CardMemo> | null;
   const voter = typeof raw?.voter === 'string' && /^[A-Za-z0-9]{20}$/.test(raw.voter) ? raw.voter
-    : Array.from(crypto.getRandomValues(new Uint8Array(20)), b => TABLE_CHARS[b % TABLE_CHARS.length]).join(''); // http 엔 randomUUID 가 없다
+    : Array.from(crypto.getRandomValues(new Uint8Array(20)), b => VOTER_CHARS[b % VOTER_CHARS.length]).join(''); // http 엔 randomUUID 가 없다
   const memo = { voter, seen: Array.isArray(raw?.seen) ? raw.seen.filter(x => typeof x === 'string').slice(-60) : [], mine: raw?.mine && typeof raw.mine === 'object' ? raw.mine : {} };
   if (memo.voter !== raw?.voter) write(CARD_KEY, memo);
   return memo;
@@ -211,14 +212,6 @@ export const loadRegion = () => regionRecord()?.value;
 export const saveRegion = (region: Region, at = Date.now()) => {
   if (regionRecord()?.value !== region) write(REGION_KEY, { value: region, at });
 };
-
-/** 테이블 코드: 헷갈리는 글자(0·O·1·I) 없이 네 자. */
-export const TABLE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-export function cleanTableCode(value: unknown) {
-  if (typeof value !== 'string') return undefined;
-  const code = value.trim().toUpperCase();
-  return code.length === 4 && [...code].every(c => TABLE_CHARS.includes(c)) ? code : undefined;
-}
 
 // ── 로그인하면 서버에 두는 한 묶음(Save) — 이 기기의 기록 그대로. 서버도 받을 때 이걸로 검사한다(api.ts). ──
 /** 주머니 동전(사용자 10-19 「동전 로그인 저장」) — n 남은 동전, at 마지막으로 바뀐 때(더 나중 것이 이긴다), day·taken 그날 주운 나무(두 기기로 같은 나무를 두 번 줍지 않게). */

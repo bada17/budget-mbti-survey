@@ -247,7 +247,7 @@ export function won(n: number) {
 }
 
 /**
- * 우리 동네 페이지(local-finance site/index.html)의 한 쪽을 판 안에 띄운다 — 「오나」 들어오는 쪽(마을 곳간), 「쓰나」 쓰는 쪽(지방정부 예산).
+ * 우리 동네 페이지(local-finance site/index.html)의 한 쪽을 판 안에 띄운다 — 「오나」 들어오는 쪽(지방정부 곳간), 「쓰나」 쓰는 쪽(지방정부 예산).
  * 마을은 플랫폼 것을 그대로 보여 주는 창이다(사용자 10-19) — 숫자를 여기서 따로 굽지 않는다. ?part= 면 그 페이지가 머리·하단·다른 쪽을 감춘다.
  * 높이는 그 페이지가 postMessage 로 알려 준다(주소가 달라 직접 못 잰다). 소식이 안 오면 판 높이만큼 두고 창 안에서 내린다.
  */
@@ -283,7 +283,7 @@ export function openFinance(shell: HTMLElement, onClose: () => void) {
 }
 
 /**
- * 마을 곳간 — 우리 동네 페이지의 「돈이 어디서 오나」 쪽(townPane). 지방정부 예산(쓰나) 바로 옆 집이다.
+ * 지방정부 곳간(10-26 까지 「마을 곳간」) — 우리 동네 페이지의 「돈이 어디서 오나」 쪽(townPane). 지방정부 예산(쓰나) 바로 옆 집이다.
  * 10-20 사용자 「마을 곳간에서 세금 종류 부분은 빼자」 — 세금 도감 탭(생활 장면 → 세금 → 금고, taxes.ts)을 걷었다. 되살리려면 커밋 6b9d043 의 openTax·taxes.ts.
  */
 export function openTax(shell: HTMLElement, onClose: () => void) {
@@ -389,7 +389,7 @@ function cardView(card: PublicCard, ours: boolean, opts: CardsOpts) {
   const mine = opts.mine()[card.id] as CardKind | undefined;
   if (mine && CARD_KINDS.includes(mine)) result(mine); else ask();
   const more = el('div', 'c-more');
-  more.append(...shareButtons('g-ghost', copy => opts.share(card, copy, file)), link('밑 빠진 독상 보기', out(DOK_URL), 'g-link'));
+  more.append(...shareButtons('g-ghost', copy => opts.share(card, copy, file))); // 「밑 빠진 독상 보기」 는 걷었다(10-26 — 카드와 상관없이 독상 첫 화면이었고, 마을에 독상 집이 따로 있다)
   if (card.link) more.append(link('출처 보기', card.link, 'g-link'));
   box.append(area, more);
   /*

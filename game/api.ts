@@ -1,8 +1,7 @@
 /*
-  게임 서버 규칙 — 「다른 사람들 마음」(응답 모으기)·「테이블」(같이 걷기),
+  게임 서버 규칙 — 「다른 사람들 마음」(응답 모으기),
   그리고 다시 올 이유(기획 3차, 10-14) — 「방명록」(내 링크로 들어와 끝낸 사람)·「우리 지역 동네」·「연락처」(이웃의 편지).
   저장소(Store)만 바꿔 끼우면 어느 서버에나 붙는다 — 개발 서버 메모리(vite.game.config.ts), 구글 시트(server/gas.ts).
-  구글 시트에는 테이블을 붙이지 않는다(4초마다 묻는 테이블은 앱스 스크립트 한도에 걸린다 — net.ts 의 TABLES).
 
   받는 값은 남이 보낸 것이라 다 검사하고, 유형·동네는 서버가 답으로 다시 계산한다(보낸 유형을 믿지 않는다).
   응답·방명록·지역에는 개인정보가 없다(무작위 세션 id, 사람이 적은 별명, 모습 번호, 시·도). 연락처만 개인정보다 — 그래서
@@ -19,16 +18,15 @@
   로그인한 사람만 센다(사용자 10-19 「로그인한 기록만 보자」「같은 사람이 여러번 되면 안되지」) — 다른 사람들 마음·우리 동네·마을 누계는
   로그인한 주민마다 가장 최근에 끝낸 판 하나(residentRuns). 쪽지 쓰기도 로그인한 사람만(「쪽지 쓰기도 로그인한 사람만 하게 해야지」).
 */
-import { ROUTE, CONTENT_VERSION, TYPES, type TypeCode } from './content';
+import { CONTENT_VERSION, TYPES, type TypeCode } from './content';
 import { scoreAnswers, typeCode } from './score';
 import { orderedQuestions } from './response';
-import { cleanName, cleanTableCode, cleanNeighbor, cleanSave, isRegion, townFrom, TABLE_CHARS, type Neighbor, type Region, type Save } from './profile';
+import { cleanName, cleanNeighbor, cleanSave, isRegion, townFrom, type Neighbor, type Region, type Save } from './profile';
 import { validPayload, type ContactPayload } from './contact';
 import { isPick, DEFAULT_PICK, type Pick } from './look';
 import { cleanTag, type Source } from './source';
 import { checkNote, rude, kstDayStart, NOTE_GAP_MS, NOTE_DAY_MAX, REPORT_HIDE, NOTES_SHOW, CROWD_SHOW, CROWD_DAYS_MS, COIN_DAY_MAX } from './village';
 
-export type Member = { id: string; name: string; pick: Pick; stage: number; type?: TypeCode; at: number };
 export type Finished = {
   answers: Record<string, number>; type: TypeCode; at: number; pick?: Pick; /** 마을에 마지막으로 들른 시각 */ seenAt?: number;
   /** 마을 공사터에 넣은 동전 — 모두의 합이 공사를 채운다. coinDay 는 마지막으로 넣은 날(한국 날짜 시작 시각), coinsDay 는 그날 넣은 수. */
@@ -55,7 +53,6 @@ export const cleanSource = (v: unknown): Source => {
 };
 export type Store = {
   finished: Map<string, Finished>;
-  tables: Map<string, { createdAt: number; members: Member[] }>;
   /** 방명록 집 — 번호 → 열쇠. 번호는 초대 링크에 실리고 열쇠는 주인 기기에만 있다. */
   homes: Map<string, { key: string; at: number }>;
   /** 집 번호 → 다녀간 사람들(최근 BOOK_MAX 명). */
@@ -83,8 +80,6 @@ export type Card = { id: string; date: string; title: string; text: string; regi
 export const CARDS_SHOW = 12;
 export type ApiResult = { status: number; body: unknown };
 
-export const TABLE_TTL_MS = 6 * 60 * 60 * 1000;
-export const TABLE_MAX = 12;
 export const BOOK_MAX = 50;
 /** 기존 기록은 지우지 않는다. 한도에 닿으면 신규 생성만 멈추고 저장소 용량을 먼저 점검한다. */
 export const FINISHED_MAX = 10000;
@@ -96,7 +91,7 @@ const ID = /^[A-Za-z0-9-]{8,64}$/;
 const HOME_ID = /^[A-Za-z0-9]{12,32}$/;
 const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 
-export const createStore = (): Store => ({ finished: new Map(), tables: new Map(), homes: new Map(), books: new Map(), contacts: [], hits: [], residents: new Map(), notes: new Map(), cards: new Map() });
+export const createStore = (): Store => ({ finished: new Map(), homes: new Map(), books: new Map(), contacts: [], hits: [], residents: new Map(), notes: new Map(), cards: new Map() });
 /**
  * 관리자 — 로그인으로 확인된 이메일이 단체 주소(@action.or.kr)이거나 따로 적은 메일(extra, 쉼표로)이면(사용자 10-15 「@action.or.kr 메일은 다 관리자로 하고 내 개인 계정도」).
  * 따로 적는 메일은 공개 저장소에 두지 않는다 — 앱스 스크립트 속성 또는 깃 무시 Secret.js 의 ADMIN_EMAILS.
@@ -199,26 +194,15 @@ function validAnswers(raw: unknown): Record<string, number> | undefined {
   return Object.keys(raw).length === orderedQuestions.length ? answers : undefined;
 }
 
-function liveTable(store: Store, code: string | undefined, now: number) {
-  const table = code ? store.tables.get(code) : undefined;
-  if (!table) return undefined;
-  if (now - table.createdAt > TABLE_TTL_MS) { store.tables.delete(code!); return undefined; }
-  return table;
-}
-
 export type Stats = ReturnType<typeof stats>;
-export type TableView = ReturnType<typeof tableView>;
 export type RegionView = ReturnType<typeof regionView>;
 export type VillageView = ReturnType<typeof villageView>;
 export type PublicNote = ReturnType<typeof publicNote>;
 
-const tableView = (code: string, table: { members: Member[] }) => ({
-  code, members: table.members.map(({ id, name, pick, stage, type }) => ({ id, name, pick, stage, type })),
-});
 const randomText = (length: number, chars: string, random: () => number) => Array.from({ length }, () => chars[Math.floor(random() * chars.length)]).join('');
 const decode = (part: string | undefined) => { try { return decodeURIComponent(part ?? ''); } catch { return ''; } };
 
-/** path 는 /api/game 뒤쪽(예: /stats, /tables/ABCD/members). body 는 이미 JSON 으로 읽은 값. */
+/** path 는 /api/game 뒤쪽(예: /stats, /homes/…/visits). body 는 이미 JSON 으로 읽은 값. */
 export function handle(store: Store, method: string, path: string, body: unknown, now: number, random = Math.random): ApiResult {
   if (method === 'POST' && JSON.stringify(body ?? null).length > BODY_MAX) return { status: 413, body: { error: 'body-too-large' } };
   const parts = path.split('/').filter(Boolean);
@@ -390,46 +374,6 @@ export function handle(store: Store, method: string, path: string, body: unknown
     const type = typeof input.type === 'string' && input.type in TYPES ? input.type as TypeCode : undefined;
     store.contacts.push({ ...payload, ...(neighbor ? { neighbor } : {}), ...(type ? { type } : {}), receivedAt: now });
     return { status: 200, body: { ok: true } };
-  }
-
-  if (parts[0] !== 'tables') return { status: 404, body: { error: 'not-found' } };
-
-  if (method === 'POST' && parts.length === 1) {
-    for (let tries = 0; tries < 20; tries++) {
-      const code = randomText(4, TABLE_CHARS, random);
-      if (!liveTable(store, code, now)) {
-        store.tables.set(code, { createdAt: now, members: [] });
-        return { status: 201, body: { code } };
-      }
-    }
-    return { status: 503, body: { error: 'busy' } };
-  }
-
-  const code = cleanTableCode(parts[1]);
-  const table = liveTable(store, code, now);
-  if (!table) return { status: 404, body: { error: 'no-table' } };
-
-  if (method === 'GET' && parts.length === 2) return { status: 200, body: tableView(code!, table) };
-
-  if (method === 'POST' && parts.length === 3 && parts[2] === 'members') {
-    if (typeof input.id !== 'string' || !ID.test(input.id) || !isPick(input.pick)) return { status: 400, body: { error: 'bad-member' } };
-    const known = table.members.find(m => m.id === input.id);
-    if (!known && table.members.length >= TABLE_MAX) return { status: 409, body: { error: 'full' } };
-    const member: Member = { id: input.id, name: cleanName(input.name) || '이름 없음', pick: input.pick, stage: known?.stage ?? 0, type: known?.type, at: now };
-    table.members = known ? table.members.map(m => (m.id === member.id ? member : m)) : [...table.members, member];
-    return { status: 200, body: tableView(code!, table) };
-  }
-
-  if (method === 'POST' && parts.length === 4 && parts[2] === 'members') {
-    const member = table.members.find(m => m.id === parts[3]);
-    if (!member) return { status: 404, body: { error: 'no-member' } };
-    const stage = input.stage;
-    if (stage !== undefined && (!Number.isInteger(stage) || (stage as number) < 0 || (stage as number) > ROUTE.length)) return { status: 400, body: { error: 'bad-stage' } };
-    if (input.type !== undefined && !(typeof input.type === 'string' && input.type in TYPES)) return { status: 400, body: { error: 'bad-type' } };
-    if (stage !== undefined) member.stage = Math.max(member.stage, stage as number); // 뒤로 가지 않는다
-    if (input.type !== undefined) member.type = input.type as TypeCode;
-    member.at = now;
-    return { status: 200, body: tableView(code!, table) };
   }
 
   return { status: 404, body: { error: 'not-found' } };

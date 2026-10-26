@@ -321,8 +321,9 @@ export function openLogin(shell: HTMLElement, opts: LoginOpts, onClose: () => vo
 /**
  * 로그인 직후 한 번 — 됐다는 걸 판으로 확실히(사용자 10-16 「된 건지 안 된 건지 모르겠다」, 예전엔 2초 알림 한 줄).
  * 기록을 서버에 못 올렸으면(unsaved) 그렇게 말한다 — 다음에 열 때 keepSynced 가 다시 올린다.
+ * toVillage = 걸으러 온 링크(걷기 화면)에서 불러와 지난번 판이 생겼을 때 — 「마을로 갈까요?」(10-26).
  */
-export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: boolean, onClose: () => void) {
+export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: boolean, onClose: () => void, toVillage?: () => void) {
   const { panel, close } = panelShell(shell, onClose, '확인');
   panel.classList.add('t-gate');
   panel.append(el('p', 'g-kicker', VILLAGE_NAME), el('h2', '', `✓ ${PROVIDER_NAME[provider]}로 로그인했어요`),
@@ -339,7 +340,8 @@ export function openLoggedIn(shell: HTMLElement, provider: Provider, unsaved: bo
     mine.append(el('p', 't-mine-q', '내 동네를 정할까요?'), el('p', 't-small', `우리 동네 사람들과 함께 서고, ${placeName('finance')}·${placeName('tax')}이 바로 내 동네를 보여 줘요. 나중에 정해도 돼요.`), go);
     panel.append(mine);
   }
-  panel.append(btn('g-primary', '확인', close));
+  if (toVillage) panel.append(el('p', 't-mine-q', '지난번 기록을 불러왔어요. 마을로 갈까요?'), btn('g-primary', '마을로 가기', toVillage), btn('g-ghost', '여기서 걸을게요', close));
+  else panel.append(btn('g-primary', '확인', close));
 }
 
 /**
