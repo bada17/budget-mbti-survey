@@ -1,0 +1,1 @@
+var e,t=!1;function n(){e=new Map}function r(){n(),t=!0}var i=()=>t,a={getItem(t){return e?e.get(t)??null:localStorage.getItem(t)},setItem(t,n){e?e.set(t,n):localStorage.setItem(t,n)},removeItem(t){e?e.delete(t):localStorage.removeItem(t)}};export{n as i,i as n,r,a as t};
