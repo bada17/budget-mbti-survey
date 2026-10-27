@@ -13,7 +13,7 @@
 import Phaser from 'phaser';
 import { DESTINATION, ROUTE } from '../content';
 
-/** 몇 번째 방이 어느 구간이고 그 구간의 마지막 방인지 — 구간마다 방 수가 다를 수 있다(후원주점판은 3·1, pub.ts). */
+/** 몇 번째 방이 어느 구간이고 그 구간의 마지막 방인지 — 구간마다 방 수가 다를 수 있다(지금은 다 셋, pub.ts 가 구간을 빼기만 한다). */
 function stageOf(room: number) {
   let stage = 0, first = 0;
   while (room >= first + ROUTE[stage].ids.length) first += ROUTE[stage++].ids.length;
