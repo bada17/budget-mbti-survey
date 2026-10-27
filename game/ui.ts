@@ -565,7 +565,7 @@ export function createUI(root: HTMLElement, actions: {
       bar.append(
         row,
         ...(on.reply ? [button('g-ghost', on.reply.label, on.reply.run)] : []), // 나를 부른 친구에게 답장(기획 3차 ①)
-        button('g-sr', `${VILLAGE_NAME}로 들어가기`, on.village), // 눈으로는 빛 아치를 걸어서 지난다 — 화면 읽기 도구·키보드만 쓰는 사람의 길
+        button('g-sr', `${josa(VILLAGE_NAME, '으로', '로')} 들어가기`, on.village), // 눈으로는 빛 아치를 걸어서 지난다 — 화면 읽기 도구·키보드만 쓰는 사람의 길
         links,
         // give, // [나중에 살림: 끝 화면 셋]
       );
