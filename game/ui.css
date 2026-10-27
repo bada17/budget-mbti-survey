@@ -122,9 +122,10 @@ h1,h2,h3{font-family:var(--display);font-weight:400}
 .g-tabs{display:flex;gap:3px;margin:5px 0 8px;padding:3px;border-radius:14px;background:#eee5d3}
 .g-tab{flex:1;min-width:0;min-height:32px;padding:6px 4px;border-radius:11px;font-family:var(--display);font-size:14px;color:#76604e}
 .g-tab.on{background:var(--card);color:#4c6542;box-shadow:0 2px 3px #6b4a2a18}
-.g-panes{display:grid;min-width:0}
-.g-panes>.g-rows{grid-area:1/1;min-width:0}.g-panes>.g-rows.off{visibility:hidden}
-.g-rows{display:grid;gap:3px;margin:0;padding:6px 10px;align-content:start;align-self:start;border:1px solid #eee3cd;border-radius:16px;background:#faf4e7;overflow:hidden}
+/* 고르는 칸은 화면 높이에 맞춰 낮게 — 줄 많은 탭(머리 넷)은 칸 안에서 위아래로 민다(사용자 10-27 「커스터마이징 부분이 너무 큼, 캐릭터가 위로 몰림」). 판이 낮아야 판 위 내 모습이 크게 가운데 온다. */
+.g-panes{display:grid;min-width:0;height:clamp(140px,26vh,280px);height:clamp(140px,26dvh,280px)}
+.g-panes>.g-rows{grid-area:1/1;min-width:0;max-height:100%}.g-panes>.g-rows.off{visibility:hidden}
+.g-rows{display:grid;gap:3px;margin:0;padding:6px 10px;align-content:start;align-self:start;border:1px solid #eee3cd;border-radius:16px;background:#faf4e7;overflow:hidden auto;overscroll-behavior:contain}
 .g-row{display:flex;align-items:center;gap:8px;min-width:0}
 .g-row-label{margin:4px 2px 0;font-family:var(--body);font-size:11px;font-weight:700;color:#76604e;line-height:1.3}
 .g-row-head{position:relative;display:flex;min-width:0}
