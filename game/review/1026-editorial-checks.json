@@ -1,0 +1,93 @@
+{
+  "url": "http://127.0.0.1:5186/review/1026-editorial.html?about",
+  "layout": [
+    {
+      "normal": {
+        "width": 320,
+        "scroll": 320,
+        "view": 320,
+        "overflow": []
+      },
+      "long": {
+        "width": 320,
+        "scroll": 320,
+        "view": 320,
+        "overflow": []
+      },
+      "login": {
+        "width": 320,
+        "scroll": 320,
+        "view": 320,
+        "overflow": []
+      }
+    },
+    {
+      "normal": {
+        "width": 360,
+        "scroll": 360,
+        "view": 360,
+        "overflow": []
+      },
+      "long": {
+        "width": 360,
+        "scroll": 360,
+        "view": 360,
+        "overflow": []
+      },
+      "login": {
+        "width": 360,
+        "scroll": 360,
+        "view": 360,
+        "overflow": []
+      }
+    },
+    {
+      "normal": {
+        "width": 760,
+        "scroll": 760,
+        "view": 760,
+        "overflow": []
+      },
+      "long": {
+        "width": 760,
+        "scroll": 760,
+        "view": 760,
+        "overflow": []
+      },
+      "login": {
+        "width": 760,
+        "scroll": 760,
+        "view": 760,
+        "overflow": []
+      }
+    },
+    {
+      "normal": {
+        "width": 1280,
+        "scroll": 1280,
+        "view": 1280,
+        "overflow": []
+      },
+      "long": {
+        "width": 1280,
+        "scroll": 1280,
+        "view": 1280,
+        "overflow": []
+      },
+      "login": {
+        "width": 1280,
+        "scroll": 1280,
+        "view": 1280,
+        "overflow": []
+      }
+    }
+  ],
+  "checks": [
+    "three what + three why; no how",
+    "copy unchanged",
+    "long text",
+    "real recall login",
+    "real game start opens dresser"
+  ],
+  "errors": []
+}

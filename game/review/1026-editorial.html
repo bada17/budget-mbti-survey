@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <base href="/">
+  <link rel="icon" href="data:,">
+  <title>시민의 숲 · A안 느낌 보기</title>
+</head>
+<body><main id="game-root"></main><script type="module">
+// 실제 입구·글·로그인을 그대로 부르고, 소개 페이지가 열린 뒤 검토 CSS만 얹는다.
+import '/main.ts';
+await new Promise(resolve => {
+  if (document.querySelector('.lp')) { resolve(); return; }
+  const observer = new MutationObserver(() => {
+    if (document.querySelector('.lp')) { observer.disconnect(); resolve(); }
+  });
+  observer.observe(document.body, { childList:true });
+});
+await import('/review/1026-editorial.css');
+document.body.dataset.preview = 'editorial';
+</script></body>
+</html>
