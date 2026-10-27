@@ -8,12 +8,16 @@ import { fakeBook } from './fake-sheet.mjs';
 
 const NOW = 1800000000000;
 const input = { device: 'a'.repeat(32), name: '이웃', pick: DEFAULT_PICK, text: '골라 보니 어려웠어요' };
-test('주점 의견은 로그인 없이 모으고 pub 출처를 보존하며 공개 쪽지에는 섞지 않는다', () => {
+test('주점 의견은 로그인 없이 받아 그 판에 바로 보이고, 마을 쪽지판에는 섞지 않는다', () => {
   const store = createStore();
   const sent = handle(store, 'POST', '/village/pub-notes', input, NOW);
   assert.equal(sent.status, 201);
-  assert.deepEqual(sent.body, { ok: true });
+  assert.deepEqual(sent.body.notes.map(n => n.text), [input.text]);
   assert.equal([...store.notes.values()][0].source, 'pub');
+  handle(store, 'POST', '/village/pub-notes', { ...input, device: 'b'.repeat(32), text: '두 번째' }, NOW + 1);
+  assert.deepEqual(handle(store, 'GET', '/village/pub-notes', null, NOW).body.notes.map(n => n.text), ['두 번째', input.text]);
+  const [first] = store.notes.values(); store.notes.set(first.id, { ...first, hidden: true });
+  assert.deepEqual(handle(store, 'GET', '/village/pub-notes', null, NOW).body.notes.map(n => n.text), ['두 번째']);
   assert.equal(handle(store, 'GET', '/village', null, NOW).body.notes.length, 0);
   assert.equal(handle(store, 'GET', '/regions/4211000', null, NOW).body.notes.length, 0);
   assert.equal(store.finished.size, 0);

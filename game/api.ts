@@ -36,7 +36,7 @@ export type Finished = {
 /**
  * 쪽지 한 장. likes 는 누른 판(세션), reports 는 신고한 주민(계정 해시) — 각각 한 번. hidden 은 시트의 「숨김」 칸에서 온다(사람이 적거나, 관리자가 「숨기기」 — hiddenBy).
  * account = 쓴 주민(해시, 밖으로 안 낸다 — 하루 몇 장 셀 때만), region = 쓸 때 그 사람의 내 동네(우리 동네 탭의 「동네 한마디」). 옛 쪽지엔 sessionId 만 있다.
- * source — 없으면 마을 쪽지, pub = 후원주점판 게임 의견(모으기만), cheer = 창립행사 응원판에 바로 적은 응원(project 와 함께, cheer.ts).
+ * source — 없으면 마을 쪽지, pub = 후원주점판 「게임에 대해 한마디」(그 판에 바로 보인다), cheer = 창립행사 응원판에 바로 적은 응원(project 와 함께, cheer.ts).
  */
 export type Note = { source?: 'pub' | 'cheer'; project?: CheerProject; device?: string; id: string; at: number; name: string; text: string; pick: Pick; sessionId?: string; account?: string; region?: Region; likes: string[]; reports: string[]; hidden?: boolean; hiddenBy?: string };
 /** 방명록 한 줄 — 내 링크로 들어와 끝까지 걸은 사람. 동네·유형은 그 사람이 끝낸 답에서 서버가 만든다. */
@@ -191,6 +191,10 @@ export function cheerView(store: Store) {
     .map(({ id, at, name, pick, project, text }): PublicCheer => ({ id, at, name, pick, project: project!, text }));
   return { cheers: [...here, ...store.formCheers].sort((x, y) => y.at - x.at).slice(0, CHEERS_SHOW) };
 }
+/** 후원주점판 「게임에 대해 한마디」 — 남긴 글이 그 판에 바로 보인다(10-27 사용자 「모아두는 거 아니야」). 마을 쪽지판엔 안 섞는다. 숨기기는 시트 쪽지 탭 숨김 칸. */
+export function pubNotesView(store: Store) {
+  return { notes: [...store.notes.values()].filter(n => n.source === 'pub' && !n.hidden).sort((x, y) => y.at - x.at).slice(0, CHEERS_SHOW).map(publicNote) };
+}
 const publicNote = ({ id, at, name, text, pick, likes }: Note) => ({ id, at, name, text, pick, likes: likes.length });
 
 function validAnswers(raw: unknown): Record<string, number> | undefined {
@@ -285,9 +289,10 @@ export function handle(store: Store, method: string, path: string, body: unknown
 
   // ── 마을 — 쪽지 쓰기·신고(로그인한 주민), 숨기기(관리자), 들르기·동전·나도(끝낸 판), 보기(누구나) ──
   if (parts[0] === 'village') {
+    if (method === 'GET' && path === '/village/pub-notes') return { status: 200, body: pubNotesView(store) };
     if (method === 'GET' && parts.length <= 2) return { status: 200, body: villageView(store, now, parts[1]) };
     if (method !== 'POST') return { status: 404, body: { error: 'not-found' } };
-    // 주점 글은 게임 기록·로그인 없이 받아 모으기만 한다. 공개 API에는 내지 않는다(shown).
+    // 주점 글은 게임 기록·로그인 없이 받는다. 쓰면 새 목록이 돌아온다(pubNotesView).
     if (path === '/village/pub-notes') {
       const checked = checkNote(input.text);
       if (typeof input.device !== 'string' || !/^[a-f0-9]{32}$/.test(input.device) || !checked.ok || !isPick(input.pick)) return { status: 400, body: { error: 'bad-note' } };
@@ -298,7 +303,7 @@ export function handle(store: Store, method: string, path: string, body: unknown
       if (!id || store.notes.has(id)) return { status: 503, body: { error: 'busy' } };
       const name = cleanName(input.name);
       store.notes.set(id, { id, at: now, source: 'pub', device: input.device, name: rude(name) ? '' : name, text: checked.text, pick: input.pick, likes: [], reports: [] });
-      return { status: 201, body: { ok: true } };
+      return { status: 201, body: pubNotesView(store) };
     }
     if (path === '/village/notes') {
       const found = byKey(store, input.key);

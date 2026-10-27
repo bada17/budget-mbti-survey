@@ -58,7 +58,9 @@ async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pr
 }
 
 export const net = {
-  pubNote: (input: { device: string; name: string; pick: Pick; text: string }) => call<{ ok: true }>('POST', '/village/pub-notes', input),
+  // 후원주점판 「게임에 대해 한마디」 — 로그인 없이 보기·쓰기. 쓰면 새 목록이 돌아온다.
+  pubNotes: () => call<{ notes: PublicNote[] }>('GET', '/village/pub-notes'),
+  pubNote: (input: { device: string; name: string; pick: Pick; text: string }) => call<{ notes: PublicNote[] }>('POST', '/village/pub-notes', input),
   // 창립행사 응원판(후원주점판) — 로그인 없이 보기·쓰기. 쓰면 새 목록이 돌아온다.
   cheers: () => call<{ cheers: PublicCheer[] }>('GET', '/cheers'),
   cheer: (input: { device: string; project: CheerProject; name: string; pick: Pick; text: string }) => call<{ cheers: PublicCheer[] }>('POST', '/cheers', input),

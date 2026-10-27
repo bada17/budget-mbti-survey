@@ -387,7 +387,7 @@ async function postNote(text: string, region: Region | undefined = loadRegion())
       return { ok: false, text: '지금은 남기지 못했어요. 조금 뒤에 다시 눌러 주세요.' };
     }
     feedbackSent();
-    return { ok: true, text: '고마워요. 남긴 글은 모아 두었어요.' };
+    return { ok: true, text: '고마워요. 판에 붙였어요.', notes: sent.notes };
   }
   const key = loginKey();
   if (!key) return { ok: false, text: '로그인하면 쪽지를 남길 수 있어요.' };

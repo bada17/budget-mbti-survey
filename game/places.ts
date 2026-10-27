@@ -17,6 +17,7 @@ import { PRIVACY_URL, CONTACT } from './contact';
 import type { PublicNote, VillageView, PublicCard, CardKind } from './api';
 import { gameStorage, isInspectionMode } from './storage';
 import { PUB } from './pub';
+import { net } from './net';
 import { loadCuts, findCuts, cutMoney, CUT_ARTICLE, CUT_FROM, CUT_LEAD } from './cuts';
 
 const PB_URL = 'https://pb.action.or.kr/';
@@ -539,7 +540,7 @@ export type BoardOpts = NoteActions & {
   /** 쓰기는 로그인한 사람만(사용자 10-19) — 안 했으면 그 자리에 「로그인하면 쪽지를 남길 수 있어요」. */
   login: LoginOpts;
   /** 붙이기 — 됐나와 알릴 말, 됐으면 서버가 같이 돌려준 마을 모습(main 이 우리 동네 탭과 같이 쓴다). */
-  post(text: string): Promise<{ ok: boolean; text: string; view?: VillageView }>;
+  post(text: string): Promise<{ ok: boolean; text: string; view?: VillageView; notes?: PublicNote[] }>;
   /** 붙이는 동안 먼저 그려 둘 내 모습·이름. */
   me(): { name: string; pick: Pick };
 };
@@ -548,7 +549,14 @@ export type BoardOpts = NoteActions & {
 export function openBoard(shell: HTMLElement, opts: BoardOpts, onClose: () => void) {
   const { panel } = placePanel(shell, 'board', onClose);
   if (opts.pub) {
-    panel.append(el('p', 't-small', '로그인 없이 남길 수 있어요. 10분에 한 번, 40자까지예요. 남긴 글은 모으기만 하고 공개하지 않아요.'), noteForm(opts.post));
+    // 「게임에 대해 한마디」(후원주점판) — 남긴 글이 바로 보인다(10-27 사용자). 로그인이 없어 「나도」·「신고」 는 없다 — 숨기기는 시트에서.
+    const list = el('div', 'v-notes');
+    const draw = (notes?: PublicNote[]) => list.replaceChildren(...(notes?.length ? notes.map(pubNoteView)
+      : [el('p', 't-small', notes ? '아직 남긴 글이 없어요. 첫 한마디를 남겨 주세요.' : '지금은 글을 불러오지 못했어요.')]));
+    list.append(el('p', 't-small', '글을 불러오는 중…'));
+    const post = async (text: string) => { const got = await opts.post(text); if (got.notes) draw(got.notes); return got; };
+    panel.append(el('p', 't-small', '로그인 없이 남길 수 있어요. 10분에 한 번, 40자까지예요. 남긴 글은 이 판에 바로 보여요.'), noteForm(post), list);
+    void net.pubNotes().then(got => { if (panel.isConnected) draw(got?.notes); });
     return;
   }
   if (!opts.online) { panel.append(el('p', 't-lead', '서버가 없는 시험판이라 쪽지판이 비어 있어요.')); return; }
@@ -574,6 +582,13 @@ export function openBoard(shell: HTMLElement, opts: BoardOpts, onClose: () => vo
   panel.append(opts.login.current() ? noteForm(post) : loginInvite('로그인하면 쪽지를 남길 수 있어요', opts.login, 'board'), list);
   draw();
   void refresh();
+}
+
+function pubNoteView(note: PublicNote) {
+  const item = el('div', 'v-note'), who = el('div', 'v-who');
+  who.append(avatar(toLook(note.pick)), el('b', '', note.name || '이름 없는 주민'), el('small', '', ago(note.at)));
+  item.append(who, el('p', 'v-text', note.text));
+  return item;
 }
 
 /** 광장에서 쪽지 든 주민 곁에 서면 아래에 뜨는 카드. 멀어지면 장면이 hide 를 부른다. */
