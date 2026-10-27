@@ -866,7 +866,7 @@ Claude 가 이해한 것과 질문을 몰아 드리고 답(1ⓐⓑⓒⓕⓖ · 2
 - 관리자 점검은 위 「관리자는 여기저기 이동」 참조. 전송 실패한 완료 기록은 이 기기에 최대 50판까지 보관하고 연결이 돌아오면 차례로 재전송한다. 새 판이 이전 미전송 판을 덮지 않는다.
 - 서버 보호: 원문 JSON 16,384자, 응답 10,000건·방명록 집 5,000건에서 새 항목만 거절(기존 기록 갱신은 허용). GAS 쓰기 요청 분당 90회·연락처 분당 10회, 같은 연락처 재제출은 6시간 동안 억제한다. ScriptCache 기반이라 조기 삭제될 수 있으며 완전한 남용 방어는 아니다.
 - 회전 시 언덕·아치·안내 주민 위치를 다시 맞추고, 결과 부가판 뒤로 가기·장면 실패 재시도·늦게 도착한 시민증 도장 및 공유 그림 갱신을 보완했다. Chrome 폰 크기로 확인했으며 실제 iOS Safari 재시험은 남아 있다.
-- 공개판 https://forest.action.or.kr/ (gh-pages, 위 「정적판」 명령으로 굽는다). **10-27 저녁 gh-pages b2613b0 — 주점판 다시 여섯 문항(8f5777f)·한마디 바로 보이기(07e1225), 서버 버전 9 와 같이.** 시트 서버 배포 `AKfycbwTzS1Q…`(game/.env.production), 버전 9(10-27 저녁). 카카오·구글 콘솔에 첫 주소 더함(10-26 사용자).
+- 공개판 https://forest.action.or.kr/ (gh-pages, 위 「정적판」 명령으로 굽는다). **10-27 저녁 gh-pages 39f142d — 주점판 다시 여섯 문항(8f5777f)·한마디 바로 보이기(07e1225, 서버 버전 9 와 같이)·따져 볼 지방정부 오타 둘·「시민의 숲으로 들어가기」 조사.** 시트 서버 배포 `AKfycbwTzS1Q…`(game/.env.production), 버전 9(10-27 저녁). 카카오·구글 콘솔에 첫 주소 더함(10-26 사용자).
 - 서버 올리기: `npm run build:gas` → `server/gas` 에서 `clasp -u action push --force` → `clasp -u action update-deployment AKfycbwTzS1QNvIvUpGIA7HdSt7FANdPy_D2OHw_4updAnssIH15idkwUmSpF4A_WMjGavVA -d "…"`.
   ⚠️ push 없이 새 버전만 만들면 옛 코드가 배포된다(10-20 버전 5). `clasp -u action login` 은 **bada17@action.or.kr** 로 허용 — action@ 로 고르면 「Apps Script API 꺼짐」 으로 막힌다. `clasp redeploy` 는 버전만 만들고 배포를 안 옮긴다.
 - 서버는 요청이 건드리는 탭만 연다(`server/gas.ts` serve). 한 번에 1.3~2초, 응답 탭을 읽는 /stats 는 3초 안팎 — 앱스 스크립트 바닥.
