@@ -652,7 +652,8 @@ const COIN_FAILED: Record<string, string> = {
  */
 export function openWorks(shell: HTMLElement, opts: WorksOpts, onClose: () => void) {
   const { panel, close } = placePanel(shell, 'works', onClose);
-  const card = el('div', 't-bigcard'), status = el('p', 't-small'); status.setAttribute('role', 'status');
+  // 처음 글 = 줍는 법(10-27 사용자 「동전이 나무에서 떨어지는지 모르네」). 넣거나 받으면 그 결과로 바뀐다.
+  const card = el('div', 't-bigcard'), status = el('p', 't-small', '나무에 부딪히면 가끔 동전이 떨어져요.'); status.setAttribute('role', 'status');
   let justBuilt: string | undefined, busy = false;
   const give = btn('g-primary', '', async () => {
     const n = Math.min(opts.pocket.coins, COIN_DAY_MAX);

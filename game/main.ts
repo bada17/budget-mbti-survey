@@ -130,7 +130,7 @@ const ui = createUI(root, {
 ui.setSound(isMuted());
 const controls = new Controls(ui.surface, () => {
   if (where === 'village') return !panelOpen;
-  if (state.phase === 'arrived') return Boolean(scene?.hillOpen()) && !ui.busy(); // 언덕 — 빛 아치가 핀 뒤, 판이 덮지 않았을 때
+  if (state.phase === 'arrived') return Boolean(scene?.hillOpen()) && !ui.busy() && !guideOpen; // 언덕 — 빛 아치가 핀 뒤, 판이 덮지 않았을 때. 안내하는 사람과 말하는 동안은 멈춤(10-27 사용자 — 움직이다 아치로 들어가 버렸다)
   return !state.paused && ['walking', 'question', 'reply'].includes(state.phase);
 });
 const stopEffects = attachEffects(bus);
@@ -414,7 +414,7 @@ function enteredVillage() {
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())), toWorks);
   // showErrands(); // [나중에 살림: 오락실·부탁] 사용자 10-19 「필드에 부탁도 일단 주석처리해놔」 — 부탁하는 주민이 안 선다(규칙 quests.ts·시험은 그대로)
-  // 주점 환영 → 시민센터 → 동쪽 지방재정 → 서쪽 상담소·독상. 게임 기록은 남기지 않는다.
+  // 주점 환영 → 응원판·게임 한마디 → 시민센터 → 동쪽 지방재정 → 서쪽 상담소·독상. 게임 기록은 남기지 않는다.
   if (PUB) village?.celebrate();
   hubGuide();
   // 개발판 ?go=건물 — 마을에 들어오자마자 그 건물 판을 연다(오락실 같은 판을 바로 보려고, 10-17). 공개판엔 없다.
@@ -429,7 +429,7 @@ function enteredVillage() {
 /**
  * 마을 둘러보기(사용자 10-16 시민센터 안내 → 10-26 「집들도 시점 이동해서 설명」 — 두 곳만, 한 곳에 말 상자 하나·집마다 한 줄).
  * 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 시민센터 → 동쪽 지방정부 셋 → 서쪽 상담소·독상. 말은 시민센터의 채연하(keeperName('hub')).
- * 후원주점판은 창립행사 환영 말부터. 주점판은 시민증이 안 나오니(기록을 안 남긴다) 시민센터 대신 홈페이지 본편을 알린다(사용자 10-26).
+ * 후원주점판은 창립행사 환영 말 → 응원판·「게임에 대해 한마디」 한 화면(10-27 사용자) 부터. 주점판은 시민증이 안 나오니(기록을 안 남긴다) 시민센터 대신 홈페이지 본편을 알린다(사용자 10-26).
  * 예전 「마을 입구 로그인 판」(들어오자마자 로그인 요구)은 지웠다 — 사용자 「마을 입구 로그인판은 그럼 지워」, 같은 말을 두 번 하게 돼서.
  */
 const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 확정(따져 볼 지방정부만 사용자 글, 나머지는 Claude 초안 그대로)
@@ -438,23 +438,28 @@ const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 
   cards: '우리 동네 예산이 어디로 새고 있는지 함께 따져 봐요.',
   counsel: '예산에 참여하는 길이 궁금하면 물어보세요.',
   dok: '예산이 새는 사업을 시민이 함께 감시해요.',
+  // 주점판에만 서는 두 곳 — 환영 말 바로 다음에 한 화면에 담아 소개(사용자 10-27). 글은 Claude 초안.
+  cheer: '세 사업 중 하나를 골라 응원을 남겨 주세요.',
+  board: '해보니 어땠는지 알려주세요!', // 사용자 글 10-27
 };
 function hubGuide() {
   if (villageStart !== 'gate' || shell.querySelector('.t-panel')) return;
   try { if (gameStorage.getItem(HUB_GUIDE)) return; gameStorage.setItem(HUB_GUIDE, '1'); } catch { /* 다음 입장에 다시 안내 */ }
   villageGuiding = true;
   const guide = keeperName('hub');
-  const groups: PlaceId[][] = [['hub'], ['finance', 'tax', 'cards'], ['counsel', 'dok']];
+  const groups: PlaceId[][] = [...(PUB ? [['cheer', 'board'] as PlaceId[]] : []), ['hub'], ['finance', 'tax', 'cards'], ['counsel', 'dok']];
+  const last = groups.length - 1;
   const stop = (i: number) => {
     ui.villageNotice();
+    const hub = groups[i][0] === 'hub';
     village?.showPlaces(groups[i], () => {
-      const text = i > 0 ? groups[i].map(id => `${placeName(id)} — ${TOUR_LINE[id]}`).join('\n')
-        : PUB ? '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가려면 시민행동 홈페이지에서 본편을 해 보세요.'
+      const text = !hub ? groups[i].map(id => `${placeName(id)} — ${TOUR_LINE[id]}`).join('\n')
+        : PUB ? '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가는 본편은 11월 21일에 열려요. 지방정부가 내년 예산안을 의회에 내는 마감이거든요. 그때 방문하시면 각 지방정부의 예산안을 보실 수 있어요.'
           : loginNow() ? `${placeName('hub')}에서 내 시민증과 도장을 볼 수 있어요.` // 이미 로그인한 사람에게 「로그인하면」 은 틀린 말(10-26)
             : `${placeName('hub')}에서 로그인하면 기록이 남고 다른 기기에서도 이어할 수 있어요.`; // 문구 사용자 10-20
-      const next = () => { if (i < 2) stop(i + 1); else { villageGuiding = false; village?.endTour(); } };
-      ui.villageNotice(guide, text, [{ label: i < 2 ? '다음' : '둘러보기 마치기', run: next },
-        ...(PUB && i === 0 ? [{ label: '홈페이지 가기', run: () => { window.open(HOME_LINK, '_blank', 'noopener'); next(); } }] : [])]);
+      const next = () => { if (i < last) stop(i + 1); else { villageGuiding = false; village?.endTour(); } };
+      // 주점판 「홈페이지 가기」 단추는 걷었다(10-27 사용자 — 본편은 11월 21일 공개라 홈페이지에 아직 없다).
+      ui.villageNotice(guide, text, [{ label: i < last ? '다음' : '둘러보기 마치기', run: next }]);
     });
   };
   if (PUB) {
@@ -737,7 +742,7 @@ function guideTypes(): [string, string] {
 let guideOpen = false;
 function guideTalk(page = 0) {
   if (where === 'village') return;
-  guideOpen = true;
+  guideOpen = true; controls.clear(); // 걸어가던 곳도 지운다 — 말 끝날 때까지 제자리
   ui.endActions(false); // 말 상자가 아래 단추 자리에 뜬다
   const pages = HILL_GUIDE.pages(...guideTypes());
   const back = () => { guideOpen = false; ui.endActions(true); }, last = page >= pages.length - 1;

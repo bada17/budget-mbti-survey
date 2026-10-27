@@ -180,10 +180,8 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const mine = el('div'); mine.append(card, tip, join, save, status);
   if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, 'hub'));
-  else if (data.home) {
-    const go = el('a', 'g-primary', '홈페이지 가기'); go.href = data.home; go.target = '_blank'; go.rel = 'noopener';
-    mine.append(el('p', 't-lead', '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가려면 시민행동 홈페이지에서 본편을 해 보세요.'), go);
-  }
+  // 「홈페이지 가기」 단추는 걷었다(10-27 사용자 — 본편은 11월 21일 공개라 홈페이지에 아직 없다).
+  else if (data.home) mine.append(el('p', 't-lead', '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가는 본편은 11월 21일에 열려요. 지방정부가 내년 예산안을 의회에 내는 마감이거든요. 그때 방문하시면 각 지방정부의 예산안을 보실 수 있어요.'));
   tab('시민증', mine);
 
   // ── 방명록 ──

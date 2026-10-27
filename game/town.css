@@ -203,7 +203,7 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 /* 문제 카드(10-15) — 한 장 크게, 반응 셋, 반응한 뒤에만 막대 */
 .c-kicker{margin:24px 4px 10px;font-family:var(--display);font-size:17px;color:var(--accent-dark)}
 .c-card{margin:0 0 18px;padding:20px 18px;border:1.5px solid #dfcbaa;border-radius:22px;background:#fffdf6;box-shadow:0 4px 0 #e3d0ae}
-.t-panel:has(>.v-npc)>.t-small[role=status]{margin:24px 0;padding:22px 18px;border:1.5px dashed #d5bf98;border-radius:18px;background:#fffcf3;font-size:15px;line-height:1.85;color:#725c47;text-align:center}
+.t-panel:has(>.v-npc)>.t-small[role=status]:not(:empty){margin:12px 0;padding:9px 14px;border:1.5px dashed #d5bf98;border-radius:12px;background:#fffcf3;font-size:14px;line-height:1.6;color:#725c47;text-align:center}
 .c-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0;font-size:13px;color:var(--soft)}
 .c-ours{padding:2px 9px;border-radius:999px;background:var(--leaf);color:#fff;font-size:12px;font-weight:700}
 .c-title{margin:12px 0 8px;font-family:var(--display);font-size:23px;font-weight:400;line-height:1.45;color:#5b402e;overflow-wrap:anywhere}

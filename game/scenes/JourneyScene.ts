@@ -11,7 +11,14 @@
   답·진행은 runtime.send 로 flow.ts 에 맡긴다. 여기서는 위치·그림·연출만 다룬다.
 */
 import Phaser from 'phaser';
-import { DESTINATION } from '../content';
+import { DESTINATION, ROUTE } from '../content';
+
+/** 몇 번째 방이 어느 구간이고 그 구간의 마지막 방인지 — 구간마다 방 수가 다를 수 있다(후원주점판은 3·1, pub.ts). */
+function stageOf(room: number) {
+  let stage = 0, first = 0;
+  while (room >= first + ROUTE[stage].ids.length) first += ROUTE[stage++].ids.length;
+  return { stage, end: room === first + ROUTE[stage].ids.length - 1 };
+}
 import { currentQuestion, type JourneyState } from '../flow';
 import { orderedQuestions, displayOptions, type DisplaySide } from '../response';
 import { FEEL } from '../feel';
@@ -167,7 +174,7 @@ export class JourneyScene extends Phaser.Scene {
     const { w, h } = this.runtime.view();
     const question = orderedQuestions[index];
     const room = layoutRoom(w, h);
-    const art = drawRoom(this, room, Math.floor(index / 3), question.id, offsetY, question.place);
+    const art = drawRoom(this, room, stageOf(index).stage, question.id, offsetY, question.place);
     if (art.cat) this.roomCats.add(art.cat);
     const residents: Partial<Record<DisplaySide, Dude>> = {};
     for (const side of SIDES) {
@@ -554,9 +561,8 @@ export class JourneyScene extends Phaser.Scene {
 
   // ── 방을 나서기 ──
   private leaveRoom() {
-    const stageIndex = Math.floor(this.roomIndex / 3);
+    const { stage: stageIndex, end: stageEnd } = stageOf(this.roomIndex);
     const last = this.roomIndex === orderedQuestions.length - 1;
-    const stageEnd = this.roomIndex % 3 === 2;
     this.mode = 'moving';
     this.insideBand = undefined;
     for (const dude of [this.player, ...this.followers.map(f => f.dude)]) dude.root.setVisible(true);
