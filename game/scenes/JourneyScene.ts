@@ -509,7 +509,7 @@ export class JourneyScene extends Phaser.Scene {
       else this.tweens.add({
         targets: passed.root, x: outX, delay: FEEL.waveMs, duration: FEEL.walkOffMs, ease: 'Sine.easeIn',
         onStart: () => passed.look(outX - passed.x, 0),
-        onUpdate: () => { if (passed.root.active) passed.walk(16, true, false); },
+        onUpdate: () => { if (passed.root.active) passed.walk(Math.min(this.game.loop.delta, FEEL.maxDeltaMs), true, false); },
       });
     }
     this.time.delayedCall(FEEL.joinDelayMs, () => {
@@ -730,7 +730,7 @@ export class JourneyScene extends Phaser.Scene {
     const start = { x: dude.x, y: dude.y };
     const tween = this.tweens.addCounter({
       from: 0, to: 1, duration: this.reduced ? 1 : ms, ease: 'Sine.easeInOut',
-      onUpdate: tween => { const p = lerp(start, spot, tween.getValue() ?? 1); dude.look(p.x - dude.x, p.y - dude.y); dude.place(p).walk(16, true, this.reduced); },
+      onUpdate: tween => { const p = lerp(start, spot, tween.getValue() ?? 1); dude.look(p.x - dude.x, p.y - dude.y); dude.place(p).walk(Math.min(this.game.loop.delta, FEEL.maxDeltaMs), true, this.reduced); },
       onComplete: () => { this.hillWalks.delete(dude); dude.walk(16, false, this.reduced); dude.look(face.x - spot.x, face.y - spot.y); },
     });
     this.hillWalks.set(dude, tween);

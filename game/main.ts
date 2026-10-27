@@ -820,6 +820,8 @@ async function boot() {
       type: Phaser.AUTO, parent: ui.surface, backgroundColor: '#fffaf0',
       width: view.w * view.dpr, height: view.h * view.dpr,
       scale: { mode: Phaser.Scale.NONE, zoom: 1 / view.dpr },
+      // 30fps에서도 시작·복귀 뒤 게임 시계가 60fps 기준으로 느려지지 않게 한다.
+      fps: { smoothStep: false },
       render: { antialias: true }, audio: { noAudio: true }, banner: false,
       scene: startInVillage ? [villageScene, journey] : [journey, villageScene], // 맨 앞 장면만 바로 선다
     });

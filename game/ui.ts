@@ -60,17 +60,26 @@ export function typeOut(node: HTMLElement, text: string, done = () => {}, pitch 
   rest.style.visibility = 'hidden'; rest.setAttribute('aria-hidden', 'true');
   next.setAttribute('aria-hidden', 'true');
   node.replaceChildren(shown, rest);
-  let i = 0, timer = 0, over = false;
+  let i = 0, timer = 0, over = false, due = 0;
   const finish = () => { if (over) return; over = true; clearTimeout(timer); typers.delete(node); shown.data = text; rest.remove(); node.append(next); done(); };
   const tick = () => {
-    const ch = text[i++] ?? '';
-    shown.data = text.slice(0, i);
-    rest.textContent = text.slice(i);
-    sfx.babble(ch, pitch);
-    if (i >= text.length) finish(); else timer = window.setTimeout(tick, /[,.…!?]/.test(ch) ? 170 : 36);
+    if (over) return;
+    // 늦은 콜백마다 다시 기다리면 낮은 프레임에서 글 전체가 느려진다.
+    const now = performance.now();
+    let ch = '';
+    while (i < text.length && now >= due) {
+      ch = text[i++];
+      due += /[,.…!?]/.test(ch) ? 170 : 36;
+    }
+    if (ch) {
+      shown.data = text.slice(0, i);
+      rest.textContent = text.slice(i);
+      sfx.babble(ch, pitch); // 밀린 글자는 함께 보이되 웅얼 소리를 한꺼번에 겹치지 않는다.
+    }
+    if (i >= text.length) finish(); else timer = window.setTimeout(tick, Math.max(0, due - performance.now()));
   };
   typers.set(node, { cancel: () => { over = true; clearTimeout(timer); typers.delete(node); }, finish });
-  if (prefersReducedMotion()) finish(); else timer = window.setTimeout(tick, 140);
+  if (prefersReducedMotion()) finish(); else { due = performance.now() + 140; timer = window.setTimeout(tick, 140); }
   return finish;
 }
 export const finishTyping = (node: HTMLElement) => typers.get(node)?.finish();

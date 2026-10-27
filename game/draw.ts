@@ -1592,7 +1592,7 @@ export function playOutcome(scene: Scene, o: Outcome, at: { spot: Point; room: R
       if (reduced) { helper.place(to); held.setPosition(to.x, to.y - 52); done(); break; }
       scene.tweens.addCounter({
         from: 0, to: 1, duration: 1100, ease: 'Sine.easeInOut',
-        onUpdate: tw => { const k = tw.getValue() ?? 1, x = fromX + (to.x - fromX) * k; helper.place({ x, y: to.y }).walk(16, true, false); held.setPosition(x, to.y - 52 + Math.sin(k * 20) * 1.5); },
+        onUpdate: tw => { const k = tw.getValue() ?? 1, x = fromX + (to.x - fromX) * k; helper.place({ x, y: to.y }).walk(Math.min(scene.game.loop.delta, FEEL.maxDeltaMs), true, false); held.setPosition(x, to.y - 52 + Math.sin(k * 20) * 1.5); },
         onComplete: done,
       });
       break;

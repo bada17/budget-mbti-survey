@@ -889,22 +889,16 @@ Claude 가 이해한 것과 질문을 몰아 드리고 답(1ⓐⓑⓒⓕⓖ · 2
 - 사용자는 전체 모션에서 약간의 버벅임도 보고했고 당시 저전력 모드는 켜져 있었다. 저전력 모드를 끈 재시험은 지금 어렵다고 했다. 저전력이 유일한 원인이라고 단정하거나 남은 버벅임까지 해결됐다고 기록하지 않는다. 긴 프레임에는 앱을 벗어난 약 19.8초 공백도 있어 게임 프레임으로 합산하지 않는다. 새 코드의 아이패드 실기기 재시험도 아직 없다. [신뢰도 높음]
 
 
-**10-27 검색 결과(Claude) — 같은 증상의 확인된 사례는 못 찾음**
-- WebKit 은 `UIAccessibilityIsReduceMotionEnabled()` 값을 그대로 돌려준다(캐시·저전력 검사 없음, [ThemeIOS.mm](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/ios/ThemeIOS.mm)). 그러니 브라우저 잘못보다 **iOS 가 그 앱에 「줄이기 켜짐」 을 돌려준 것**. [신뢰도 높음]
-- 저전력 모드가 이 값을 켠다는 출처는 없다(애플 문서·WebKit 버그·개발자 글 다 봄). [신뢰도 보통 — 없다는 증거는 아님]
-- 알려진 원인은 **앱별 설정의 다른 항목**: 전체 끔인데 「손쉬운 사용 → 앱별 설정」 에 넣어 둔 「홈 화면 및 앱 보관함」 이 동작 줄이기 켬이라 애니메이션이 사라진 사례([애플 커뮤니티](https://discussions.apple.com/thread/256195962), 한 사람 보고). iOS 14.5 에 끔인데 켬으로 나오는 버그도 있었다([WebKit 225090](https://bugs.webkit.org/show_bug.cgi?id=225090), 222381 중복으로 닫힘). [신뢰도 보통]
-- 기기에서 볼 것(사용자가 될 때): ① 앱별 설정 목록 전체(사파리·카톡 말고도) ② 전체 동작 줄이기를 한 번 켰다 끄기 ③ 저전력 끄고 `?diag` 의 신호 값. 「애니메이션 켜기」 우회는 그대로 둔다.
+**10-27 iPhone 저전력 대응 — 속도 결함 수정, 축소 신호 원인은 미확정**
 
-**(지난) 다음 대화에서 먼저 할 일 — 사용자 요청(2026-10-27), 10-27 검색함 — 위**
-
-다음 대화를 시작하면 먼저 「아이폰이 설정과 다른 축소 모션 신호를 보낸 원인은 아직 미해결이며, GitHub·웹의 유사 사례와 해결책부터 조사한다」고 알리고 실제 검색을 시작한다. 사용자에게 같은 요청을 다시 받기 위해 기다리지 않는다. 사용자는 다른 사람에게도 생긴 문제일 가능성을 제기했으며, 현재 같은 조건의 외부 재현 사례를 확인한 것은 아니다. [신뢰도 높음]
-
-- 조사 대상: **iPhone 13 mini / iOS 18.3.2, 시스템 Reduce Motion OFF·Safari/카카오톡 앱별 OFF 또는 기본값인데 두 브라우저의 `prefers-reduced-motion: reduce`가 true인 이유**. 저전력 모드 ON은 당시 조건이며 인과관계는 미확정이다. 모션을 생략한 게임 분기와 iOS가 그 신호를 보낸 근본 원인을 구분한다.
-- GitHub 이슈·WebKit Bugzilla·Apple 공식 문서와 개발자 사례를 검색한다. 시작 검색어: `iOS 18.3.2 prefers-reduced-motion true reduce motion off`, `Safari matchMedia reduced motion incorrect low power mode`, `site:github.com prefers-reduced-motion iOS false positive`, `site:bugs.webkit.org prefers-reduced-motion accessibility cache`.
-- 앱별 접근성·접근성 상태 갱신/캐시·저전력 영향은 **가설**로만 다룬다. OS 버전·재현 조건·해결 확인 여부를 비교하고 출처를 기록한다. 이미 대조한 WebKit #222381(2021 수정), Phaser #7393·#7341을 이번 원인의 확정 근거처럼 재사용하지 않는다.
-- 현재 「애니메이션 켜기」는 명시적 우회 대책이다. 근본 원인을 해결했다고 말하지 않는다. 검색과 PC 분석·수정을 먼저 하고, 필요한 경우에만 마지막 실기기 검증을 요청한다. 남은 버벅임은 저전력 OFF 비교와 별도로 검증한다. 모션을 줄여 해결하지 않고, 기존 reduced 경로·문항·판정·`?diag`를 보존한다.
-- 실기기 원본 기록: `C:/Users/dbqke/OneDrive/문서/ㄴㅇㄴ/ios-motion-review/device-traces/`. 초기 두 기록과 full 대조 기록을 이어서 본다. 임시 LAN 주소·서버가 다음 대화에서도 살아 있다고 가정하지 않는다. main 커밋만 허용하며 push·공개 배포는 하지 않는다.
-
+- **완료 기준(이번 대화 사용자)**: 저전력 모드를 켠 채 원래 게임·애니메이션을 정상 재생한다. 저전력 OFF는 원인 비교에만 쓰며 사용자가 꺼야 하는 해결책으로 삼지 않는다. 사용자는 현재 iPhone을 사용할 수 없고, 이전 기억은 「움직이지만 안드로이드만큼 부드럽지 않고 글자 등장도 느림」이다. 원래 효과·문항·판정·축소 접근성 경로·기존 `?diag`를 보존한다. [신뢰도 높음]
+- **외부 조사**: 같은 iPhone 13 mini / iOS 18.3.2 / 전체·Safari·카톡 동작 줄이기 OFF 조건에서 신호가 true로 남는, 해결까지 검증된 외부 사례는 이번 검색에서도 확인하지 못했다. 오래된 WebKit #222381·#225090, 새 버전의 교차 출처 iframe 갱신 수정·WPE 반전 수정은 이번 원인의 확정 증거로 쓰지 않는다. [신뢰도 보통]
+- **동일 버전 소스로 좁힌 신호 경로**: [iOS 18.3.2 태그의 MediaQueryFeatures.cpp](https://github.com/WebKit/WebKit/blob/releases/Apple/Safari-18.3.1-iOS-18.3.2/Source/WebCore/css/query/MediaQueryFeatures.cpp) → 강제 설정 또는 [ThemeIOS.mm의 UIAccessibilityIsReduceMotionEnabled](https://github.com/WebKit/WebKit/blob/releases/Apple/Safari-18.3.1-iOS-18.3.2/Source/WebCore/platform/ios/ThemeIOS.mm). [WebProcessCocoa.mm](https://github.com/WebKit/WebKit/blob/releases/Apple/Safari-18.3.1-iOS-18.3.2/Source/WebKit/WebProcess/cocoa/WebProcessCocoa.mm)에는 앱별 접근성 값을 WebContent로 동기화하는 별도 경로가 있다. Theme 함수 하나에 캐시가 없다는 사실만으로 iOS만의 잘못이라고 단정할 수 없다. 저전력이 축소 신호를 켠다는 인과관계도 미확정이다. [신뢰도 높음]
+- **저전력의 별도 시간 경로**: [같은 버전의 AnimationFrameRate.cpp](https://github.com/WebKit/WebKit/blob/releases/Apple/Safari-18.3.1-iOS-18.3.2/Source/WebCore/platform/graphics/AnimationFrameRate.cpp)는 저전력을 낮은 화면 갱신 빈도의 조건으로 사용한다. 접근성 신호 불일치와 낮은 프레임의 속도 결함을 구분해 검증했다. [신뢰도 높음]
+- **재현하고 고친 게임 결함**: 주민 퇴장·언덕 합류·도움 주러 오는 주민의 걸음은 매 프레임 고정 16ms를 더해 30fps에서 600ms 동안 걸음 연출이 272ms만 진행됐다. 실제 게임 프레임 간격으로 바꿨다. 글자는 타이머가 늦어질 때마다 다음 대기 시간을 다시 더해 누적 지연됐다. 원래 시작 대기 140ms·보통 글자 36ms·문장 부호 170ms를 경과 시간 기준으로 지킨다. 밀린 글자는 함께 표시하되 웅얼 소리를 한꺼번에 겹치지 않는다. [신뢰도 높음]
+- **통합 검사에서 추가 확인한 엔진 결함**: Phaser 4.2.1의 기본 TimeStep은 시작·포커스 복귀 때 120프레임 동안 delta를 60fps 목표로 제한한다. 실제 Chromium 30fps에서 약 663ms 동안 걸음이 약 307ms 진행되는 것을 확인했다. `fps.smoothStep: false`로 이 시계 보정을 끄고 실제 프레임 간격을 쓴다. 걷기 쪽의 기존 40ms 상한·백그라운드 정지는 유지한다. 게임·CSS의 효과 개수·원래 이동/전환 시간은 줄이지 않았다. [신뢰도 높음]
+- **검증**: 수정 전 두 회귀 검사가 각각 느린 걸음·글자 누적 지연으로 실패했고 수정 후 통과했다. 최종 전체 `npm test` 150개·TypeScript·ESLint·압축 빌드 통과(기존 큰 청크 경고는 남음). `scripts/check-game-low-rate.js`는 실제 로컬 게임을 약 30fps로 실행하며 조건 미재현도 실패로 처리한다. Chromium의 native reduced false/true 두 경우(명시적 전체 모션 선택) 모두 약 30.00fps에서 글자 열 자 약 469ms, 약 680~684ms 동안 걸음 연출 약 667ms, 시계 초기화 후 걸음 약 633ms, 카메라 중간 위치·문 화살표 약 6px 이동·페이지 오류 없음으로 통과했다. 데스크톱 WebKit의 실제 압축 빌드에서도 명시적 켜기·선택 기억·기기 설정 복귀·소개 경유·재방문 마을·미디어 신호 변경을 통과했다. 독립 읽기 전용 코드 검토에서 남은 중요 제품 결함 없음. [신뢰도 높음]
+- **자료·남은 일**: 로컬 `OneDrive/문서/ㄴㅇㄴ/ios-motion-review/`의 `low-rate-browser-result.json`·`low-power-built-webkit.json`·`low-power-final-test.log`·`low-power-final-build.log`에 검증 기록을 남겼다. 이는 데스크톱 재현이며 실제 iPhone 저전력 모드의 모든 버벅임이나 축소 신호 불일치가 해결됐다는 증거는 아니다. iPhone이 가능할 때 저전력을 켠 채 최종 확인한다. 필요하면 앱별 접근성·설정 갱신/캐시 가설을 한 변수씩 검증하되 초기화나 저전력 해제를 해결책으로 강요하지 않는다. 이번 작업은 main 커밋만 하며 push·공개 배포하지 않는다. [신뢰도 높음]
 
 **수정한 재생 설정**: 기본값은 기기 신호를 따른다. 신호와 의도가 다른 사람은 시작 화면의 **「애니메이션 켜기」**, 또는 게임 위쪽 **▶** 단추로 원래 모션을 직접 켤 수 있다. JavaScript 트윈·글자 등장·CSS를 같은 선택에 연결했다. 명시적 선택은 이 브라우저에 기억하며 **↺ / 「움직임은 기기 설정 따르기」**로 되돌릴 수 있다. 소개 페이지에서 바로 출발하거나 재방문해 마을로 들어가도 위쪽 단추에 닿을 수 있다. 주점판·관리자 점검의 임시 저장소는 유지한다. iOS 사용자 전체의 접근성 신호를 자동으로 무시하지 않는다. [신뢰도 높음]
 

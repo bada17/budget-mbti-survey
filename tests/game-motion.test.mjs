@@ -11,7 +11,7 @@ import { OUTCOMES } from '../game/outcomes.ts';
 
 // 그림·소리만 대신하고 playOutcome·카메라 전환·Phaser 트윈은 실제로 실행한다.
 const bundled = await build({
-  stdin: { contents: 'export * from "./game/motion.ts"; export { playOutcome } from "./game/draw.ts"; export { JourneyScene } from "./game/scenes/JourneyScene.ts"; export { VillageScene } from "./game/scenes/VillageScene.ts";', resolveDir: fileURLToPath(new URL('..', import.meta.url)) },
+  stdin: { contents: 'export * from "./game/motion.ts"; export { Dude, playOutcome } from "./game/draw.ts"; export { JourneyScene } from "./game/scenes/JourneyScene.ts"; export { VillageScene } from "./game/scenes/VillageScene.ts";', resolveDir: fileURLToPath(new URL('..', import.meta.url)) },
   bundle: true, write: false, platform: 'node', format: 'cjs', define: { 'import.meta.env': '{}' },
   plugins: [{ name: 'motion-renderer', setup(b) {
     b.onResolve({ filter: /^phaser$|\/sfx$/ }, a => ({ path: a.path, namespace: 'motion-renderer' }));
@@ -25,6 +25,7 @@ function renderer(search = '', values = new Map()) {
   vm.runInNewContext(bundled.outputFiles[0].text, context);
   const obj = (x = 0, y = 0) => ({
     x, y, alpha: 1, scale: 1, active: true,
+    setPosition(x, y) { this.x = x; this.y = y; return this; },
     setOrigin() { return this; }, setDepth() { return this; }, setY(y) { this.y = y; return this; },
     setScale(x, y = x) { this.scaleX = x; this.scaleY = y; return this; },
     lineStyle() { return this; }, strokeRect() { return this; }, lineBetween() { return this; },
@@ -35,7 +36,7 @@ function renderer(search = '', values = new Map()) {
     graphics: () => obj(),
   } };
   scene.tweens = new TweenManager(scene); scene.tweens.start();
-  return { ...context.module.exports, scene, media, texts };
+  return { ...context.module.exports, scene, media, texts, obj };
 }
 
 function clock(run) {
@@ -156,4 +157,20 @@ test('사용자가 애니메이션 켜기를 고르면 기기의 true 신호보�
   assert.equal(reopened.prefersReducedMotion(), true, '기기의 축소 선호를 다시 따를 수 있다');
   reopened.media.matches = false;
   assert.equal(reopened.prefersReducedMotion(), false);
+});
+
+test('주민이 자동으로 걸을 때 발걸음 속도는 30·60·120프레임에서 같다', () => {
+  for (const fps of [30, 60, 120]) clock(advance => {
+    const r = renderer(), s = new r.JourneyScene({});
+    const delta = 1000 / fps;
+    s.tweens = r.scene.tweens; s.game = { loop: { delta } };
+    const dude = Object.assign(Object.create(r.Dude.prototype), {
+      root: r.obj(), body: r.obj(), legs: [r.obj(), r.obj()], eyes: [],
+      walkClock: 0, idleClock: 0, hopping: false, sitting: false,
+    });
+    s.walkTo(dude, { x: 200, y: 0 }, 1100, { x: 200, y: 1 });
+    for (let frame = 0; frame < fps * 0.6; frame++) { advance(delta); s.tweens.tick(); }
+    assert.ok(dude.walkClock >= 550 && dude.walkClock <= 640,
+      fps + 'fps: 실제 600ms가 지나면 걸음 연출도 약 600ms 진행해야 한다: ' + dude.walkClock);
+  });
 });

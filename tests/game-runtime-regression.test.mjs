@@ -34,7 +34,7 @@ class Node {
 }
 
 const bundled = await build({
-  stdin: { contents: 'export { createUI } from "./game/ui.ts"; export { openTown, loginBox } from "./game/town.ts"; export { openWorks, openCounsel } from "./game/places.ts"; export { JourneyScene } from "./game/scenes/JourneyScene.ts"; export * as profile from "./game/profile.ts"; export { orderedQuestions } from "./game/response.ts"; export { setMuted } from "./game/sfx.ts"; export { useInspectionStorage } from "./game/storage.ts";', resolveDir: fileURLToPath(new URL('..', import.meta.url)) },
+  stdin: { contents: 'export { createUI, typeOut } from "./game/ui.ts"; export { openTown, loginBox } from "./game/town.ts"; export { openWorks, openCounsel } from "./game/places.ts"; export { JourneyScene } from "./game/scenes/JourneyScene.ts"; export * as profile from "./game/profile.ts"; export { orderedQuestions } from "./game/response.ts"; export { setMuted } from "./game/sfx.ts"; export { useInspectionStorage } from "./game/storage.ts";', resolveDir: fileURLToPath(new URL('..', import.meta.url)) },
   bundle: true, write: false, platform: 'node', format: 'cjs', define: { 'import.meta.env': '{"DEV":true}' },
   plugins: [{ name: 'renderer-boundaries', setup(b) {
     b.onResolve({ filter: /\.css$|\?raw$|^phaser$|^html-to-image$|^\.\.\/draw$/ }, a => ({ path: a.path, namespace: 'runtime-boundary' }));
@@ -167,4 +167,28 @@ test('이전 시민증 그림이 늦게 완성돼도 새 발급 그림을 덮어
   done[0](); await new Promise(setImmediate);
   await b.root.querySelectorAll('button').find(n => n.textContent === '시민증 저장·보내기').onclick();
   assert.ok(b.shared[0].includes('3/4'), '늦게 완성된 발급 전 2/4 그림을 보내면 안 된다');
+});
+
+test('글자 타이머가 늦게 실행돼도 원래 표시 시간이 누적해서 늘어나지 않는다', () => {
+  const b = browser(), pending = new Map();
+  let now = 0, id = 0, done = 0;
+  b.context.localStorage.setItem('budget-game-motion', 'full');
+  b.context.performance = { now: () => now };
+  b.context.setTimeout = b.context.window.setTimeout = (fn, delay) => { pending.set(++id, { fn, at: now + delay }); return id; };
+  b.context.clearTimeout = key => pending.delete(key);
+  const tickAt = at => { now = at; for (const [key, timer] of [...pending]) if (timer.at <= now) { pending.delete(key); timer.fn(); } };
+  const node = new Node('p');
+  b.typeOut(node, '가나다라마바사아자차', () => done++);
+  tickAt(139); assert.equal(node.children[0].data ?? '', '');
+  tickAt(140); assert.equal(node.children[0].data, '가');
+  tickAt(300); assert.equal(node.children[0].data, '가나다라마', '늦은 콜백 한 번마다 한 글자만 추가하면 속도가 계속 느려진다');
+  tickAt(500); assert.equal(node.children[0].data, '가나다라마바사아자차'); assert.equal(done, 1);
+  tickAt(900); assert.equal(done, 1);
+  b.typeOut(node, '가,나다', () => done++);
+  tickAt(1040); tickAt(1076); tickAt(1200);
+  assert.equal(node.children[0].data, '가,', '쉼표의 원래 쉬는 시간은 보존한다');
+  tickAt(1250); assert.equal(node.children[0].data, '가,나');
+  tickAt(1300); assert.equal(done, 2);
+  const finish = b.typeOut(node, '아직 나오지 않은 글', () => done++);
+  finish(); tickAt(3000); assert.equal(done, 3, '즉시 표시 뒤 늦은 타이머가 다시 완료하면 안 된다');
 });
