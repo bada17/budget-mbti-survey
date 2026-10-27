@@ -32,7 +32,7 @@ npm run build:gas     # 시트 서버 → server/gas/server.js (clasp push 전�
 **10-20 옛 「예산 성향 테스트」 설문(app·static·worker·db·Next)을 지우고 게임을 첫 주소로 옮겼다**(사용자 「지워버려. 저 도메인으로 쓰고 싶어」).
 - https://forest.action.or.kr/ — 게임. `game/public/CNAME` 이 같이 구워져 주소를 지킨다.
 - 옛 /game/ 은 `game/public/game/index.html` 이 첫 주소로 넘긴다(?·# 그대로 — 퍼진 친구 링크·홈페이지 링크).
-- 시트 서버는 **10-26 밤 버전 8**(창립행사 응원판 `/cheers`·폼 응답 읽기·주점 의견·사과 저장). 이번엔 Claude 가 `clasp -u action push` 뒤 `clasp -u action deploy -i <배포 번호> -d …` 로 새 버전까지 올렸다(막히지 않았다 — 막히면 아래처럼 사용자가 편집기에서). 공개판 gh-pages **a450651(10-26 밤, 갈래 claude/village-2 5f4f7e9 에서 구움 — 글 두 곳·꾸미기 판 낮춤)**. GPT 가 main 폴더에서 움직임 일(03a458f·미커밋)을 하는 중이라 main 에는 아직 안 합쳤다 — GPT 것 확인 뒤 합친다.
+- 시트 서버는 **10-27 버전 9**(주점판 「게임에 대해 한마디」 가 그 판에 바로 보이게 — GET·POST `/village/pub-notes`). Claude 가 `clasp -u action login`(bada17@ 로 허용) → `push --force` → `update-deployment` 로 올렸다. 화면만 먼저 올리면 옛 서버가 이 주소를 지역 마을 보기로 읽어 한마디 판에 마을 쪽지가 뜬다 — **서버 먼저.** 그 전 버전 8 은 응원판 `/cheers`·폼 응답 읽기·사과 저장.
 - (그 전) **10-26 버전 7**(첫 주소 로그인·액세서리 넷 범위·테이블 걷음·GPT 서버 점검 — `clasp -u action push` 는 Claude, 「배포 관리 → 새 버전」 은 사용자. Claude Code 안전 장치가 실서비스 배포를 막아서). 카카오·구글 콘솔 리디렉션 URI 에 `https://forest.action.or.kr/` 더함(10-26 사용자).
 - `[정함]` **가오픈(10-26 사용자)** — 걷기는 다 됐고 마을은 단장 중이라 홈페이지에 가오픈으로 띄운다. 소개 페이지 첫 화면 제목 위에 「가오픈 · 마을은 단장 중이에요」(`landing.ts` `PAGE.hero.badge` — 정식 오픈 때 빈 글로). 링크로 바로 온 사람도 알게 게임 쪽에 둔다(홈페이지 띠에만 있으면 모른다). **가오픈 기록은 정식 오픈 때도 그대로 둔다** — 지우면 먼저 온 사람이 시민증·동네를 잃는다.
 
@@ -866,7 +866,7 @@ Claude 가 이해한 것과 질문을 몰아 드리고 답(1ⓐⓑⓒⓕⓖ · 2
 - 관리자 점검은 위 「관리자는 여기저기 이동」 참조. 전송 실패한 완료 기록은 이 기기에 최대 50판까지 보관하고 연결이 돌아오면 차례로 재전송한다. 새 판이 이전 미전송 판을 덮지 않는다.
 - 서버 보호: 원문 JSON 16,384자, 응답 10,000건·방명록 집 5,000건에서 새 항목만 거절(기존 기록 갱신은 허용). GAS 쓰기 요청 분당 90회·연락처 분당 10회, 같은 연락처 재제출은 6시간 동안 억제한다. ScriptCache 기반이라 조기 삭제될 수 있으며 완전한 남용 방어는 아니다.
 - 회전 시 언덕·아치·안내 주민 위치를 다시 맞추고, 결과 부가판 뒤로 가기·장면 실패 재시도·늦게 도착한 시민증 도장 및 공유 그림 갱신을 보완했다. Chrome 폰 크기로 확인했으며 실제 iOS Safari 재시험은 남아 있다.
-- 공개판 https://forest.action.or.kr/ (gh-pages, 위 「정적판」 명령으로 굽는다). **10-27 gh-pages 8aacbe6 — 코덱스 저전력 속도(4d20a4f) + 주점판 네 문항·응원판 소개·11월 21일 본편 안내·홈페이지 단추 걷음, 언덕 안내 말하는 동안 멈춤, 동전 줍는 법 한 줄(992382b 에 이어).** 시트 서버 배포 `AKfycbwTzS1Q…`(game/.env.production), 버전 8(10-26 밤). 카카오·구글 콘솔에 첫 주소 더함(10-26 사용자).
+- 공개판 https://forest.action.or.kr/ (gh-pages, 위 「정적판」 명령으로 굽는다). **10-27 저녁 gh-pages b2613b0 — 주점판 다시 여섯 문항(8f5777f)·한마디 바로 보이기(07e1225), 서버 버전 9 와 같이.** 시트 서버 배포 `AKfycbwTzS1Q…`(game/.env.production), 버전 9(10-27 저녁). 카카오·구글 콘솔에 첫 주소 더함(10-26 사용자).
 - 서버 올리기: `npm run build:gas` → `server/gas` 에서 `clasp -u action push --force` → `clasp -u action update-deployment AKfycbwTzS1QNvIvUpGIA7HdSt7FANdPy_D2OHw_4updAnssIH15idkwUmSpF4A_WMjGavVA -d "…"`.
   ⚠️ push 없이 새 버전만 만들면 옛 코드가 배포된다(10-20 버전 5). `clasp -u action login` 은 **bada17@action.or.kr** 로 허용 — action@ 로 고르면 「Apps Script API 꺼짐」 으로 막힌다. `clasp redeploy` 는 버전만 만들고 배포를 안 옮긴다.
 - 서버는 요청이 건드리는 탭만 연다(`server/gas.ts` serve). 한 번에 1.3~2초, 응답 탭을 읽는 /stats 는 3초 안팎 — 앱스 스크립트 바닥.
