@@ -52,10 +52,10 @@ function cheerForm(me: () => { name: string; pick: Pick }, draw: (cheers: Public
   return form;
 }
 
-/** 응원 한 장 — 모습·이름·사업·글. 폼 응원은 이름·모습이 없어 번호로 모습을 지어 준다. */
+/** 응원 한 장 — 모습·이름·사업·어디서·글. 폼 응원은 이름·모습이 없어 번호로 모습을 지어 준다. 모습(pick)이 없으면 폼(QR)에서 온 것(사용자 10-28 「게임한 거랑 큐알로 한 거 구분」). */
 function cheerItem(cheer: PublicCheer) {
   const item = el('div', 'v-note'), who = el('div', 'v-who');
-  who.append(avatar(cheer.pick ? toLook(cheer.pick) : lookFrom(`cheer:${cheer.id}`)), el('b', '', cheer.name || '이름 없는 주민'), el('small', 'v-cheer-tag', CHEER_PROJECTS[cheer.project]));
+  who.append(avatar(cheer.pick ? toLook(cheer.pick) : lookFrom(`cheer:${cheer.id}`)), el('b', '', cheer.name || '이름 없는 주민'), el('small', 'v-cheer-tag', CHEER_PROJECTS[cheer.project]), el('small', 'v-cheer-tag', cheer.pick ? '게임에서' : 'QR로'));
   item.append(who, el('p', 'v-text', cheer.text));
   return item;
 }

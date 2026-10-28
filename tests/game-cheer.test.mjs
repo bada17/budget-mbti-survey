@@ -47,6 +47,7 @@ test('폼 응답은 머리글로 칸을 찾고, 숨김 칸·모르는 사업·�
   ];
   const got = readFormCheers(rows);
   assert.deepEqual(got.map(c => [c.project, c.text, c.id]), [['award', '독상 최고', 'f2'], ['future', '미래를 같이 준비해요', 'f3']]);
+  assert.ok(got.every(c => c.pick === undefined)); // 판은 pick 이 없으면 「QR로」 를 붙인다(cheer-board.ts)
   assert.deepEqual(readFormCheers([]), []);
   assert.deepEqual(readFormCheers([['다른 시트']]), []);
 });
