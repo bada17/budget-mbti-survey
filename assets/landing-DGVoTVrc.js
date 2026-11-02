@@ -1,4 +1,4 @@
-import{M as e}from"./village-Dr3AR3Vv.js";import{n as t}from"./contact-CVSrJxR6.js";var n=`<!-- 홈페이지 공통 하단 — scripts/port-footer.mjs 가 만든다. 손으로 고치지 말 것 -->\r
+import{M as e}from"./village-B-nOSY_g.js";import{n as t}from"./contact-CVSrJxR6.js";var n=`<!-- 홈페이지 공통 하단 — scripts/port-footer.mjs 가 만든다. 손으로 고치지 말 것 -->\r
 <!-- ═══════════════════════════════════════════════════════════════════\r
      캠페이너스 공통 맨 아래 — 후원 띠 + 푸터\r
 \r
