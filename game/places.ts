@@ -382,7 +382,8 @@ export function openCuts(shell: HTMLElement, onClose: () => void) {
         const li = el('li', 'v-cut-row'), meta = el('div', 'v-cut-meta');
         meta.append(el('b', '', row.name + (row.code === mine ? ' · 내 동네' : '')), el('span', '', row.year + '년'));
         li.append(meta, el('h4', '', row.project), el('strong', 'v-cut-money', cutMoney(row.amount)), el('p', 't-small', row.reason));
-        if (row.link) li.append(link('관련 기사 원문', row.link, 'v-cut-link'));
+        if (row.audit) li.append(el('p', 't-small', '시민행동이 기사·회의록으로 찾아본 출처: ' + row.audit));
+        if (row.link) li.append(link('근거 원문', row.link, 'v-cut-link'));
         return li;
       }));
       if (!rows.length) list.append(el('li', 't-small', '검색 결과가 없어요. 다른 지역이나 사업 이름으로 찾아보세요.'));
