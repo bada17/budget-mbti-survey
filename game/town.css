@@ -262,7 +262,6 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 /* 맨 앞 글 — 옛 기사 자리의 초록 바탕(사용자 10-26), 기사는 판 맨 아래로 */
 .v-cut-mission{margin:12px 0 24px;padding:22px 20px;border-block:2px solid var(--leaf-dark);background:#f1f3e7;font:600 19px/1.75 var(--body);color:var(--ink);word-break:keep-all} /* 더 잘 보이게(10-27) */
 .v-cut-mission p{margin:0}.v-cut-mission p+p{margin-top:14px}
-.v-cut-next{margin:28px 0 0;padding-top:16px;border-top:1px solid var(--line);font:600 18px/1.6 var(--body);word-break:keep-all} /* 사용자 10-26 「글씨좀 크게」 */
 .v-cut-more summary{padding:16px 0;font:500 19px/1.4 var(--display);cursor:pointer}
 .v-cut-more>.g-input{width:100%;margin-top:12px}
 .v-cut-list{margin:0;padding:0;list-style:none}

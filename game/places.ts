@@ -340,19 +340,26 @@ export function openCuts(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'cards', onClose);
   panel.classList.add('v-cuts');
   panel.querySelector('.v-npc')?.remove(); // 글부터 보인다. 기사는 맨 아래(사용자 10-26).
+  // 첫 화면은 이야기 카드 고르기(사용자 11-02 「하나씩 카드 형태로」, 「준비 중」 카드는 「필요 없어」). 카드 모양은 오락실 것을 빌린다.
+  const menu = el('div', 'a-stage'), story = el('div');
+  const show = (open: boolean) => { menu.hidden = open; story.hidden = !open; panel.scrollTo({ top: 0 }); };
+  const pick = btn('a-game', '', () => show(true)); pick.append(el('b', '', '교부세 감액'));
+  menu.append(pick);
+  story.hidden = true;
+  story.append(btn('g-link a-back', '← 다른 이야기', () => show(false)));
+  panel.append(menu, story);
   // 기사는 글 바로 밑에 작게(사용자 10-27 「기사 링크로 해서 바로 밑에 작게」)
   const article = link(`관련 기사: ${CUT_ARTICLE.publisher} 「${CUT_ARTICLE.title}」 (${CUT_ARTICLE.date})`, CUT_ARTICLE.url, 'v-cut-article');
   // 맨 앞 글 — 사용자 10-26 원고 그대로(옛 기사 자리의 초록 바탕). 「새는 돈이 있어요 … 고쳐 갈게요」 한 줄은 이 글로 갈음.
   const lead = el('div', 'v-cut-mission');
   for (const text of CUT_LEAD) lead.append(el('p', '', text));
-  panel.append(lead, article);
+  story.append(lead, article);
   const details = el('details', 'v-cut-more'), summary = el('summary', '', '다른 교부세 감액 확인하기');
   const search = el('input', 'g-input'); search.type = 'search'; search.placeholder = '지역 이름·사업 이름으로 검색'; search.setAttribute('aria-label', '지역 이름·사업 이름으로 검색');
   const source = el('p', 't-small', '자료를 불러오는 중…'), status = el('p', 't-small'), list = el('ol', 'v-cut-list');
   status.setAttribute('role', 'status');
   details.append(summary, source, search, status, list);
-  // 다음에 올 것(사용자 10-26 글, 「준비중에요」 만 바로잡음) — 목록을 펼치지 않아도 보이게 판 맨 아래.
-  panel.append(details, el('p', 'v-cut-next', '후속으로 지방정부 기후예산, 업무추진비, 축제 예산을 준비 중이에요. 조금만 기다려 주세요.')); // 글씨 키움(사용자 10-26)
+  story.append(details);
   void loadCuts().then(data => {
     if (!panel.isConnected) return;
     source.textContent = '출처: ' + data.source + ' · 자료 받은 날 ' + data.received + ' · ' + CUT_FROM + '년부터 · 금액은 감액된 교부세예요.';
