@@ -377,7 +377,7 @@ export function openCuts(shell: HTMLElement, onClose: () => void) {
     const more = btn('g-ghost', '더 보기', () => { limit += 30; draw(); }); details.append(more);
     const draw = () => {
       const rows = findCuts(data, search.value, mine);
-      status.textContent = rows.length.toLocaleString('ko-KR') + '건' + (mine ? ' · 내 동네 먼저, 그다음 감액 큰 순' : ' · 감액 큰 순');
+      status.textContent = rows.length.toLocaleString('ko-KR') + '건' + (mine ? ' · 내 동네 먼저, 그다음 최근 해·감액 큰 순' : ' · 최근 해부터, 같은 해는 감액 큰 순');
       list.replaceChildren(...rows.slice(0, limit).map(row => {
         const li = el('li', 'v-cut-row'), meta = el('div', 'v-cut-meta');
         meta.append(el('b', '', row.name + (row.code === mine ? ' · 내 동네' : '')), el('span', '', row.year + '년'));

@@ -51,7 +51,7 @@ export type HairPattern = 'solid' | 'streak' | 'mixed' | 'temples';
 export const PATTERNS: { value: HairPattern; name: string }[] = [
   { value: 'solid', name: '전체 단색' }, { value: 'streak', name: '앞머리 한 줄' }, { value: 'mixed', name: '고루 섞기' }, { value: 'temples', name: '양옆만' },
 ];
-/** 머리 장식 — 하나만, 안경과는 같이 쓴다. 모자는 승인에서 뺐다. */
+/** 머리 장식 — 하나만, 안경과는 같이 쓴다. 모자는 승인에서 뺐다. 새것은 끝에만 붙인다 — 번호가 저장·초대 링크에 들어간다. */
 export type Accessory = 'none' | 'headband' | 'hairpin' | 'ribbon' | 'scarf' | 'magnifier' | 'badge' | 'fieldBag' | 'clipboard';
 export const ACCESSORIES: { value: Accessory; name: string }[] = [
   { value: 'none', name: '없음' }, { value: 'headband', name: '머리띠' }, { value: 'hairpin', name: '머리핀' }, { value: 'ribbon', name: '작은 리본' },

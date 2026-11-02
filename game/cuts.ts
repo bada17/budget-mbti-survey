@@ -24,6 +24,6 @@ const compact = (text: string) => text.replace(/\s/g, '').toLocaleLowerCase();
 export function findCuts(data: Awaited<ReturnType<typeof loadCuts>>, query = '', region?: string) {
   const q = compact(query);
   return data.rows.filter(row => !q || compact(row.name + row.project).includes(q))
-    .sort((a, b) => Number(b.code === region) - Number(a.code === region) || b.amount - a.amount || b.year - a.year);
+    .sort((a, b) => Number(b.code === region) - Number(a.code === region) || b.year - a.year || b.amount - a.amount); // 최근 해 먼저(사용자 11-02 「26년도가 위쪽에」)
 }
 export const cutMoney = (amount: number) => amount >= 1e8 ? (amount / 1e8).toLocaleString('ko-KR', { maximumFractionDigits: 4 }) + '억 원' : amount.toLocaleString('ko-KR') + '원';
