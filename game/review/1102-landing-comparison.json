@@ -1,0 +1,106 @@
+{
+  "viewports": [
+    360,
+    1280
+  ],
+  "pairs": [
+    {
+      "before": "1102-landing-before-budget-1280.png",
+      "after": "1102-landing-after-budget-1280.png",
+      "differentPixels": 0,
+      "beforeSHA256": "cbc5384dc9a33bfc38d61a489dbe01749a75210ff11d64a6f2b270b0704af7c9",
+      "afterSHA256": "cbc5384dc9a33bfc38d61a489dbe01749a75210ff11d64a6f2b270b0704af7c9"
+    },
+    {
+      "before": "1102-landing-before-budget-360.png",
+      "after": "1102-landing-after-budget-360.png",
+      "differentPixels": 0,
+      "beforeSHA256": "0bad59e7b799db734799ee65411019a6f77358987f8c00b35864291dca6ff319",
+      "afterSHA256": "0bad59e7b799db734799ee65411019a6f77358987f8c00b35864291dca6ff319"
+    },
+    {
+      "before": "1102-landing-before-cards-1280.png",
+      "after": "1102-landing-after-cards-1280.png",
+      "differentPixels": 0,
+      "beforeSHA256": "a9e7591bf75e2e5e68ebfcafe0fd01b9500b947881078c51480c3abeb90718c2",
+      "afterSHA256": "a9e7591bf75e2e5e68ebfcafe0fd01b9500b947881078c51480c3abeb90718c2"
+    },
+    {
+      "before": "1102-landing-before-cards-360.png",
+      "after": "1102-landing-after-cards-360.png",
+      "differentPixels": 0,
+      "beforeSHA256": "4f7a246ed4ac8eb0be5085c479ec70f3b974964a9a4fd19b9bdaf70476fdaed2",
+      "afterSHA256": "4f7a246ed4ac8eb0be5085c479ec70f3b974964a9a4fd19b9bdaf70476fdaed2"
+    },
+    {
+      "before": "1102-landing-before-hero-1280.png",
+      "after": "1102-landing-after-hero-1280.png",
+      "differentPixels": 0,
+      "beforeSHA256": "be9a06a9bc6c3814a7563308b10958a4b70bb7d1eafdc0f0a890e27e4aa00fa7",
+      "afterSHA256": "be9a06a9bc6c3814a7563308b10958a4b70bb7d1eafdc0f0a890e27e4aa00fa7"
+    },
+    {
+      "before": "1102-landing-before-hero-360.png",
+      "after": "1102-landing-after-hero-360.png",
+      "differentPixels": 0,
+      "beforeSHA256": "c7cef34a172cd7a8391ec807067eb77caee2f15df29ebcf109c2d6cd292e39e2",
+      "afterSHA256": "c7cef34a172cd7a8391ec807067eb77caee2f15df29ebcf109c2d6cd292e39e2"
+    },
+    {
+      "before": "1102-landing-before-intro-1280.png",
+      "after": "1102-landing-after-intro-1280.png",
+      "differentPixels": 0,
+      "beforeSHA256": "f795495f9af2c17ab9e5c60c13b572dd360b73d669d3286e92086b479b66f75d",
+      "afterSHA256": "f795495f9af2c17ab9e5c60c13b572dd360b73d669d3286e92086b479b66f75d"
+    },
+    {
+      "before": "1102-landing-before-intro-360.png",
+      "after": "1102-landing-after-intro-360.png",
+      "differentPixels": 0,
+      "beforeSHA256": "30a32fe50f519d5d3e72327bfd1fbe48440cc404d57f7dc3d3550aa935b4bd75",
+      "afterSHA256": "30a32fe50f519d5d3e72327bfd1fbe48440cc404d57f7dc3d3550aa935b4bd75"
+    },
+    {
+      "before": "1102-landing-before-news-1280.png",
+      "after": "1102-landing-after-news-1280.png",
+      "differentPixels": 0,
+      "beforeSHA256": "94a13b0b45ad92a0ad1eddeefdd710753336c204a0f2fbc544a8aad60745893f",
+      "afterSHA256": "94a13b0b45ad92a0ad1eddeefdd710753336c204a0f2fbc544a8aad60745893f"
+    },
+    {
+      "before": "1102-landing-before-news-360.png",
+      "after": "1102-landing-after-news-360.png",
+      "differentPixels": 0,
+      "beforeSHA256": "62cbe9fe7fa234f9fa4aabe03bc802aef7080eed9024fb5dcc3809667edbd476",
+      "afterSHA256": "62cbe9fe7fa234f9fa4aabe03bc802aef7080eed9024fb5dcc3809667edbd476"
+    },
+    {
+      "before": "1102-landing-before-walk-1280.png",
+      "after": "1102-landing-after-walk-1280.png",
+      "differentPixels": 0,
+      "beforeSHA256": "4963bd2a188f19fca18b38f08b746b7f85dbbbd884138ad8965b174b4cece227",
+      "afterSHA256": "4963bd2a188f19fca18b38f08b746b7f85dbbbd884138ad8965b174b4cece227"
+    },
+    {
+      "before": "1102-landing-before-walk-360.png",
+      "after": "1102-landing-after-walk-360.png",
+      "differentPixels": 0,
+      "beforeSHA256": "fbcae02ad3ad14bba16a357aa8f5709d01ec6a1d0e5234077338d6ee9520fc88",
+      "afterSHA256": "fbcae02ad3ad14bba16a357aa8f5709d01ec6a1d0e5234077338d6ee9520fc88"
+    },
+    {
+      "before": "1102-landing-before-why-1280.png",
+      "after": "1102-landing-after-why-1280.png",
+      "differentPixels": 0,
+      "beforeSHA256": "ef5e22a21629629dc4e71328463532f6b2f99f7b07e283e605ac00fdaa5b1443",
+      "afterSHA256": "ef5e22a21629629dc4e71328463532f6b2f99f7b07e283e605ac00fdaa5b1443"
+    },
+    {
+      "before": "1102-landing-before-why-360.png",
+      "after": "1102-landing-after-why-360.png",
+      "differentPixels": 0,
+      "beforeSHA256": "1a972621660608b9287f4f7a457f3995ed63b63dc21c4f5a0565f3bd60596f37",
+      "afterSHA256": "1a972621660608b9287f4f7a457f3995ed63b63dc21c4f5a0565f3bd60596f37"
+    }
+  ]
+}

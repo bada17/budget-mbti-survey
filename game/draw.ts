@@ -513,7 +513,7 @@ function worksArt(scene: Scene, dpr: number) {
     for (let x = -half + 6; x < half - 4; x += 12) g.fillStyle(0xc99464).fillRoundedRect(x, -4, 9, 12, 2);
     g.fillStyle(0xe0b27c).fillRoundedRect(-half + 3, -5, half * 2 - 6, 2, 1);
     g.fillStyle(0x8a5e40).fillRoundedRect(-half + 2, 8, half * 2 - 4, 3, 1.5);
-    g.lineStyle(3, 0x8a5e40).beginPath().arc(0, 40, half + 4, Math.PI * 1.18, Math.PI * 1.82, false).strokePath();
+    g.lineStyle(2, 0xb48c62, 0.75).beginPath().arc(0, 40, half + 4, Math.PI * 1.18, Math.PI * 1.82, false).strokePath();
     for (const x of [-half, half]) g.fillStyle(0x8a5e40).fillRoundedRect(x - 3, -22, 6, 26, 2);
     bridge.add(g);
   }
@@ -554,9 +554,11 @@ function worksArt(scene: Scene, dpr: number) {
         g.fillStyle(0xd8c6a2).fillRoundedRect(14, h - 24, w - 28, 22, 6);
         g.fillStyle(0xf0dfbc, 0.8).fillRoundedRect(18, h - 24, w - 36, 5, 2);
         for (const x of [48, w - 54]) g.fillStyle(0x9a6a48).fillRoundedRect(x, h - 90, 6, 70, 2);
-        g.fillStyle(0xb07a52).fillRoundedRect(w / 2 - 22, h - 34, 44, 8, 3);
+        g.fillStyle(0xb9875d).fillRoundedRect(w / 2 - 44, h - 34, 88, 9, 3);
+        g.fillStyle(0xe4bc87).fillRoundedRect(w / 2 - 42, h - 34, 84, 3, 1.5);
+        for (const x of [-24, 0, 24]) g.lineStyle(1, 0x9a6a48, 0.35).lineBetween(w / 2 + x, h - 31, w / 2 + x, h - 26);
         const top = scene.add.graphics(), lip = scene.add.graphics();
-        for (const x of [22, w - 28]) top.fillStyle(0x9a6a48).fillRoundedRect(x, h - 90, 6, 70, 2);
+        for (const x of [22, w - 28]) top.fillStyle(0x916342).fillRoundedRect(x, h - 90, 6, 70, 2);
         top.fillStyle(0x6f8a7e).fillTriangle(-6, h - 88, w / 2, h - 130, w + 6, h - 88).fillRoundedRect(-10, h - 94, w + 20, 12, 6);
         top.fillStyle(0xffffff, 0.2).fillRoundedRect(0, h - 92, w, 4, 2);
         lip.fillStyle(0xbe9c74).fillRoundedRect(14, h - 12, w - 28, 7, 3);
@@ -1090,6 +1092,7 @@ export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: n
 export const textRes = (dpr: number) => Math.max(2, Math.ceil(dpr));
 /** 글씨 — 카메라가 기기 화소만큼 키우므로 글자 그림도 그만큼(적어도 2배) 촘촘하게 만든다. */
 function label(scene: Scene, x: number, y: number, text: string, size: number, dpr: number, color = '#51423e') {
+  if (globalThis.matchMedia?.('(pointer: fine)').matches && size <= 13) size += 2;
   if (import.meta.env?.DEV) for (const ch of text) if (ch.trim() && !CANVAS_TEXT.includes(ch)) console.warn(`간판 글자 「${ch}」 가 CANVAS_TEXT 에 없다 — 주아 조각을 미리 안 받아 기본 글꼴로 굳을 수 있다`);
   const made = scene.add.text(x, y, text, { fontFamily: FONT, fontSize: `${size}px`, color, resolution: textRes(dpr) }).setOrigin(0.5);
   labelsMade++; labels.add(made); made.once('destroy', () => labels.delete(made));

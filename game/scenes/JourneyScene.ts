@@ -351,22 +351,22 @@ export class JourneyScene extends Phaser.Scene {
 
   /**
    * 안내하는 사람을 아치 발치 오른쪽에 세운다 — 처음 선 자리에선 말을 걸지 않고(끝 화면을 먼저 보게), 아치로 걸어 올라가면 들어가기 전에 말을 건다(FEEL.guideRadius).
-   * 모습은 주민 씨앗 하나(lookFrom) — 따로 그린 모습·서는 자리 다듬기는 GPT 몫.
+   * 모습은 주민 씨앗을 바탕으로 초록 조끼·기록판. 서는 자리와 말 거는 규칙은 그대로.
    */
   private standGuide(top: Point, base: number) {
     const spot = { x: top.x + FEEL.guideSidePx, y: base + 10 };
-    const dude = new Dude(this, { ...lookFrom('hill-guide'), top: 'jacket', coat: 0x608c81, accessory: 'scarf' }, spot.x, spot.y).place(spot);
+    const dude = new Dude(this, { ...lookFrom('hill-guide'), top: 'vest', coat: 0x638674, accent: 0xe9bf67, accessory: 'clipboard' }, spot.x, spot.y).place(spot);
     dude.look(-1, 1);
     dude.hop(14, 2, this.reduced);
     sparkle(this, spot.x, spot.y - 30, this.reduced);
-    // 머리 위 「...」 말풍선 — 할 말이 있다는 표시라 가 보고 싶게(사용자 10-19). 둥실. 모양 다듬기는 GPT 몫.
+    // 머리 위 「...」 말풍선 — 할 말이 있다는 표시라 가 보고 싶게(사용자 10-19). 초록 테두리로 안내자의 옷과 잇는다.
     const dotsAt = { x: spot.x, y: spot.y - 90 };
     // 결과 카드 아래의 좁은 틈에서도 보이게 머리 오른쪽 위에 둔다. 바깥 기준점은 회전 재배치와 같다.
     const dots = this.add.container(dotsAt.x, dotsAt.y, [this.add.container(36, 34, [
       this.add.ellipse(1, 3, 44, 29, 0xc5ab80, 0.45),
       this.add.triangle(-5, 14, -5, 0, 5, 0, 0, 7, 0xd6bf98),
       this.add.triangle(-5, 12, -4, 0, 4, 0, 0, 6, 0xfffcf3),
-      this.add.ellipse(0, 0, 44, 29, 0xfffcf3).setStrokeStyle(1.5, 0xd6bf98),
+      this.add.ellipse(0, 0, 44, 29, 0xfffcf3).setStrokeStyle(2, 0x8fa77a),
       this.add.text(0, -4, '...', { fontFamily: '"Jua", sans-serif', fontSize: '22px', color: '#55754c', resolution: textRes(this.runtime.view().dpr) }).setOrigin(0.5),
     ])]).setDepth(spot.y + 200);
     if (!this.reduced) this.tweens.add({ targets: dots, y: dotsAt.y - 5, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });

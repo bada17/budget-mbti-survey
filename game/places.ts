@@ -339,11 +339,17 @@ const squash = (text: string) => text.replace(/\s/g, '');
 export function openCuts(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'cards', onClose);
   panel.classList.add('v-cuts');
-  panel.querySelector('.v-npc')?.remove(); // 글부터 보인다. 기사는 맨 아래(사용자 10-26).
-  // 첫 화면은 이야기 카드 고르기(사용자 11-02 「하나씩 카드 형태로」, 「준비 중」 카드는 「필요 없어」). 카드 모양은 오락실 것을 빌린다.
-  const menu = el('div', 'a-stage'), story = el('div');
+  panel.querySelector('.v-npc')?.remove(); // 이야기 고르기 판에는 문 앞 주민을 두지 않는다.
+  // 이야기 카드는 자료가 온 뒤 숫자를 채운다. 본문·목록은 이 카드와 별도로 그대로 둔다.
+  const menu = el('div', 'v-cut-picks'), story = el('div');
   const show = (open: boolean) => { menu.hidden = open; story.hidden = !open; panel.scrollTo({ top: 0 }); };
-  const pick = btn('a-game', '', () => show(true)); pick.append(el('b', '', '교부세 감액'));
+  const pick = btn('v-cut-pick', '', () => show(true));
+  const mark = el('span', 'v-cut-mark', '!'), arrow = el('span', 'v-cut-arrow', '›');
+  mark.setAttribute('aria-hidden', 'true'); arrow.setAttribute('aria-hidden', 'true');
+  const facts = el('span', 'v-cut-facts'), total = el('strong', 'v-cut-total'), local = el('span', 'v-cut-mine');
+  facts.append(el('span', 'v-cut-since', `${CUT_FROM}년부터`), total);
+  local.hidden = true;
+  pick.append(mark, el('b', 'v-cut-title', '교부세 감액'), arrow, facts, local);
   menu.append(pick);
   story.hidden = true;
   story.append(btn('g-link a-back', '← 다른 이야기', () => show(false)));
@@ -364,6 +370,9 @@ export function openCuts(shell: HTMLElement, onClose: () => void) {
     if (!panel.isConnected) return;
     source.textContent = '출처: ' + data.source + ' · 자료 받은 날 ' + data.received + ' · ' + CUT_FROM + '년부터 · 금액은 감액된 교부세예요.';
     const mine = loadRegion();
+    const amount = data.rows.reduce((sum, row) => sum + row.amount, 0);
+    total.textContent = `${data.rows.length.toLocaleString('ko-KR')}건 · ${Math.round(amount / 1e8).toLocaleString('ko-KR')}억 원`;
+    if (mine) { local.textContent = `우리 동네 ${data.rows.filter(row => row.code === mine).length.toLocaleString('ko-KR')}건`; local.hidden = false; }
     let limit = 30;
     const more = btn('g-ghost', '더 보기', () => { limit += 30; draw(); }); details.append(more);
     const draw = () => {

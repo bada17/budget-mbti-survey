@@ -1,0 +1,54 @@
+{
+  "results": [
+    {
+      "width": 320,
+      "doubleTextOverflow": 0,
+      "font": {
+        "family": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "weight": "500",
+        "lineHeight": "27.75px"
+      }
+    },
+    {
+      "width": 480,
+      "doubleTextOverflow": 0,
+      "font": {
+        "family": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "weight": "500",
+        "lineHeight": "27.75px"
+      }
+    },
+    {
+      "width": 759,
+      "doubleTextOverflow": 0,
+      "font": {
+        "family": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "weight": "500",
+        "lineHeight": "27.75px"
+      }
+    },
+    {
+      "width": 760,
+      "doubleTextOverflow": 0,
+      "font": {
+        "family": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "weight": "500",
+        "lineHeight": "27.75px"
+      }
+    },
+    {
+      "width": 1920,
+      "doubleTextOverflow": 0,
+      "font": {
+        "family": "\"Pretendard Variable\", Pretendard, \"Apple SD Gothic Neo\", \"Malgun Gothic\", system-ui, sans-serif",
+        "weight": "500",
+        "lineHeight": "27.75px"
+      }
+    }
+  ],
+  "dock": {
+    "on": true,
+    "overlap": false
+  },
+  "hiddenWhileTyping": true
+}

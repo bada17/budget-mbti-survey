@@ -1,0 +1,292 @@
+{
+  "layouts": [
+    {
+      "name": "house",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-menu",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-story",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-list",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-mine",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "finance",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "tax",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "login-region",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "login-picker",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "counsel-form",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "counsel-fields",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "dok",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "dok-frame",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "accessories",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "note",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "wait",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "end-guide",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "guide",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "pavilion",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "bridge",
+      "width": 360,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "house",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-menu",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-story",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-list",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "cuts-mine",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "finance",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "tax",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "login-region",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "login-picker",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "counsel-form",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "counsel-fields",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "dok",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "dok-frame",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "accessories",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "note",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "wait",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "end-guide",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "guide",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "pavilion",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    },
+    {
+      "name": "bridge",
+      "width": 1280,
+      "overflow": 0,
+      "body": 0
+    }
+  ],
+  "errors": [],
+  "reduced": [
+    {
+      "width": 360,
+      "animation": "none"
+    },
+    {
+      "width": 1280,
+      "animation": "none"
+    }
+  ],
+  "frames": [
+    {
+      "title": "우리 동네 돈을 어디에 쓰나",
+      "border": "2px",
+      "width": 324,
+      "height": 4684
+    },
+    {
+      "title": "우리 동네 돈이 어디서 오나",
+      "border": "2px",
+      "width": 324,
+      "height": 2414
+    },
+    {
+      "title": "우리 동네 돈을 어디에 쓰나",
+      "border": "2px",
+      "width": 444,
+      "height": 4609
+    },
+    {
+      "title": "우리 동네 돈이 어디서 오나",
+      "border": "2px",
+      "width": 444,
+      "height": 2391
+    }
+  ],
+  "source": {
+    "https://pb.action.or.kr/": 200,
+    "https://dok.action.or.kr/data/campaigns.json": 200,
+    "https://dok.action.or.kr/data/awards.json": 200
+  },
+  "slow": {
+    "cpu": 4,
+    "fps": 43.634380255442935,
+    "maxFrame": 99.89999999999998,
+    "moved": 321.1725509479901
+  }
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "mine": null,
+    "received": "2026-10-13",
+    "source": "지방재정365 지방교부세 감액현황(LLBSR)",
+    "count": 487,
+    "amount": 115754000000,
+    "local": 0,
+    "display": "487건 · 1,158억 원",
+    "blankBeforeLoad": true,
+    "navigation": true
+  },
+  {
+    "mine": "4211000",
+    "received": "2026-10-13",
+    "source": "지방재정365 지방교부세 감액현황(LLBSR)",
+    "count": 487,
+    "amount": 115754000000,
+    "local": 5,
+    "display": "487건 · 1,158억 원",
+    "blankBeforeLoad": true,
+    "navigation": true
+  },
+  {
+    "mine": "1111000",
+    "received": "2026-10-13",
+    "source": "지방재정365 지방교부세 감액현황(LLBSR)",
+    "count": 487,
+    "amount": 115754000000,
+    "local": 1,
+    "display": "487건 · 1,158억 원",
+    "blankBeforeLoad": true,
+    "navigation": true
+  },
+  {
+    "mine": "9999999",
+    "received": "2026-10-13",
+    "source": "지방재정365 지방교부세 감액현황(LLBSR)",
+    "count": 487,
+    "amount": 115754000000,
+    "local": 0,
+    "display": "487건 · 1,158억 원",
+    "blankBeforeLoad": true,
+    "navigation": true
+  }
+]

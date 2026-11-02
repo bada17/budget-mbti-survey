@@ -1,0 +1,305 @@
+
+> budget-mbti-survey@0.1.0 build:game
+> vite build --config vite.game.config.ts
+
+vite v8.0.13 building client environment for production...
+[2K
+transforming...✓ 68 modules transformed.
+rendering chunks...
+computing gzip size...
+dist-game/assets/jua-95-400-normal-Dr86P1je.woff2                 1.75 kB
+dist-game/assets/jua-95-400-normal-Dzpqo2Dw.woff                  1.79 kB
+dist-game/assets/jua-65-400-normal-GSQZvt38.woff                  2.46 kB
+dist-game/assets/jua-36-400-normal-Caos-9qy.woff                  2.49 kB
+dist-game/assets/jua-31-400-normal-EWjzIYa-.woff                  2.87 kB
+dist-game/assets/jua-36-400-normal-D6A1ql1p.woff2                 2.88 kB
+dist-game/index.html                                              2.89 kB │ gzip:   1.16 kB
+dist-game/assets/jua-65-400-normal-D6oxkGcI.woff2                 2.94 kB
+dist-game/assets/jua-53-400-normal-njwA8wKl.woff                  3.00 kB
+dist-game/assets/jua-53-400-normal-BE8d9jZq.woff2                 3.26 kB
+dist-game/assets/jua-31-400-normal-M-MwfqSy.woff2                 3.26 kB
+dist-game/assets/jua-12-400-normal-_PP84oFz.woff                  3.59 kB
+dist-game/assets/jua-19-400-normal-BvUu4PHY.woff                  3.59 kB
+dist-game/assets/jua-15-400-normal-CdNaKl_D.woff                  3.65 kB
+dist-game/assets/jua-5-400-normal-BCFN8vmj.woff                   3.84 kB
+dist-game/assets/jua-48-400-normal-CtXdoflW.woff                  3.90 kB
+dist-game/assets/jua-8-400-normal-JRZyUdTe.woff                   3.96 kB
+dist-game/assets/jua-49-400-normal-CUN3QEob.woff                  3.97 kB
+dist-game/assets/jua-45-400-normal-DIbivFEy.woff                  4.06 kB
+dist-game/assets/jua-19-400-normal-D2StQ_q6.woff2                 4.08 kB
+dist-game/assets/jua-47-400-normal-p-NyvDdP.woff                  4.17 kB
+dist-game/assets/jua-23-400-normal-CS6VU3P-.woff                  4.18 kB
+dist-game/assets/jua-13-400-normal-C89C60DH.woff                  4.18 kB
+dist-game/assets/jua-50-400-normal-DZxoht-7.woff                  4.30 kB
+dist-game/assets/jua-62-400-normal-DQ853SIO.woff                  4.32 kB
+dist-game/assets/jua-10-400-normal-DXPR8Iwv.woff                  4.36 kB
+dist-game/assets/jua-41-400-normal-C2N-plyU.woff                  4.39 kB
+dist-game/assets/jua-12-400-normal-C9mVr8md.woff2                 4.42 kB
+dist-game/assets/jua-5-400-normal-DzTXNhbn.woff2                  4.42 kB
+dist-game/assets/jua-11-400-normal-CEW1o5gx.woff                  4.43 kB
+dist-game/assets/jua-58-400-normal--s59I1Vv.woff                  4.46 kB
+dist-game/assets/jua-15-400-normal-CGSZ9zlH.woff2                 4.54 kB
+dist-game/assets/jua-46-400-normal-Cx9SDiL0.woff                  4.59 kB
+dist-game/assets/jua-48-400-normal-ByUOq502.woff2                 4.62 kB
+dist-game/assets/jua-57-400-normal-uqZ26jOK.woff                  4.76 kB
+dist-game/assets/jua-8-400-normal-BHKsdCps.woff2                  4.77 kB
+dist-game/assets/jua-37-400-normal-BvO-d13z.woff                  4.79 kB
+dist-game/assets/jua-51-400-normal-EFo7rs-c.woff                  4.80 kB
+dist-game/assets/jua-38-400-normal-Bdb4ABBy.woff                  4.82 kB
+dist-game/assets/jua-16-400-normal-CcCdc3Ae.woff                  4.85 kB
+dist-game/assets/jua-45-400-normal-DP1URkuO.woff2                 4.86 kB
+dist-game/assets/jua-49-400-normal-CDWKJrMx.woff2                 4.87 kB
+dist-game/assets/jua-28-400-normal-BKwKHD8N.woff                  4.89 kB
+dist-game/assets/jua-18-400-normal-CQJmuziu.woff                  4.89 kB
+dist-game/assets/jua-21-400-normal-CCW2aKwz.woff                  4.91 kB
+dist-game/assets/jua-32-400-normal-BfD7oKoy.woff                  4.92 kB
+dist-game/assets/jua-17-400-normal-DlbE44n5.woff                  4.93 kB
+dist-game/assets/jua-62-400-normal-4j-j6Kqk.woff2                 4.94 kB
+dist-game/assets/jua-14-400-normal-DuO_Sx9t.woff                  4.96 kB
+dist-game/assets/jua-2-400-normal-BooYlCcg.woff                   4.98 kB
+dist-game/assets/jua-47-400-normal-K_oEv23V.woff2                 5.01 kB
+dist-game/assets/jua-7-400-normal-DX935-N3.woff                   5.05 kB
+dist-game/assets/jua-4-400-normal-DhmXVsS3.woff                   5.10 kB
+dist-game/assets/jua-94-400-normal-BibDCHat.woff                  5.11 kB
+dist-game/assets/jua-10-400-normal-DqY2m03H.woff2                 5.13 kB
+dist-game/assets/jua-29-400-normal-DZTDcSbo.woff                  5.13 kB
+dist-game/assets/jua-59-400-normal-BnfNb_wG.woff                  5.13 kB
+dist-game/assets/jua-55-400-normal-rO1jt6OV.woff                  5.14 kB
+dist-game/assets/jua-56-400-normal-DjTaXCyO.woff                  5.14 kB
+dist-game/assets/jua-23-400-normal-BY_OQp2H.woff2                 5.18 kB
+dist-game/assets/jua-11-400-normal-IkWnFt3S.woff2                 5.18 kB
+dist-game/assets/jua-13-400-normal-BtuRFb4O.woff2                 5.26 kB
+dist-game/assets/jua-50-400-normal-C81p-2U9.woff2                 5.29 kB
+dist-game/assets/jua-57-400-normal-Cb1VK_Qw.woff2                 5.36 kB
+dist-game/assets/jua-58-400-normal-FjeqZF1k.woff2                 5.39 kB
+dist-game/assets/jua-42-400-normal-BVcon7_N.woff                  5.44 kB
+dist-game/assets/jua-41-400-normal-Db6h2i6k.woff2                 5.52 kB
+dist-game/assets/jua-40-400-normal-Dqyj10Uu.woff                  5.56 kB
+dist-game/assets/jua-44-400-normal-By-YUT_0.woff                  5.58 kB
+dist-game/assets/jua-64-400-normal-CdTAtWUl.woff                  5.63 kB
+dist-game/assets/jua-21-400-normal-CVhGndac.woff2                 5.66 kB
+dist-game/assets/jua-52-400-normal-7DZNNHZa.woff                  5.66 kB
+dist-game/assets/jua-20-400-normal-Bq9sRRL8.woff                  5.68 kB
+dist-game/assets/jua-43-400-normal-BLKgS1lJ.woff                  5.68 kB
+dist-game/assets/jua-30-400-normal-zNbkgp8N.woff                  5.69 kB
+dist-game/assets/jua-25-400-normal-CNvcE-6A.woff                  5.70 kB
+dist-game/assets/jua-60-400-normal-D0syhMyz.woff                  5.70 kB
+dist-game/assets/jua-61-400-normal-Bdrz1at3.woff                  5.70 kB
+dist-game/assets/jua-28-400-normal-DmXUqpHq.woff2                 5.71 kB
+dist-game/assets/jua-32-400-normal-5Vxy14KJ.woff2                 5.83 kB
+dist-game/assets/jua-37-400-normal-VNBV9hL7.woff2                 5.88 kB
+dist-game/assets/jua-18-400-normal-CAlbL00r.woff2                 5.89 kB
+dist-game/assets/jua-46-400-normal-D2n6Q4RT.woff2                 5.89 kB
+dist-game/assets/jua-6-400-normal--8HIsjc1.woff                   5.90 kB
+dist-game/assets/jua-94-400-normal-BVjB_xcA.woff2                 5.94 kB
+dist-game/assets/jua-29-400-normal-DRrHVCxB.woff2                 5.94 kB
+dist-game/assets/jua-35-400-normal-BlPLBMlu.woff                  5.98 kB
+dist-game/assets/jua-56-400-normal-wlMtujh0.woff2                 5.99 kB
+dist-game/assets/jua-51-400-normal-Ci0tRqh9.woff2                 5.99 kB
+dist-game/assets/jua-3-400-normal-De5VWGoT.woff                   6.01 kB
+dist-game/assets/jua-38-400-normal-zeEwlzCk.woff2                 6.01 kB
+dist-game/assets/jua-17-400-normal-B6OKyiO9.woff2                 6.03 kB
+dist-game/assets/jua-9-400-normal-DHtZzmWr.woff                   6.07 kB
+dist-game/assets/jua-55-400-normal-CH5uVgUr.woff2                 6.17 kB
+dist-game/assets/jua-16-400-normal-DTWln3D0.woff2                 6.18 kB
+dist-game/assets/jua-22-400-normal-XDgGrLrD.woff                  6.18 kB
+dist-game/assets/jua-14-400-normal-DqKajrW5.woff2                 6.31 kB
+dist-game/assets/jua-34-400-normal-BWXolFEP.woff                  6.32 kB
+dist-game/assets/jua-33-400-normal-D7O-agSW.woff                  6.36 kB
+dist-game/assets/jua-2-400-normal-BKyyhivJ.woff2                  6.52 kB
+dist-game/assets/jua-7-400-normal-DexeO29O.woff2                  6.52 kB
+dist-game/assets/jua-4-400-normal-3XTqeRdq.woff2                  6.59 kB
+dist-game/assets/jua-59-400-normal-ZZKoxi31.woff2                 6.59 kB
+dist-game/assets/jua-54-400-normal-BvMnEBmX.woff                  6.59 kB
+dist-game/assets/jua-27-400-normal-Bish-_3G.woff                  6.67 kB
+dist-game/assets/jua-26-400-normal-DDADrV0C.woff                  6.69 kB
+dist-game/assets/jua-30-400-normal-BsIOP5Yg.woff2                 6.73 kB
+dist-game/assets/jua-25-400-normal-AP8mwJ_U.woff2                 6.74 kB
+dist-game/assets/jua-63-400-normal-BlM845Ad.woff                  6.77 kB
+dist-game/assets/jua-24-400-normal-DGZZckv3.woff                  6.81 kB
+dist-game/assets/jua-44-400-normal-Dm7Az5DS.woff2                 6.94 kB
+dist-game/assets/jua-35-400-normal-Dep2Pnbo.woff2                 6.96 kB
+dist-game/assets/jua-42-400-normal-Cr9PRvEz.woff2                 6.99 kB
+dist-game/assets/jua-64-400-normal-Cx7hf0Bt.woff2                 7.01 kB
+dist-game/assets/jua-60-400-normal-CG-0nwCL.woff2                 7.02 kB
+dist-game/assets/jua-20-400-normal-D1ZcarTF.woff2                 7.06 kB
+dist-game/assets/jua-52-400-normal-C2QZLO_a.woff2                 7.06 kB
+dist-game/assets/jua-40-400-normal-CoRomuMz.woff2                 7.14 kB
+dist-game/assets/jua-39-400-normal-CRcVOoZi.woff                  7.16 kB
+dist-game/assets/jua-22-400-normal-CtrWFYQm.woff2                 7.30 kB
+dist-game/assets/jua-43-400-normal-C5m-onfi.woff2                 7.37 kB
+dist-game/assets/jua-9-400-normal-Bcwq4Fkr.woff2                  7.39 kB
+dist-game/assets/jua-33-400-normal-q4tetTrQ.woff2                 7.40 kB
+dist-game/assets/jua-34-400-normal-B1Do_GDL.woff2                 7.49 kB
+dist-game/assets/jua-61-400-normal-DFFBNxkN.woff2                 7.55 kB
+dist-game/assets/jua-54-400-normal-yiqhYaAe.woff2                 7.84 kB
+dist-game/assets/jua-3-400-normal-DoDZfDfm.woff2                  7.89 kB
+dist-game/assets/jua-6-400-normal-BsLrIKny.woff2                  7.94 kB
+dist-game/assets/PretendardVariable.subset.66-C3HqaDeY.woff2      8.25 kB
+dist-game/assets/PretendardVariable.subset.64-CTbrgYF9.woff2      8.26 kB
+dist-game/assets/jua-24-400-normal-BXWYHcQK.woff2                 8.29 kB
+dist-game/assets/jua-26-400-normal-D_9-XztK.woff2                 8.38 kB
+dist-game/assets/jua-27-400-normal-CQ75bXdg.woff2                 8.44 kB
+dist-game/assets/jua-63-400-normal-CxfK7GFk.woff2                 8.66 kB
+dist-game/assets/jua-39-400-normal-lX1ylnHt.woff2                 9.36 kB
+dist-game/assets/PretendardVariable.subset.65-B66rjuyf.woff2     11.10 kB
+dist-game/assets/jua-100-400-normal-UelSGh7B.woff                11.87 kB
+dist-game/assets/jua-101-400-normal-Bf4Xhr_r.woff                11.98 kB
+dist-game/assets/jua-103-400-normal-BANVpRFK.woff                13.08 kB
+dist-game/assets/jua-102-400-normal-C33l0Yfn.woff                13.32 kB
+dist-game/assets/jua-104-400-normal-CV1lB7Su.woff                14.18 kB
+dist-game/assets/jua-101-400-normal-BC3N-OpX.woff2               14.30 kB
+dist-game/assets/jua-100-400-normal-cMIIHIbN.woff2               14.43 kB
+dist-game/assets/jua-105-400-normal-BT9d0ISj.woff                15.37 kB
+dist-game/assets/jua-latin-400-normal-DW1ANaNr.woff              15.63 kB
+dist-game/assets/jua-119-400-normal-VlkRGUkH.woff                15.95 kB
+dist-game/assets/jua-102-400-normal-ClO93D9O.woff2               16.20 kB
+dist-game/assets/jua-103-400-normal-BNJIOloJ.woff2               16.25 kB
+dist-game/assets/PretendardVariable.subset.68-DS9B48d0.woff2     16.34 kB
+dist-game/assets/jua-latin-400-normal-B0wF3VKp.woff2             16.62 kB
+dist-game/assets/jua-104-400-normal-Cui5_NRf.woff2               16.68 kB
+dist-game/assets/jua-106-400-normal-DuinM5RC.woff                16.76 kB
+dist-game/assets/jua-119-400-normal-CKvBufeu.woff2               17.21 kB
+dist-game/assets/PretendardVariable.subset.73-DMrK970F.woff2     18.33 kB
+dist-game/assets/jua-105-400-normal-BPpOE44I.woff2               18.59 kB
+dist-game/assets/PretendardVariable.subset.72-pYYGrEQR.woff2     19.50 kB
+dist-game/assets/jua-108-400-normal-B-eusHw6.woff                19.98 kB
+dist-game/assets/PretendardVariable.subset.75-CxKdrRNf.woff2     19.99 kB
+dist-game/assets/jua-107-400-normal-Be_kUBjc.woff                20.42 kB
+dist-game/assets/jua-106-400-normal-CAbHk8xJ.woff2               20.53 kB
+dist-game/assets/PretendardVariable.subset.90-BF7RiZjm.woff2     20.85 kB
+dist-game/assets/jua-111-400-normal-BrIbetru.woff                20.97 kB
+dist-game/assets/jua-112-400-normal-Bkr7XtYA.woff                21.33 kB
+dist-game/assets/jua-114-400-normal-Ds6Sap5x.woff                21.36 kB
+dist-game/assets/jua-109-400-normal-B-9iC2Ul.woff                21.43 kB
+dist-game/assets/PretendardVariable.subset.67-BmuXdlDy.woff2     21.84 kB
+dist-game/assets/PretendardVariable.subset.89-DOzqWPpX.woff2     21.86 kB
+dist-game/assets/jua-110-400-normal-BEfYyEVn.woff                22.31 kB
+dist-game/assets/PretendardVariable.subset.74-D4tQnymK.woff2     22.39 kB
+dist-game/assets/jua-115-400-normal-Bx-GTW3s.woff                22.46 kB
+dist-game/assets/jua-113-400-normal-CKOLsUBX.woff                22.48 kB
+dist-game/assets/jua-116-400-normal-ty-GqSSb.woff                22.85 kB
+dist-game/assets/jua-118-400-normal-CGPGqEO6.woff                23.42 kB
+dist-game/assets/PretendardVariable.subset.84-Brb8EsYQ.woff2     24.49 kB
+dist-game/assets/jua-107-400-normal-C-L2Ioog.woff2               24.58 kB
+dist-game/assets/PretendardVariable.subset.87-Lzui2vbK.woff2     24.66 kB
+dist-game/assets/jua-117-400-normal-BamWen6Q.woff                24.87 kB
+dist-game/assets/PretendardVariable.subset.76-DhPm2b_q.woff2     24.92 kB
+dist-game/assets/PretendardVariable.subset.85-Byo_x2hf.woff2     25.10 kB
+dist-game/assets/jua-108-400-normal-cSJX4rEc.woff2               25.42 kB
+dist-game/assets/PretendardVariable.subset.88-CqX6JSgh.woff2     25.64 kB
+dist-game/assets/PretendardVariable.subset.86-XG7lTN_6.woff2     25.71 kB
+dist-game/assets/PretendardVariable.subset.77-DwaxqOC8.woff2     26.04 kB
+dist-game/assets/jua-111-400-normal-ArT2jQtB.woff2               26.13 kB
+dist-game/assets/jua-109-400-normal-1xcx_BWi.woff2               26.15 kB
+dist-game/assets/PretendardVariable.subset.79-XpoyPP38.woff2     26.22 kB
+dist-game/assets/jua-114-400-normal-DvZoViHq.woff2               26.28 kB
+dist-game/assets/PretendardVariable.subset.81-BZzF9Hb3.woff2     26.30 kB
+dist-game/assets/PretendardVariable.subset.82-BgAHe30u.woff2     26.50 kB
+dist-game/assets/jua-112-400-normal-BkwI7k10.woff2               26.51 kB
+dist-game/assets/PretendardVariable.subset.78-DhqRbBzT.woff2     26.54 kB
+dist-game/assets/PretendardVariable.subset.83-DF-zBLLe.woff2     26.96 kB
+dist-game/assets/jua-110-400-normal-BOpiQTu4.woff2               27.17 kB
+dist-game/assets/jua-115-400-normal-B-cHqaay.woff2               27.24 kB
+dist-game/assets/PretendardVariable.subset.70-BUXiAGMT.woff2     27.54 kB
+dist-game/assets/jua-118-400-normal-BeqNSlfW.woff2               27.86 kB
+dist-game/assets/PretendardVariable.subset.37-BD6FyOtY.woff2     27.91 kB
+dist-game/assets/jua-113-400-normal-4cahyTIP.woff2               28.11 kB
+dist-game/assets/jua-116-400-normal-D7iyg99O.woff2               28.22 kB
+dist-game/assets/PretendardVariable.subset.71-DuPZj8us.woff2     28.32 kB
+dist-game/assets/PretendardVariable.subset.80-DsV9Qp_h.woff2     28.79 kB
+dist-game/assets/PretendardVariable.subset.63-B35xsm4O.woff2     28.81 kB
+dist-game/assets/jua-117-400-normal-9_Hm8DkT.woff2               29.83 kB
+dist-game/assets/PretendardVariable.subset.40-BDaOfdUe.woff2     29.84 kB
+dist-game/assets/PretendardVariable.subset.43-DHdpry7N.woff2     30.38 kB
+dist-game/assets/PretendardVariable.subset.7-E2HaA55t.woff2      31.91 kB
+dist-game/assets/PretendardVariable.subset.1-C-__qv6_.woff2      32.04 kB
+dist-game/assets/PretendardVariable.subset.44-qHopVhdd.woff2     32.13 kB
+dist-game/assets/PretendardVariable.subset.24-CmkE8Q8D.woff2     32.30 kB
+dist-game/assets/PretendardVariable.subset.10-DzSWztS8.woff2     33.03 kB
+dist-game/assets/PretendardVariable.subset.41-BUACvzZC.woff2     33.18 kB
+dist-game/assets/PretendardVariable.subset.50-C8IyFH7L.woff2     33.22 kB
+dist-game/assets/PretendardVariable.subset.54-Dt2-cQkx.woff2     33.34 kB
+dist-game/assets/PretendardVariable.subset.5-K_MNGNCe.woff2      33.62 kB
+dist-game/assets/PretendardVariable.subset.6-Bxhohlcm.woff2      33.96 kB
+dist-game/assets/PretendardVariable.subset.9-Btb3bmS6.woff2      34.01 kB
+dist-game/assets/PretendardVariable.subset.55-jFgflYjX.woff2     34.18 kB
+dist-game/assets/PretendardVariable.subset.39-B_7wfth9.woff2     34.25 kB
+dist-game/assets/PretendardVariable.subset.52-CNgqKOOJ.woff2     34.35 kB
+dist-game/assets/PretendardVariable.subset.0-BHUkWNFR.woff2      34.56 kB
+dist-game/assets/PretendardVariable.subset.53-BSRnyb-u.woff2     34.57 kB
+dist-game/assets/PretendardVariable.subset.42-Dp-5mnyL.woff2     34.60 kB
+dist-game/assets/PretendardVariable.subset.45-BniyRFfm.woff2     34.66 kB
+dist-game/assets/PretendardVariable.subset.36-Dn5IBRQB.woff2     34.68 kB
+dist-game/assets/PretendardVariable.subset.34-CaCS33Md.woff2     34.72 kB
+dist-game/assets/PretendardVariable.subset.69-YT16ymcp.woff2     34.78 kB
+dist-game/assets/PretendardVariable.subset.38-D4hu443z.woff2     34.80 kB
+dist-game/assets/PretendardVariable.subset.62-DGSAWCfb.woff2     34.87 kB
+dist-game/assets/PretendardVariable.subset.33--0OT__YQ.woff2     34.91 kB
+dist-game/assets/PretendardVariable.subset.17-BfZSA-Xc.woff2     34.94 kB
+dist-game/assets/PretendardVariable.subset.4-Bvh2YGoc.woff2      35.15 kB
+dist-game/assets/PretendardVariable.subset.56-BwZdvJZQ.woff2     35.18 kB
+dist-game/assets/PretendardVariable.subset.35-DWFYRGLp.woff2     35.35 kB
+dist-game/assets/PretendardVariable.subset.27-CT6nuW9L.woff2     35.42 kB
+dist-game/assets/PretendardVariable.subset.61-PUuTnod4.woff2     35.64 kB
+dist-game/assets/PretendardVariable.subset.15-D04iXIE3.woff2     35.66 kB
+dist-game/assets/PretendardVariable.subset.13-C42mj_j2.woff2     35.70 kB
+dist-game/assets/PretendardVariable.subset.47-B-cWO2pw.woff2     35.72 kB
+dist-game/assets/PretendardVariable.subset.57-BwFDg-Fs.woff2     35.96 kB
+dist-game/assets/PretendardVariable.subset.51-Bxd0gTAs.woff2     36.02 kB
+dist-game/assets/PretendardVariable.subset.49-BblQVys9.woff2     36.05 kB
+dist-game/assets/PretendardVariable.subset.20-Ig1-z3n5.woff2     36.12 kB
+dist-game/assets/PretendardVariable.subset.14-Bl512uUX.woff2     36.51 kB
+dist-game/assets/PretendardVariable.subset.46-BMRq7xC-.woff2     36.54 kB
+dist-game/assets/PretendardVariable.subset.8-CRbJhhyA.woff2      36.69 kB
+dist-game/assets/PretendardVariable.subset.21-yKPEdLXC.woff2     37.26 kB
+dist-game/assets/PretendardVariable.subset.11-CqVmlKJn.woff2     37.40 kB
+dist-game/assets/PretendardVariable.subset.48-Ct-fWrPO.woff2     37.77 kB
+dist-game/assets/PretendardVariable.subset.60-CeHezjjf.woff2     37.77 kB
+dist-game/assets/PretendardVariable.subset.16-BQUnS2GX.woff2     37.91 kB
+dist-game/assets/PretendardVariable.subset.12-BHuZSgT0.woff2     37.94 kB
+dist-game/assets/PretendardVariable.subset.91-Csm0YNoH.woff2     37.99 kB
+dist-game/assets/PretendardVariable.subset.30-CWDM1c0J.woff2     38.44 kB
+dist-game/assets/PretendardVariable.subset.28-CpO0Y96p.woff2     38.46 kB
+dist-game/assets/PretendardVariable.subset.22-CSqxKoOs.woff2     38.68 kB
+dist-game/assets/PretendardVariable.subset.59-CMkWjhdo.woff2     38.97 kB
+dist-game/assets/PretendardVariable.subset.29-D6hjrUWm.woff2     39.28 kB
+dist-game/assets/PretendardVariable.subset.32-CGnFWD2i.woff2     40.21 kB
+dist-game/assets/PretendardVariable.subset.23-DK80wi0t.woff2     40.28 kB
+dist-game/assets/PretendardVariable.subset.26-Sozl8dw8.woff2     40.32 kB
+dist-game/assets/PretendardVariable.subset.3-Dqw33sf4.woff2      40.64 kB
+dist-game/assets/PretendardVariable.subset.58-DlucQts_.woff2     41.56 kB
+dist-game/assets/PretendardVariable.subset.18-CwAxMC3C.woff2     41.60 kB
+dist-game/assets/PretendardVariable.subset.31-CdmyZ5mm.woff2     41.89 kB
+dist-game/assets/PretendardVariable.subset.25-CsoWBIZB.woff2     42.03 kB
+dist-game/assets/PretendardVariable.subset.19-CJu4Zcdo.woff2     42.32 kB
+dist-game/assets/PretendardVariable.subset.2-dCZkyKLw.woff2      43.92 kB
+dist-game/assets/landing-CHnjwpyV.css                            13.74 kB │ gzip:   3.49 kB
+dist-game/assets/index-B39X6FZK.css                             146.23 kB │ gzip:  42.46 kB
+dist-game/assets/phaser.esm-CJoC9V3C.js                           0.94 kB │ gzip:   0.51 kB
+dist-game/assets/contact-CVSrJxR6.js                              1.52 kB │ gzip:   0.81 kB
+dist-game/assets/response-CEQG2tcK.js                             1.83 kB │ gzip:   0.99 kB
+dist-game/assets/room-iHsm6xVr.js                                 1.97 kB │ gzip:   1.06 kB
+dist-game/assets/flow-DdS32sGR.js                                 2.69 kB │ gzip:   1.06 kB
+dist-game/assets/motion-debug-CIqBk3zL.js                         3.12 kB │ gzip:   1.68 kB
+dist-game/assets/diag-DWIx6QuS.js                                 3.25 kB │ gzip:   1.73 kB
+dist-game/assets/source-DvkdQE8V.js                               7.76 kB │ gzip:   3.35 kB
+dist-game/assets/storage-BhLCfz6y.js                              7.85 kB │ gzip:   2.85 kB
+dist-game/assets/api-BDv8nOPd.js                                  8.50 kB │ gzip:   3.17 kB
+dist-game/assets/es-C1KvbRon.js                                  12.85 kB │ gzip:   5.10 kB
+dist-game/assets/village-B-nOSY_g.js                             13.61 kB │ gzip:   6.75 kB
+dist-game/assets/VillageScene-DuaDiT4S.js                        14.86 kB │ gzip:   5.51 kB
+dist-game/assets/local-finance-ByeSSueF.js                       21.15 kB │ gzip:   7.78 kB
+dist-game/assets/landing-DGVoTVrc.js                             23.48 kB │ gzip:   9.05 kB
+dist-game/assets/JourneyScene-C3xo48ia.js                        24.90 kB │ gzip:   8.59 kB
+dist-game/assets/draw-B1totvnq.js                                69.97 kB │ gzip:  26.12 kB
+dist-game/assets/index-kG7RUojU.js                              108.05 kB │ gzip:  42.33 kB
+dist-game/assets/cuts-CTtcJVjU.js                               266.34 kB │ gzip:  50.38 kB
+dist-game/assets/phaser.esm-B79QIHja.js                       1,377.01 kB │ gzip: 358.42 kB
+
+✓ built in 1.90s
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

@@ -1,0 +1,18 @@
+[
+  {
+    "exitCode": 0,
+    "name": "test"
+  },
+  {
+    "exitCode": 0,
+    "name": "typescript"
+  },
+  {
+    "exitCode": 0,
+    "name": "lint"
+  },
+  {
+    "exitCode": 0,
+    "name": "build"
+  }
+]
