@@ -16,7 +16,7 @@ import {
   loadLogin, saveLogin,
 } from './profile';
 import { openTown, openReply, openLetter, openLogin, openLoggedIn, openCompare, loginBox, type Person, type LoginOpts } from './town';
-import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCuts, noteCard, noteView, loadMarks, rememberMine, loadPocket, savePocket, ACCESSORY_PRICE, HOME_LINK, type NoteActions } from './places';
+import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCuts, noteCard, noteView, loadMarks, rememberMine, loadPocket, savePocket, ACCESSORY_PRICE, type NoteActions } from './places';
 import { openArcade } from './arcade';
 import { PLACES, keeperName, placeName, dropsOn, kstDay, worksAt, NOTE_GAP_MS, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
@@ -31,17 +31,13 @@ import { net, lastFailure } from './net';
 import type { Stats, VillageView } from './api';
 import type { JourneyScene, SceneCommand, Guest } from './scenes/JourneyScene';
 import type { VillageScene } from './scenes/VillageScene';
-import { gameStorage, useInspectionStorage, useTemporaryStorage } from './storage';
+import { gameStorage, useInspectionStorage } from './storage';
 import { createCompletionQueue } from './completion';
 import { arrival } from './source';
 import { mountInspectionTools } from './inspection';
-import { PUB } from './pub';
-import { feedbackGate, feedbackSent } from './pub-feedback';
-import { openCheerBoard } from './cheer-board';
 
 const root = document.querySelector<HTMLElement>('#game-root')!;
 const params = new URLSearchParams(location.search);
-if (PUB) useTemporaryStorage();
 const realLogin = loadLogin();
 if (params.has('inspect')) root.textContent = '관리자 권한을 확인하고 있어요…';
 const inspecting = Boolean(params.has('inspect') && realLogin && await net.startInspection(realLogin.key).catch(() => false));
@@ -69,7 +65,7 @@ let me: Me = loadMe();
 const newSessionId = () => crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint8Array(16)), (b, i) => (i === 4 || i === 6 || i === 8 || i === 10 ? '-' : '') + b.toString(16).padStart(2, '0')).join('');
 let state = createJourney(newSessionId(), Date.now());
 // 유입(10-21, game/source.ts) — 이 브라우저에 처음 왔으면 「들어옴」 한 줄. 점검 중엔 안 센다. 끝까지는 finish 가, 보냄은 sendLink 가 싣는다.
-if (!inspecting && !PUB) { const { src, fresh } = arrival(); if (fresh) void net.hit('arrive', state.sessionId, src); }
+if (!inspecting) { const { src, fresh } = arrival(); if (fresh) void net.hit('arrive', state.sessionId, src); }
 let sharedOnce = false;
 let response: GameResponse | undefined;
 let stats: Stats | undefined;
@@ -92,7 +88,7 @@ let online = false;
 /** 지난번 판 — 유형이 남은 판(10-14 뒤)이면 다시 온 사람이다. */
 let lastPlay = loadLast();
 /** 걸으러 온 링크(?walk·친구 초대, 개발판 ?end) — 다시 온 사람이어도 걷기 화면에서 시작한다. */
-const walkLink = params.has('walk') || PUB || Boolean(invite) || ((import.meta.env.DEV || inspecting) && params.has('end'));
+const walkLink = params.has('walk') || Boolean(invite) || ((import.meta.env.DEV || inspecting) && params.has('end'));
 /** 걷지 않고 마을로 — 걸으러 왔지만 지난번 판이 있는 사람(시작 화면 단추, 불러온 뒤 묻기). */
 const goVillage = () => { location.href = inspecting ? `${here()}?inspect=1&village=1` : here(); };
 /** 마을(기획 4차) — 지금 어디(걷기 판 / 마을), 마을에 어디서 나타나나, 판이 열려 있나(그동안 나는 멈춘다). */
@@ -143,8 +139,7 @@ function notes() {
   ui.notes(lines);
 }
 notes();
-// 후원주점판은 서버 없는 판처럼 돈다(online 이 안 켜져 마을의 서버 단추가 숨는다) — 남기는 판이 없어 서버가 이 판을 모른다.
-const statsReady = (PUB ? Promise.resolve(undefined) : net.stats()).then(found => {
+const statsReady = net.stats().then(found => {
   online = Boolean(found);
   stats = found;
   notes();
@@ -186,7 +181,7 @@ function goBack() {
 }
 const loginLabel = loginNow() && `✓ ${PROVIDER_NAME[loginNow()!]}로 로그인됨`;
 // 시작 화면 작은 단추는 하나만(10-26 사용자 ⓑ) — 지난번 판이 있으면 아래 「걷지 않고 마을로 가기」, 없으면 이 「내 시민증 불러오기」.
-if (!lastPlay?.type && !PUB) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}), loginLabel || undefined);
+if (!lastPlay?.type) ui.loginOpen(() => openLogin(shell, loginOpts, () => {}), loginLabel || undefined);
 
 type UntimedCommand = Command extends infer T ? T extends { at: number } ? Omit<T, 'at'> : never : never;
 function send(command: UntimedCommand | SceneCommand) {
@@ -219,7 +214,7 @@ ui.render(state);
 
 // ── 끝낸 판 — 서버에 알리기·다른 사람들 마음 ──
 bus.subscribe(event => {
-  if (event.type === 'journey.arrived' && !PUB) { // 후원주점판은 서버에도 이 기기에도 남기지 않는다(pub.ts)
+  if (event.type === 'journey.arrived') {
     if (!completion.enqueue(state.sessionId, state.answers)) ui.toast('미저장 기록이 많아요. 연결을 복구한 뒤 화면을 닫아 주세요.');
     // 도장은 한 일에 찍는다(stamps.ts) — 한 바퀴, 그 철에 걸었으면 철 도장.
     addStamp('walk');
@@ -236,7 +231,6 @@ bus.subscribe(event => {
  * 우리 동네는 따로 짓지 않는다 — 로그인했으면 이번 판이 기록 묶음의 지난번 판이 되어(saveTown → keepSynced) 내 동네에 저절로 함께한다(api.ts regionView).
  */
 async function afterFinish() {
-  if (PUB) return;
   const result = await completion.flush();
   if (!result) return;
   stats = result.value;
@@ -283,8 +277,6 @@ async function prepareCard() {
 function share(reply = false, copy = false) {
   if (inspecting) { ui.toast('점검 중에는 실제 공유를 보내지 않아요.'); return; }
   const files = card && navigator.canShare?.({ files: [card] }) ? [card] : undefined;
-  // 후원주점판은 동네(열다섯 가지)가 없어 친구 링크 대신 본편 주소만
-  if (PUB) { sendLink(copy, '함께해요 시민의 숲', `함께해요 시민의 숲 — 나는 ${josa(`「${TYPES[state.result!].name}」`, '이래요', '래요')}. 너도 걸어 봐!`, shareAt(), files); return; }
   // 방금 걸었으면 이번 판, 마을(시민센터 방명록, 10-20)에서 다시 온 사람이면 지난번 판(villageMe)
   const mine = villageMe()?.person;
   if (!mine) return;
@@ -303,7 +295,7 @@ function share(reply = false, copy = false) {
 }
 /** 공유 창(폰 — 카톡이 그 안에) 또는 링크 복사(ui.ts shareButtons). 공유·복사가 다 없는 곳(https 가 아닌 주소)은 주소라도 보인다. */
 function sendLink(copy: boolean, title: string, text: string, url: string, files?: File[]) {
-  if (!inspecting && !PUB && !sharedOnce) { sharedOnce = true; void net.hit('share', villageMe()?.sessionId || state.sessionId); } // 「보냄」 은 한 페이지에 한 번(공유·복사 둘 다 눌러도)
+  if (!inspecting && !sharedOnce) { sharedOnce = true; void net.hit('share', villageMe()?.sessionId || state.sessionId); } // 「보냄」 은 한 페이지에 한 번(공유·복사 둘 다 눌러도)
   if (!copy && typeof navigator.share === 'function') { navigator.share(files ? { files, text: `${text}\n${url}` } : { title, text, url }).catch(() => {}); return; }
   if (navigator.clipboard) void navigator.clipboard.writeText(`${text} ${url}`).then(() => ui.toast('링크를 복사했어요'), () => ui.toast(url));
   else ui.toast(url);
@@ -353,7 +345,7 @@ function openHub(person: Person, extra: { photo?: string; tab?: 'region' } = {},
     notes: online ? { item: note => noteView(note, noteActions()), post: (text, region) => postNote(text, region) } : undefined,
     subscribe: contactReady ? () => { const n = loadNeighbor(); if (n) { ui.endActions(false); neighborSheet(n, n.name); } } : undefined,
     share: copy => share(false, copy),
-    login: PUB ? undefined : loginOpts, home: PUB ? HOME_LINK : undefined,
+    login: loginOpts,
   }, onClose, backText);
 }
 
@@ -378,17 +370,6 @@ const notesCard = noteCard(shell, noteActions());
  * (region — 우리 동네 탭에서 쓰면 그 동네, 쪽지판에서 쓰면 내 동네). 10분에 하나는 이 기기에서도 먼저 본다(서버도 막는다).
  */
 async function postNote(text: string, region: Region | undefined = loadRegion()) {
-  if (PUB) {
-    const gate = feedbackGate();
-    if (gate.wait > 0) return { ok: false, text: '10분에 한 번 남길 수 있어요. ' + Math.ceil(gate.wait / 60000) + '분 뒤에 다시 해 주세요.' };
-    const sent = await net.pubNote({ device: gate.device, name: me.name, pick: me.pick, text });
-    if (!sent) {
-      if (lastFailure() === 'note-wait') { feedbackSent(); return { ok: false, text: '10분에 한 번 남길 수 있어요. 잠시 뒤에 다시 해 주세요.' }; }
-      return { ok: false, text: '지금은 남기지 못했어요. 조금 뒤에 다시 눌러 주세요.' };
-    }
-    feedbackSent();
-    return { ok: true, text: '고마워요. 판에 붙였어요.', notes: sent.notes };
-  }
   const key = loginKey();
   if (!key) return { ok: false, text: '로그인하면 쪽지를 남길 수 있어요.' };
   const wait = loadMarks().lastAt + NOTE_GAP_MS - Date.now();
@@ -414,8 +395,6 @@ function enteredVillage() {
   playVillageMusic(skyAt(clock().hour).night); // 마을에만 잔잔한 오르골(소리 단추로 같이 꺼진다)
   ui.villagePocket(loadPocket(kstDay(Date.now())), toWorks);
   // showErrands(); // [나중에 살림: 오락실·부탁] 사용자 10-19 「필드에 부탁도 일단 주석처리해놔」 — 부탁하는 주민이 안 선다(규칙 quests.ts·시험은 그대로)
-  // 주점 환영 → 응원판·게임 한마디 → 시민센터 → 동쪽 지방재정 → 서쪽 상담소·독상. 게임 기록은 남기지 않는다.
-  if (PUB) village?.celebrate();
   hubGuide();
   // 개발판 ?go=건물 — 마을에 들어오자마자 그 건물 판을 연다(오락실 같은 판을 바로 보려고, 10-17). 공개판엔 없다.
   const go = (import.meta.env.DEV || inspecting) ? PLACES.find(p => p.id === params.get(inspecting ? 'place' : 'go')) : undefined;
@@ -429,7 +408,6 @@ function enteredVillage() {
 /**
  * 마을 둘러보기(사용자 10-16 시민센터 안내 → 10-26 「집들도 시점 이동해서 설명」 — 두 곳만, 한 곳에 말 상자 하나·집마다 한 줄).
  * 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 시민센터 → 동쪽 지방정부 셋 → 서쪽 상담소·독상. 말은 시민센터의 채연하(keeperName('hub')).
- * 후원주점판은 창립행사 환영 말 → 응원판·「게임에 대해 한마디」 한 화면(10-27 사용자) 부터. 주점판은 시민증이 안 나오니(기록을 안 남긴다) 시민센터 대신 홈페이지 본편을 알린다(사용자 10-26).
  * 예전 「마을 입구 로그인 판」(들어오자마자 로그인 요구)은 지웠다 — 사용자 「마을 입구 로그인판은 그럼 지워」, 같은 말을 두 번 하게 돼서.
  */
 const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 확정(따져 볼 지방정부만 사용자 글, 나머지는 Claude 초안 그대로)
@@ -438,34 +416,26 @@ const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 
   cards: '우리 동네 예산이 어디로 새고 있는지 함께 따져 봐요.',
   counsel: '예산에 참여하는 길이 궁금하면 물어보세요.',
   dok: '예산이 새는 사업을 시민이 함께 감시해요.',
-  // 주점판에만 서는 두 곳 — 환영 말 바로 다음에 한 화면에 담아 소개(사용자 10-27). 글은 Claude 초안.
-  cheer: '세 사업 중 하나를 골라 응원을 남겨 주세요.',
-  board: '해보니 어땠는지 알려주세요!', // 사용자 글 10-27
 };
 function hubGuide() {
   if (villageStart !== 'gate' || shell.querySelector('.t-panel')) return;
   try { if (gameStorage.getItem(HUB_GUIDE)) return; gameStorage.setItem(HUB_GUIDE, '1'); } catch { /* 다음 입장에 다시 안내 */ }
   villageGuiding = true;
   const guide = keeperName('hub');
-  const groups: PlaceId[][] = [...(PUB ? [['cheer', 'board'] as PlaceId[]] : []), ['hub'], ['finance', 'tax', 'cards'], ['counsel', 'dok']];
+  const groups: PlaceId[][] = [['hub'], ['finance', 'tax', 'cards'], ['counsel', 'dok']];
   const last = groups.length - 1;
   const stop = (i: number) => {
     ui.villageNotice();
     const hub = groups[i][0] === 'hub';
     village?.showPlaces(groups[i], () => {
       const text = !hub ? groups[i].map(id => `${placeName(id)} — ${TOUR_LINE[id]}`).join('\n')
-        : PUB ? '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가는 본편은 11월 21일에 열려요. 지방정부가 내년 예산안을 의회에 내는 마감이거든요. 그때 방문하시면 각 지방정부의 예산안을 보실 수 있어요.'
-          : loginNow() ? `${placeName('hub')}에서 내 시민증과 도장을 볼 수 있어요.` // 이미 로그인한 사람에게 「로그인하면」 은 틀린 말(10-26)
-            : `${placeName('hub')}에서 로그인하면 기록이 남고 다른 기기에서도 이어할 수 있어요.`; // 문구 사용자 10-20
+        : loginNow() ? `${placeName('hub')}에서 내 시민증과 도장을 볼 수 있어요.` // 이미 로그인한 사람에게 「로그인하면」 은 틀린 말(10-26)
+          : `${placeName('hub')}에서 로그인하면 기록이 남고 다른 기기에서도 이어할 수 있어요.`; // 문구 사용자 10-20
       const next = () => { if (i < last) stop(i + 1); else { villageGuiding = false; village?.endTour(); } };
-      // 주점판 「홈페이지 가기」 단추는 걷었다(10-27 사용자 — 본편은 11월 21일 공개라 홈페이지에 아직 없다).
       ui.villageNotice(guide, text, [{ label: i < last ? '다음' : '둘러보기 마치기', run: next }]);
     });
   };
-  if (PUB) {
-    village?.setPaused(true);
-    ui.villageNotice(guide, '함께하는 시민행동 창립행사에 오신 걸 환영해요!', [{ label: '고마워요', run: () => stop(0) }]);
-  } else stop(0);
+  stop(0);
 }
 function cancelVillageGuide() {
   if (!villageGuiding) return;
@@ -581,7 +551,6 @@ function openPhone() {
     // { icon: '🕹️', name: '오락실', run: go('arcade') },
     app('🪪', 'hub'), app('💰', 'tax'), app('🏗️', 'works'), app('📌', 'board'),
     app('📢', 'cards'), // 10-20 살림
-    ...(PUB ? [app('📣', 'cheer')] : []), // 창립행사 응원판 — 후원주점판에만
     app('🚌', 'bus'),
   ]);
 }
@@ -661,9 +630,8 @@ function openPlace(id: PlaceId, tab?: 'region') {
     },
   }, done);
   else if (id === 'cards') openCuts(shell, done);
-  else if (id === 'cheer') openCheerBoard(shell, () => me, done);
   else openBoard(shell, {
-    ...noteActions(), view: villageView, online, pub: PUB, login: loginOpts, post: text => postNote(text), me: () => me,
+    ...noteActions(), view: villageView, online, login: loginOpts, post: text => postNote(text), me: () => me,
     refresh: async () => { const fresh = await net.village(who?.sessionId || undefined); if (fresh) showVillage(fresh); return fresh; },
   }, done);
 }
@@ -763,7 +731,7 @@ function showEnd() {
   if (!state.result) return;
   scene?.setGuests(guests());
   town = townFrom(state.answers);
-  if (town && !PUB) saveTown(town, { type: state.result, sessionId: state.sessionId });
+  if (town) saveTown(town, { type: state.result, sessionId: state.sessionId });
   const friendTown = invite?.town, myTown = town;
   ui.end({ code: state.result, scores: scoreAnswers(orderedQuestions, state.answers), answers: state.answers, lines: endLines() }, {
     neighbor: () => {
@@ -851,7 +819,7 @@ if ((import.meta.env.DEV || inspecting) && params.has('village') && !lastPlay?.t
   lastPlay = loadLast();
 }
 const villagePreview = (import.meta.env.DEV || inspecting) && params.has('village');
-if (villagePreview && (PUB || params.has('tour'))) villageStart = 'gate';
+if (villagePreview && params.has('tour')) villageStart = 'gate';
 const startInVillage = Boolean(lastPlay?.type) && (!walkLink || villagePreview);
 // 소개 페이지(landing.ts, 10-16) — 처음 온 사람이 맨 주소로 왔을 때만 게임 위에 덮는다. ?about 이면 늘(보기용). 따로 불러와 첫 화면을 무겁게 하지 않는다.
 // 첫 칸에 「전에 해 봤어요 — 내 시민증 불러오기」(사용자 10-19) — 다른 기기·카톡 브라우저로 다시 온 사람도 이 브라우저에선 처음 온 사람이라 소개 페이지를 본다.
@@ -859,7 +827,7 @@ const startInVillage = Boolean(lastPlay?.type) && (!walkLink || villagePreview);
 // 한 번도 안 걸은 사람이 불러오면 지난번 판이 없어 걷기부터 — 그때도 소개 페이지는 다시 안 띄운다(10-20, 덮으면 「로그인했어요」 판이 가려졌다).
 if (params.has('about') || (arrivedPlain && !lastPlay?.type && !loggedIn)) void Promise.all([import('./landing'), import('./landing.css')]).then(([m]) => m.openLanding(startInVillage ? () => {} : walkFromLanding, () => loginBox(loginOpts, '불러오기')));
 if (startInVillage) { ui.hideIntro(); window.addEventListener('pointerdown', unlockAudio, { once: true }); } // 「출발」 을 안 누르니 첫 손길에 소리를 푼다
-else if (lastPlay?.type && !PUB) ui.homeOpen(goVillage); // 걸으러 왔지만 마을로 갈 수도
+else if (lastPlay?.type) ui.homeOpen(goVillage); // 걸으러 왔지만 마을로 갈 수도
 // 링크로 들어온 사람에게 먼저 보이는 판 — 답장(두 동네 나란히), 이웃의 편지. 마을에서 연 편지의 「같이 걷기」 는 걸으러 간다.
 if (invite?.replyTo) openReply(shell, invite.replyTo, invite, () => {});
 else if (cardLink) void statsReady.then(() => openCuts(shell, () => {})); // 친구가 보낸 ?card= 링크(10-20 살림)

@@ -29,7 +29,7 @@ async page => {
       const p = await context.newPage(), errors = [];
       p.on('pageerror', error => errors.push(String(error)));
       await p.route('**/*', route => route.request().url().startsWith('http://127.0.0.1:5173/') ? route.continue() : route.abort());
-      await p.goto('http://127.0.0.1:5173/?walk&pub');
+      await p.goto('http://127.0.0.1:5173/?walk');
       await p.waitForFunction(() => window.__journey?.player);
       const result = await p.evaluate(async () => {
         const { setMotionPreference } = await import('/motion.ts');

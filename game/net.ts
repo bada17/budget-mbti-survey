@@ -13,7 +13,6 @@ import type { Stats, RegionView, Visit, VillageView, PublicNote, PublicCard, Car
 import type { ContactPayload } from './contact';
 import type { Neighbor, Region, Save } from './profile';
 import type { Pick } from './look';
-import type { CheerProject, PublicCheer } from './cheer';
 import type { Store, HitKind } from './api';
 import { source, type Source } from './source';
 
@@ -58,12 +57,6 @@ async function call<T>(method: 'GET' | 'POST', path: string, body?: unknown): Pr
 }
 
 export const net = {
-  // 후원주점판 「게임에 대해 한마디」 — 로그인 없이 보기·쓰기. 쓰면 새 목록이 돌아온다.
-  pubNotes: () => call<{ notes: PublicNote[] }>('GET', '/village/pub-notes'),
-  pubNote: (input: { device: string; name: string; pick: Pick; text: string }) => call<{ notes: PublicNote[] }>('POST', '/village/pub-notes', input),
-  // 창립행사 응원판(후원주점판) — 로그인 없이 보기·쓰기. 쓰면 새 목록이 돌아온다.
-  cheers: () => call<{ cheers: PublicCheer[] }>('GET', '/cheers'),
-  cheer: (input: { device: string; project: CheerProject; name: string; pick: Pick; text: string }) => call<{ cheers: PublicCheer[] }>('POST', '/cheers', input),
   /** 실제 서버에서 확인한 관리자만 점검을 연다. 그 뒤의 요청은 이 페이지 메모리에서만 처리한다. */
   startInspection: async (key: string) => {
     const resident = await call<{ save: Save; admin: boolean }>('POST', '/me', { key });

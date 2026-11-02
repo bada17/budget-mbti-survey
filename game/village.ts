@@ -12,10 +12,9 @@
 */
 import type { Point } from './room';
 import { rng, nameFrom, lookFrom, toLook, type Pick } from './look';
-import { PUB } from './pub';
 
 export type Box = { x: number; y: number; w: number; h: number };
-export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards' | 'arcade' | 'cheer';
+export type PlaceId = 'bus' | 'hub' | 'counsel' | 'dok' | 'finance' | 'board' | 'house' | 'tax' | 'works' | 'cards' | 'arcade';
 /**
  * 들어가는 곳 — box 는 부딪히는 앞벽(그림은 이 위로 지붕이 솟는다), door 는 문 앞에 서는 자리(여기 닿으면 판이 열린다).
  * keeper 는 문 앞 주민의 이름 — 시민행동 사람(사용자 10-15·10-26). 여럿이면 문 앞에 나란히(시민행동의 집 세 대표). 없으면 순우리말 이름(keeperName).
@@ -42,7 +41,7 @@ export const PLACES: Place[] = [
   { id: 'finance', name: '지방정부 예산', line: '우리 지역 지방정부의 한 해 예산을 볼 수 있어요.', box: { x: 766, y: 500, w: 190, h: 96 }, door: { x: 861, y: 618 }, keeper: '강준원' },
   // 지방정부 곳간 — 지방정부 예산 바로 동쪽 옆(10-20 사용자 「마을 곳간 위치를 지방정부 예산 옆에」, 전엔 윗줄 시민센터 옆 빈 터). 쓰나(예산) 옆에 오나(곳간). 판은 places.ts openTax.
   { id: 'tax', name: '지방정부 곳간', line: '우리 동네 살림 돈이 어디서 오는지 보여 줄게요.', box: { x: 1016, y: 500, w: 160, h: 96 }, door: { x: 1096, y: 618 }, keeper: '김선화' },
-  { id: 'board', name: PUB ? '게임에 대해 한마디 남겨주세요' : '쪽지판', line: PUB ? '게임에 대해 한마디 남겨주세요' : '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 }, keeper: '정원석' },
+  { id: 'board', name: '쪽지판', line: '지나간 주민들이 한 줄씩 남기고 가요.', box: { x: 474, y: 656, w: 92, h: 22 }, door: { x: 520, y: 702 }, keeper: '정원석' },
   { id: 'dok', name: '밑 빠진 독상', line: '예산이 새는 사업에 주는 상이에요.', box: { x: 84, y: 980, w: 190, h: 96 }, door: { x: 179, y: 1098 }, keeper: '정남진' },
   // 마을 공사터 — 나무에서 주운 동전을 넣으면 모두의 동전이 모여 다리·정자가 선다(사용자 10-14 동물의 숲 ⓑ). 판은 places.ts openWorks.
   { id: 'works', name: '동전 모으는 곳', line: '동전이 모이면 마을에 새것이 생겨요.', box: { x: 150, y: 1236, w: 170, h: 84 }, door: { x: 235, y: 1342 }, keeper: '신우용' },
@@ -54,9 +53,6 @@ export const PLACES: Place[] = [
   // 예산 오락실 — 사는 집이 아니라 들어가서 짧은 예산 놀이를 하는 집(사용자 10-17 「게임을 하는 집」). 동서 큰길을 따라 동쪽 끝. 판은 arcade.ts.
   // ⚠️ 이 자리(1080,640)는 10-20 부터 지방정부 곳간 길이 지나간다 — 살릴 땐 자리를 새로 잡는다.
   // { id: 'arcade', name: '예산 오락실', line: '한 판에 30초, 예산 놀이 셋이 있어요.', box: { x: 1080, y: 640, w: 180, h: 96 }, door: { x: 1170, y: 758 } },
-  // 창립행사 응원판 — 후원주점판에만(사용자 10-26 「글 남기는 곳 만들어줘. 새로 판 세워서」). 처음엔 광장 오른쪽(정류장 길 동쪽)에 세웠다가
-  // 사용자가 「시민참여 상담소로 가는 길에」 로 옮김 — 동서 큰길 위, 광장 왼쪽 가로등(370,760) 바로 왼쪽(가로등과 안 겹치게). 쪽지판(게임 의견)은 그대로. 규칙 cheer.ts, 판 cheer-board.ts.
-  ...(PUB ? [{ id: 'cheer' as const, name: '창립행사 응원판', line: '세 사업 중 하나를 골라 응원 한마디 남겨 주세요.', box: { x: 266, y: 712, w: 92, h: 22 }, door: { x: 312, y: 758 } }] : []),
 ];
 
 /** 문 앞 주민들 — 맡은 사람이 없으면 건물마다 정해진 순우리말 이름 하나. */
@@ -81,7 +77,7 @@ export function keeperLook(name: string) {
   return typeof look === 'string' ? lookFrom(look) : look ? toLook(look) : lookFrom(`staff:${name}`);
 }
 /** 건물 이름 — 화면 글은 이걸 쓴다(간판이 바뀌면 글도 같이). 숨겨 둔 건물이면 빈 글자. */
-export const placeName = (id: PlaceId) => PUB && id === 'board' ? '게임에 대해 한마디 남겨주세요' : PLACES.find(p => p.id === id)?.name ?? '';
+export const placeName = (id: PlaceId) => PLACES.find(p => p.id === id)?.name ?? '';
 
 export const POND: Box = { x: 740, y: 1210, w: 170, h: 100 };
 /**
@@ -256,12 +252,12 @@ const compact = (text: string) => text.toLowerCase().replace(/[^가-힣ㄱ-ㅎ�
 export const rude = (text: string) => { const c = compact(text); return BLOCKED_WORDS.some(word => c.includes(word)); };
 
 export type NoteCheck = { ok: true; text: string } | { ok: false; why: 'short' | 'long' | 'link' | 'word' };
-/** 쪽지 글 다듬기 + 검사. 링크·연락처·숫자 줄은 막는다(광고와 개인정보), 거친 말도. max 는 창립행사 응원(cheer.ts CHEER_MAX)이 늘려 쓴다. */
-export function checkNote(raw: unknown, max = NOTE_MAX): NoteCheck {
+/** 쪽지 글 다듬기 + 검사. 링크·연락처·숫자 줄은 막는다(광고와 개인정보), 거친 말도. */
+export function checkNote(raw: unknown): NoteCheck {
   const text = typeof raw === 'string' ? raw.replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim() : '';
   const length = [...text].length;
   if (length < 2) return { ok: false, why: 'short' };
-  if (length > max) return { ok: false, why: 'long' };
+  if (length > NOTE_MAX) return { ok: false, why: 'long' };
   if (LINKISH.test(text) || PHONEISH.test(text)) return { ok: false, why: 'link' };
   if (rude(text)) return { ok: false, why: 'word' };
   return { ok: true, text };

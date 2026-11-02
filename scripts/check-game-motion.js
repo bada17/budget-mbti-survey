@@ -6,7 +6,7 @@
 async page => {
   const check = (ok, message) => { if (!ok) throw new Error(message); };
   const { dev, built } = await page.evaluate(() => {
-    const dev = new URL('/?walk&diag&pub', location.href), built = new URL(dev);
+    const dev = new URL('/?walk&diag', location.href), built = new URL(dev);
     built.port = '4173'; built.search = ''; return { dev: dev.href, built: built.href };
   });
   const html = await (await page.request.get(built)).text();

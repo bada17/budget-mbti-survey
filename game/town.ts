@@ -47,8 +47,6 @@ export type HubData = {
   share?: (copy: boolean) => void;
   /** 로그인(login.ts) — 단추가 없는 판(키를 넣기 전)엔 안 보인다. */
   login?: LoginOpts;
-  /** 후원주점판 — 로그인 자리에 홈페이지 본편 안내(사용자 10-26 「실제 로그인과 본편은 홈페이지로」). 주점판은 시민증이 안 나온다. */
-  home?: string;
 };
 /** start 가 false 면 아직 못 간다(키를 넣기 전) — 판이 「준비 중」 이라 알린다. news = 로그인 칸에 [선택] 소식 받기를 보이나(연락처 칸이 켜진 판만). */
 export type LoginOpts = { providers: Provider[]; current(): Provider | undefined; admin(): boolean; start(provider: Provider, intent?: Intent): boolean; logout(): Promise<boolean>; news?: boolean };
@@ -180,8 +178,6 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
   const status = el('p', 't-small'); status.setAttribute('role', 'status');
   const mine = el('div'); mine.append(card, tip, join, save, status);
   if (data.login && (data.login.providers.length || data.login.current())) mine.append(loginBox(data.login, 'hub'));
-  // 「홈페이지 가기」 단추는 걷었다(10-27 사용자 — 본편은 11월 21일 공개라 홈페이지에 아직 없다).
-  else if (data.home) mine.append(el('p', 't-lead', '오늘은 짧은 판이라 시민증이 나오지 않아요. 시민증을 받고 기록을 이어 가는 본편은 11월 21일에 열려요. 지방정부가 내년 예산안을 의회에 내는 마감이거든요. 그때 방문하시면 각 지방정부의 예산안을 보실 수 있어요.'));
   tab('시민증', mine);
 
   // ── 방명록 ──

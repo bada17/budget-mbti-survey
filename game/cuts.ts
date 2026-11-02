@@ -1,4 +1,4 @@
-/** 지방재정365 감액 원본을 이 저장소에 고정한다. 서버·외부 사이트 없이 주점판에서도 읽는다. */
+/** 지방재정365 감액 원본을 이 저장소에 고정한다. 서버·외부 사이트 없이 읽는다. */
 type RawCuts = { 받은날: string; 출처: string; 건: [number, string, number, string, string, number][]; 이름: Record<string, [string, string]>; 지금번호: Record<string, string> };
 export const CUT_ARTICLE = {
   title: '춘천시 행정위반에 교부금 39억원 깎였다', publisher: '강원도민일보', date: '2026-10-20',

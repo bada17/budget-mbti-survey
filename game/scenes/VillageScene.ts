@@ -16,8 +16,8 @@
 import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, rollBall, type Point } from '../room';
-import { PLACES, keepers, keeperLook, PLAZA, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
-import { textRes, Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, stringLights, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
+import { PLACES, keepers, keeperLook, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
+import { textRes, Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -420,11 +420,6 @@ export class VillageScene extends Phaser.Scene {
 
   private marks = new Map<PlaceId, Phaser.GameObjects.Container>();
   /** 「!」 를 띄울 건물 — 지금은 새 문제 카드뿐([나중에 살림]), 쪽지판·문제 카드는 판 위. */
-  /** 「이어칠하다」 등불 줄 — 후원주점판 광장에 계속 걸어 둔다. 카메라 이동·회전에 따라 위치가 바뀌지 않는다. */
-  celebrate() {
-    if (this.children.getByName('pub-string-lights')) return;
-    stringLights(this, PLAZA.x - 180, PLAZA.y - 5, 360, 0, this.runtime.view().dpr, this.reduced);
-  }
   setQuestMarks(places: PlaceId[]) {
     for (const [id, mark] of this.marks) if (!places.includes(id)) { mark.destroy(); this.marks.delete(id); }
     for (const id of places) {

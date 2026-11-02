@@ -402,58 +402,6 @@ export function confetti(scene: Scene, w: number, top: number, reduced: boolean,
   }
 }
 
-/**
- * 「이어칠하다」 등불 줄 — 후원주점판 마을 들머리(사용자 10-26 「폭죽 말고 이어칠하다 느낌」, 27주년 말장난: 27 + 이어).
- * 보이는 화면(left·top·w·h, 장면 좌표)에 전구 14+13개를 두 줄로 건다. 위에서 아래로 빛이 이어지고 작은 주점 간판이 내려앉는다.
- * 밤빛 덮개(60000·60001) 위. 광장에 계속 걸려 있고, 움직임 줄이기면 처음부터 켜진 모습으로 둔다.
- */
-/** 후원주점판 광장 배너 두 줄(사용자 10-26 「함께하는 시민행동 27주년 창립행사, 이어칠하다 로 주점판 배너 변경」). */
-export const PUB_BANNER = ['함께하는 시민행동 27주년 창립행사,', '이어칠하다'] as const;
-/** 후원주점 삼색(행사 페이지·인쇄물의 삼색 붓 띠 — fundraising-pub-page globals.css --acid·--orange·--blue). 사용자 10-26 「후원주점 색 3개로 칠해」. */
-export const PUB_COLORS = [0xddeb66, 0xf4a183, 0x385be8] as const;
-export function stringLights(scene: Scene, left: number, top: number, w: number, h: number, dpr: number, reduced: boolean) {
-  const root = scene.add.container(left + w / 2, top + Math.min(h * 0.09, 64)).setDepth(60002).setName('pub-string-lights');
-  const span = w - 48, step = 52, colors = [0xffd580, 0xffc064, 0xed9e7d, 0xffe4a3, 0xbad2ad];
-  const wire = scene.add.graphics().lineStyle(1.7, 0x695340, 0.85);
-  root.add(wire);
-  let index = 0;
-  for (const [row, count] of [14, 13].entries()) {
-    const at = (t: number) => ({ x: (t - 0.5) * span, y: row * 124 + (row ? 20 : 26) * 4 * t * (1 - t) });
-    wire.beginPath(); wire.moveTo(-span / 2, row * 124);
-    for (let j = 1; j <= 32; j++) { const p = at(j / 32); wire.lineTo(p.x, p.y); }
-    wire.strokePath();
-    for (let i = 0; i < count; i++, index++) {
-      const p = at(row ? 1 - i / (count - 1) : i / (count - 1));
-      const color = colors[index % colors.length], radius = Math.min(5.5, span / 65);
-      const glow = scene.add.circle(0, 10, radius * 3, color, 0.16).setAlpha(0);
-      const glass = scene.add.ellipse(0, 10, radius * 1.65, radius * 2.15, color).setAlpha(0.18);
-      const shine = scene.add.ellipse(-1, 8, 2, 4, 0xfffbeb, 0.9).setAlpha(0);
-      const bulb = scene.add.container(p.x, p.y, [glow, scene.add.rectangle(0, 3, 4, 7, 0x695340), glass, shine]).setName('pub-bulb');
-      root.add(bulb);
-      if (reduced) [glow, glass, shine].forEach(bit => bit.setAlpha(1));
-      else scene.tweens.add({ targets: [glow, glass, shine], alpha: 1, delay: index * step, duration: 260, ease: 'Sine.easeOut' });
-    }
-  }
-  const signW = Math.min(320, w - 72);
-  wire.lineStyle(1.2, 0x8d7154).lineBetween(-signW * 0.32, 24, -signW * 0.32, 51).lineBetween(signW * 0.32, 24, signW * 0.32, 51);
-  const sign = scene.add.container(0, 76).setAlpha(0).setName('pub-welcome');
-  // 두 줄 — 「함께하는 시민행동 27주년 창립행사,」 + 「이어칠하다」(사용자 10-26 배너 글). 「27주년」 이 글에 들어가 옛 27 동그라미는 걷었다.
-  const board = scene.add.graphics().fillStyle(0x513b2c, 0.12).fillRoundedRect(-signW / 2 + 2, -38, signW, 86, 9)
-    .fillStyle(0xfff4db).fillRoundedRect(-signW / 2, -42, signW, 84, 8)
-    .lineStyle(1.5, 0xa77b54).strokeRoundedRect(-signW / 2, -42, signW, 84, 8);
-  const lead = scene.add.text(0, -19, PUB_BANNER[0], { fontFamily: FONT, fontSize: `${Math.min(16, (signW - 24) / 18)}px`, color: '#8a5a3c', resolution: textRes(dpr) }).setOrigin(0.5);
-  const title = scene.add.text(0, 14, PUB_BANNER[1], { fontFamily: FONT, fontSize: `${Math.min(33, (signW - 40) / 5)}px`, color: '#654733', resolution: textRes(dpr) }).setOrigin(0.5);
-  // 삼색 — 판 위쪽 띠 + 「이어칠하다」 밑칠(글자를 칠하면 연두 위에서 안 읽혀 아래 절반만 붓칠처럼, 조금씩 기울여).
-  const band = scene.add.graphics(), third = signW / 3;
-  PUB_COLORS.forEach((color, i) => band.fillStyle(color).fillRoundedRect(-signW / 2 + i * third, -42, third, 8, { tl: i === 0 ? 8 : 0, tr: i === 2 ? 8 : 0, bl: 0, br: 0 }));
-  const stroke = title.width / 3;
-  const paint = PUB_COLORS.map((color, i) => scene.add.graphics().fillStyle(color, 0.9).fillRoundedRect(-stroke / 2 - 4, -8, stroke + 8, 16, 8)
-    .setPosition(-title.width / 2 + (i + 0.5) * stroke, 24).setAngle([-3, 2, -2][i]));
-  sign.add([board, band, ...paint, lead, title]); root.add(sign);
-  if (reduced) sign.setAlpha(1).setY(82);
-  else scene.tweens.add({ targets: sign, alpha: 1, y: 82, delay: 27 * step + 80, duration: 420, ease: 'Sine.easeOut' });
-}
-
 // ── 방 ──
 export const THEMES = [
   { ground: 0xeee5d0, path: 0xfbf6e9, wall: 0xf3bfa9, roof: 0xd9785f, window: 0xcfe8f2, tree: 0x8cc07a, water: 0 }, // 동네 입구
@@ -1131,7 +1079,7 @@ const FONT = '"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif';
  * (10-15 「상담소·독상 간판 한 글자가 볼드 처리가 안 된 듯」 — 「시민참여」 의 「참」. 전엔 「마을」 두 글자의 조각만 받았다).
  * 간판에 새 글자를 쓰면 여기에도 넣는다 — 개발판은 빠진 글자를 콘솔에 알린다(label).
  */
-export const CANVAS_TEXT = [...PLACES.map(p => p.name + [p.keeper ?? []].flat().join('')), ...WORKS.map(w => w.name), VILLAGE_NAME, ...PUB_BANNER, '버스 작은 운동장 동전 다음 공사 준비 중 완성! 이어칠하다 ? 0123456789·/'].join('');
+export const CANVAS_TEXT = [...PLACES.map(p => p.name + [p.keeper ?? []].flat().join('')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! ? 0123456789·/'].join('');
 /** 사람 이름표 — 발밑에 작게, 밝은 테두리를 둘러 바닥 위에서도 읽히게(문 앞을 맡은 시민행동 사람, 10-15). */
 export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: number) =>
   label(scene, x, y, text, 11, dpr, '#5b402e').setStroke('#fffaf0', 4).setDepth(y + 2);
@@ -1174,7 +1122,6 @@ const PLACE_LOOK: Record<PlaceId, { wall: number; roof: number }> = {
   works: { wall: 0xe8d6b5, roof: 0xb07a52 }, // 공사터는 house 로 안 그린다(worksArt) — 자리만
   board: { wall: 0xd8b48c, roof: 0x9a7356 },
   cards: { wall: 0xd8b48c, roof: 0xd9785f },
-  cheer: { wall: 0xd8b48c, roof: 0xd9785f }, // 창립행사 응원판 — 후원주점판에만(겉모습은 GPT)
   arcade: { wall: 0xe9d8f0, roof: 0x8a6fb3 }, // 겉모습은 GPT 가 다듬는다(10-17 Claude 임시)
 };
 
@@ -1303,10 +1250,7 @@ function noteBoard(scene: Scene, place: Place, dpr: number) {
   g.fillStyle(0x6d5444).fillRect(8, -40, 6, h + 40).fillRect(w - 14, -40, 6, h + 40);
   g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(-4, -60, w + 8, 12, 5);
   g.fillStyle(0xd8b48c).fillRoundedRect(0, -48, w, 44, 6);
-  // 두 줄 간판 — 후원주점판의 쪽지판(게임 의견)과 창립행사 응원판
-  const sign = place.id === 'cheer' ? '창립행사\n응원판' : place.id === 'board' && place.name !== '쪽지판' ? '게임에 대해\n한마디 남겨주세요' : '';
-  if (sign) g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(-24, -82, w + 48, 34, 6);
-  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, sign ? -65 : -54, sign || place.name, 11, dpr, '#ffffff').setAlign('center')];
+  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, -54, place.name, 11, dpr, '#ffffff')];
   if (cards) { // 문제 카드 — 큰 종이 한 장에 붉은 「!」
     g.fillStyle(0xfffaf0).fillRect(w / 2 - 22, -45, 44, 38).fillStyle(0xd9785f).fillRect(w / 2 - 22, -45, 44, 6);
     items.push(label(scene, w / 2, -21, '!', 20, dpr, '#d9785f'));
@@ -1449,7 +1393,7 @@ export function drawVillage(scene: Scene, dpr: number, season: Season = seasonOf
   for (const place of PLACES) {
     const { x, y, w, h } = place.box, b = { x0: x - 24, x1: x + w + 36, y0: y - 92, y1: y + h + 12 };
     if (place.id === 'works') continue; // 공사터는 동전이 모이는 대로 바뀐다 — 아래 worksArt
-    const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' || place.id === 'cards' || place.id === 'cheer' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
+    const make = () => (place.id === 'bus' ? busStop(scene, place, dpr) : place.id === 'board' || place.id === 'cards' ? noteBoard(scene, place, dpr) : house(scene, place, dpr));
     keep(bake(scene, `village-${place.id}`, make, b, sharp).setDepth(y + h), b);
     if (place.id === 'dok') {
       const drop = scene.add.circle(x + DOK_DRIP.x, y + h + DOK_DRIP.y, 2.2, 0x9fd3e6).setDepth(y + h + 1);
