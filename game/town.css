@@ -276,7 +276,7 @@ a.t-join.g-ghost:hover{background:#fff1e6}
 .v-cut-pick:active{transform:translateY(3px);box-shadow:0 2px 0 #e2c7aa}
 @media(prefers-reduced-motion:reduce){.v-cut-pick{transition:none}}
 
-/* 따져 볼 지방정부: 기사와 자료를 차분하게 나눠 읽는다. */
+/* 세세히 볼 지방정부: 기사와 자료를 차분하게 나눠 읽는다. */
 .v-cut-article{display:block;margin:-16px 0 24px;padding:8px 2px;color:var(--soft);font:500 13px/1.5 var(--body);text-underline-offset:3px;word-break:keep-all} /* 글 바로 밑 작은 링크(10-27) */
 .v-cut-article:hover,.v-cut-article:focus-visible{color:var(--leaf-dark)}
 /* 맨 앞 글 — 옛 기사 자리의 초록 바탕(사용자 10-26), 기사는 판 맨 아래로 */

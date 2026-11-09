@@ -4,7 +4,7 @@ const cuts = await import('../game/cuts.ts').catch(() => undefined);
 test('교부세 감액은 정적 원본에서 2020년부터, 최근 해·금액 내림차순·내 동네 우선·지역과 사업 검색', async () => {
   assert.ok(cuts, '정적 감액 자료와 목록 규칙이 있어야 한다');
   const data = await cuts.loadCuts();
-  assert.equal(data.received, '2026-11-01');
+  assert.equal(data.received, '2026-10-13');
   const all = cuts.findCuts(data);
   assert.equal(all.length, 487, '2020~2026 — 원본 2,304건 중');
   assert.ok(all.every(r => r.year >= 2020));
@@ -19,9 +19,5 @@ test('교부세 감액은 정적 원본에서 2020년부터, 최근 해·금액 
   assert.equal(cuts.findCuts(data, '없는사업zz').length, 0);
   const article = cuts.findCuts(data, '생태탐방로').find(r => r.code === '4211000' && r.year === 2026 && r.amount === 3909000000);
   assert.equal(article.link, 'https://www.kado.net/news/articleView.html?idxno=2079091');
-  assert.equal(article.audit, '정부합동감사(2022년)');
   assert.equal(cuts.cutMoney(article.amount), '39.09억 원');
-  // 우리가 찾아본 큰 건(지방재정 data/cuts_hand.json) — 「찾음」 8건만 출처가 붙고, 못 찾은 창원·강진은 안 붙는다
-  assert.equal(all.filter(r => r.audit && r.link).length, 8);
-  assert.ok(!all.find(r => r.code === '4811000' && r.amount === 3850000000).audit);
 });

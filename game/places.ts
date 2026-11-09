@@ -335,7 +335,7 @@ export type CardsOpts = {
 const dayLabel = (date: string) => { const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(date); return m ? `${Number(m[2])}월 ${Number(m[3])}일` : date; };
 const squash = (text: string) => text.replace(/\s/g, '');
 
-/** 따져 볼 지방정부 — 기사 메타데이터와 정적 교부세 감액 목록(본문 전재·반응 카드 없음). */
+/** 세세히 볼 지방정부 — 기사 메타데이터와 정적 교부세 감액 목록(본문 전재·반응 카드 없음). */
 export function openCuts(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'cards', onClose);
   panel.classList.add('v-cuts');
@@ -382,8 +382,7 @@ export function openCuts(shell: HTMLElement, onClose: () => void) {
         const li = el('li', 'v-cut-row'), meta = el('div', 'v-cut-meta');
         meta.append(el('b', '', row.name + (row.code === mine ? ' · 내 동네' : '')), el('span', '', row.year + '년'));
         li.append(meta, el('h4', '', row.project), el('strong', 'v-cut-money', cutMoney(row.amount)), el('p', 't-small', row.reason));
-        if (row.audit) li.append(el('p', 't-small', '시민행동이 기사·회의록으로 찾아본 출처: ' + row.audit));
-        if (row.link) li.append(link('근거 원문', row.link, 'v-cut-link'));
+        if (row.link) li.append(link('관련 기사 원문', row.link, 'v-cut-link'));
         return li;
       }));
       if (!rows.length) list.append(el('li', 't-small', '검색 결과가 없어요. 다른 지역이나 사업 이름으로 찾아보세요.'));

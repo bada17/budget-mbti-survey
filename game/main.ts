@@ -410,7 +410,7 @@ function enteredVillage() {
  * 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 시민센터 → 동쪽 지방정부 셋 → 서쪽 상담소·독상. 말은 시민센터의 채연하(keeperName('hub')).
  * 예전 「마을 입구 로그인 판」(들어오자마자 로그인 요구)은 지웠다 — 사용자 「마을 입구 로그인판은 그럼 지워」, 같은 말을 두 번 하게 돼서.
  */
-const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 확정(따져 볼 지방정부만 사용자 글, 나머지는 Claude 초안 그대로)
+const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 확정(세세히 볼 지방정부만 사용자 글, 나머지는 Claude 초안 그대로)
   finance: '우리 동네가 한 해 돈을 어디에 쓰는지 봐요.',
   tax: '그 돈이 어디서 들어오는지 봐요.',
   cards: '우리 동네 예산이 어디로 새고 있는지 함께 따져 봐요.',

@@ -25,11 +25,11 @@ const PAGE = {
   // 이름은 위 띠 로고에 맡기고 핵심 문장 하나만 큰 제목으로(10-26 A안 — Claude 검토 ①).
   hero: { badge: '가오픈 · 마을은 아직 단장 중이에요', text: '우리 동네 살림, 같이 들여다봐요', photo: 'landing/hero-wide.jpg' },
   intro: { title: '시민의 숲은', text: '우리 동네 살림을 이웃과 함께 들여다보는 마을이에요.\n우리 동네 예산부터 지방정부가 잘 보여 주지 않는 자료까지 함께 살펴봐요.' },
-  // 칸마다 그림 꼴이 다르다(10-26 A안) — walk 걷기 장면 4:3 · budget 큰 자료판 8:5 · cards 세로 카드 4:5. shot 이 비면 글만.
+  // 칸마다 그림 꼴이 다르다(10-26 A안) — walk 걷기 장면 4:3 · budget 큰 자료판 8:5 · cards 이야기 고르기 4:3. shot 이 비면 글만.
   what: { title: '시민의 숲에서는 무엇을 하나요?', items: [
     { title: '걸으며 고민해요', text: '우리 동네에 둘 다 필요한데 하나만 골라야 한다면? 다 걸으면 나의 예산 성향을 확인할 수 있어요.', feature: 'walk', shot: 'landing/what-walk.jpg', icon: '' },
     { title: '우리 동네 살림을 펼쳐 봐요', text: `시·군·구를 고르면 우리 동네 돈이 어디서 와서 어디에 쓰이는지 보여요. ${placeName('tax')}과 ${placeName('finance')}에서 전국 243개 지방정부를 다 볼 수 있어요.`, feature: 'budget', shot: 'landing/what-money.jpg', icon: '' },
-    { title: '함께 따져 봐요', text: `${placeName('cards')}에서 우리 세금이 어떻게 쓰였는지 살펴봐요. 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, feature: 'cards', shot: 'landing/what-cards.jpg', icon: '' }, // 새 기사·감액 판의 실제 게임 화면(10-26)
+    { title: '함께 따져 봐요', text: `${placeName('cards')}에서 우리 세금이 어떻게 쓰였는지 살펴봐요. 궁금한 건 ${placeName('counsel')}에 바로 물어요. 예산이 새는 사업은 ${placeName('dok')}에서 함께 지켜봐요.`, feature: 'cards', shot: 'landing/what-cards.jpg', icon: '' }, // 이야기 고르기 화면 — 전체 목차가 보이는 곳(사용자 11-04)
   ] },
   why: { title: '왜 만들었나요?', stories: [
     { title: '가장 가까운 돈인데, 가장 멀리 있어요', text: '놀이터, 마을버스, 동네 도서관, 감시 카메라 — 모두 동네 예산으로 만들어요. 우리 생활에 가장 가까운 돈인데, 어디에 얼마를 쓰는지 아는 사람은 드물어요. 보는 눈이 많아야 돈이 제대로 쓰여요.', photo: 'landing/why-1.jpg', caption: '이것도 구예산이에요!' }, // 사용자 사진1(10-26) — 마포구 이동식 무단투기 감시카메라, 밑 작은 글도 사용자
