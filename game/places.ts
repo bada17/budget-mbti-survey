@@ -335,11 +335,14 @@ export type CardsOpts = {
 const dayLabel = (date: string) => { const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(date); return m ? `${Number(m[2])}월 ${Number(m[3])}일` : date; };
 const squash = (text: string) => text.replace(/\s/g, '');
 
+/** [나중에 살림: 교부세 감액] 11-09 사용자 「아직 준비중이에요 … 띄우고 교부세 감액 내용 숨겨」 — true 로 바꾸면 아래 목록이 다시 뜬다. */
+const CUTS_OPEN = false;
 /** 세세히 볼 지방정부 — 기사 메타데이터와 정적 교부세 감액 목록(본문 전재·반응 카드 없음). */
 export function openCuts(shell: HTMLElement, onClose: () => void) {
   const { panel } = placePanel(shell, 'cards', onClose);
   panel.classList.add('v-cuts');
   panel.querySelector('.v-npc')?.remove(); // 이야기 고르기 판에는 문 앞 주민을 두지 않는다.
+  if (!CUTS_OPEN) { panel.append(el('p', 't-lead', '아직 준비중이에요. 우리 삶과 가까운 지방정부 예산에 대한 문제와 대안을 함께 제시해요.')); return; }
   // 이야기 카드는 자료가 온 뒤 숫자를 채운다. 본문·목록은 이 카드와 별도로 그대로 둔다.
   const menu = el('div', 'v-cut-picks'), story = el('div');
   const show = (open: boolean) => { menu.hidden = open; story.hidden = !open; panel.scrollTo({ top: 0 }); };

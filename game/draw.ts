@@ -1248,9 +1248,13 @@ function noteBoard(scene: Scene, place: Place, dpr: number) {
   const g = scene.add.graphics();
   g.fillStyle(0x756956, 0.16).fillEllipse(w / 2, h + 2, w + 16, 10);
   g.fillStyle(0x6d5444).fillRect(8, -40, 6, h + 40).fillRect(w - 14, -40, 6, h + 40);
-  g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(-4, -60, w + 8, 12, 5);
+  // 이름 띠는 글씨에 맞춰 — 전엔 폭 w+8·높이 12 고정이라 「세세히 볼 지방정부」 가 양옆, 「쪽지판」 이 위아래로 삐져나와 풀밭 위 흰 글씨가 깨져 보였다(11-09 사용자). 띠 밑은 판 위(-48)에 붙이고 위로 키운다.
+  const name = label(scene, w / 2, -54, place.name, 11, dpr, '#ffffff');
+  const bandW = Math.max(w + 8, name.width + 16), bandH = Math.max(12, name.height + 4);
+  name.setY(-48 - bandH / 2);
+  g.fillStyle(PLACE_LOOK[place.id].roof).fillRoundedRect(w / 2 - bandW / 2, -48 - bandH, bandW, bandH, 5);
   g.fillStyle(0xd8b48c).fillRoundedRect(0, -48, w, 44, 6);
-  const items: Phaser.GameObjects.GameObject[] = [g, label(scene, w / 2, -54, place.name, 11, dpr, '#ffffff')];
+  const items: Phaser.GameObjects.GameObject[] = [g, name];
   if (cards) { // 문제 카드 — 큰 종이 한 장에 붉은 「!」
     g.fillStyle(0xfffaf0).fillRect(w / 2 - 22, -45, 44, 38).fillStyle(0xd9785f).fillRect(w / 2 - 22, -45, 44, 6);
     items.push(label(scene, w / 2, -21, '!', 20, dpr, '#d9785f'));
