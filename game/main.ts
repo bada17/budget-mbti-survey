@@ -18,7 +18,7 @@ import {
 import { openTown, openReply, openLetter, openLogin, openLoggedIn, openCompare, loginBox, type Person, type LoginOpts } from './town';
 import { openBus, openCounsel, openDok, openFinance, openHouse, openBoard, openTax, openWorks, openCuts, noteCard, noteView, loadMarks, rememberMine, loadPocket, savePocket, ACCESSORY_PRICE, type NoteActions } from './places';
 import { openArcade } from './arcade';
-import { PLACES, keeperName, placeName, dropsOn, kstDay, worksAt, NOTE_GAP_MS, type PlaceId, type Drop } from './village';
+import { PLACES, placeName, dropsOn, kstDay, worksAt, NOTE_GAP_MS, type PlaceId, type Drop } from './village';
 import { seasonOf, skyAt, CANVAS_TEXT, type Season } from './draw';
 import { providers, start as startLogin, finish as finishLogin, returning as returningFromLogin, arrivedFromKakao, justLoggedIn, takeLoginEmail, takeUnsaved, takeFresh, takeBack, keepSynced, syncNow, loginKey, current as loginNow, admin as loginAdmin, logout, PROVIDER_NAME } from './login';
 import { seasonAt, nextSeason, seasonById } from './seasons';
@@ -407,7 +407,7 @@ function enteredVillage() {
 
 /**
  * 마을 둘러보기(사용자 10-16 시민센터 안내 → 10-26 「집들도 시점 이동해서 설명」 — 두 곳만, 한 곳에 말 상자 하나·집마다 한 줄).
- * 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 시민센터 → 동쪽 지방정부 셋 → 서쪽 상담소·독상. 말은 시민센터의 채연하(keeperName('hub')).
+ * 걷기를 끝내고 언덕 아치로 처음 들어온 사람에게 한 번: 시민센터 → 동쪽 지방정부 셋 → 서쪽 상담소·독상. 말은 이름표 없이(11-09 문 앞 이름을 뺐다).
  * 예전 「마을 입구 로그인 판」(들어오자마자 로그인 요구)은 지웠다 — 사용자 「마을 입구 로그인판은 그럼 지워」, 같은 말을 두 번 하게 돼서.
  */
 const TOUR_LINE: Partial<Record<PlaceId, string>> = { // 글은 사용자 10-26 확정(세세히 볼 지방정부만 사용자 글, 나머지는 Claude 초안 그대로)
@@ -421,7 +421,6 @@ function hubGuide() {
   if (villageStart !== 'gate' || shell.querySelector('.t-panel')) return;
   try { if (gameStorage.getItem(HUB_GUIDE)) return; gameStorage.setItem(HUB_GUIDE, '1'); } catch { /* 다음 입장에 다시 안내 */ }
   villageGuiding = true;
-  const guide = keeperName('hub');
   const groups: PlaceId[][] = [['hub'], ['finance', 'tax', 'cards'], ['counsel', 'dok']];
   const last = groups.length - 1;
   const stop = (i: number) => {
@@ -432,7 +431,7 @@ function hubGuide() {
         : loginNow() ? `${placeName('hub')}에서 내 시민증과 도장을 볼 수 있어요.` // 이미 로그인한 사람에게 「로그인하면」 은 틀린 말(10-26)
           : `${placeName('hub')}에서 로그인하면 기록이 남고 다른 기기에서도 이어할 수 있어요.`; // 문구 사용자 10-20
       const next = () => { if (i < last) stop(i + 1); else { villageGuiding = false; village?.endTour(); } };
-      ui.villageNotice(guide, text, [{ label: i < last ? '다음' : '둘러보기 마치기', run: next }]);
+      ui.villageNotice('', text, [{ label: i < last ? '다음' : '둘러보기 마치기', run: next }]);
     });
   };
   stop(0);
@@ -486,7 +485,7 @@ function picked(tree: number, kind: Drop) {
   savePocket(pocket);
   ui.villagePocket(pocket, toWorks);
   // 첫 동전 — 공사터 주민이 넣는 곳을 알려 준다(한 번만). 「나중에」 해도 위 띠 동전을 누르면 공사터로 간다.
-  if (first) ui.villageNotice(keeperName('works'), `동전을 주웠네요! 「동전 모으는 곳」 에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
+  if (first) ui.villageNotice('', `동전을 주웠네요! 「동전 모으는 곳」 에 넣으면 모두의 동전과 모여 ${josa(worksAt(villageView?.coins ?? pocket.given).now?.name ?? '새것', '이', '가')} 지어져요.`,
     [{ label: '넣으러 가기', run: toWorks }, { label: '나중에' }]);
 }
 // ── 마을 부탁(10-17) — quests.ts 규칙(하루 셋·닷새, 그날 셋을 다 해야 다음 날), 해낸 것은 이 기기에. 하루치를 다 하면 액세서리(look.ts REWARDS) ──

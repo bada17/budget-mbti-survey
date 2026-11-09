@@ -10,7 +10,7 @@
 */
 import { panelShell, avatar, el, btn, placeChooser, loadPlaces, placeTitle, loginInvite, noteForm, type LoginOpts } from './town';
 import { DONATE_URL, typeOut, shareButtons } from './ui';
-import { PLACES, keepers, keeperLook, keeperName, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
+import { PLACES, keepers, keeperLook, placeName, COIN_DAY_MAX, WORKS, worksAt, type PlaceId } from './village';
 import { toLook, REWARDS, fullPick, type Pick } from './look';
 import { josa, loadRegion, touched, POCKET_KEY, type Neighbor } from './profile';
 import { PRIVACY_URL, CONTACT } from './contact';
@@ -47,7 +47,7 @@ export function placePanel(shell: HTMLElement, id: PlaceId, onClose: () => void)
   const place = PLACES.find(p => p.id === id)!;
   const { panel, close } = panelShell(shell, onClose, '마을로');
   const npc = el('div', 'v-npc'), said = el('p', 'v-said');
-  npc.append(...keepers(id).map(name => avatar(keeperLook(name))), el('span', 'g-name', keeperName(id)), said);
+  npc.append(...keepers(id).map(name => avatar(keeperLook(name))), said); // 이름표 없이(11-09)
   npc.onclick = () => typeOut(said, place.line); // 다시 누르면 한 번 더 말한다
   panel.append(el('h2', '', placeName(id)), npc);
   typeOut(said, place.line);

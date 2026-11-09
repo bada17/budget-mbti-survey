@@ -1081,10 +1081,7 @@ const FONT = '"Jua","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif';
  * (10-15 「상담소·독상 간판 한 글자가 볼드 처리가 안 된 듯」 — 「시민참여」 의 「참」. 전엔 「마을」 두 글자의 조각만 받았다).
  * 간판에 새 글자를 쓰면 여기에도 넣는다 — 개발판은 빠진 글자를 콘솔에 알린다(label).
  */
-export const CANVAS_TEXT = [...PLACES.map(p => p.name + [p.keeper ?? []].flat().join('')), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! ? 0123456789·/'].join('');
-/** 사람 이름표 — 발밑에 작게, 밝은 테두리를 둘러 바닥 위에서도 읽히게(문 앞을 맡은 시민행동 사람, 10-15). */
-export const nameTag = (scene: Scene, x: number, y: number, text: string, dpr: number) =>
-  label(scene, x, y, text, 11, dpr, '#5b402e').setStroke('#fffaf0', 4).setDepth(y + 2);
+export const CANVAS_TEXT = [...PLACES.map(p => p.name), ...WORKS.map(w => w.name), VILLAGE_NAME, '버스 작은 운동장 동전 다음 공사 준비 중 완성! ? 0123456789·/'].join('');
 /**
  * 캔버스 글씨를 그리는 촘촘함 — 기기 화소 배수를 올림하되 2 아래로는 안 내린다. 캔버스 글씨는 다 이걸 쓴다(시험 game-village 「캔버스 글씨」 가 지킨다).
  * 전엔 dpr 그대로라 PC(1배)·윈도 125%·150% 화면에서 적은 화소로 그린 글씨가 반 칸씩 어긋나 뭉개졌다(10-20 사용자 「글씨체가 또렷하지 않으면 안 돼」).

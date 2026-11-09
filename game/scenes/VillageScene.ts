@@ -17,7 +17,7 @@ import Phaser from 'phaser';
 import { FEEL } from '../feel';
 import { alongTrail, distance, rollBall, type Point } from '../room';
 import { PLACES, keepers, keeperLook, SPAWN, PITCH, GOAL, VILLAGE_W, VILLAGE_H, CROWD_SHOW, PAVILION_SEAT, walkVillage, findPath, placeAt, wanderSpot, worksAt, scored, setBuilt, type PlaceId, type Drop, type WorkId, type WorksState } from '../village';
-import { textRes, Dude, lookFrom, toLook, nameTag, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
+import { textRes, Dude, lookFrom, toLook, drawVillage, noteTag, dust, tapRing, flee, hearts, sparkle, confetti, dropArt, skyAt, facePhoto, ball as makeBall, type Ball, type VillageArt, type Season } from '../draw';
 import { rng, type Pick } from '../look';
 import type { Neighbor } from '../profile';
 import type { PublicNote, VillageView } from '../api';
@@ -66,7 +66,7 @@ export class VillageScene extends Phaser.Scene {
   private art!: VillageArt;
   private buddy?: Dude;
   private trail: Point[] = [];
-  private keepers: { dude: Dude; at: Point; tag?: Phaser.GameObjects.Text }[] = [];
+  private keepers: { dude: Dude; at: Point }[] = [];
   /** 부탁하는 주민(quests.ts) — 「!」 는 아직 안 들어준 부탁만. talking = 지금 말 건 주민(멀어져야 또 연다). */
   private errands = new Map<string, { dude: Dude; at: Point; mark?: Phaser.GameObjects.Container }>();
   private talking?: string;
@@ -110,8 +110,8 @@ export class VillageScene extends Phaser.Scene {
     // 문 앞 주민 — 문 오른쪽에 서서 나를 본다. 판 안의 한마디와 같은 생김새(village.ts keeperLook). 여럿이면 문 왼쪽부터 나란히(시민행동의 집 세 대표).
     for (const place of PLACES) keepers(place.id).forEach((name, i, all) => {
       const at = { x: place.door.x + (all.length > 1 ? [-44, 40, 90][i] : 38), y: place.door.y - 6 };
-      const tag = place.keeper ? nameTag(this, at.x, at.y + 14, name, dpr) : undefined; // 맡은 사람 이름(10-15)
-      this.keepers.push({ dude: new Dude(this, keeperLook(name), at.x, at.y).place(at), at, tag });
+      // 이름표는 없다(사용자 11-09 「빼줘」 — 실명을 뺀 뒤 지어낸 이름은 하는 일이 없어서). name 은 모습을 고르는 데만 쓴다.
+      this.keepers.push({ dude: new Dude(this, keeperLook(name), at.x, at.y).place(at), at });
     });
     this.ball = makeBall(this, PITCH.x + PITCH.w / 2, PITCH.y + PITCH.h / 2);
     cam.startFollow(this.player.root, true, 0.14, 0.14);
@@ -271,7 +271,7 @@ export class VillageScene extends Phaser.Scene {
     const view = this.cameras.main.worldView, m = 90;
     this.art.cull(view);
     const seen = (x: number, y: number) => x > view.x - m && x < view.right + m && y > view.y - m && y < view.bottom + m + 60;
-    for (const { dude, at, tag } of this.keepers) { const on = seen(at.x, at.y); dude.root.setVisible(on); tag?.setVisible(on); }
+    for (const { dude, at } of this.keepers) dude.root.setVisible(seen(at.x, at.y));
     for (const { dude, at, mark } of this.errands.values()) { const on = seen(at.x, at.y); dude.root.setVisible(on); mark?.setVisible(on); }
     for (const folk of this.folks.values()) { const on = seen(folk.at.x, folk.at.y); folk.dude.root.setVisible(on); folk.mark?.setVisible(on); }
     for (const { pet } of this.art.pets) pet.root.setVisible(seen(pet.anchor.x, pet.anchor.y));
