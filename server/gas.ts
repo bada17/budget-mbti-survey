@@ -180,7 +180,7 @@ export type Deps = {
   /** Code.js의 ScriptCache. doPost 잠금 안에서만 읽고 쓴다. 테스트·로컬 저장소에는 없어도 된다. */
   quota?(bucket: string, limit: number, seconds: number): boolean;
   cache?: { get(key: string): string | null; put(key: string, value: string, seconds: number): void };
-  /** Code.js 의 MailApp — 글은 시트 「메일」 탭의 그 종류 줄. 없으면(테스트·옛 Code.js) 명단만 남기고 안 보낸다. */
+  /** Code.js 의 스티비 주소록 넣기 — 메일은 스티비 자동 이메일이 보낸다. 없으면(테스트·옛 Code.js) 명단만 남기고 안 보낸다. */
   mail?(to: string, kind: 'welcome'): void;
 };
 

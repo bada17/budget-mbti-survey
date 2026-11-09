@@ -72,7 +72,7 @@ function deps_() {
         .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
     },
     random: function () { return parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) / Math.pow(16, 12); },
-    mail: function (to, kind) { sendMail_(to, kind); }, // 로그인 메일 동의 → 가입 환영(server/gas.ts rememberMail)
+    mail: function (to) { stibeeAdd_(to); }, // 로그인 메일 동의 → 스티비 「시민의 숲」 주소록 → 스티비 자동 이메일이 가입 환영(server/gas.ts rememberMail)
     quota: function (bucket, limit, seconds) {
       // ponytail: ScriptCache는 일찍 비워질 수 있다. 지속적인 남용이면 영구 카운터/서버 이전으로 바꾼다.
       var cache = CacheService.getScriptCache();
@@ -95,34 +95,30 @@ function reply_(result) {
 }
 
 /*
-  메일(11-09 사용자 「가입 환영 인사부터, 내용은 내가 정해」) — 로그인 칸의 [필수] 이메일 동의를 하고 로그인하면 서버가 「메일 명단」 에 남기고
-  처음 한 번 가입 환영 메일을 보낸다(server/gas.ts rememberMail → deps_().mail). testWelcome 은 편집기에서 나에게 한 통 시험.
-  글은 시트 「메일」 탭에서 사람이 고친다(종류·제목·본문, 본문의 {이름}·{주소} 는 아직 안 씀). 코드를 다시 올리지 않아도 글이 바뀐다.
-  보내는 이름은 함께하는 시민행동, 답장은 action@ 으로. 보내는 주소 자체는 스크립트를 실행하는 계정이다(MailApp 에 from 칸이 없다).
-  ⚠️ MailApp 을 쓰면 메일 보내기 권한이 새로 붙는다 — 서버를 다시 배포하기 전에 주인 계정이 편집기에서 testWelcome 을 한 번 실행해 허용해야 웹 앱이 안 막힌다.
+  가입 환영 메일 = 스티비(11-09 사용자 「갈아끼우기 쉬우면 걍 스티비로」) — 로그인 칸의 [필수] 이메일 동의를 하고 로그인하면
+  서버가 시트 「메일 명단」 에 남기고(server/gas.ts rememberMail) 처음 한 번 여기서 스티비 「시민의 숲」 주소록(528908)에 넣는다.
+  메일은 스티비 자동 이메일(트리거 「구독자 추가」·관리자 추가 포함·중복 안 함·항상)이 보낸다 — 글·모양은 스티비에서 고친다.
+  (처음엔 구글 MailApp 으로 보냈다 — 꾸미기·수신거부·통계 때문에 바꿨다.)
+  구독자 API: POST https://api.stibee.com/v2/lists/{주소록 번호}/subscribers, 머리 AccessToken(스탠다드 이상, 2025-01-21 뒤에 만든 키).
+  키·주소록 번호는 스크립트 속성 STIBEE_KEY · STIBEE_WELCOME_LIST 에(코드·깃에 안 남김). 광고성 동의는 false — 환영 메일은 정보성.
+  API 로 넣은 구독자에게도 자동 이메일이 도는 것을 testStibee 로 확인했다(11-09, 문서엔 없다).
 */
-var MAIL_FROM_ = { name: '함께하는 시민행동', replyTo: 'action@action.or.kr' };
-
-function mailTemplate_(kind) {
-  var book = book_(), sheet = book.getSheetByName('메일');
-  if (!sheet) {
-    sheet = book.insertSheet('메일');
-    sheet.appendRow(['종류', '제목', '본문']);
-    sheet.appendRow(['welcome', '[시험] 시민의 숲에 오신 걸 환영해요', '여기에 가입 환영 인사를 적어 주세요.\n\n— 함께하는 시민행동']);
-  }
-  var rows = sheet.getDataRange().getValues();
-  for (var i = 1; i < rows.length; i++) if (rows[i][0] === kind) return { subject: String(rows[i][1]), body: String(rows[i][2]) };
-  throw new Error('「메일」 탭에 ' + kind + ' 줄이 없다');
+function stibeeAdd_(email) {
+  var props = PropertiesService.getScriptProperties();
+  var key = props.getProperty('STIBEE_KEY'), list = props.getProperty('STIBEE_WELCOME_LIST');
+  if (!key || !list) throw new Error('스크립트 속성에 STIBEE_KEY · STIBEE_WELCOME_LIST 가 없다');
+  var r = UrlFetchApp.fetch('https://api.stibee.com/v2/lists/' + encodeURIComponent(list) + '/subscribers', {
+    method: 'post', contentType: 'application/json', headers: { AccessToken: key }, muteHttpExceptions: true,
+    payload: JSON.stringify({ subscriber: { email: email, status: 'subscribed', marketingAllowed: false }, updateEnabled: true }),
+  });
+  var code = r.getResponseCode();
+  if (code !== 200 && code !== 201) throw new Error('스티비 ' + code + ' ' + r.getContentText().slice(0, 300));
+  return code; // 200 = 새로 넣음, 201 = 이미 있어 고침(이땐 자동 이메일이 안 돌 수 있다)
 }
 
-function sendMail_(to, kind) {
-  var t = mailTemplate_(kind);
-  MailApp.sendEmail(to, t.subject, t.body, MAIL_FROM_);
+/** 편집기에서 실행 — 실행한 사람의 주소를 스티비 「시민의 숲 가입」 주소록에 넣는다. 자동 이메일이 오면 성공. */
+function testStibee() {
+  var me = Session.getEffectiveUser().getEmail(), code = stibeeAdd_(me);
+  Logger.log('스티비에 넣음: ' + me + ' → ' + code + (code === 201 ? ' (이미 있던 주소라 고치기만 함 — 주소록에서 지우고 다시 해 볼 것)' : ' (새로 넣음 — 메일함을 볼 것)'));
 }
 
-/** 편집기에서 실행 — 실행한 사람 자신에게 가입 환영 메일 한 통. 기록(로그)에 어느 계정으로 나갔는지와 오늘 남은 발송 수가 찍힌다. */
-function testWelcome() {
-  var me = Session.getEffectiveUser().getEmail();
-  sendMail_(me, 'welcome');
-  Logger.log('보냄: ' + me + ' 에게, 보낸 계정 ' + me + ' · 오늘 남은 받는 사람 수 ' + MailApp.getRemainingDailyQuota());
-}
