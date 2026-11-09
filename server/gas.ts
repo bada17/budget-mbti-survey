@@ -18,7 +18,7 @@
 */
 import { handle, login, isAdmin, BODY_MAX, type Store, type Hit, type Contact, type Finished, type Visit, type Resident, type Note, type Card, type CardKind } from '../game/api';
 import { TYPES } from '../game/content';
-import { validPayload } from '../game/contact';
+import { validPayload, MAIL_CONSENT_VERSION } from '../game/contact';
 
 /** 쓰는 곳(set)을 기억하는 Map — 시트에는 이것만 다시 쓴다. */
 class Tracked<V> extends Map<string, V> {
@@ -35,6 +35,9 @@ export type Book = { getSheetByName(name: string): Sheet | null; insertSheet(nam
 
 const KV = { finished: '응답', homes: '방명록집', books: '방명록', residents: '주민' } as const;
 const CONTACT_TAB = '연락처';
+/** 로그인 메일 명단(11-09) — 로그인 칸의 [필수] 이메일 동의를 하고 로그인한 사람만. 환영 메일을 보냈으면 그 시각, 비었으면 아직(다음 로그인에 다시 해 본다). */
+const MAIL_TAB = '메일 명단';
+const MAIL_HEAD = ['계정(해시)', '이메일', '동의 판', '동의 시각', '환영 메일'];
 const CONTACT_HEAD = ['받은 시각', '받을 방법', '주소', '만14세', '수집·이용', '활동·후원 소식(선택)', '동의 판', '이웃 이름', '이웃 문항', '이웃 쪽', '이웃 생김새', '유형'];
 
 function tab(book: Book, name: string, head: string[]) {
@@ -177,15 +180,33 @@ export type Deps = {
   /** Code.js의 ScriptCache. doPost 잠금 안에서만 읽고 쓴다. 테스트·로컬 저장소에는 없어도 된다. */
   quota?(bucket: string, limit: number, seconds: number): boolean;
   cache?: { get(key: string): string | null; put(key: string, value: string, seconds: number): void };
+  /** Code.js 의 MailApp — 글은 시트 「메일」 탭의 그 종류 줄. 없으면(테스트·옛 Code.js) 명단만 남기고 안 보낸다. */
+  mail?(to: string, kind: 'welcome'): void;
 };
+
+/**
+ * 동의하고 로그인한 사람의 이메일을 명단에 — 한 계정 한 줄(이메일이 바뀌면 고친다). 환영 메일은 한 번만.
+ * 메일이 실패해도(하루 한도 등) 로그인은 막지 않는다 — 「환영 메일」 칸이 빈 채로 남아 다음 로그인에 다시 해 본다.
+ */
+function rememberMail(book: Book, account: string, email: string, now: number, deps: Deps) {
+  const sheet = tab(book, MAIL_TAB, MAIL_HEAD), last = sheet.getLastRow();
+  const rows = last > 1 ? sheet.getRange(2, 1, last - 1, MAIL_HEAD.length).getValues() : [];
+  const found = rows.findIndex(r => String(r[0]) === account);
+  let welcome = found < 0 ? '' : String(rows[found][4] ?? '');
+  if (!welcome && deps.mail) {
+    try { deps.mail(email, 'welcome'); welcome = new Date(now).toISOString(); } catch { /* 다음 로그인에 다시 */ }
+  }
+  sheet.getRange(found < 0 ? last + 1 : found + 2, 1, 1, MAIL_HEAD.length)
+    .setValues([[account, email, MAIL_CONSENT_VERSION, new Date(now).toISOString(), welcome].map(plain)]);
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 받은 JSON, 쓰는 곳에서 검사
 const json = (text: string): any => { try { return JSON.parse(text); } catch { return undefined; } };
 
 /** 카카오·구글이 「이 사람 맞다」 고 하면 그 회원번호(subject). 아니면 undefined. */
 /**
- * 카카오·구글이 확인해 준 이메일만 — 로그인 직후 「소식 받기」 칸을 채우는 데만 쓰고 시트엔 안 남긴다
- * (동의하면 /contact 가 따로 받는다, 사용자 10-15 「이메일 정도는 받을 수 있잖아」).
+ * 카카오·구글이 확인해 준 이메일만 — 로그인 직후 「소식 받기」 칸을 채우고(사용자 10-15 「이메일 정도는 받을 수 있잖아」),
+ * 로그인 칸의 [필수] 이메일 동의를 실어 왔을 때만 「메일 명단」 에 남긴다(11-09, rememberMail).
  */
 const verifiedEmail = (email: unknown, verified: unknown) =>
   (verified === true || verified === 'true') && typeof email === 'string' && email.length <= 254 && email.includes('@') ? { email: email.toLowerCase() } : {};
@@ -277,7 +298,9 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
     // 관리자인지 여기서 가린다 — 단체 주소 또는 ADMIN_EMAILS(속성·Secret.js). 주민 기록엔 표시만 남는다(쪽지 숨기기를 서버가 다시 확인할 때).
     const admin = Boolean(who?.email && isAdmin(who.email, deps!.prop('ADMIN_EMAILS') ?? ''));
     result = account ? login(store, account, now, deps!.random, admin) : { status: 401, body: { error: 'login-failed' } };
-    // 이메일은 돌려주기만(저장 안 함).
+    // 로그인 칸의 [필수] 이메일 동의를 실어 왔고 카카오·구글이 확인한 이메일이 있을 때만 명단에(11-09). 판이 다르면(옛 화면) 남기지 않는다.
+    if (result.status === 200 && account && who?.email && (body as { mailConsent?: unknown } | null)?.mailConsent === MAIL_CONSENT_VERSION) rememberMail(book, account, who.email, now, deps!);
+    // 이메일은 돌려준다 — 저장은 위 동의가 있을 때 「메일 명단」 에만.
     if (who?.email && result.status === 200) result = { ...result, body: { ...result.body, email: who.email, ...(admin ? { admin: true } : {}) } };
   } else result = handle(store, method, path, body, now);
   // 유입은 GET 으로도 온다 — 쓰기 묶음 밖에서 덧붙인다. appendRow 는 한 줄씩이라 잠금 없이 겹쳐도 줄이 섞이지 않는다.

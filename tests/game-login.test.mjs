@@ -187,3 +187,35 @@ test('주소(10-19 forest.action.or.kr, 10-20 첫 주소로 옮김): 첫 주소�
   }
   assert.equal(verifyLogin({ provider: 'kakao', code: 'good', redirectUri: 'https://forest.action.or.kr/other/' }, fakeDeps(kakaoOk, all), 0), undefined, '게임 주소만');
 });
+
+test('로그인 메일 명단(11-09): [필수] 이메일 동의를 실어 온 로그인만 남기고, 환영 메일은 한 번 — 실패해도 로그인은 된다', async () => {
+  const { fakeBook } = await import('./fake-sheet.mjs');
+  const { MAIL_CONSENT_VERSION } = await import('../game/contact.ts');
+  const book = fakeBook(), sent = [];
+  const withMail = (account, mail = (to, kind) => sent.push([to, kind])) => ({ ...fakeDeps(kakaoWith(account)), mail });
+  const verified = { email: 'Me@Mail.com', is_email_valid: true, is_email_verified: true };
+  const login = (deps, extra = { mailConsent: MAIL_CONSENT_VERSION }, now = 1000) =>
+    serve('POST', { parameter: { p: '/login' }, postData: { contents: JSON.stringify({ provider: 'kakao', code: 'good', redirectUri, ...extra }) } }, book, now, deps);
+  const list = () => book.sheets.get('메일 명단')?.rows ?? [];
+
+  assert.equal(login(withMail(verified), {}).status, 200);
+  assert.equal(list().length, 0, '동의 판이 없으면(옛 화면) 남기지 않는다');
+  assert.equal(login(withMail(verified), { mailConsent: 'old' }).status, 200);
+  assert.equal(list().length, 0, '판이 다르면 남기지 않는다');
+
+  assert.equal(login(withMail({ ...verified, is_email_verified: false })).status, 200);
+  assert.equal(list().length, 0, '확인 안 된 이메일은 남기지 않는다');
+
+  // 메일이 실패하면 로그인은 되고 「환영 메일」 칸이 빈다 → 다음 로그인에 다시 보낸다
+  assert.equal(login(withMail(verified, () => { throw new Error('한도'); })).status, 200);
+  assert.equal(list().length, 2, '머리 줄 + 한 사람');
+  assert.equal(list()[1][4], "'", '환영 메일 아직');
+  assert.equal(login(withMail(verified), undefined, 2000).status, 200);
+  assert.deepEqual(sent, [['me@mail.com', 'welcome']]);
+  assert.equal(login(withMail(verified), undefined, 3000).status, 200);
+  assert.equal(sent.length, 1, '한 번만');
+  assert.equal(list().length, 2, '한 계정 한 줄');
+  assert.deepEqual(list()[1].slice(1, 3), ["'me@mail.com", `'${MAIL_CONSENT_VERSION}`]);
+  assert.match(list()[1][4], /^'\d{4}-/);
+  assert.ok(!JSON.stringify(list()).includes('4242'), '회원번호는 안 남는다');
+});

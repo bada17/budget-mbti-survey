@@ -7,6 +7,12 @@
   선택 = 시민행동 활동·후원 안내(광고성 정보, 정보통신망법 50조). 어느 것도 미리 체크해 두지 않는다.
 */
 export const CONSENT_VERSION = 'game-contact-draft-2026-10-13';
+/**
+ * 로그인 메일 동의(11-09 사용자 「로그인 앞 필수 동의로 이메일 받기」 ⓐ) — 로그인 칸의 [필수] 「이메일 수집·이용」.
+ * 동의하고 로그인하면 화면이 이 판을 서버에 실어 보내고, 서버는 그때만 확인된 이메일을 시트 「메일 명단」 에 남겨 가입 환영 메일을 보낸다(server/gas.ts rememberMail).
+ * 문구(town.ts loginBox)를 바꾸면 판을 올린다 — 무엇에 동의했는지 시트에 판으로 남는다.
+ */
+export const MAIL_CONSENT_VERSION = 'game-login-mail-2026-11-09';
 export const PRIVACY_URL = 'https://action.or.kr/8';
 export const CONTACT = { mail: 'action@action.or.kr', tel: '02-921-4709' }; // 홈페이지 하단과 같은 것(landing-footer.html)
 

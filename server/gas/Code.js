@@ -4,12 +4,23 @@
   쓰는 요청은 한 번에 하나씩(LockService) — 두 사람이 같은 줄을 동시에 고치지 않게.
 */
 function doGet(e) {
+  // 통계는 1분 기억한다(11-09) — 페이지를 열 때마다 누구나 부르는데, 끝낸 사람 기록을 통째로 읽어 사람이 쌓일수록 느려진다.
+  // 몰려도 시트는 1분에 한 번만 읽는다. 끝내고 받는 통계(POST /finish)는 따로라 늘 새것.
+  if (e && e.parameter && e.parameter.p === '/stats') {
+    var cache = CacheService.getScriptCache(), kept = cache.get('game-stats');
+    if (kept) return reply_({ status: 200, body: JSON.parse(kept) });
+    var fresh = GameServer.serve('GET', e, book_(), Date.now());
+    if (fresh.status < 400) try { cache.put('game-stats', JSON.stringify(fresh.body), 60); } catch (err) { /* 100KB 를 넘으면 기억만 못 한다 */ }
+    return reply_(fresh);
+  }
   return reply_(GameServer.serve('GET', e, book_(), Date.now()));
 }
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(20000)) return reply_({ status: 503, body: { error: 'busy' } });
+  // 8초 — 화면은 12초에 포기한다(net.ts). 그보다 먼저 「busy」로 답해야 「실패」를 본 사람 몰래 저장돼 쪽지가 두 장 붙는 일이 없고,
+  // 기다리는 요청도 동시 실행 30칸을 차지하니 빨리 비켜 준다(11-09).
+  if (!lock.tryLock(8000)) return reply_({ status: 503, body: { error: 'busy' } });
   try {
     return reply_(GameServer.serve('POST', e, book_(), Date.now(), deps_()));
   } finally {
@@ -61,6 +72,7 @@ function deps_() {
         .map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
     },
     random: function () { return parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) / Math.pow(16, 12); },
+    mail: function (to, kind) { sendMail_(to, kind); }, // 로그인 메일 동의 → 가입 환영(server/gas.ts rememberMail)
     quota: function (bucket, limit, seconds) {
       // ponytail: ScriptCache는 일찍 비워질 수 있다. 지속적인 남용이면 영구 카운터/서버 이전으로 바꾼다.
       var cache = CacheService.getScriptCache();
@@ -80,4 +92,37 @@ function book_() {
 
 function reply_(result) {
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/*
+  메일(11-09 사용자 「가입 환영 인사부터, 내용은 내가 정해」) — 로그인 칸의 [필수] 이메일 동의를 하고 로그인하면 서버가 「메일 명단」 에 남기고
+  처음 한 번 가입 환영 메일을 보낸다(server/gas.ts rememberMail → deps_().mail). testWelcome 은 편집기에서 나에게 한 통 시험.
+  글은 시트 「메일」 탭에서 사람이 고친다(종류·제목·본문, 본문의 {이름}·{주소} 는 아직 안 씀). 코드를 다시 올리지 않아도 글이 바뀐다.
+  보내는 이름은 함께하는 시민행동, 답장은 action@ 으로. 보내는 주소 자체는 스크립트를 실행하는 계정이다(MailApp 에 from 칸이 없다).
+  ⚠️ MailApp 을 쓰면 메일 보내기 권한이 새로 붙는다 — 서버를 다시 배포하기 전에 주인 계정이 편집기에서 testWelcome 을 한 번 실행해 허용해야 웹 앱이 안 막힌다.
+*/
+var MAIL_FROM_ = { name: '함께하는 시민행동', replyTo: 'action@action.or.kr' };
+
+function mailTemplate_(kind) {
+  var book = book_(), sheet = book.getSheetByName('메일');
+  if (!sheet) {
+    sheet = book.insertSheet('메일');
+    sheet.appendRow(['종류', '제목', '본문']);
+    sheet.appendRow(['welcome', '[시험] 시민의 숲에 오신 걸 환영해요', '여기에 가입 환영 인사를 적어 주세요.\n\n— 함께하는 시민행동']);
+  }
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) if (rows[i][0] === kind) return { subject: String(rows[i][1]), body: String(rows[i][2]) };
+  throw new Error('「메일」 탭에 ' + kind + ' 줄이 없다');
+}
+
+function sendMail_(to, kind) {
+  var t = mailTemplate_(kind);
+  MailApp.sendEmail(to, t.subject, t.body, MAIL_FROM_);
+}
+
+/** 편집기에서 실행 — 실행한 사람 자신에게 가입 환영 메일 한 통. 기록(로그)에 어느 계정으로 나갔는지와 오늘 남은 발송 수가 찍힌다. */
+function testWelcome() {
+  var me = Session.getEffectiveUser().getEmail();
+  sendMail_(me, 'welcome');
+  Logger.log('보냄: ' + me + ' 에게, 보낸 계정 ' + me + ' · 오늘 남은 받는 사람 수 ' + MailApp.getRemainingDailyQuota());
 }

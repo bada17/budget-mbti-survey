@@ -236,7 +236,7 @@ export function openTown(shell: HTMLElement, data: HubData, onClose: () => void,
 /**
  * 로그인 자리 — 안 했으면 로그인 단추(만 14세 체크 하나 + 안내 한 줄), 했으면 「함께하고 있어요」 와 로그아웃.
  * 말은 「지키기」 가 아니라 「함께」(사용자 10-19 「지키기 이런 표현보다 함께한다는 표현으로 하는게 맞지 않나?」).
- * 동의 칸은 [필수] 만 14세 하나(사용자 10-19 「해봐」) — 계정 확인은 서비스에 꼭 필요한 처리라 체크 칸 대신 안내 한 줄(개인정보처리방침 링크).
+ * 동의 칸은 [필수] 만 14세(사용자 10-19 「해봐」) + [필수] 이메일 수집·이용(11-09 — 가입 환영 메일) — 계정 확인은 서비스에 꼭 필요한 처리라 체크 칸 대신 안내 한 줄(개인정보처리방침 링크).
  * [선택] 소식 받기는 로그인 조건으로 묶지 않는다(정보통신망법 50조·개인정보보호법 22조) — 연락처 칸이 켜진 판(opts.news)에서만 보인다.
  * back = 로그인하고 돌아오면 다시 열 판(login.ts Intent).
  * 10-26 줄임(사용자 「로그인이 좀 복잡하고 어색해」): 자리마다 다르던 제목·단추 말(함께·불러오기·로그인)을 하나로, 「서버 기록 지우기」 는 걷었다
@@ -262,9 +262,19 @@ export function loginBox(opts: LoginOpts, back?: string) {
     const agree = el('div', 't-agree'), buttons: HTMLButtonElement[] = [];
     const check = (text: string) => { const label = el('label', 't-check'), input = el('input'); input.type = 'checkbox'; label.append(input, el('span', '', text)); agree.append(label); return input; };
     const age = check('[필수] 만 14세 이상이에요');
+    // [필수] 이메일 수집·이용(11-09 사용자 ⓐ) — 동의해야 로그인한다. 서버는 동의한 판(MAIL_CONSENT_VERSION)을 받을 때만 메일 명단에 남긴다.
+    const mail = check('[필수] 이메일 수집·이용에 동의해요');
+    const why = el('details', 't-small t-agree-why');
+    why.innerHTML = `<summary>무엇을 왜 받나요</summary><ul>
+      <li>목적: 가입 환영 등 시민의 숲 안내 메일 보내기</li>
+      <li>항목: 카카오·구글이 확인해 준 이메일 주소</li>
+      <li>보유·이용 기간: [단체가 정할 것] — 그 전이라도 거두시면 바로 지워요</li>
+      <li>동의하지 않을 수 있어요. 그러면 로그인은 못 하지만, 게임과 결과는 이 기기에서 그대로예요.</li></ul>`;
+    agree.append(why);
     const news = opts.news ? check('[선택] 시민행동이 하는 일 소식도 받아 볼래요') : undefined;
-    const hint = el('p', 't-small t-agree-hint', '만 14세 칸에 체크하면 로그인 단추가 켜져요.');
-    age.onchange = () => { buttons.forEach(b => { b.disabled = !age.checked; }); hint.hidden = age.checked; };
+    const hint = el('p', 't-small t-agree-hint', '[필수] 두 칸에 체크하면 로그인 단추가 켜져요.');
+    const gate = () => { const ok = age.checked && mail.checked; buttons.forEach(b => { b.disabled = !ok; }); hint.hidden = ok; };
+    age.onchange = gate; mail.onchange = gate;
     box.append(agree, hint);
     for (const provider of opts.providers) {
       const button = btn(`t-login-btn t-${provider}`, '', () => {
@@ -282,7 +292,7 @@ export function loginBox(opts: LoginOpts, back?: string) {
       buttons.push(button);
       box.append(button);
     }
-    // 받는 것 그대로(server/gas.ts): 회원번호는 소금 친 해시로만, 이메일은 남기지 않는다(소식 받기에 따로 동의할 때만 연락처로).
+    // 받는 것 그대로(server/gas.ts): 회원번호는 소금 친 해시로만, 이메일은 위 [필수] 동의대로 「메일 명단」 에(11-09).
     const note = el('p', 't-small t-login-note', '로그인하면 카카오·구글 계정을 알아볼 수 없게 바꿔 기록을 이어요. ');
     const policy = el('a', '', '개인정보처리방침'); policy.href = PRIVACY_URL; policy.target = '_blank'; policy.rel = 'noopener';
     note.append(policy);

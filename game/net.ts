@@ -89,7 +89,7 @@ export const net = {
   react: (id: string, voter: string, kind: CardKind) => call<{ card: PublicCard }>('POST', `/cards/${encodeURIComponent(id)}/react`, { voter, kind }),
   coins: (sessionId: string, n: number) => call<{ took: number; view: VillageView }>('POST', '/village/coins', { sessionId, n }),
   // 로그인(10-14) — 확인은 서버가 카카오·구글에 묻는다. 그다음은 열쇠로.
-  login: (proof: { provider: string; redirectUri: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save; email?: string; admin?: boolean }>('POST', '/login', proof),
+  login: (proof: { provider: string; redirectUri: string; mailConsent?: string; code?: string; idToken?: string; nonce?: string }) => call<{ key: string; save: Save; email?: string; admin?: boolean }>('POST', '/login', proof),
   me: (key: string) => call<{ save: Save; admin: boolean }>('POST', '/me', { key }),
   saveMe: (key: string, save: Save) => call<{ ok: true }>('POST', '/me/save', { key, save }),
 };

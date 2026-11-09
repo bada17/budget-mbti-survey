@@ -20,6 +20,7 @@ import { net } from './net';
 import { isInspectionMode } from './storage';
 import { saveLogin, loadLogin, clearLogin, clearSave, importSave, exportSave, cleanSave, onWrite, type Login, type Save } from './profile';
 import { TYPES } from './content';
+import { MAIL_CONSENT_VERSION } from './contact';
 
 export type Provider = Login['provider'];
 const KAKAO: string | undefined = import.meta.env?.VITE_KAKAO_REST_KEY || undefined;
@@ -126,7 +127,8 @@ export async function finish(): Promise<'done' | 'failed' | 'cancelled' | undefi
   if (!pending?.provider || pending.state !== state) return 'failed'; // 내가 보낸 길이 아니다
   if (error) return 'cancelled';
   const proof = pending.provider === 'kakao' ? { code: code ?? '' } : { idToken: idToken ?? '', nonce: state };
-  const result = await net.login({ provider: pending.provider, redirectUri: here(), ...proof });
+  // 로그인 칸의 [필수] 이메일 동의를 해야 이 길에 온다(town.ts loginBox) — 동의한 판을 실어 보내 서버가 메일 명단에 남긴다(11-09).
+  const result = await net.login({ provider: pending.provider, redirectUri: here(), mailConsent: MAIL_CONSENT_VERSION, ...proof });
   if (!result) return 'failed';
   saveLogin({ key: result.key, provider: pending.provider, ...(result.admin ? { admin: true as const } : {}) });
   const fresh = !Object.keys(cleanSave(result.save) ?? {}).length; // 처음 로그인한 계정 — 불러올 게 없었다(10-26, 「불러오기」 를 눌렀는데 그냥 「로그인했어요」 만 떴다)
