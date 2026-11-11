@@ -39,3 +39,17 @@ test('시트 — 「유입」 에 덧붙이고, 처음엔 「유입 요약」 �
   assert.deepEqual(rows.map(r => [r[1], r[2]]), [['들어옴', "'news letter"], ['끝까지', "'news letter"]]);
   assert.match(String(book.sheets.get('유입 요약').rows[0][0]), /^=QUERY\('유입'/);
 });
+
+test('숫자 끝점 /counts — 주민(지운 계정 빼고)·들어옴·팝업만, 탭이 없으면 0', () => {
+  const book = fakeBook();
+  assert.deepEqual(serve('GET', { parameter: { p: '/counts' } }, book, 1).body, { ok: true, residents: 0, arrivals: 0, popup: 0 });
+  assert.equal(book.sheets.size, 0, '읽기만 — 탭을 만들지 않는다');
+  const res = book.insertSheet('주민');
+  res.appendRow(['계정(해시)', '값', '고친 시각']);
+  res.appendRow(['kakao:a', JSON.stringify({ key: 'k1', save: {}, at: 1 }), '']);
+  res.appendRow(['kakao:b', JSON.stringify({ key: '', save: {}, at: 1 }), '']);
+  for (const p of ['/hit/arrive/session-aaaa/action-home/popup/forest', '/hit/arrive/session-bbbb/-/-/-', '/hit/share/session-aaaa/-/-/-'])
+    serve('GET', { parameter: { p } }, book, 2);
+  const got = serve('GET', { parameter: { p: '/counts' } }, book, 3).body;
+  assert.deepEqual(got, { ok: true, residents: 1, arrivals: 2, popup: 1 });
+});

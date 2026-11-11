@@ -163,6 +163,22 @@ function hitSheet(book: Book) {
   return made;
 }
 
+/**
+ * 아침 보고(action-daily)가 하루 한 번 묻는 숫자(11-11) — **사람 수만**, 계정·이메일은 안 낸다(상담소 숫자 끝점과 같은 원칙).
+ * 누적이라 하루 증감은 그쪽 스냅샷이 구한다. 주민 = 열쇠가 있는 계정(지운 계정 빼고), 팝업 = 들어옴 중 매체 popup(홈페이지 공지 팝업).
+ * 시트가 아직 없으면 0 — 탭을 만들지 않는다(읽기만).
+ */
+function counts(book: Book) {
+  const res = book.getSheetByName(KV.residents), hits = book.getSheetByName(HIT_TAB);
+  const residents = res ? [...readKV<Resident>(res).values()].filter(r => r.key).length : 0;
+  let arrivals = 0, popup = 0;
+  const last = hits?.getLastRow() ?? 0;
+  if (hits && last > 1) for (const [what, , medium] of hits.getRange(2, 2, last - 1, 3).getValues()) {
+    if (what === HIT_WORD.arrive) { arrivals++; if (medium === 'popup') popup++; }
+  }
+  return { ok: true, residents, arrivals, popup };
+}
+
 const contactRow = (c: Contact) => [
   new Date(c.receivedAt).toISOString(), c.channel === 'sms' ? '문자' : '이메일', c.address, '예', '예', c.consents.marketing ? '예' : '아니오', c.consentVersion,
   c.neighbor?.name ?? '', c.neighbor?.questionId ?? '', c.neighbor?.key ?? '', c.neighbor?.seed ?? '', c.type ? `${c.type} ${TYPES[c.type].name}` : '',
@@ -257,6 +273,7 @@ export function serve(method: 'GET' | 'POST', event: GasEvent, book: Book, now =
   // 유입은 GET(잠금 없이) — 따로 분당 한도. 넘으면 그 줄만 버린다(끝낸 판·쓰기 한도는 건드리지 않는다).
   if (method === 'GET' && path.startsWith('/hit/') && deps?.quota && !deps.quota(`hits:${Math.floor(now / 60000)}`, 600, 60)) return { status: 429, body: { error: 'hit-limit' } };
   if (method === 'POST' && path === '/contact' && deps?.prop('CONTACT_ENABLED') !== 'true') return { status: 403, body: { error: 'contact-disabled' } };
+  if (method === 'GET' && path === '/counts') return { status: 200, body: counts(book) };
   let body: unknown = null;
   try { body = contents ? JSON.parse(contents) : null; } catch { return { status: 400, body: { error: 'bad-json' } }; }
   let contactCacheKey: string | undefined;
